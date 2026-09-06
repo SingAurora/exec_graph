@@ -25,7 +25,7 @@ const filterLabels: Array<{ value: ContractFilter; label: string }> = [
 
 const inputClass = 'h-11 rounded-md border border-rail bg-paper px-3 text-sm outline-none focus:border-signal focus:shadow-focusline'
 
-export function SmartContractsPage() {
+export function SmartContractsPage({ compact = false }: { compact?: boolean }) {
   const smartContracts = useExecStore((state) => state.smartContracts)
   const projects = useExecStore((state) => state.projects)
   const createSmartContract = useExecStore((state) => state.createSmartContract)
@@ -53,11 +53,11 @@ export function SmartContractsPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className={compact ? 'space-y-7' : 'space-y-8'}>
       <section className="flex flex-wrap items-end justify-between gap-5 border-b border-rail pb-7">
         <div>
           <div className="font-mono text-xs font-semibold uppercase text-signal">Smart contracts</div>
-          <h1 className="mt-3 font-display text-4xl font-semibold leading-tight text-ink">智能合约</h1>
+          {compact ? <h2 className="mt-2 font-display text-2xl font-semibold leading-tight text-ink">智能合约</h2> : <h1 className="mt-3 font-display text-4xl font-semibold leading-tight text-ink">智能合约</h1>}
         </div>
         <button
           type="button"

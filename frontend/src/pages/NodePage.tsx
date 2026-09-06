@@ -72,11 +72,12 @@ export function NodePage() {
   }
 
   const branch = allBranches.find((item) => item.id === contract.branchId)
+  const isTaskNode = contract.nodeKind === 'task'
   const isArchived = Boolean(project?.archivedAt)
   const isCurrent = !isArchived && (project?.currentContractId === contract.id || branch?.currentContractId === contract.id)
   const currentContract = allContracts.find((item) => item.id === (branch ? branch.currentContractId : project?.currentContractId))
   const isReviewing = contract.stage === 'frozen' && Boolean(contract.completionClaim) && !contract.aiReview
-  const canSubmit = isCurrent && contract.stage === 'frozen' && !isReviewing
+  const canSubmit = !isTaskNode && isCurrent && contract.stage === 'frozen' && !isReviewing
   const aiReviewPassed = contract.aiReview?.verdict === 'pass'
   const canLock = isCurrent && (contract.stage === 'verified' || contract.stage === 'needs_supplement') && Boolean(contract.aiReview)
   const supplement = allContracts.find((item) => item.supplementOfContractId === contract.id)
@@ -96,6 +97,7 @@ export function NodePage() {
     Boolean(project) &&
     (branch ? branch.headContractId === contract.id && !branch.currentContractId : !project?.currentContractId)
   const canFork = !isArchived && Boolean(completionRecord) && Boolean(project) && completionRecord?.closingContractId === contract.id
+  const canStartFromTask = isTaskNode && isCurrent && Boolean(project)
 
   return (
     <div className="space-y-7">
@@ -159,6 +161,35 @@ export function NodePage() {
         </section>
       ) : null}
 
+      {isTaskNode ? (
+        <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
+          <div className="rounded-md border border-rail bg-white/72 p-5">
+            <div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal">
+              <Scale size={15} aria-hidden="true" />
+              Task root
+            </div>
+            <h2 className="mt-3 font-display text-2xl font-semibold">项目的任务起点</h2>
+            <p className="mt-3 text-sm leading-6 text-graphite">{contract.verifiableGoal}</p>
+            {canStartFromTask && project ? (
+              <Link
+                to={`/projects/${project.id}?parent=${contract.id}${branch ? `&branch=${branch.id}` : ''}#new-node`}
+                className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-md bg-ink px-4 text-sm font-semibold text-paper transition hover:bg-graphite focus:outline-none focus-visible:shadow-focusline"
+              >
+                <GitBranchPlus size={17} aria-hidden="true" />
+                开始第一次推进
+              </Link>
+            ) : null}
+          </div>
+
+          <aside className="rounded-md border border-rail bg-[#efebe1] p-5">
+            <div className="font-mono text-xs font-semibold uppercase text-signal">Task draft</div>
+            <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-graphite">{contract.originalIntent}</p>
+            <div className="mt-5 border-t border-rail pt-4 text-xs leading-5 text-graphite">
+              首个节点只定义任务，不提交完成证明。真正的行动和证据会从后续推进节点开始记录。
+            </div>
+          </aside>
+        </section>
+      ) : (
       <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div className="rounded-md border border-rail bg-white/72 p-5">
           <div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal">
@@ -188,6 +219,7 @@ export function NodePage() {
           </div>
         </aside>
       </section>
+      )}
 
       {canSubmit ? (
         <section className="rounded-md border border-rail bg-white/72 p-5">

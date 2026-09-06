@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowRight, UserPlus } from 'lucide-react'
-import { useState } from 'react'
+import { ArrowRight, Eye, EyeOff, MailCheck, UserPlus } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
@@ -8,9 +8,10 @@ import { AuthLayout } from '../components/AuthLayout'
 import { useExecStore } from '../store/useExecStore'
 
 const registerSchema = z.object({
-  username: z.string().min(2, '请输入至少两个字符的用户名。'),
+  username: z.string().min(2, '请输入至少两个字符的用户名。').max(64, '用户名不能超过 64 个字符。'),
   email: z.string().email('请输入有效邮箱。'),
   password: z.string().min(6, '密码至少需要 6 个字符。'),
+  code: z.string().regex(/^\d{6}$/, '请输入 6 位数字验证码。'),
 })
 
 type RegisterForm = z.infer<typeof registerSchema>
@@ -18,20 +19,80 @@ type RegisterForm = z.infer<typeof registerSchema>
 export function RegisterPage() {
   const navigate = useNavigate()
   const registerAccount = useExecStore((state) => state.registerAccount)
+  const setAccessToken = useExecStore((state) => state.setAccessToken)
   const [authError, setAuthError] = useState('')
+  const [notice, setNotice] = useState('')
+  const [countdown, setCountdown] = useState(0)
+  const [isSendingCode, setIsSendingCode] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const {
     register,
     handleSubmit,
+    getValues,
+    trigger,
     formState: { errors, isSubmitting },
   } = useForm<RegisterForm>({ resolver: zodResolver(registerSchema) })
 
-  const onSubmit = (values: RegisterForm) => {
-    const result = registerAccount(values.username, values.email, values.password)
-    if (!result.success) {
-      setAuthError(result.message ?? '创建失败，请稍后重试。')
-      return
+  useEffect(() => {
+    if (countdown === 0) return
+    const timer = window.setInterval(() => {
+      setCountdown((value) => Math.max(0, value - 1))
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [countdown])
+
+  const sendCode = async () => {
+    setAuthError('')
+    setNotice('')
+    if (!(await trigger('email'))) return
+
+    setIsSendingCode(true)
+    try {
+      const response = await fetch('/api/auth/send-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: getValues('email') }),
+      })
+      const data = (await response.json().catch(() => ({}))) as { error?: string; message?: string }
+      if (!response.ok) throw new Error(data.error ?? '验证码发送失败，请稍后重试。')
+      setCountdown(60)
+      setNotice(data.message ?? '验证码已发送，请查收邮件。')
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : '验证码发送失败，请稍后重试。')
+    } finally {
+      setIsSendingCode(false)
     }
-    navigate('/')
+  }
+
+  const onSubmit = async (values: RegisterForm) => {
+    setAuthError('')
+    setNotice('')
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(values),
+      })
+      const data = (await response.json().catch(() => ({}))) as { error?: string; accessToken?: string }
+      if (!response.ok) {
+        setAuthError(data.error ?? '创建失败，请稍后重试。')
+        return
+      }
+      if (!data.accessToken) {
+        setAuthError('账号已创建，但登录会话创建失败，请稍后重试。')
+        return
+      }
+
+      const result = registerAccount(values.username, values.email, values.password)
+      if (!result.success) {
+        setAuthError(result.message ?? '创建失败，请稍后重试。')
+        return
+      }
+      setAccessToken(data.accessToken)
+      navigate('/')
+    } catch {
+      setAuthError('无法连接服务，请确认后端已启动。')
+    }
   }
 
   return (
@@ -62,24 +123,53 @@ export function RegisterPage() {
           </label>
           <label className="grid gap-2">
             <span className="text-sm font-semibold text-ink">邮箱</span>
-            <input
-              type="email"
-              autoComplete="email"
-              className="h-11 rounded-md border border-rail bg-paper px-3 text-sm outline-none focus:border-signal focus:shadow-focusline"
-              {...register('email')}
-            />
+            <div className="flex gap-2">
+              <input
+                type="email"
+                autoComplete="email"
+                className="h-11 min-w-0 flex-1 rounded-md border border-rail bg-paper px-3 text-sm outline-none focus:border-signal focus:shadow-focusline"
+                {...register('email')}
+              />
+              <button
+                type="button"
+                onClick={sendCode}
+                disabled={isSendingCode || countdown > 0}
+                className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-md border border-rail bg-white px-3 text-sm font-semibold text-ink transition hover:border-signal hover:text-signal disabled:cursor-not-allowed disabled:opacity-55 focus:outline-none focus-visible:shadow-focusline"
+              >
+                <MailCheck size={16} aria-hidden="true" />
+                {isSendingCode ? '发送中' : countdown > 0 ? `${countdown}s 后重发` : '发送验证码'}
+              </button>
+            </div>
             {errors.email?.message ? <span className="text-sm font-medium text-clay">{errors.email.message}</span> : null}
           </label>
           <label className="grid gap-2">
-            <span className="text-sm font-semibold text-ink">密码</span>
+            <span className="text-sm font-semibold text-ink">邮箱验证码</span>
             <input
-              type="password"
-              autoComplete="new-password"
-              className="h-11 rounded-md border border-rail bg-paper px-3 text-sm outline-none focus:border-signal focus:shadow-focusline"
-              {...register('password')}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              placeholder="输入 6 位验证码"
+              className="h-11 rounded-md border border-rail bg-paper px-3 text-sm tracking-[0.2em] outline-none focus:border-signal focus:shadow-focusline"
+              {...register('code')}
             />
+            {errors.code?.message ? <span className="text-sm font-medium text-clay">{errors.code.message}</span> : null}
+          </label>
+          <label className="grid gap-2">
+            <span className="text-sm font-semibold text-ink">密码</span>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="new-password"
+                className="h-11 w-full rounded-md border border-rail bg-paper px-3 pr-11 text-sm outline-none focus:border-signal focus:shadow-focusline"
+                {...register('password')}
+              />
+              <button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute inset-y-0 right-0 grid w-11 place-items-center text-graphite transition hover:text-ink focus:outline-none focus-visible:shadow-focusline" aria-label={showPassword ? '隐藏密码' : '显示密码'} title={showPassword ? '隐藏密码' : '显示密码'}>
+                {showPassword ? <EyeOff size={17} aria-hidden="true" /> : <Eye size={17} aria-hidden="true" />}
+              </button>
+            </div>
             {errors.password?.message ? <span className="text-sm font-medium text-clay">{errors.password.message}</span> : null}
           </label>
+          {notice ? <p className="text-sm font-medium text-signal" role="status">{notice}</p> : null}
           {authError ? <p className="text-sm font-medium text-clay" role="alert">{authError}</p> : null}
           <button
             type="submit"

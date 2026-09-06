@@ -5,4 +5,6 @@ frontend/node_modules/
 frontend/dist/
 frontend/.vite/
 
+/backend/config.local.yaml
+
 *.log

@@ -1,13 +1,13 @@
-import { Archive, ArrowRight, CheckCircle2, Eye, FileCheck2, FolderKanban, GitBranchPlus, LockKeyhole, ShieldCheck } from 'lucide-react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Archive, ArrowRight, CheckCircle2, Eye, FileCheck2, FolderKanban, FolderPlus, GitBranchPlus, LockKeyhole, ShieldCheck } from 'lucide-react'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { ContractComposer } from '../components/ContractComposer'
-import { ProjectComposer } from '../components/ProjectComposer'
 import { SectionHeader } from '../components/SectionHeader'
 import { StatusBadge } from '../components/StatusBadge'
 import { useExecStore } from '../store/useExecStore'
 import type { ExecutionContract, Project } from '../types'
 
 const currentAction = (contract: ExecutionContract) => {
+  if (contract.nodeKind === 'task') return { label: '开始第一次推进', description: '任务起点已经建立，下一步从这里创建第一条推进节点。', icon: LockKeyhole }
   if (contract.stage === 'verified') return { label: '确认 AI 结果', description: 'AI 已通过审查，确认后节点会被锁定并生成记录。', icon: CheckCircle2 }
   if (contract.stage === 'needs_supplement') return { label: '处理 AI 结果', description: 'AI 未通过，可以生成补足节点，也可以带着结论锁定。', icon: GitBranchPlus }
   return { label: '提交推进结果', description: '完成一次推进后，节点会进入待确认 AI 结果。', icon: FileCheck2 }
@@ -19,6 +19,8 @@ export function DashboardPage() {
   const contracts = useExecStore((state) => state.contracts)
   const defaultProject = projects.find((project) => project.isDefault) ?? projects[0]
   const defaultCurrent = contracts.find((contract) => contract.id === defaultProject?.currentContractId)
+
+  if (searchParams.get('new') === 'project') return <Navigate to="/projects/new" replace />
 
   return (
     <div className="space-y-10">
@@ -45,7 +47,13 @@ export function DashboardPage() {
               <ShieldCheck size={16} aria-hidden="true" />
               管理智能合约
             </Link>
-            <ProjectComposer key={searchParams.get('new') === 'project' ? 'open' : 'closed'} openByDefault={searchParams.get('new') === 'project'} />
+            <Link
+              to="/projects/new"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-rail bg-white/72 px-3 text-sm font-semibold text-ink transition hover:border-graphite/50 focus:outline-none focus-visible:shadow-focusline"
+            >
+              <FolderPlus size={16} aria-hidden="true" />
+              新建项目
+            </Link>
           </div>
         </div>
         <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
@@ -125,10 +133,11 @@ function ProjectCard({ project }: { project: Project }) {
   const smartContract = smartContracts.find((item) => item.id === activeRevision?.smartContractId)
   const projectContracts = contracts.filter((contract) => contract.projectId === project.id)
   const projectRecords = completionRecords.filter((record) => record.projectId === project.id)
-  const pendingContracts = projectContracts.filter((contract) => !contract.completionRecordId).length
   const isArchived = Boolean(project.archivedAt)
   const currentContract = contracts.find((contract) => contract.id === project.currentContractId)
   const activeBranches = branches.filter((branch) => branch.projectId === project.id && branch.currentContractId)
+  const currentContractIds = new Set([project.currentContractId ?? '', ...activeBranches.map((branch) => branch.currentContractId ?? '')])
+  const pendingContracts = projectContracts.filter((contract) => currentContractIds.has(contract.id) && !contract.completionRecordId && contract.nodeKind !== 'task').length
   const action = currentContract ? currentAction(currentContract) : undefined
   const branchStatus = activeBranches.length > 0 ? `${activeBranches.length} 条路径推进中` : '可从完成记录拆分路径'
 
@@ -147,7 +156,7 @@ function ProjectCard({ project }: { project: Project }) {
       <p className="mt-3 line-clamp-2 text-sm leading-6 text-graphite">{project.description}</p>
       <div className="mt-4 border-t border-rail pt-3 text-xs leading-5 text-graphite">
         <div className="font-semibold text-ink">{smartContract?.name}</div>
-        <div className="mt-1">{projectRecords.length} 条完成记录 · {pendingContracts} 个推进节点未锁定</div>
+        <div className="mt-1">{projectRecords.length} 条完成记录 · {pendingContracts} 个当前待处理节点</div>
       </div>
       <div className="mt-4 flex items-center justify-between gap-3 text-sm font-semibold text-ink">
         <span className="truncate">{isArchived ? '项目已归档，只读' : activeBranches.length > 0 ? branchStatus : currentContract ? `当前：${currentContract.title}` : '可以开始下一项推进'}</span>

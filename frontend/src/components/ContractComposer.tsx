@@ -8,7 +8,7 @@ import { useExecStore } from '../store/useExecStore'
 import type { DraftReview } from '../types'
 
 const composerSchema = z.object({
-  draft: z.string().min(60, '请粘贴完整的行为草案'),
+  draft: z.string().min(20, '请粘贴完整的节点草案'),
   projectId: z.string().min(1),
 })
 
@@ -20,6 +20,9 @@ const draftFormat = `契约标题：为产品首页建立智能合约入口
 - 首页明确展示 AI 审查结论和用户锁定动作，未通过时也保留警示记录。
 - 页面显示项目智能合约和冻结后的验收标准。
 证据要求：提交可访问的页面和与两条标准逐项对应的截图或实现说明。`
+
+const taskDraftFormat = `任务标题：整理执行图谱的产品逻辑
+任务说明：把节点、推进证据、智能合约审查和阶段完成记录之间的关系整理清楚，作为这个项目后续所有推进节点的起点。`
 
 type ContractComposerProps = {
   projectId?: string
@@ -54,6 +57,8 @@ export function ContractComposer({ projectId, lockProject = false, parentContrac
   })
 
   const selectedProject = projects.find((project) => project.id === watch('projectId')) ?? defaultProject
+  const isFirstNode = Boolean(selectedProject) && contracts.every((contract) => contract.projectId !== selectedProject?.id) && !parentContractId && !(sourceContractIds && sourceContractIds.length > 0)
+  const activeDraftFormat = isFirstNode ? taskDraftFormat : draftFormat
   const activeRevision = selectedProject?.contractRevisions.find(
     (revision) => revision.id === selectedProject.activeContractRevisionId,
   )
@@ -69,11 +74,11 @@ export function ContractComposer({ projectId, lockProject = false, parentContrac
     <form className="rounded-md border border-rail bg-white/72 p-5" onSubmit={handleSubmit(onSubmit)}>
       <div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal">
         <LockKeyhole size={15} aria-hidden="true" />
-        New action
+        {isFirstNode ? 'First node' : 'New action'}
       </div>
-      <h2 className="mt-2 font-display text-2xl font-semibold">开始一项推进</h2>
+      <h2 className="mt-2 font-display text-2xl font-semibold">{isFirstNode ? '第一次：定义任务起点' : '开始一项推进'}</h2>
       <p className="mt-3 text-sm leading-6 text-graphite">
-        粘贴由 Skill 生成的草案。通过部署校验后，这个节点会继承并固定项目当前版本的智能合约。
+        {isFirstNode ? '首个节点只说明这个项目要做什么。它不是完成证明，而是后续推进路径的起点。' : '粘贴由 Skill 生成的草案。通过部署校验后，这个节点会继承并固定项目当前版本的智能合约。'}
       </p>
 
       <div className="mt-5 grid gap-4">
@@ -143,10 +148,10 @@ export function ContractComposer({ projectId, lockProject = false, parentContrac
         ) : null}
 
         <label className="grid gap-2">
-          <span className="text-sm font-semibold text-ink">Skill 生成的行为草案</span>
+          <span className="text-sm font-semibold text-ink">{isFirstNode ? 'Skill 生成的任务草案' : 'Skill 生成的行为草案'}</span>
           <textarea
             className="min-h-56 rounded-md border border-rail bg-paper px-3 py-3 font-mono text-sm leading-6 outline-none focus:border-signal focus:shadow-focusline"
-            placeholder={draftFormat}
+            placeholder={activeDraftFormat}
             {...register('draft')}
           />
           {errors.draft?.message ? <span className="text-sm font-medium text-clay">{errors.draft.message}</span> : null}
@@ -154,11 +159,11 @@ export function ContractComposer({ projectId, lockProject = false, parentContrac
 
         <button
           type="button"
-          onClick={() => setValue('draft', draftFormat, { shouldValidate: true })}
+          onClick={() => setValue('draft', activeDraftFormat, { shouldValidate: true })}
           className="inline-flex h-9 w-fit items-center gap-2 text-sm font-semibold text-graphite transition hover:text-ink focus:outline-none focus-visible:shadow-focusline"
         >
           <ClipboardPaste size={16} aria-hidden="true" />
-          填入行为格式示例
+          {isFirstNode ? '填入第一次任务示例' : '填入行为格式示例'}
         </button>
 
         {draftReview?.verdict === 'fail' ? (
@@ -181,7 +186,7 @@ export function ContractComposer({ projectId, lockProject = false, parentContrac
           className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-ink px-4 text-sm font-semibold text-paper transition hover:bg-graphite focus:outline-none focus-visible:shadow-focusline sm:w-fit"
         >
           <LockKeyhole size={17} aria-hidden="true" />
-          校验并开始推进
+          {isFirstNode ? '校验并创建任务起点' : '校验并开始推进'}
         </button>
       </div>
     </form>

@@ -27,6 +27,10 @@ export function ProjectGraph({ projectId, heightClassName = 'h-[360px] min-h-[28
     () => allEdges.filter((edge) => contractIds.has(edge.sourceContractId) && contractIds.has(edge.targetContractId)),
     [allEdges, contractIds],
   )
+  const rootIds = useMemo(() => {
+    const targetIds = new Set(edges.map((edge) => edge.targetContractId))
+    return contracts.filter((contract) => !targetIds.has(contract.id)).map((contract) => contract.id)
+  }, [contracts, edges])
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -72,6 +76,7 @@ export function ProjectGraph({ projectId, heightClassName = 'h-[360px] min-h-[28
             'border-color': '#d9d2c4',
           },
         },
+        { selector: 'node[stage = "task"]', style: { 'border-color': '#161814', 'background-color': '#ffffff' } },
         { selector: 'node[stage = "frozen"]', style: { 'border-color': '#1f7a8c' } },
         { selector: 'node[stage = "verified"]', style: { 'border-color': '#5d7c52', 'background-color': '#ecf2e7' } },
         { selector: 'node[stage = "needs_supplement"]', style: { 'border-color': '#a44a3f', 'background-color': '#f7e6e2' } },
@@ -107,6 +112,8 @@ export function ProjectGraph({ projectId, heightClassName = 'h-[360px] min-h-[28
       layout: {
         name: 'breadthfirst',
         directed: true,
+        roots: rootIds,
+        circle: false,
         spacingFactor: 1.25,
         padding: 24,
       },
@@ -117,7 +124,7 @@ export function ProjectGraph({ projectId, heightClassName = 'h-[360px] min-h-[28
     cy.on('tap', 'node', (event) => navigate(`/contracts/${event.target.id()}`))
     cyRef.current = cy
     return () => cy.destroy()
-  }, [contracts, edges, navigate])
+  }, [contracts, edges, navigate, rootIds])
 
   return <div ref={containerRef} className={`${heightClassName} w-full rounded-md border border-rail bg-white`} />
 }

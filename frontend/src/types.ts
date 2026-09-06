@@ -1,4 +1,6 @@
-export type ContractStage = 'frozen' | 'verified' | 'needs_supplement' | 'completed'
+export type ContractStage = 'task' | 'frozen' | 'verified' | 'needs_supplement' | 'completed'
+
+export type ExecutionNodeKind = 'task' | 'progress'
 
 export type SmartContractSource = 'official' | 'custom'
 
@@ -132,6 +134,7 @@ export type ExecutionContract = {
   supplementOfContractId?: string
   actorId?: string
   title: string
+  nodeKind?: ExecutionNodeKind
   stage: ContractStage
   originalIntent: string
   smartContractId: string

@@ -11,6 +11,7 @@ import type {
   ExecutionBranch,
   ExecutionContract,
   ExecutionEdge,
+  ExecutionNodeKind,
   Gender,
   Project,
   ProjectContractRevision,
@@ -37,6 +38,12 @@ type CreateProjectInput = {
   title: string
   description: string
   smartContractId: string
+  visibility: 'private' | 'public'
+}
+
+type UpdateProjectInput = {
+  title: string
+  description: string
   visibility: 'private' | 'public'
 }
 
@@ -74,6 +81,7 @@ type ExecState = {
   actors: typeof actors
   currentActorId: string
   isAuthenticated: boolean
+  accessToken: string
   accountEmail: string
   accountPassword: string
   projects: Project[]
@@ -82,7 +90,8 @@ type ExecState = {
   contracts: ExecutionContract[]
   completionRecords: CompletionRecord[]
   edges: ExecutionEdge[]
-  createProject: (input: CreateProjectInput) => string
+  createProject: (input: CreateProjectInput) => string | null
+  updateProject: (projectId: string, input: UpdateProjectInput) => void
   createSmartContract: (input: CreateSmartContractInput) => string
   upgradeProjectContract: (projectId: string, smartContractId: string) => void
   archiveProject: (projectId: string) => void
@@ -92,6 +101,7 @@ type ExecState = {
   createSupplementContract: (contractId: string) => void
   signIn: (email: string, password: string) => AuthResult
   registerAccount: (username: string, email: string, password: string) => AuthResult
+  setAccessToken: (token: string) => void
   signOut: () => void
   updateProfile: (input: ProfileInput) => void
   updateAccountEmail: (email: string, currentPassword: string) => AuthResult
@@ -117,6 +127,7 @@ type LegacyState = {
   actors?: Actor[]
   currentActorId?: string
   isAuthenticated?: boolean
+  accessToken?: string
   accountEmail?: string
   accountPassword?: string
   smartContracts?: LegacySmartContract[]
@@ -130,8 +141,8 @@ type LegacyState = {
 const now = () => new Date().toISOString()
 
 const sectionLabels = {
-  title: /^(?:契约标题|标题)\s*(?:[:：]\s*(.*))?$/,
-  goal: /^(?:可验证)?目标\s*(?:[:：]\s*(.*))?$/,
+  title: /^(?:契约标题|任务标题|标题)\s*(?:[:：]\s*(.*))?$/,
+  goal: /^(?:(?:可验证)?目标|任务说明)\s*(?:[:：]\s*(.*))?$/,
   criteria: /^(?:验收标准|验收要求|完成标准)\s*(?:[:：]\s*(.*))?$/,
   evidence: /^(?:证据要求|证明要求|证据)\s*(?:[:：]\s*(.*))?$/,
 } as const
@@ -213,6 +224,40 @@ const buildDraftReview = (draft: string): { review: DraftReview; compiled: Compi
         verdict === 'pass'
           ? '部署校验通过。这项行为将继承项目当前智能合约版本，并冻结目标、验收标准和证据要求。'
           : '部署校验未通过。此草案尚不能成为项目中的行为承诺，请按平台规则补全后再提交。',
+      missingRequirements,
+      createdAt: now(),
+    },
+  }
+}
+
+const buildTaskDraftReview = (draft: string): { review: DraftReview; compiled: CompiledDraft } => {
+  const compiled = compileDraft(draft)
+  const lines = draft
+    .split('\n')
+    .map(stripListMarker)
+    .filter(Boolean)
+  const title = compiled.title || lines[0] || ''
+  const taskBody = compiled.verifiableGoal || lines.slice(1).join(' ') || draft.trim()
+  const missingRequirements: string[] = []
+
+  if (title.length < 4) missingRequirements.push('需要给第一次任务一个明确标题。')
+  if (taskBody.length < 20) missingRequirements.push('需要说明这个项目首先要解决什么任务。')
+
+  const verdict = missingRequirements.length === 0 ? 'pass' : 'fail'
+  return {
+    compiled: {
+      title,
+      verifiableGoal: taskBody,
+      acceptanceCriteria: [],
+      evidenceRequirement: '首个节点只定义任务起点，不要求提交完成证明；后续推进节点会提交证据并接受智能合约审查。',
+    },
+    review: {
+      id: `draft-review-${crypto.randomUUID()}`,
+      verdict,
+      summary:
+        verdict === 'pass'
+          ? '第一次任务定义已记录。它会作为项目起点，后续推进节点从这里展开。'
+          : '第一次任务定义还不够清楚，暂时不能作为项目起点。',
       missingRequirements,
       createdAt: now(),
     },
@@ -400,7 +445,7 @@ const collectCoverageIds = (closingContract: ExecutionContract, allContracts: Ex
   const covered = new Set<string>()
   const visit = (contract: ExecutionContract | undefined) => {
     if (!contract || contract.projectId !== closingContract.projectId || covered.has(contract.id)) return
-    covered.add(contract.id)
+    if (contract.nodeKind !== 'task') covered.add(contract.id)
     if (contract.completionRecordId) return
     parentIdsFor(contract).forEach((parentId) => visit(byId.get(parentId)))
   }
@@ -470,6 +515,7 @@ const initialState = {
   actors,
   currentActorId,
   isAuthenticated: false,
+  accessToken: '',
   accountEmail: '',
   accountPassword: 'execgraph',
   projects,
@@ -528,6 +574,7 @@ const migrateContract = (contract: LegacyContract, migratedProjects: Project[]):
     verified: 'verified',
     needs_supplement: 'needs_supplement',
     completed: 'completed',
+    task: 'task',
   }
   const stage = stageMap[contract.stage ?? 'frozen'] ?? 'frozen'
   const acceptanceCriteria = contract.acceptanceCriteria ?? []
@@ -538,6 +585,7 @@ const migrateContract = (contract: LegacyContract, migratedProjects: Project[]):
     projectId,
     projectContractRevisionId: contract.projectContractRevisionId ?? projectRevision.id,
     stage,
+    nodeKind: contract.nodeKind ?? 'progress',
     sourceContractIds: contract.sourceContractIds ?? (contract.parentContractId ? [contract.parentContractId] : undefined),
     smartContractId,
     smartContractVersion,
@@ -579,6 +627,7 @@ const mergeSeedData = (state: LegacyState) => {
     actors: state.actors ?? actors,
     currentActorId: state.currentActorId ?? currentActorId,
     isAuthenticated: state.isAuthenticated ?? false,
+    accessToken: state.accessToken ?? '',
     accountEmail: state.accountEmail ?? '',
     accountPassword: state.accountPassword ?? 'execgraph',
     smartContracts: [...existingSmartContracts, ...smartContracts.filter((contract) => !knownSmartContractIds.has(contract.id))],
@@ -608,6 +657,7 @@ export const useExecStore = create<ExecState>()(
       },
       createProject: (input) => {
         const smartContract = get().smartContracts.find((item) => item.id === input.smartContractId) ?? get().smartContracts[0]
+        if (!smartContract) return null
         const projectId = `project-${crypto.randomUUID()}`
         const revision: ProjectContractRevision = {
           id: `project-revision-${crypto.randomUUID()}`,
@@ -629,6 +679,24 @@ export const useExecStore = create<ExecState>()(
         }
         set((state) => ({ projects: [...state.projects, project] }))
         return projectId
+      },
+      updateProject: (projectId, input) => {
+        const title = input.title.trim()
+        const description = input.description.trim()
+        if (!title || !description) return
+
+        set((state) => ({
+          projects: state.projects.map((project) =>
+            project.id === projectId && !project.archivedAt
+              ? {
+                  ...project,
+                  title,
+                  description,
+                  visibility: project.isDefault ? 'private' : input.visibility,
+                }
+              : project,
+          ),
+        }))
       },
       upgradeProjectContract: (projectId, smartContractId) => {
         const smartContract = get().smartContracts.find((item) => item.id === smartContractId)
@@ -698,7 +766,7 @@ export const useExecStore = create<ExecState>()(
         const isConvergence = sourceIds.length > 1
         const invalidSources =
           sourceContracts.length !== sourceIds.length ||
-          sourceContracts.some((contract) => contract.projectId !== project.id || contract.stage !== 'completed' || !contract.completionRecordId)
+          sourceContracts.some((contract) => contract.projectId !== project.id || (contract.nodeKind !== 'task' && (contract.stage !== 'completed' || !contract.completionRecordId)))
         if (invalidSources) {
           return {
             draftReview: {
@@ -789,7 +857,7 @@ export const useExecStore = create<ExecState>()(
                 },
               }
             }
-            if (parentContract && latestCompleted?.id !== parentContract.id) {
+            if (parentContract && parentContract.nodeKind !== 'task' && latestCompleted?.id !== parentContract.id) {
               return {
                 draftReview: {
                   id: `draft-review-${crypto.randomUUID()}`,
@@ -869,7 +937,8 @@ export const useExecStore = create<ExecState>()(
         const projectRevision = currentRevision(project)
         const smartContract =
           get().smartContracts.find((item) => item.id === projectRevision.smartContractId) ?? get().smartContracts[0]
-        const { review: draftReview, compiled } = buildDraftReview(input.draft)
+        const nodeKind: ExecutionNodeKind = projectContracts.length === 0 && sourceIds.length === 0 ? 'task' : 'progress'
+        const { review: draftReview, compiled } = nodeKind === 'task' ? buildTaskDraftReview(input.draft) : buildDraftReview(input.draft)
         if (draftReview.verdict === 'fail') return { draftReview }
 
         const contractId = `contract-${crypto.randomUUID()}`
@@ -900,7 +969,8 @@ export const useExecStore = create<ExecState>()(
           parentContractId: parentContract?.id,
           sourceContractIds: sourceIds.length > 0 ? sourceIds : undefined,
           title: compiled.title,
-          stage: 'frozen',
+          nodeKind,
+          stage: nodeKind === 'task' ? 'task' : 'frozen',
           originalIntent: input.draft.trim(),
           smartContractId: smartContract.id,
           smartContractVersion: projectRevision.smartContractVersion,
@@ -917,7 +987,10 @@ export const useExecStore = create<ExecState>()(
             {
               id: `msg-${crypto.randomUUID()}`,
               speaker: 'ai',
-              body: `行为承诺已通过项目「${project.title}」的智能合约「${smartContract.name}」校验。目标、验收标准和证据要求已冻结，规则指纹 ${ruleHash} 已记录。`,
+              body:
+                nodeKind === 'task'
+                  ? `第一次任务已通过项目「${project.title}」的智能合约「${smartContract.name}」校验。它会作为项目起点，规则指纹 ${ruleHash} 已记录。`
+                  : `行为承诺已通过项目「${project.title}」的智能合约「${smartContract.name}」校验。目标、验收标准和证据要求已冻结，规则指纹 ${ruleHash} 已记录。`,
               createdAt: now(),
             },
           ],
@@ -944,7 +1017,7 @@ export const useExecStore = create<ExecState>()(
                 )
               : state.branches,
           projects: state.projects.map((item) =>
-            item.id === project.id && (isConvergence || (item.visibility === 'private' && !branch)) ? { ...item, currentContractId: contract.id } : item,
+            item.id === project.id && ((nodeKind === 'task' && !branch) || isConvergence || (item.visibility === 'private' && !branch)) ? { ...item, currentContractId: contract.id } : item,
           ),
         }))
         return { contractId, draftReview }
@@ -1146,10 +1219,12 @@ export const useExecStore = create<ExecState>()(
         if (!email.trim() || !password.trim()) {
           return { success: false, message: '请输入邮箱和密码。' }
         }
-        if (password !== get().accountPassword) {
+        const normalizedEmail = email.trim().toLowerCase()
+        const isDemoAccount = normalizedEmail === 'demo@execgraph.local' && password === 'execgraph'
+        if (!isDemoAccount && password !== get().accountPassword) {
           return { success: false, message: '邮箱或密码不正确。' }
         }
-        set({ isAuthenticated: true, accountEmail: email.trim().toLowerCase() })
+        set({ isAuthenticated: true, accountEmail: normalizedEmail, accountPassword: isDemoAccount ? 'execgraph' : get().accountPassword })
         return { success: true }
       },
       registerAccount: (username, email, password) => {
@@ -1174,7 +1249,8 @@ export const useExecStore = create<ExecState>()(
         }))
         return { success: true }
       },
-      signOut: () => set({ isAuthenticated: false }),
+      setAccessToken: (token) => set({ accessToken: token }),
+      signOut: () => set({ isAuthenticated: false, accessToken: '' }),
       updateProfile: (input) => {
         const normalizedUsername = input.handle.trim().replace(/^@+/, '')
         set((state) => ({
@@ -1215,6 +1291,7 @@ export const useExecStore = create<ExecState>()(
           actors: state.actors,
           currentActorId: state.currentActorId,
           isAuthenticated: state.isAuthenticated,
+          accessToken: state.accessToken,
           accountEmail: state.accountEmail,
           accountPassword: state.accountPassword,
         })),

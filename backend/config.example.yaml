@@ -1,0 +1,38 @@
+app:
+  host: 127.0.0.1
+  port: 8080
+  session_ttl_hours: 168
+
+database:
+  driver: mysql
+  host: 127.0.0.1
+  port: 3306
+  name: exec_graph
+  user: root
+  password: replace-with-local-password
+  charset: utf8mb4
+
+redis:
+  host: 127.0.0.1
+  port: 6379
+  password: replace-with-local-redis-password
+  database: 0
+
+tencent:
+  ses:
+    region: ap-guangzhou
+    template_id: 29256
+    template_body: 'Paperfly, 验证码是{{1}}，有效期是{{2}}分钟'
+    template_variables:
+      code: '1'
+      expires_minutes: '2'
+    code_ttl_minutes: 10
+    from_email: replace-with-verified-sender
+    secret_id: replace-with-local-secret-id
+    secret_key: replace-with-local-secret-key
+
+  # COS 复用 SES 的 secret_id 和 secret_key。
+  cos:
+    region: ap-guangzhou
+    bucket: exec-graph-1253847355
+    avatar_prefix: avatars/

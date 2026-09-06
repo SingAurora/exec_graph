@@ -1,6 +1,10 @@
 import type { ContractStage } from '../types'
 
 const stageMeta: Record<ContractStage, { label: string; className: string }> = {
+  task: {
+    label: '任务起点',
+    className: 'border-ink/20 bg-white/70 text-ink',
+  },
   frozen: {
     label: '待推进',
     className: 'border-signal/30 bg-signal/10 text-signal',

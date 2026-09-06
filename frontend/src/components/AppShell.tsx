@@ -4,6 +4,7 @@ import { useExecStore } from '../store/useExecStore'
 import type { Actor, ExecutionBranch, ExecutionContract, Project } from '../types'
 
 function workspaceLabel(pathname: string) {
+  if (pathname === '/projects/new') return '新建项目'
   if (pathname.startsWith('/me')) return '执行足迹'
   if (pathname.startsWith('/settings')) return '个人设置'
   if (pathname.startsWith('/smart-contracts')) return '智能合约'
@@ -51,6 +52,7 @@ function projectStatus(project: Project, contracts: ExecutionContract[], branche
   if (currentContracts.length > 1) return { label: `${currentContracts.length} 条路径待处理`, dotClassName: 'bg-signal' }
   const currentContract = currentContracts[0]
   if (!currentContract) return { label: '可以开始下一项', dotClassName: 'bg-graphite/35' }
+  if (currentContract.nodeKind === 'task') return { label: '任务起点已建立', dotClassName: 'bg-ink' }
   if (currentContract.stage === 'verified' || currentContract.stage === 'needs_supplement') {
     return { label: '待确认 AI 结果', dotClassName: 'bg-moss' }
   }
@@ -116,7 +118,7 @@ function MobileProjectMenu({ projects, activeProjectId, contracts, branches }: {
           ))}
         </div>
         <div className="mt-2 border-t border-rail pt-2">
-          <Link to="/?new=project" className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold text-graphite hover:bg-white/65 hover:text-ink focus:outline-none focus-visible:shadow-focusline"><Plus size={16} aria-hidden="true" />新建项目</Link>
+          <Link to="/projects/new" className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold text-graphite hover:bg-white/65 hover:text-ink focus:outline-none focus-visible:shadow-focusline"><Plus size={16} aria-hidden="true" />新建项目</Link>
           <Link to="/me" className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold text-graphite hover:bg-white/65 hover:text-ink focus:outline-none focus-visible:shadow-focusline"><UserRound size={16} aria-hidden="true" />执行足迹</Link>
           <Link to="/settings" className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold text-graphite hover:bg-white/65 hover:text-ink focus:outline-none focus-visible:shadow-focusline"><Settings2 size={16} aria-hidden="true" />个人设置</Link>
         </div>
@@ -154,7 +156,7 @@ export function AppShell() {
           <div className="mt-10 flex items-center justify-between gap-3 px-3">
             <Link to="/" className="font-mono text-xs font-semibold uppercase text-signal focus:outline-none focus-visible:shadow-focusline">我的项目</Link>
             <Link
-              to="/?new=project"
+              to="/projects/new"
               aria-label="新建项目"
               title="新建项目"
               className="grid size-8 place-items-center rounded-md text-graphite transition hover:bg-white/70 hover:text-ink focus:outline-none focus-visible:shadow-focusline"

@@ -1,0 +1,107 @@
+import { zodResolver } from '@hookform/resolvers/zod'
+import { ArrowRight, Eye, EyeOff, KeyRound, MailCheck } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { Link, useNavigate } from 'react-router-dom'
+import { z } from 'zod'
+import { AuthLayout } from '../components/AuthLayout'
+
+const forgotPasswordSchema = z
+  .object({
+    email: z.string().email('请输入有效邮箱。'),
+    code: z.string().regex(/^\d{6}$/, '请输入 6 位数字验证码。'),
+    password: z.string().min(6, '新密码至少需要 6 个字符。'),
+    confirmation: z.string().min(1, '请再次输入新密码。'),
+  })
+  .refine((values) => values.password === values.confirmation, { message: '两次输入的新密码不一致。', path: ['confirmation'] })
+
+type ForgotPasswordForm = z.infer<typeof forgotPasswordSchema>
+
+export function ForgotPasswordPage() {
+  const navigate = useNavigate()
+  const [message, setMessage] = useState('')
+  const [errorMessage, setErrorMessage] = useState('')
+  const [countdown, setCountdown] = useState(0)
+  const [isSendingCode, setIsSendingCode] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const { register, handleSubmit, getValues, trigger, formState: { errors, isSubmitting } } = useForm<ForgotPasswordForm>({ resolver: zodResolver(forgotPasswordSchema) })
+
+  useEffect(() => {
+    if (countdown === 0) return
+    const timer = window.setInterval(() => setCountdown((value) => Math.max(0, value - 1)), 1000)
+    return () => window.clearInterval(timer)
+  }, [countdown])
+
+  const sendCode = async () => {
+    setMessage('')
+    setErrorMessage('')
+    if (!(await trigger('email'))) return
+    setIsSendingCode(true)
+    try {
+      const response = await fetch('/api/auth/send-code', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: getValues('email'), purpose: 'reset_password' }) })
+      const data = (await response.json().catch(() => ({}))) as { error?: string; message?: string }
+      if (!response.ok) throw new Error(data.error ?? '验证码发送失败，请稍后重试。')
+      setCountdown(60)
+      setMessage(data.message ?? '验证码已发送，请查收邮件。')
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : '验证码发送失败，请稍后重试。')
+    } finally {
+      setIsSendingCode(false)
+    }
+  }
+
+  const onSubmit = async (values: ForgotPasswordForm) => {
+    setMessage('')
+    setErrorMessage('')
+    try {
+      const response = await fetch('/api/auth/reset-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: values.email, code: values.code, nextPassword: values.password }) })
+      const data = (await response.json().catch(() => ({}))) as { error?: string; message?: string }
+      if (!response.ok) {
+        setErrorMessage(data.error ?? '重设密码失败，请稍后重试。')
+        return
+      }
+      setMessage(data.message ?? '密码已重设，请使用新密码登录。')
+      window.setTimeout(() => navigate('/login'), 1200)
+    } catch {
+      setErrorMessage('无法连接服务，请确认后端已启动。')
+    }
+  }
+
+  return (
+    <AuthLayout eyebrow="Reset password" title="找回密码" description="验证邮箱后设置新密码。" footer={<Link className="font-semibold text-signal hover:text-ink" to="/login">返回登录 <ArrowRight className="ml-1 inline-block" size={14} aria-hidden="true" /></Link>}>
+      <form className="rounded-md border border-rail bg-white/72 p-5" onSubmit={handleSubmit(onSubmit)}>
+        <div className="grid gap-4">
+          <label className="grid gap-2">
+            <span className="text-sm font-semibold text-ink">注册邮箱</span>
+            <div className="flex gap-2">
+              <input type="email" autoComplete="email" className="h-11 min-w-0 flex-1 rounded-md border border-rail bg-paper px-3 text-sm outline-none focus:border-signal focus:shadow-focusline" {...register('email')} />
+              <button type="button" onClick={sendCode} disabled={isSendingCode || countdown > 0} className="inline-flex h-11 shrink-0 items-center gap-2 rounded-md border border-rail bg-paper px-3 text-sm font-semibold text-ink transition hover:border-signal hover:text-signal disabled:cursor-not-allowed disabled:opacity-55 focus:outline-none focus-visible:shadow-focusline"><MailCheck size={16} aria-hidden="true" />{isSendingCode ? '发送中' : countdown > 0 ? `${countdown}s 后重发` : '发送验证码'}</button>
+            </div>
+            {errors.email?.message ? <span className="text-sm font-medium text-clay">{errors.email.message}</span> : null}
+          </label>
+          <label className="grid gap-2">
+            <span className="text-sm font-semibold text-ink">邮箱验证码</span>
+            <input inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="输入 6 位验证码" className="h-11 rounded-md border border-rail bg-paper px-3 text-sm tracking-[0.2em] outline-none focus:border-signal focus:shadow-focusline" {...register('code')} />
+            {errors.code?.message ? <span className="text-sm font-medium text-clay">{errors.code.message}</span> : null}
+          </label>
+          <label className="grid gap-2">
+            <span className="text-sm font-semibold text-ink">新密码</span>
+            <div className="relative">
+              <input type={showPassword ? 'text' : 'password'} autoComplete="new-password" className="h-11 w-full rounded-md border border-rail bg-paper px-3 pr-11 text-sm outline-none focus:border-signal focus:shadow-focusline" {...register('password')} />
+              <button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute inset-y-0 right-0 grid w-11 place-items-center text-graphite transition hover:text-ink focus:outline-none focus-visible:shadow-focusline" aria-label={showPassword ? '隐藏密码' : '显示密码'} title={showPassword ? '隐藏密码' : '显示密码'}>{showPassword ? <EyeOff size={17} aria-hidden="true" /> : <Eye size={17} aria-hidden="true" />}</button>
+            </div>
+            {errors.password?.message ? <span className="text-sm font-medium text-clay">{errors.password.message}</span> : null}
+          </label>
+          <label className="grid gap-2">
+            <span className="text-sm font-semibold text-ink">确认新密码</span>
+            <input type={showPassword ? 'text' : 'password'} autoComplete="new-password" className="h-11 rounded-md border border-rail bg-paper px-3 text-sm outline-none focus:border-signal focus:shadow-focusline" {...register('confirmation')} />
+            {errors.confirmation?.message ? <span className="text-sm font-medium text-clay">{errors.confirmation.message}</span> : null}
+          </label>
+          {message ? <p className="text-sm font-semibold text-moss" role="status">{message}</p> : null}
+          {errorMessage ? <p className="text-sm font-medium text-clay" role="alert">{errorMessage}</p> : null}
+          <button type="submit" disabled={isSubmitting} className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-ink px-4 text-sm font-semibold text-paper transition hover:bg-graphite disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus-visible:shadow-focusline"><KeyRound size={17} aria-hidden="true" />重设密码</button>
+        </div>
+      </form>
+    </AuthLayout>
+  )
+}
