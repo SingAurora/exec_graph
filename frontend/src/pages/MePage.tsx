@@ -1,8 +1,10 @@
-import { ArrowRight, CheckCircle2, CircleAlert, Eye, FolderKanban } from 'lucide-react'
+import { ArrowRight, CheckCircle2, CircleAlert, Eye, FolderKanban, Network } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { CompletionHeatmap } from '../components/CompletionHeatmap'
 import { CustomProfileContent } from '../components/CustomProfileContent'
 import { isAcceptedRecord } from '../lib/execution'
+import { getMyContributions, type ContributionActivity } from '../lib/collaboration'
 import { useExecStore } from '../store/useExecStore'
 import type { Actor, CompletionRecord, Project } from '../types'
 
@@ -33,6 +35,7 @@ export function MePage() {
   const projects = useExecStore((state) => state.projects)
   const contracts = useExecStore((state) => state.contracts)
   const completionRecords = useExecStore((state) => state.completionRecords)
+	const accessToken = useExecStore((state) => state.accessToken)
   const actor = actors.find((item) => item.id === currentActorId)
   const publicProjects = projects.filter((project) => project.visibility === 'public')
   const publicProjectIds = new Set(publicProjects.map((project) => project.id))
@@ -43,6 +46,8 @@ export function MePage() {
     .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
   const activeDays = new Set(publicCompleted.map((record) => new Date(record.createdAt).toDateString())).size
   const customProfileEnabled = Boolean(actor?.customProfileEnabled)
+	const [contributions, setContributions] = useState<ContributionActivity[]>([])
+	const [contributionError, setContributionError] = useState('')
   const activeTab: ProfileTab = searchParams.get('tab') === 'custom' && customProfileEnabled ? 'custom' : 'default'
   const tabs: Array<{ id: ProfileTab; label: string }> = [{ id: 'default', label: '默认' }, { id: 'custom', label: '自定' }]
   const profileBackgroundStyle = actor?.profileBackgroundUrl
@@ -56,6 +61,15 @@ export function MePage() {
   const selectTab = (tab: ProfileTab) => {
     setSearchParams(tab === 'custom' ? { tab: 'custom' } : {})
   }
+
+	useEffect(() => {
+		let alive = true
+		if (!accessToken) return
+		getMyContributions(accessToken)
+			.then((data) => { if (alive) setContributions(data.contributions) })
+			.catch((reason: Error) => { if (alive) setContributionError(reason.message) })
+		return () => { alive = false }
+	}, [accessToken])
 
   return (
     <div className="space-y-9">
@@ -93,6 +107,7 @@ export function MePage() {
             <ProfileFact label="活跃天数" value={activeDays} />
           </div>
           <CompletionHeatmap records={publicCompleted} />
+			<ContributionActivitySection activities={contributions} error={contributionError} />
           <PublicProjectsSection projects={publicProjects} publicCompleted={publicCompleted} />
           <PublicRecordsSection records={publicCompleted} />
         </>
@@ -104,6 +119,30 @@ export function MePage() {
         </section>
       ) : null}
     </div>
+  )
+}
+
+function ContributionActivitySection({ activities, error }: { activities: ContributionActivity[]; error: string }) {
+  const adopted = activities.filter((activity) => activity.submission.status === 'adopted')
+  const pending = activities.filter((activity) => activity.submission.status === 'submitted')
+  return (
+    <section>
+      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-rail pb-4">
+        <div>
+          <div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal"><Network size={15} aria-hidden="true" />协作回流</div>
+          <h2 className="mt-2 font-display text-2xl font-semibold">我的成果后来怎么样了</h2>
+        </div>
+        <span className="text-sm font-semibold text-graphite">{adopted.length} 份已采纳 · {pending.length} 份等待审查</span>
+      </div>
+      {error ? <p className="border-l-2 border-clay py-3 pl-4 text-sm font-semibold text-clay">{error}</p> : null}
+      {activities.length > 0 ? <div className="divide-y divide-rail border-b border-rail bg-surface/45">{activities.map((activity) => {
+        const adoptedState = activity.submission.status === 'adopted'
+        return <Link key={activity.submission.id} to={`/explore/projects/${activity.call.projectId}#call-${activity.call.id}`} className="grid gap-3 px-1 py-4 transition hover:bg-shell sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-4 focus:outline-none focus-visible:shadow-focusline">
+          <span className="min-w-0"><span className="block truncate text-sm font-semibold text-ink">{activity.submission.sourceTitle}</span><span className="mt-1 block text-xs leading-5 text-graphite">已接入「{activity.call.projectTitle}」的「{activity.call.title}」</span></span>
+          <span className={adoptedState ? 'text-sm font-semibold text-moss' : 'text-sm font-semibold text-graphite'}>{adoptedState ? '已被采用，正在推动目标' : '已提交，等待组合审查'}</span>
+        </Link>
+      })}</div> : <p className="border-b border-rail py-5 text-sm leading-6 text-graphite">当你的成果被回交到其他公开项目后，采纳和后续状态会显示在这里。</p>}
+    </section>
   )
 }
 

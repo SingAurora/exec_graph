@@ -42,6 +42,7 @@ func migrateDatabase(ctx context.Context, db *sql.DB) error {
 			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
 			username VARCHAR(64) NOT NULL,
 			user_id VARCHAR(24) NOT NULL,
+			is_test_account TINYINT(1) NOT NULL DEFAULT 0,
 			email VARCHAR(255) NOT NULL UNIQUE,
 			password_hash TEXT NOT NULL,
 			email_verified_at DATETIME NULL,
@@ -51,6 +52,8 @@ func migrateDatabase(ctx context.Context, db *sql.DB) error {
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+		`ALTER TABLE users ADD COLUMN is_test_account TINYINT(1) NOT NULL DEFAULT 0 AFTER user_id`,
+		`ALTER TABLE users ADD INDEX idx_users_test_account (is_test_account)`,
 		`ALTER TABLE users ADD COLUMN user_id VARCHAR(24) NULL AFTER username`,
 		`UPDATE users SET user_id = CONCAT('user', id) WHERE user_id IS NULL OR user_id = ''`,
 		`ALTER TABLE users MODIFY COLUMN user_id VARCHAR(24) NOT NULL`,
@@ -128,8 +131,10 @@ func migrateDatabase(ctx context.Context, db *sql.DB) error {
 			INDEX idx_projects_visibility (visibility, archived_at)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
 		`ALTER TABLE projects ADD COLUMN default_ai_key_id VARCHAR(100) NULL AFTER visibility`,
+		`ALTER TABLE projects ADD COLUMN contribution_call_id VARCHAR(100) NULL AFTER default_ai_key_id`,
 		`ALTER TABLE projects ADD COLUMN project_type VARCHAR(20) NOT NULL DEFAULT 'guided' AFTER description`,
 		`ALTER TABLE projects ADD COLUMN project_rules LONGTEXT NULL AFTER project_type`,
+		`ALTER TABLE projects ADD INDEX idx_projects_contribution_call (contribution_call_id)`,
 		`UPDATE projects SET project_type = 'guided' WHERE project_type IS NULL OR project_type NOT IN ('guided', 'autonomous')`,
 		`CREATE TABLE IF NOT EXISTS project_contract_revisions (
 			id VARCHAR(100) NOT NULL PRIMARY KEY,
@@ -193,6 +198,7 @@ func migrateDatabase(ctx context.Context, db *sql.DB) error {
 			INDEX idx_execution_branch (branch_id)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
 		`ALTER TABLE execution_contracts ADD COLUMN supplement_of_contract_id VARCHAR(100) NULL AFTER source_contract_ids_json`,
+		`ALTER TABLE execution_contracts ADD COLUMN retry_of_contract_id VARCHAR(100) NULL AFTER supplement_of_contract_id`,
 		`ALTER TABLE execution_contracts ADD COLUMN draft_review_ai_config_json LONGTEXT NULL AFTER draft_review_json`,
 		`ALTER TABLE execution_contracts ADD COLUMN completion_review_ai_config_json LONGTEXT NULL AFTER ai_review_json`,
 		`ALTER TABLE execution_contracts ADD COLUMN completion_review_rounds_json LONGTEXT NULL AFTER completion_review_ai_config_json`,
@@ -223,6 +229,14 @@ func migrateDatabase(ctx context.Context, db *sql.DB) error {
 			ai_config_json LONGTEXT NULL,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			INDEX idx_conversation_messages (conversation_id, created_at)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+		`CREATE TABLE IF NOT EXISTS execution_work_logs (
+			id VARCHAR(100) NOT NULL PRIMARY KEY,
+			contract_id VARCHAR(100) NOT NULL,
+			owner_id BIGINT UNSIGNED NOT NULL,
+			body LONGTEXT NOT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			INDEX idx_work_logs_contract (contract_id, created_at)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
 		`CREATE TABLE IF NOT EXISTS execution_edges (
 			id VARCHAR(100) NOT NULL PRIMARY KEY,

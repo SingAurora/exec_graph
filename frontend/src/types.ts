@@ -36,6 +36,19 @@ export type ProjectContractRevision = {
   smartContract?: SmartContractDefinition
 }
 
+export type ContributionOrigin = {
+  callId: string
+  projectId: string
+  projectTitle: string
+  callTitle: string
+  status: 'open' | 'adopted' | 'closed'
+  targetTitle: string
+  verifiableGoal: string
+  acceptanceCriteria: AcceptanceCriterion[]
+  evidenceRequirement: string
+	availableSources: Array<{ title: string; projectTitle: string; mappingText: string; status: 'submitted' | 'adopted' }>
+}
+
 export type Project = {
   id: string
   title: string
@@ -47,6 +60,8 @@ export type Project = {
   /** User-authored project rules consumed by guided action-contract generation. */
   projectRules: string
   reviewAIKeyId?: string
+	/** The public collaboration gap this project was created to address. */
+  contributionOrigin?: ContributionOrigin
   /** The sole behavior commitment this project is currently asking its owner to close. */
   currentContractId?: string | null
   activeContractRevisionId: string
@@ -100,6 +115,12 @@ export type CriterionReview = {
 export type ReviewMessage = {
   id: string
   speaker: 'user' | 'ai'
+  body: string
+  createdAt: string
+}
+
+export type WorkLog = {
+  id: string
   body: string
   createdAt: string
 }
@@ -174,6 +195,8 @@ export type ExecutionContract = {
   /** Earlier action nodes this behavior relies on; multiple sources describe a convergence action. */
   sourceContractIds?: string[]
   supplementOfContractId?: string
+  /** A sealed attempt this action learns from without treating it as accepted input. */
+  retryOfContractId?: string
   actorId?: string
   title: string
   nodeKind?: ExecutionNodeKind
@@ -199,6 +222,7 @@ export type ExecutionContract = {
   completionConversationId?: string
   userVerdict?: UserVerdict
   nextContractTitle?: string
+  workLogs?: WorkLog[]
   createdAt: string
   updatedAt: string
 }

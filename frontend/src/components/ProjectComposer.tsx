@@ -1,10 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Compass, FolderPlus, ListChecks } from 'lucide-react'
+import { ArrowUpRight, Compass, FolderPlus, ListChecks, Network } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { z } from 'zod'
-import { getCall } from '../lib/collaboration'
+import { getCall, type CollaborationCall } from '../lib/collaboration'
 import { useExecStore } from '../store/useExecStore'
 
 const projectSchema = z.object({
@@ -35,6 +35,8 @@ export function ProjectComposer() {
   const createProject = useExecStore((state) => state.createProject)
   const accessToken = useExecStore((state) => state.accessToken)
   const [aiKeys, setAIKeys] = useState<AIKeyOption[]>([])
+  const [contributionCall, setContributionCall] = useState<CollaborationCall | null>(null)
+  const [contributionError, setContributionError] = useState('')
   const [isLoadingAIKeys, setIsLoadingAIKeys] = useState(Boolean(accessToken))
   const {
     register,
@@ -76,17 +78,25 @@ export function ProjectComposer() {
 		let cancelled = false
 		getCall(accessToken, contributionCallID).then(({ call }) => {
 			if (cancelled) return
+			setContributionCall(call)
 			setValue('title', `贡献：${call.title}`)
 			setValue('description', `为「${call.projectTitle}」补充「${call.target.title}」所需的可验证成果。`)
 			setValue('projectType', 'autonomous')
 			setValue('visibility', 'public')
-		}).catch(() => undefined)
+			setValue('projectRules', '')
+		}).catch((reason: Error) => { if (!cancelled) setContributionError(reason.message) })
 		return () => { cancelled = true }
 	}, [accessToken, contributionCallID, setValue])
 
   const onSubmit = async (values: ProjectForm) => {
     try {
-      const projectId = await createProject({ ...values, projectRules: values.projectRules ?? '' })
+		const projectId = await createProject({
+			...values,
+			projectType: contributionCall ? 'autonomous' : values.projectType,
+			projectRules: contributionCall ? '' : values.projectRules ?? '',
+			visibility: contributionCall ? 'public' : values.visibility,
+			contributionCallId: contributionCall?.id,
+		})
       if (!projectId) {
         setError('root', { message: '项目创建失败，请检查项目规则和 AI 配置。' })
         return
@@ -101,6 +111,8 @@ export function ProjectComposer() {
   return (
     <form className="rounded-md border border-rail bg-surface/72 p-5" onSubmit={handleSubmit(onSubmit)} noValidate>
       <div className="grid gap-4">
+		{contributionCall ? <ContributionBrief call={contributionCall} /> : null}
+		{contributionError ? <p className="border-l-2 border-clay py-2 pl-3 text-sm font-semibold text-clay">{contributionError}</p> : null}
         <label className="grid gap-2">
           <span className="text-sm font-semibold text-ink">项目名称</span>
           <input
@@ -121,7 +133,7 @@ export function ProjectComposer() {
           />
           {errors.description?.message ? <span className="text-sm font-medium text-clay">{errors.description.message}</span> : null}
         </label>
-        <fieldset className="grid gap-2">
+        {!contributionCall ? <fieldset className="grid gap-2">
           <legend className="text-sm font-semibold text-ink">项目类型</legend>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="cursor-pointer rounded-md border border-rail bg-paper p-4 transition has-[:checked]:border-signal has-[:checked]:bg-surface">
@@ -135,8 +147,8 @@ export function ProjectComposer() {
               <span className="mt-1 block text-sm leading-6 text-graphite">你决定下一步，节点仍需 AI 审查后锁定。</span>
             </label>
           </div>
-        </fieldset>
-        <fieldset className="grid gap-2">
+        </fieldset> : null}
+        {!contributionCall ? <fieldset className="grid gap-2">
           <legend className="text-sm font-semibold text-ink">项目可见性</legend>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="cursor-pointer rounded-md border border-rail bg-paper p-4 transition has-[:checked]:border-signal has-[:checked]:bg-surface">
@@ -150,8 +162,8 @@ export function ProjectComposer() {
               <span className="mt-1 block text-sm leading-6 text-graphite">行动路径和审查记录对外可见。</span>
             </label>
           </div>
-        </fieldset>
-        {projectType === 'guided' ? <label className="grid gap-2">
+        </fieldset> : null}
+        {!contributionCall && projectType === 'guided' ? <label className="grid gap-2">
           <span className="text-sm font-semibold text-ink">项目规则</span>
           <textarea
             className="min-h-28 rounded-md border border-rail bg-paper px-3 py-3 text-sm leading-6 outline-none focus:border-signal focus:shadow-focusline"
@@ -186,5 +198,27 @@ export function ProjectComposer() {
         </button>
       </div>
     </form>
+  )
+}
+
+function ContributionBrief({ call }: { call: CollaborationCall }) {
+  return (
+    <section className="border-l-2 border-signal bg-shell/60 px-4 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal"><Network size={15} aria-hidden="true" />协作交接</div>
+        <span className="text-xs font-semibold text-graphite">完成后可直接提交回 @{call.ownerUserId}</span>
+      </div>
+      <h2 className="mt-3 text-lg font-semibold text-ink">{call.title}</h2>
+      <p className="mt-2 text-sm leading-6 text-graphite">为「{call.projectTitle}」补上：{call.target.verifiableGoal}</p>
+      <div className="mt-4 border-y border-rail py-3">
+        <div className="text-xs font-semibold text-ink">这次贡献要满足</div>
+        <ul className="mt-2 space-y-1.5 text-sm leading-6 text-graphite">
+          {call.target.acceptanceCriteria.map((criterion) => <li key={criterion.id}><span className="font-mono text-xs font-semibold text-signal">{criterion.id.toUpperCase()}</span> {criterion.text}</li>)}
+        </ul>
+      </div>
+      <p className="mt-3 text-xs leading-5 text-graphite">提交材料：{call.target.evidenceRequirement}</p>
+		{call.submissionCount > 0 ? <p className="mt-2 text-xs leading-5 text-graphite">已有 {call.submissionCount} 份成果正在等待维护者组合审查；创建后可在原始协作目标查看它们的对应关系。</p> : null}
+      <div className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-signal">这会创建一个公开贡献工作区 <ArrowUpRight size={13} aria-hidden="true" /></div>
+    </section>
   )
 }

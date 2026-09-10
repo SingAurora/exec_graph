@@ -63,6 +63,7 @@ export type ExploreProject = {
 }
 
 export type ContributionSource = { id: string; title: string; summary: string; projectTitle: string }
+export type ContributionActivity = { submission: CollaborationSubmission; call: CollaborationCall }
 
 async function request<T>(token: string, path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -78,6 +79,7 @@ export const getExploreProjects = (token: string) => request<{ projects: Explore
 export const getExploreProject = (token: string, projectId: string) => request<{ project: ExploreProject }>(token, `/api/explore/projects/${projectId}`)
 export const getCall = (token: string, callId: string) => request<{ call: CollaborationCall; submissions: CollaborationSubmission[] }>(token, `/api/collaboration-calls/${callId}`)
 export const getContributionSources = (token: string) => request<{ sources: ContributionSource[] }>(token, '/api/explore/contribution-sources')
+export const getMyContributions = (token: string) => request<{ contributions: ContributionActivity[] }>(token, '/api/explore/my-contributions')
 export const submitContribution = (token: string, callId: string, sourceRecordId: string, mappingText: string, note: string) => request<{ submissions: CollaborationSubmission[] }>(token, `/api/collaboration-calls/${callId}/submissions`, { method: 'POST', body: JSON.stringify({ sourceRecordId, mappingText, note }) })
 export const reviewContributions = (token: string, callId: string, submissionIds: string[]) => request<{ batch: CollaborationReviewBatch }>(token, `/api/collaboration-calls/${callId}/reviews`, { method: 'POST', body: JSON.stringify({ submissionIds }) })
 export const adoptContributionReview = (token: string, reviewId: string) => request<{ message: string }>(token, `/api/collaboration-calls/reviews/${reviewId}/adopt`, { method: 'POST' })

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -11,12 +12,33 @@ import (
 )
 
 type createProjectRequest struct {
+	Title              string `json:"title"`
+	Description        string `json:"description"`
+	ProjectType        string `json:"projectType"`
+	ProjectRules       string `json:"projectRules"`
+	Visibility         string `json:"visibility"`
+	AIKeyID            string `json:"aiKeyId"`
+	ContributionCallID string `json:"contributionCallId"`
+}
+
+type contributionOriginResponse struct {
+	CallID              string                     `json:"callId"`
+	ProjectID           string                     `json:"projectId"`
+	ProjectTitle        string                     `json:"projectTitle"`
+	CallTitle           string                     `json:"callTitle"`
+	Status              string                     `json:"status"`
+	TargetTitle         string                     `json:"targetTitle"`
+	VerifiableGoal      string                     `json:"verifiableGoal"`
+	AcceptanceCriteria  []reviewCriterionRequest   `json:"acceptanceCriteria"`
+	EvidenceRequirement string                     `json:"evidenceRequirement"`
+	AvailableSources    []contributionOriginSource `json:"availableSources"`
+}
+
+type contributionOriginSource struct {
 	Title        string `json:"title"`
-	Description  string `json:"description"`
-	ProjectType  string `json:"projectType"`
-	ProjectRules string `json:"projectRules"`
-	Visibility   string `json:"visibility"`
-	AIKeyID      string `json:"aiKeyId"`
+	ProjectTitle string `json:"projectTitle"`
+	MappingText  string `json:"mappingText"`
+	Status       string `json:"status"`
 }
 
 type updateProjectRequest struct {
@@ -36,19 +58,20 @@ type projectRevisionResponse struct {
 }
 
 type projectResponse struct {
-	ID                       string                    `json:"id"`
-	Title                    string                    `json:"title"`
-	Description              string                    `json:"description"`
-	ProjectRules             string                    `json:"projectRules"`
-	IsDefault                bool                      `json:"isDefault"`
-	Visibility               string                    `json:"visibility"`
-	ProjectType              string                    `json:"projectType"`
-	ReviewAIKeyID            *string                   `json:"reviewAIKeyId,omitempty"`
-	CurrentContractID        *string                   `json:"currentContractId"`
-	ActiveContractRevisionID string                    `json:"activeContractRevisionId"`
-	ContractRevisions        []projectRevisionResponse `json:"contractRevisions"`
-	CreatedAt                time.Time                 `json:"createdAt"`
-	ArchivedAt               *time.Time                `json:"archivedAt,omitempty"`
+	ID                       string                      `json:"id"`
+	Title                    string                      `json:"title"`
+	Description              string                      `json:"description"`
+	ProjectRules             string                      `json:"projectRules"`
+	IsDefault                bool                        `json:"isDefault"`
+	Visibility               string                      `json:"visibility"`
+	ProjectType              string                      `json:"projectType"`
+	ReviewAIKeyID            *string                     `json:"reviewAIKeyId,omitempty"`
+	CurrentContractID        *string                     `json:"currentContractId"`
+	ActiveContractRevisionID string                      `json:"activeContractRevisionId"`
+	ContractRevisions        []projectRevisionResponse   `json:"contractRevisions"`
+	CreatedAt                time.Time                   `json:"createdAt"`
+	ArchivedAt               *time.Time                  `json:"archivedAt,omitempty"`
+	ContributionOrigin       *contributionOriginResponse `json:"contributionOrigin,omitempty"`
 }
 
 type smartContractResponse struct {
@@ -70,38 +93,40 @@ type smartContractEventResponse struct {
 }
 
 type executionNodeResponse struct {
-	ID                        string    `json:"id"`
-	ProjectID                 string    `json:"projectId"`
-	BranchID                  *string   `json:"branchId,omitempty"`
-	ProjectContractRevisionID string    `json:"projectContractRevisionId"`
-	ParentContractID          *string   `json:"parentContractId,omitempty"`
-	SourceContractIDs         any       `json:"sourceContractIds,omitempty"`
-	SupplementOfContractID    *string   `json:"supplementOfContractId,omitempty"`
-	ActorID                   *uint64   `json:"actorId,omitempty"`
-	Title                     string    `json:"title"`
-	Stage                     string    `json:"stage"`
-	OriginalIntent            string    `json:"originalIntent"`
-	SmartContractID           string    `json:"smartContractId"`
-	SmartContractVersion      string    `json:"smartContractVersion"`
-	RuleHash                  string    `json:"ruleHash"`
-	VerifiableGoal            string    `json:"verifiableGoal"`
-	AcceptanceCriteria        any       `json:"acceptanceCriteria"`
-	EvidenceRequirement       string    `json:"evidenceRequirement"`
-	CompletionClaim           *string   `json:"completionClaim,omitempty"`
-	EvidenceText              *string   `json:"evidenceText,omitempty"`
-	CompletionRecordID        *string   `json:"completionRecordId,omitempty"`
-	DraftReview               any       `json:"draftReview,omitempty"`
-	DraftReviewAIConfig       any       `json:"draftReviewAIConfig,omitempty"`
-	ReviewMessages            any       `json:"reviewMessages"`
-	AIReview                  any       `json:"aiReview,omitempty"`
-	CompletionReviewAIConfig  any       `json:"completionReviewAIConfig,omitempty"`
-	CompletionReviewRounds    any       `json:"completionReviewRounds,omitempty"`
-	PlanningConversationID    *string   `json:"planningConversationId,omitempty"`
-	CompletionConversationID  *string   `json:"completionConversationId,omitempty"`
-	UserVerdict               any       `json:"userVerdict,omitempty"`
-	NextContractTitle         *string   `json:"nextContractTitle,omitempty"`
-	CreatedAt                 time.Time `json:"createdAt"`
-	UpdatedAt                 time.Time `json:"updatedAt"`
+	ID                        string            `json:"id"`
+	ProjectID                 string            `json:"projectId"`
+	BranchID                  *string           `json:"branchId,omitempty"`
+	ProjectContractRevisionID string            `json:"projectContractRevisionId"`
+	ParentContractID          *string           `json:"parentContractId,omitempty"`
+	SourceContractIDs         any               `json:"sourceContractIds,omitempty"`
+	SupplementOfContractID    *string           `json:"supplementOfContractId,omitempty"`
+	RetryOfContractID         *string           `json:"retryOfContractId,omitempty"`
+	ActorID                   *uint64           `json:"actorId,omitempty"`
+	Title                     string            `json:"title"`
+	Stage                     string            `json:"stage"`
+	OriginalIntent            string            `json:"originalIntent"`
+	SmartContractID           string            `json:"smartContractId"`
+	SmartContractVersion      string            `json:"smartContractVersion"`
+	RuleHash                  string            `json:"ruleHash"`
+	VerifiableGoal            string            `json:"verifiableGoal"`
+	AcceptanceCriteria        any               `json:"acceptanceCriteria"`
+	EvidenceRequirement       string            `json:"evidenceRequirement"`
+	CompletionClaim           *string           `json:"completionClaim,omitempty"`
+	EvidenceText              *string           `json:"evidenceText,omitempty"`
+	CompletionRecordID        *string           `json:"completionRecordId,omitempty"`
+	DraftReview               any               `json:"draftReview,omitempty"`
+	DraftReviewAIConfig       any               `json:"draftReviewAIConfig,omitempty"`
+	ReviewMessages            any               `json:"reviewMessages"`
+	AIReview                  any               `json:"aiReview,omitempty"`
+	CompletionReviewAIConfig  any               `json:"completionReviewAIConfig,omitempty"`
+	CompletionReviewRounds    any               `json:"completionReviewRounds,omitempty"`
+	PlanningConversationID    *string           `json:"planningConversationId,omitempty"`
+	CompletionConversationID  *string           `json:"completionConversationId,omitempty"`
+	UserVerdict               any               `json:"userVerdict,omitempty"`
+	NextContractTitle         *string           `json:"nextContractTitle,omitempty"`
+	WorkLogs                  []workLogResponse `json:"workLogs"`
+	CreatedAt                 time.Time         `json:"createdAt"`
+	UpdatedAt                 time.Time         `json:"updatedAt"`
 }
 
 type executionEdgeResponse struct {
@@ -153,8 +178,19 @@ type createExecutionNodeRequest struct {
 	BranchID               string                   `json:"branchId"`
 	Fork                   bool                     `json:"fork"`
 	SupplementOfNodeID     string                   `json:"supplementOfContractId"`
+	RetryOfContractID      string                   `json:"retryOfContractId"`
 	Closure                bool                     `json:"closure"`
 	PlanningConversationID string                   `json:"planningConversationId"`
+}
+
+type workLogResponse struct {
+	ID        string    `json:"id"`
+	Body      string    `json:"body"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+type createWorkLogRequest struct {
+	Body string `json:"body"`
 }
 
 type setProjectAIKeyRequest struct {
@@ -211,6 +247,10 @@ func (s *server) handleProjects(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(parts) == 4 && parts[1] == "nodes" && parts[3] == "completion-conversations" && r.Method == http.MethodPost {
 		s.createCompletionConversation(w, r, user.ID, projectID, parts[2])
+		return
+	}
+	if len(parts) == 4 && parts[1] == "nodes" && parts[3] == "work-logs" && r.Method == http.MethodPost {
+		s.createWorkLog(w, r, user.ID, projectID, parts[2])
 		return
 	}
 	if len(parts) == 2 && parts[1] == "ai-key" && r.Method == http.MethodPost {
@@ -348,8 +388,9 @@ func (s *server) createProject(w http.ResponseWriter, r *http.Request, userID ui
 		writeError(w, http.StatusBadRequest, "项目类型不正确")
 		return
 	}
+	contributionCallID := strings.TrimSpace(request.ContributionCallID)
 	projectRules := strings.TrimSpace(request.ProjectRules)
-	if projectType == "guided" && len([]rune(projectRules)) < 12 {
+	if projectType == "guided" && contributionCallID == "" && len([]rune(projectRules)) < 12 {
 		writeError(w, http.StatusBadRequest, "规则引导型项目需要填写项目规则")
 		return
 	}
@@ -403,10 +444,35 @@ func (s *server) createProject(w http.ResponseWriter, r *http.Request, userID ui
 		writeError(w, http.StatusBadRequest, "项目审查 AI 不存在或不可用")
 		return
 	}
+	if contributionCallID != "" {
+		var ownerID uint64
+		var status, stage string
+		err := tx.QueryRowContext(ctx, `
+			SELECT p.owner_id, c.status, n.stage
+			FROM collaboration_calls c
+			JOIN projects p ON p.id = c.project_id
+			JOIN execution_contracts n ON n.id = c.target_contract_id
+			WHERE c.id = ? FOR UPDATE`, contributionCallID).Scan(&ownerID, &status, &stage)
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "开放缺口不存在")
+			return
+		}
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "读取开放缺口失败")
+			return
+		}
+		if ownerID == userID || status != "open" || stage != "frozen" {
+			writeError(w, http.StatusBadRequest, "这个开放缺口当前不能开始新的贡献")
+			return
+		}
+		visibility = "public"
+		projectType = "autonomous"
+		projectRules = ""
+	}
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO projects
-			(id, owner_id, title, description, project_type, project_rules, is_default, visibility, default_ai_key_id, active_contract_revision_id)
-		VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?)`, projectID, userID, title, description, projectType, projectRules, visibility, aiKeyID, revisionID); err != nil {
+			(id, owner_id, title, description, project_type, project_rules, is_default, visibility, default_ai_key_id, contribution_call_id, active_contract_revision_id)
+		VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, NULLIF(?, ''), ?)`, projectID, userID, title, description, projectType, projectRules, visibility, aiKeyID, contributionCallID, revisionID); err != nil {
 		writeError(w, http.StatusInternalServerError, "创建项目失败")
 		return
 	}
@@ -451,12 +517,13 @@ func (s *server) loadProject(ctx context.Context, userID uint64, projectID strin
 	var currentContractID sql.NullString
 	var activeRevisionID sql.NullString
 	var archivedAt sql.NullTime
+	var contributionCallID sql.NullString
 	if err := s.db.QueryRowContext(ctx, `
-	SELECT id, title, description, project_type, COALESCE(project_rules, ''), is_default, visibility, default_ai_key_id, current_contract_id,
+	SELECT id, title, description, project_type, COALESCE(project_rules, ''), is_default, visibility, default_ai_key_id, contribution_call_id, current_contract_id,
 		       active_contract_revision_id, created_at, archived_at
 		FROM projects WHERE id = ? AND owner_id = ?`, projectID, userID).
 		Scan(&project.ID, &project.Title, &project.Description, &project.ProjectType, &project.ProjectRules, &isDefault, &project.Visibility,
-			&project.ReviewAIKeyID, &currentContractID, &activeRevisionID, &project.CreatedAt, &archivedAt); err != nil {
+			&project.ReviewAIKeyID, &contributionCallID, &currentContractID, &activeRevisionID, &project.CreatedAt, &archivedAt); err != nil {
 		return project, err
 	}
 	project.IsDefault = isDefault == 1
@@ -467,6 +534,13 @@ func (s *server) loadProject(ctx context.Context, userID uint64, projectID strin
 	if archivedAt.Valid {
 		value := archivedAt.Time
 		project.ArchivedAt = &value
+	}
+	if contributionCallID.Valid {
+		origin, err := s.loadContributionOrigin(ctx, contributionCallID.String)
+		if err != nil {
+			return project, err
+		}
+		project.ContributionOrigin = &origin
 	}
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT r.id, r.smart_contract_id, r.smart_contract_version, r.rule_hash, r.reason, r.activated_at,
@@ -492,6 +566,48 @@ func (s *server) loadProject(ctx context.Context, userID uint64, projectID strin
 		project.ContractRevisions = append(project.ContractRevisions, revision)
 	}
 	return project, rows.Err()
+}
+
+func (s *server) loadContributionOrigin(ctx context.Context, callID string) (contributionOriginResponse, error) {
+	var origin contributionOriginResponse
+	var criteriaJSON string
+	err := s.db.QueryRowContext(ctx, `
+		SELECT c.id, c.project_id, p.title, c.title, c.status,
+		       n.title, n.verifiable_goal, n.acceptance_criteria_json, n.evidence_requirement
+		FROM collaboration_calls c
+		JOIN projects p ON p.id = c.project_id
+		JOIN execution_contracts n ON n.id = c.target_contract_id
+		WHERE c.id = ?`, callID).Scan(
+		&origin.CallID, &origin.ProjectID, &origin.ProjectTitle, &origin.CallTitle, &origin.Status,
+		&origin.TargetTitle, &origin.VerifiableGoal, &criteriaJSON, &origin.EvidenceRequirement,
+	)
+	if err != nil {
+		return origin, err
+	}
+	_ = json.Unmarshal([]byte(criteriaJSON), &origin.AcceptanceCriteria)
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT r.title, p.title, s.mapping_text, s.status
+		FROM collaboration_submissions s
+		JOIN completion_records r ON r.id = s.source_record_id
+		JOIN projects p ON p.id = r.project_id
+		WHERE s.call_id = ? AND s.status <> 'withdrawn'
+		ORDER BY s.created_at ASC`, callID)
+	if err != nil {
+		return origin, err
+	}
+	defer rows.Close()
+	origin.AvailableSources = make([]contributionOriginSource, 0)
+	for rows.Next() {
+		var source contributionOriginSource
+		if err := rows.Scan(&source.Title, &source.ProjectTitle, &source.MappingText, &source.Status); err != nil {
+			return origin, err
+		}
+		origin.AvailableSources = append(origin.AvailableSources, source)
+	}
+	if err := rows.Err(); err != nil {
+		return origin, err
+	}
+	return origin, nil
 }
 
 func (s *server) setProjectAIKey(w http.ResponseWriter, r *http.Request, userID uint64, projectID string) {
@@ -613,6 +729,10 @@ func (s *server) deleteProject(w http.ResponseWriter, r *http.Request, userID ui
 		writeError(w, http.StatusInternalServerError, "删除节点对话消息失败")
 		return
 	}
+	if _, err := tx.ExecContext(ctx, `DELETE l FROM execution_work_logs l JOIN execution_contracts n ON n.id = l.contract_id WHERE n.project_id = ?`, projectID); err != nil {
+		writeError(w, http.StatusInternalServerError, "删除节点进展失败")
+		return
+	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM node_conversations WHERE project_id = ?`, projectID); err != nil {
 		writeError(w, http.StatusInternalServerError, "删除节点对话失败")
 		return
@@ -689,7 +809,7 @@ func (s *server) writeProjectState(ctx context.Context, w http.ResponseWriter, u
 func (s *server) loadExecutionNodes(ctx context.Context, projectID string) ([]executionNodeResponse, error) {
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT id, branch_id, project_contract_revision_id, parent_contract_id,
-		       source_contract_ids_json, supplement_of_contract_id, actor_id, title, stage, original_intent,
+		       source_contract_ids_json, supplement_of_contract_id, retry_of_contract_id, actor_id, title, stage, original_intent,
 		       smart_contract_id, smart_contract_version, rule_hash, verifiable_goal,
 		       acceptance_criteria_json, evidence_requirement, completion_claim,
 		       evidence_text, completion_record_id, draft_review_json, draft_review_ai_config_json,
@@ -703,12 +823,12 @@ func (s *server) loadExecutionNodes(ctx context.Context, projectID string) ([]ex
 	nodes := make([]executionNodeResponse, 0)
 	for rows.Next() {
 		var node executionNodeResponse
-		var branchID, parentID, supplementOfID, completionRecordID, nextTitle sql.NullString
+		var branchID, parentID, supplementOfID, retryOfID, completionRecordID, nextTitle sql.NullString
 		var actorID sql.NullInt64
 		var sourceIDs, criteria, draftReview, draftReviewAIConfig, messages, aiReview, completionReviewAIConfig, completionReviewRounds, planningConversationID, completionConversationID, userVerdict sql.NullString
 		var completionClaim, evidenceText sql.NullString
 		if err := rows.Scan(
-			&node.ID, &branchID, &node.ProjectContractRevisionID, &parentID, &sourceIDs, &supplementOfID, &actorID,
+			&node.ID, &branchID, &node.ProjectContractRevisionID, &parentID, &sourceIDs, &supplementOfID, &retryOfID, &actorID,
 			&node.Title, &node.Stage, &node.OriginalIntent, &node.SmartContractID,
 			&node.SmartContractVersion, &node.RuleHash, &node.VerifiableGoal, &criteria,
 			&node.EvidenceRequirement, &completionClaim, &evidenceText, &completionRecordID,
@@ -720,6 +840,7 @@ func (s *server) loadExecutionNodes(ctx context.Context, projectID string) ([]ex
 		node.BranchID = nullableString(branchID)
 		node.ParentContractID = nullableString(parentID)
 		node.SupplementOfContractID = nullableString(supplementOfID)
+		node.RetryOfContractID = nullableString(retryOfID)
 		node.CompletionClaim = nullableString(completionClaim)
 		node.EvidenceText = nullableString(evidenceText)
 		node.CompletionRecordID = nullableString(completionRecordID)
@@ -739,9 +860,73 @@ func (s *server) loadExecutionNodes(ctx context.Context, projectID string) ([]ex
 		node.PlanningConversationID = nullableString(planningConversationID)
 		node.CompletionConversationID = nullableString(completionConversationID)
 		node.UserVerdict = decodeOptionalJSON(userVerdict)
+		node.WorkLogs, err = s.loadExecutionWorkLogs(ctx, node.ID)
+		if err != nil {
+			return nil, err
+		}
 		nodes = append(nodes, node)
 	}
 	return nodes, rows.Err()
+}
+
+func (s *server) loadExecutionWorkLogs(ctx context.Context, nodeID string) ([]workLogResponse, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id, body, created_at FROM execution_work_logs WHERE contract_id = ? ORDER BY created_at ASC, id ASC`, nodeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	logs := make([]workLogResponse, 0)
+	for rows.Next() {
+		var log workLogResponse
+		if err := rows.Scan(&log.ID, &log.Body, &log.CreatedAt); err != nil {
+			return nil, err
+		}
+		logs = append(logs, log)
+	}
+	return logs, rows.Err()
+}
+
+func (s *server) createWorkLog(w http.ResponseWriter, r *http.Request, userID uint64, projectID, nodeID string) {
+	var input createWorkLogRequest
+	if err := decodeJSON(r, &input); err != nil {
+		writeError(w, http.StatusBadRequest, "请求格式不正确")
+		return
+	}
+	input.Body = strings.TrimSpace(input.Body)
+	if input.Body == "" {
+		writeError(w, http.StatusBadRequest, "请输入要保存的进展")
+		return
+	}
+	if len([]rune(input.Body)) > 12000 {
+		writeError(w, http.StatusBadRequest, "进展记录不能超过 12000 个字符")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+	defer cancel()
+	var stage string
+	err := s.db.QueryRowContext(ctx, `SELECT n.stage FROM execution_contracts n JOIN projects p ON p.id = n.project_id WHERE n.id = ? AND n.project_id = ? AND p.owner_id = ? AND p.archived_at IS NULL`, nodeID, projectID, userID).Scan(&stage)
+	if err == sql.ErrNoRows {
+		writeError(w, http.StatusNotFound, "节点不存在或项目已归档")
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "读取节点失败")
+		return
+	}
+	if stage == "completed" || stage == "sealed" {
+		writeError(w, http.StatusBadRequest, "节点已锁定，不能再记录进展")
+		return
+	}
+	id, err := newOpaqueID("work-log")
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "生成进展编号失败")
+		return
+	}
+	if _, err := s.db.ExecContext(ctx, `INSERT INTO execution_work_logs (id, contract_id, owner_id, body) VALUES (?, ?, ?, ?)`, id, nodeID, userID, input.Body); err != nil {
+		writeError(w, http.StatusInternalServerError, "保存进展失败")
+		return
+	}
+	s.writeProjectState(ctx, w, userID, projectID, http.StatusCreated)
 }
 
 func (s *server) loadExecutionEdges(ctx context.Context, nodes []executionNodeResponse) ([]executionEdgeResponse, error) {
@@ -846,6 +1031,7 @@ func (s *server) createExecutionNode(w http.ResponseWriter, r *http.Request, use
 	request.VerifiableGoal = strings.TrimSpace(request.VerifiableGoal)
 	request.EvidenceRequirement = strings.TrimSpace(request.EvidenceRequirement)
 	request.Draft = strings.TrimSpace(request.Draft)
+	request.RetryOfContractID = strings.TrimSpace(request.RetryOfContractID)
 	if request.DraftReview.Verdict != "pass" {
 		writeError(w, http.StatusBadRequest, "节点草案必须先通过 AI 审核")
 		return
@@ -923,8 +1109,24 @@ func (s *server) createExecutionNode(w http.ResponseWriter, r *http.Request, use
 			return
 		}
 		if nodeCount > 0 {
-			writeError(w, http.StatusBadRequest, "后续推进必须从已锁定的完成记录继续或分叉")
-			return
+			if request.RetryOfContractID == "" {
+				writeError(w, http.StatusBadRequest, "后续推进必须从已验收成果继续，或从一项已封存的尝试重新开始")
+				return
+			}
+			var retryStage string
+			if err := tx.QueryRowContext(ctx, `SELECT stage FROM execution_contracts WHERE id = ? AND project_id = ? FOR UPDATE`, request.RetryOfContractID, projectID).Scan(&retryStage); err != nil || retryStage != "sealed" {
+				writeError(w, http.StatusBadRequest, "只能基于本项目已封存的尝试重新开始")
+				return
+			}
+			var activeCount int
+			if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM execution_contracts WHERE project_id = ? AND stage IN ('frozen', 'verified', 'needs_supplement')`, projectID).Scan(&activeCount); err != nil {
+				writeError(w, http.StatusInternalServerError, "读取项目状态失败")
+				return
+			}
+			if activeCount > 0 {
+				writeError(w, http.StatusBadRequest, "项目仍有等待处理的行动，不能同时重新开始")
+				return
+			}
 		}
 	}
 
@@ -1050,11 +1252,11 @@ func (s *server) createExecutionNode(w http.ResponseWriter, r *http.Request, use
 	}
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO execution_contracts
-			(id, project_id, branch_id, project_contract_revision_id, parent_contract_id, source_contract_ids_json, supplement_of_contract_id,
+			(id, project_id, branch_id, project_contract_revision_id, parent_contract_id, source_contract_ids_json, supplement_of_contract_id, retry_of_contract_id,
 			 actor_id, title, stage, original_intent, smart_contract_id, smart_contract_version, rule_hash,
 			 verifiable_goal, acceptance_criteria_json, evidence_requirement, draft_review_json, draft_review_ai_config_json, review_messages_json, planning_conversation_id)
-		VALUES (?, ?, NULLIF(?, ''), ?, NULLIF(?, ''), ?, NULLIF(?, ''), ?, ?, 'frozen', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULLIF(?, ''))`,
-		nodeID, projectID, branchID, revisionID, parentID, sourceJSON, request.SupplementOfNodeID, userID, request.Title, request.Draft,
+		VALUES (?, ?, NULLIF(?, ''), ?, NULLIF(?, ''), ?, NULLIF(?, ''), NULLIF(?, ''), ?, ?, 'frozen', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULLIF(?, ''))`,
+		nodeID, projectID, branchID, revisionID, parentID, sourceJSON, request.SupplementOfNodeID, request.RetryOfContractID, userID, request.Title, request.Draft,
 		smartContractID, smartContractVersion, ruleHash, request.VerifiableGoal, criteriaJSON, request.EvidenceRequirement,
 		draftReviewJSON, draftAIConfigJSON, messagesJSON, request.PlanningConversationID); err != nil {
 		writeError(w, http.StatusInternalServerError, "保存推进节点失败")
@@ -1078,6 +1280,17 @@ func (s *server) createExecutionNode(w http.ResponseWriter, r *http.Request, use
 		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO execution_edges (id, source_contract_id, target_contract_id, type) VALUES (?, ?, ?, ?)`, edgeID, sourceID, nodeID, edgeType); err != nil {
 			writeError(w, http.StatusInternalServerError, "保存节点关系失败")
+			return
+		}
+	}
+	if request.RetryOfContractID != "" {
+		edgeID, err := newOpaqueID("edge")
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "生成重试关系失败")
+			return
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO execution_edges (id, source_contract_id, target_contract_id, type) VALUES (?, ?, ?, 'reference')`, edgeID, request.RetryOfContractID, nodeID); err != nil {
+			writeError(w, http.StatusInternalServerError, "保存重试关系失败")
 			return
 		}
 	}

@@ -38,7 +38,6 @@ export function NodePage() {
   const allBranches = useExecStore((state) => state.branches)
   const submitReviewClarification = useExecStore((state) => state.submitReviewClarification)
   const confirmCompletion = useExecStore((state) => state.confirmCompletion)
-  const createSupplementContract = useExecStore((state) => state.createSupplementContract)
   const [isClarificationOpen, setIsClarificationOpen] = useState(false)
   const [clarificationCriterionIds, setClarificationCriterionIds] = useState<string[]>([])
   const [clarificationExplanation, setClarificationExplanation] = useState('')
@@ -64,14 +63,6 @@ export function NodePage() {
       return
     }
     navigate(`/contracts/${contract.id}?tab=completion`)
-  }
-
-  const onCreateSupplement = async () => {
-    const result = await createSupplementContract(contract.id)
-    if (!result.success) {
-      return
-    }
-    navigate(`/projects/${contract.projectId}`)
   }
 
   const onSubmitClarification = async () => {
@@ -275,7 +266,7 @@ export function NodePage() {
         </section>
       ) : null}
 
-      {canUseCompletionConversation ? <CompletionConversation projectId={contract.projectId} nodeId={contract.id} /> : null}
+      {canUseCompletionConversation ? <CompletionConversation projectId={contract.projectId} contract={contract} /> : null}
 
       {contract.completionClaim ? (
         <section className="grid gap-5 lg:grid-cols-2">
@@ -335,14 +326,13 @@ export function NodePage() {
               <p className="mt-2 text-sm leading-6 text-graphite">
                 智能合约没有确认这项行为已经完成。原审查记录会保留；你可以把缺口变成下一项行为继续推进。
               </p>
-              <button
-                type="button"
-                onClick={onCreateSupplement}
+              <Link
+                to={`/projects/${contract.projectId}?supplement=${contract.id}${branch ? `&branch=${branch.id}` : ''}#new-node`}
                 className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-md border border-rail bg-surface px-4 text-sm font-semibold text-ink transition hover:border-graphite/50 focus:outline-none focus-visible:shadow-focusline"
               >
                 <GitBranchPlus size={17} aria-hidden="true" />
-                生成补足行为
-              </button>
+                开始补足行动
+              </Link>
             </div>
           ) : null}
           {canClarify ? (
@@ -539,7 +529,7 @@ type ReviewClarificationDialogProps = {
 }
 
 function ReviewClarificationDialog({ contract, branchId, isOpen, mode, criterionIds, explanation, evidenceReferences, message, isSubmitting, onOpenChange, onModeChange, onToggleCriterion, onExplanationChange, onEvidenceReferencesChange, onSubmit }: ReviewClarificationDialogProps) {
-  const newWorkHref = `/projects/${contract.projectId}?close=${contract.id}${branchId ? `&branch=${branchId}` : ''}#new-node`
+  const newWorkHref = `/projects/${contract.projectId}?supplement=${contract.id}${branchId ? `&branch=${branchId}` : ''}#new-node`
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl grid-rows-[auto_minmax(0,1fr)]">

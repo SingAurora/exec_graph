@@ -137,6 +137,14 @@ export function ProjectGraph({ projectId, heightClassName = 'h-[360px] min-h-[28
             'target-arrow-color': colors.signal,
           },
         },
+        {
+          selector: 'edge[type = "reference"]',
+          style: {
+            'line-style': 'dotted',
+            'line-color': colors.edge,
+            'target-arrow-color': colors.edge,
+          },
+        },
       ],
       layout: {
         name: 'breadthfirst',

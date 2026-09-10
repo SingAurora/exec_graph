@@ -73,6 +73,11 @@ type exploreProjectResponse struct {
 	Calls         []collaborationCallResponse `json:"calls"`
 }
 
+type contributionActivityResponse struct {
+	Submission collaborationSubmissionResponse `json:"submission"`
+	Call       collaborationCallResponse       `json:"call"`
+}
+
 type createCollaborationCallRequest struct {
 	TargetContractID string `json:"targetContractId"`
 	Title            string `json:"title"`
@@ -686,4 +691,52 @@ func (s *server) handleContributionSources(w http.ResponseWriter, r *http.Reques
 		sources = append(sources, item)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"sources": sources})
+}
+
+func (s *server) handleMyContributions(w http.ResponseWriter, r *http.Request) {
+	user, ok := s.requireUser(w, r)
+	if !ok {
+		return
+	}
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "不支持的请求方法")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+	defer cancel()
+	rows, err := s.db.QueryContext(ctx, `SELECT id, call_id FROM collaboration_submissions WHERE contributor_id = ? AND status <> 'withdrawn' ORDER BY updated_at DESC`, user.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "读取协作回流失败")
+		return
+	}
+	defer rows.Close()
+	items := make([]contributionActivityResponse, 0)
+	for rows.Next() {
+		var submissionID, callID string
+		if err := rows.Scan(&submissionID, &callID); err != nil {
+			writeError(w, http.StatusInternalServerError, "读取协作回流失败")
+			return
+		}
+		call, err := s.loadCollaborationCall(ctx, callID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "读取协作回流失败")
+			return
+		}
+		submissions, err := s.loadCollaborationSubmissions(ctx, callID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "读取协作回流失败")
+			return
+		}
+		for _, submission := range submissions {
+			if submission.ID == submissionID {
+				items = append(items, contributionActivityResponse{Submission: submission, Call: call})
+				break
+			}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		writeError(w, http.StatusInternalServerError, "读取协作回流失败")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"contributions": items})
 }

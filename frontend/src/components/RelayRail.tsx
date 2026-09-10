@@ -6,7 +6,7 @@ import { StatusBadge } from './StatusBadge'
 export function RelayRail({ node }: { node: ExecutionContract }) {
   const contracts = useExecStore((state) => state.contracts)
   const edges = useExecStore((state) => state.edges)
-  const sourceIds = node.sourceContractIds ?? (node.parentContractId ? [node.parentContractId] : [])
+  const sourceIds = node.sourceContractIds?.length ? node.sourceContractIds : node.parentContractId ? [node.parentContractId] : node.retryOfContractId ? [node.retryOfContractId] : []
   const sources = sourceIds.map((sourceId) => contracts.find((item) => item.id === sourceId)).filter((item): item is ExecutionContract => Boolean(item))
   const children = contracts.filter((item) => item.parentContractId === node.id)
   const supplement = contracts.find((item) => item.supplementOfContractId === node.id)
@@ -20,7 +20,7 @@ export function RelayRail({ node }: { node: ExecutionContract }) {
   return (
     <div className="border-y border-rail bg-shell/55 px-5 py-4">
       <div className="grid gap-3 md:grid-cols-[1fr_auto_1fr_auto_1fr] md:items-stretch">
-        <SourceStop sources={sources} closure={isClosureNode} />
+        <SourceStop sources={sources} closure={isClosureNode} retry={Boolean(node.retryOfContractId)} />
         <RailConnector />
         <RailStop label="当前行为" contract={node} current />
         <RailConnector />
@@ -47,10 +47,10 @@ function FollowUpStop({ label, contracts }: { label: string; contracts: Executio
   )
 }
 
-function SourceStop({ sources, closure }: { sources: ExecutionContract[]; closure: boolean }) {
+function SourceStop({ sources, closure, retry }: { sources: ExecutionContract[]; closure: boolean; retry: boolean }) {
   return (
     <div className="flex h-full min-h-24 flex-col border-l border-rail pl-4">
-      <div className="font-mono text-xs font-semibold text-signal">{closure ? '待收束节点' : sources.length > 1 ? '合并来源' : '依据记录'}</div>
+      <div className="font-mono text-xs font-semibold text-signal">{retry ? '上次尝试' : closure ? '待收束节点' : sources.length > 1 ? '合并来源' : '依据记录'}</div>
       {sources.length > 0 ? (
         <div className="mt-3 grid gap-2">
           {sources.map((source) => (

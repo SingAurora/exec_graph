@@ -37,6 +37,8 @@ type CreateContractInput = {
   branchId?: string
   fork?: boolean
   closureSourceIds?: string[]
+  supplementOfContractId?: string
+  retryOfContractId?: string
   draftReview?: DraftReview
   planningConversationId?: string
 }
@@ -53,6 +55,7 @@ type CreateProjectInput = {
   projectRules: string
   visibility: 'private' | 'public'
   aiKeyId: string
+	contributionCallId?: string
 }
 
 type UpdateProjectInput = {
@@ -932,9 +935,12 @@ export const useExecStore = create<ExecState>()(
         const isConvergence = sourceIds.length > 1
         const isClosure = input.closureSourceIds?.length === 1 && input.closureSourceIds[0] === sourceIds[0] && sourceIds.length === 1
         const isClosureSource = isClosure && Boolean(parentContract) && parentContract?.stage === 'frozen' && isCurrentContract(project, parentContract, allContracts, get().branches)
+        const isSupplement = Boolean(input.supplementOfContractId) && input.supplementOfContractId === sourceIds[0] && sourceIds.length === 1
+        const isSupplementSource = isSupplement && Boolean(parentContract) && parentContract?.stage === 'needs_supplement' && isCurrentContract(project, parentContract, allContracts, get().branches)
+        const isReplacementSource = isClosureSource || isSupplementSource
         const invalidSources =
           sourceContracts.length !== sourceIds.length ||
-          sourceContracts.some((contract) => contract.projectId !== project.id || (!isClosureSource && (contract.stage !== 'completed' || !contract.completionRecordId)))
+          sourceContracts.some((contract) => contract.projectId !== project.id || (!isReplacementSource && (contract.stage !== 'completed' || !contract.completionRecordId)))
         if (invalidSources) {
           return {
             draftReview: {
@@ -970,7 +976,7 @@ export const useExecStore = create<ExecState>()(
             }
           }
         } else if (project.visibility === 'private') {
-          if (currentContractForProject(project, allContracts) && !isClosureSource) {
+          if (currentContractForProject(project, allContracts) && !isReplacementSource) {
             return {
               draftReview: {
                 id: `draft-review-${crypto.randomUUID()}`,
@@ -997,7 +1003,7 @@ export const useExecStore = create<ExecState>()(
           }
           if (selectedPrivateBranch) {
             selectedBranch = selectedPrivateBranch
-            if (currentContractForBranch(selectedPrivateBranch, allContracts) && !isClosureSource) {
+            if (currentContractForBranch(selectedPrivateBranch, allContracts) && !isReplacementSource) {
               return {
                 draftReview: {
                   id: `draft-review-${crypto.randomUUID()}`,
@@ -1014,7 +1020,7 @@ export const useExecStore = create<ExecState>()(
             const latestCompleted = projectContracts
               .filter((contract) => contract.stage === 'completed')
               .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))[0]
-            if (projectContracts.length > 0 && !parentContract) {
+            if (projectContracts.length > 0 && !parentContract && !input.retryOfContractId) {
               return {
                 draftReview: {
                   id: `draft-review-${crypto.randomUUID()}`,
@@ -1025,7 +1031,7 @@ export const useExecStore = create<ExecState>()(
                 },
               }
             }
-            if (!isClosureSource && parentContract && latestCompleted?.id !== parentContract.id) {
+            if (!isReplacementSource && parentContract && latestCompleted?.id !== parentContract.id) {
               return {
                 draftReview: {
                   id: `draft-review-${crypto.randomUUID()}`,
@@ -1041,7 +1047,7 @@ export const useExecStore = create<ExecState>()(
             shouldCreateBranch = true
           }
         } else {
-          if (projectContracts.length > 0 && !parentContract) {
+          if (projectContracts.length > 0 && !parentContract && !input.retryOfContractId) {
             return {
               draftReview: {
                 id: `draft-review-${crypto.randomUUID()}`,
@@ -1089,7 +1095,7 @@ export const useExecStore = create<ExecState>()(
             shouldCreateBranch = true
           }
 
-          if (selectedBranch && currentContractForBranch(selectedBranch, allContracts) && !isClosureSource) {
+          if (selectedBranch && currentContractForBranch(selectedBranch, allContracts) && !isReplacementSource) {
             return {
               draftReview: {
                 id: `draft-review-${crypto.randomUUID()}`,
@@ -1119,7 +1125,7 @@ export const useExecStore = create<ExecState>()(
         const draftReview = input.draftReview
         if (draftReview.verdict === 'fail') return { draftReview }
 
-        const criteria = compiled.acceptanceCriteria.slice(0, 6)
+        const criteria = compiled.acceptanceCriteria
         if (!get().accessToken) {
           return {
             draftReview: {
@@ -1150,6 +1156,8 @@ export const useExecStore = create<ExecState>()(
               branchId: selectedBranch?.id,
               fork: shouldCreateBranch,
               closure: isClosure,
+              supplementOfContractId: input.supplementOfContractId,
+              retryOfContractId: input.retryOfContractId,
               planningConversationId: input.planningConversationId,
             }),
           })

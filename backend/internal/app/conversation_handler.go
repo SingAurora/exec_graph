@@ -45,11 +45,13 @@ type conversationResponse struct {
 }
 
 type createConversationRequest struct {
-	ParentContractID  string   `json:"parentContractId"`
-	SourceContractIDs []string `json:"sourceContractIds"`
-	BranchID          string   `json:"branchId"`
-	Fork              bool     `json:"fork"`
-	ClosureSourceIDs  []string `json:"closureSourceIds"`
+	ParentContractID       string   `json:"parentContractId"`
+	SourceContractIDs      []string `json:"sourceContractIds"`
+	BranchID               string   `json:"branchId"`
+	Fork                   bool     `json:"fork"`
+	ClosureSourceIDs       []string `json:"closureSourceIds"`
+	SupplementOfContractID string   `json:"supplementOfContractId"`
+	RetryOfContractID      string   `json:"retryOfContractId"`
 }
 
 type sendConversationMessageRequest struct {
@@ -111,8 +113,9 @@ func (s *server) createPlanningConversation(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	var title, description, rules string
+	var contributionCallID sql.NullString
 	var archived sql.NullTime
-	if err := s.db.QueryRowContext(ctx, `SELECT title, description, COALESCE(project_rules, ''), archived_at FROM projects WHERE id = ? AND owner_id = ?`, projectID, userID).Scan(&title, &description, &rules, &archived); err != nil {
+	if err := s.db.QueryRowContext(ctx, `SELECT title, description, COALESCE(project_rules, ''), contribution_call_id, archived_at FROM projects WHERE id = ? AND owner_id = ?`, projectID, userID).Scan(&title, &description, &rules, &contributionCallID, &archived); err != nil {
 		writeError(w, http.StatusNotFound, "项目不存在")
 		return
 	}
@@ -120,9 +123,28 @@ func (s *server) createPlanningConversation(w http.ResponseWriter, r *http.Reque
 		writeError(w, http.StatusBadRequest, "项目已归档，不能创建推进")
 		return
 	}
-	contextJSON, _ := jsonValue(map[string]any{"project": map[string]string{"title": title, "description": description, "rules": rules}, "relation": input})
+	sourceIDs := uniqueNonEmpty(append(append([]string{}, input.SourceContractIDs...), input.ParentContractID, input.SupplementOfContractID, input.RetryOfContractID))
+	sources, err := s.loadPlanningSourceContext(ctx, projectID, sourceIDs)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "读取行动上下文失败")
+		return
+	}
+	conversationContext := map[string]any{
+		"project":  map[string]string{"title": title, "description": description, "rules": rules},
+		"relation": input,
+		"sources":  sources,
+	}
+	if contributionCallID.Valid {
+		origin, err := s.loadContributionOrigin(ctx, contributionCallID.String)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "读取协作交接上下文失败")
+			return
+		}
+		conversationContext["contributionOrigin"] = origin
+	}
+	contextJSON, _ := jsonValue(conversationContext)
 	var existing string
-	err := s.db.QueryRowContext(ctx, `SELECT id FROM node_conversations WHERE project_id = ? AND owner_id = ? AND phase = 'planning' AND status IN ('active', 'ready_for_freeze') AND context_json = ? ORDER BY updated_at DESC LIMIT 1`, projectID, userID, contextJSON).Scan(&existing)
+	err = s.db.QueryRowContext(ctx, `SELECT id FROM node_conversations WHERE project_id = ? AND owner_id = ? AND phase = 'planning' AND status IN ('active', 'ready_for_freeze') AND context_json = ? ORDER BY updated_at DESC LIMIT 1`, projectID, userID, contextJSON).Scan(&existing)
 	if err == nil {
 		s.getConversation(w, r, userID, existing)
 		return
@@ -141,6 +163,36 @@ func (s *server) createPlanningConversation(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	s.getConversation(w, r, userID, id)
+}
+
+// Planning should continue from the actual prior result rather than only a node ID.
+// Sealed attempts are included as context but never become accepted dependencies.
+func (s *server) loadPlanningSourceContext(ctx context.Context, projectID string, sourceIDs []string) ([]map[string]any, error) {
+	sources := make([]map[string]any, 0, len(sourceIDs))
+	for _, sourceID := range sourceIDs {
+		var title, goal, evidence, stage string
+		var claim, evidenceText sql.NullString
+		var reviewJSON sql.NullString
+		err := s.db.QueryRowContext(ctx, `
+			SELECT title, verifiable_goal, evidence_requirement, stage, completion_claim, evidence_text, ai_review_json
+			FROM execution_contracts WHERE id = ? AND project_id = ?`, sourceID, projectID).
+			Scan(&title, &goal, &evidence, &stage, &claim, &evidenceText, &reviewJSON)
+		if err == sql.ErrNoRows {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		source := map[string]any{
+			"id": sourceID, "title": title, "verifiableGoal": goal, "evidenceRequirement": evidence,
+			"stage": stage, "completionClaim": nullableString(claim), "evidenceText": nullableString(evidenceText),
+		}
+		if reviewJSON.Valid {
+			source["latestReview"] = decodeJSONValue(reviewJSON.String, nil)
+		}
+		sources = append(sources, source)
+	}
+	return sources, nil
 }
 
 func (s *server) createCompletionConversation(w http.ResponseWriter, r *http.Request, userID uint64, projectID, nodeID string) {
@@ -398,7 +450,9 @@ func (s *server) persistCompletionReview(ctx context.Context, userID uint64, con
 		return err
 	}
 	messagesJSON, _ := jsonValue(conversationToLegacyMessages(conversation.Messages, output.Reply))
-	result, err := tx.ExecContext(ctx, `UPDATE execution_contracts SET stage = ?, completion_claim = ?, evidence_text = ?, ai_review_json = ?, completion_review_ai_config_json = ?, review_messages_json = ? WHERE id = ? AND completion_conversation_id = ? AND stage IN ('frozen', 'verified', 'needs_supplement')`, stage, claim, claim, reviewJSON, mustJSON(config), messagesJSON, *conversation.NodeID, conversationID)
+	// Completion conversations are for clarification after a formal submission.
+	// Preserve the original claim and evidence when an older client sends a message here.
+	result, err := tx.ExecContext(ctx, `UPDATE execution_contracts SET stage = ?, completion_claim = COALESCE(completion_claim, ?), evidence_text = COALESCE(evidence_text, ?), ai_review_json = ?, completion_review_ai_config_json = ?, review_messages_json = ? WHERE id = ? AND completion_conversation_id = ? AND stage IN ('frozen', 'verified', 'needs_supplement')`, stage, claim, claim, reviewJSON, mustJSON(config), messagesJSON, *conversation.NodeID, conversationID)
 	if err != nil {
 		return err
 	}

@@ -59,10 +59,11 @@ func seedDevelopmentTestAccount(ctx context.Context, db *sql.DB, account TestAcc
 	}
 	defer tx.Rollback()
 	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO users (username, user_id, email, password_hash, email_verified_at)
-		VALUES (?, 'execgraph_test', ?, ?, NOW())
+		INSERT INTO users (username, user_id, is_test_account, email, password_hash, email_verified_at)
+		VALUES (?, 'execgraph_test', 1, ?, ?, NOW())
 		ON DUPLICATE KEY UPDATE
 			username = VALUES(username),
+			is_test_account = 1,
 			password_hash = VALUES(password_hash),
 			email_verified_at = COALESCE(email_verified_at, VALUES(email_verified_at))`, username, email, account.Password); err != nil {
 		return fmt.Errorf("upsert test account: %w", err)

@@ -12,9 +12,11 @@ type ContractComposerProps = {
   branchId?: string
   fork?: boolean
   closureSourceIds?: string[]
+  supplementOfContractId?: string
+  retryOfContractId?: string
 }
 
-export function ContractComposer({ projectId, lockProject = false, parentContractId, sourceContractIds, branchId, fork = false, closureSourceIds }: ContractComposerProps) {
+export function ContractComposer({ projectId, lockProject = false, parentContractId, sourceContractIds, branchId, fork = false, closureSourceIds, supplementOfContractId, retryOfContractId }: ContractComposerProps) {
   const projects = useExecStore((state) => state.projects)
   const parentContract = useExecStore((state) => state.contracts.find((contract) => contract.id === parentContractId))
   const smartContracts = useExecStore((state) => state.smartContracts)
@@ -30,7 +32,7 @@ export function ContractComposer({ projectId, lockProject = false, parentContrac
   const selectedContract = smartContracts.find((contract) => contract.id === activeRevision?.smartContractId)
   const isClosure = Boolean(parentContractId && closureSourceIds?.includes(parentContractId))
 
-  const onCreate = async ({ draft, draftReview, planningConversationId }: { draft: string; draftReview: DraftReview; planningConversationId: string }) => createContract({ projectId: selectedProject!.id, draft, parentContractId, sourceContractIds, branchId, fork, closureSourceIds, draftReview, planningConversationId })
+  const onCreate = async ({ draft, draftReview, planningConversationId }: { draft: string; draftReview: DraftReview; planningConversationId: string }) => createContract({ projectId: selectedProject!.id, draft, parentContractId, sourceContractIds, branchId, fork, closureSourceIds, supplementOfContractId, retryOfContractId, draftReview, planningConversationId })
 
   return (
     <section className="rounded-md border border-rail bg-surface/72 p-5">
@@ -38,7 +40,7 @@ export function ContractComposer({ projectId, lockProject = false, parentContrac
         <LockKeyhole size={15} aria-hidden="true" />
         {isFirstNode ? 'First action' : 'New action'}
       </div>
-      <h2 className="mt-2 font-display text-2xl font-semibold">{isFirstNode ? '创建第一项推进' : isClosure ? '创建补齐并收束节点' : '开始一项推进'}</h2>
+      <h2 className="mt-2 font-display text-2xl font-semibold">{isFirstNode ? '创建第一项推进' : retryOfContractId ? '根据上次经验重新尝试' : supplementOfContractId ? '开始补足行动' : isClosure ? '创建补齐并收束节点' : '开始一项推进'}</h2>
       <p className="mt-3 text-sm leading-6 text-graphite">先和 AI 把本次行动收敛为可验证的契约；只有通过冻结审核，才会写入节点链。</p>
 
       <div className="mt-5 grid gap-4">
@@ -108,7 +110,7 @@ export function ContractComposer({ projectId, lockProject = false, parentContrac
           </div>
         ) : null}
 
-        {selectedProject ? <PlanningConversation projectId={selectedProject.id} parentContractId={parentContractId} sourceContractIds={sourceContractIds} branchId={branchId} fork={fork} closureSourceIds={closureSourceIds} onCreate={onCreate} /> : null}
+        {selectedProject ? <PlanningConversation projectId={selectedProject.id} parentContractId={parentContractId} sourceContractIds={sourceContractIds} branchId={branchId} fork={fork} closureSourceIds={closureSourceIds} supplementOfContractId={supplementOfContractId} retryOfContractId={retryOfContractId} onCreate={onCreate} /> : null}
       </div>
     </section>
   )

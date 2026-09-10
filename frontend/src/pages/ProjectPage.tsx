@@ -1,10 +1,11 @@
-import { Archive, ArchiveRestore, ArrowRight, Bot, CheckCircle2, Compass, Eye, FileCheck2, GitBranchPlus, GitFork, GitMerge, ListChecks, LockKeyhole, Settings2, Trash2, UsersRound, type LucideIcon } from 'lucide-react'
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { Archive, ArchiveRestore, ArrowRight, Bot, CheckCircle2, Compass, Eye, FileCheck2, GitBranchPlus, GitFork, GitMerge, ListChecks, LockKeyhole, Network, Send, Settings2, Trash2, UsersRound, type LucideIcon } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ContractComposer } from '../components/ContractComposer'
 import { ProjectGraph } from '../components/ProjectGraph'
 import { SectionHeader } from '../components/SectionHeader'
 import { StatusBadge } from '../components/StatusBadge'
+import { getCall, submitContribution, type CollaborationCall, type CollaborationSubmission } from '../lib/collaboration'
 import { currentContractIDs, isAcceptedRecord, isReadyToProgress, isReviewInProgress, isSealedRecord, needsReviewDecision } from '../lib/execution'
 import { useExecStore } from '../store/useExecStore'
 import type { CompletionRecord, ExecutionBranch, ExecutionContract, Project } from '../types'
@@ -104,8 +105,12 @@ export function ProjectPage() {
   const requestedParent = contracts.find((contract) => contract.id === requestedParentId && contract.stage === 'completed')
   const requestedClosureId = searchParams.get('close') ?? undefined
   const requestedClosure = contracts.find((contract) => contract.id === requestedClosureId && contract.stage === 'frozen')
+  const requestedSupplementId = searchParams.get('supplement') ?? undefined
+  const requestedSupplement = contracts.find((contract) => contract.id === requestedSupplementId && contract.stage === 'needs_supplement')
+  const requestedRetryId = searchParams.get('retry') ?? undefined
+  const requestedRetry = contracts.find((contract) => contract.id === requestedRetryId && contract.stage === 'sealed')
   const isFork = searchParams.get('fork') === '1'
-  const requestedBranch = branches.find((branch) => branch.id === (searchParams.get('branch') ?? requestedClosure?.branchId))
+  const requestedBranch = branches.find((branch) => branch.id === (searchParams.get('branch') ?? requestedClosure?.branchId ?? requestedSupplement?.branchId))
   const activeBranchContracts = branches
     .map((branch) => ({ branch, contract: contracts.find((contract) => contract.id === branch.currentContractId) }))
     .filter((item): item is { branch: ExecutionBranch; contract: ExecutionContract } => Boolean(item.contract))
@@ -116,7 +121,7 @@ export function ProjectPage() {
   const latestRecord = sortedCompletionRecords.filter(isAcceptedRecord).at(-1)
   const latestCompleted = latestRecord ? contracts.find((contract) => contract.id === latestRecord.closingContractId) : undefined
   const requestedTab = projectTabFrom(searchParams.get('tab'))
-  const activeTab = requestedParent || requestedClosure ? 'nodes' : requestedTab
+  const activeTab = requestedParent || requestedClosure || requestedSupplement || requestedRetry ? 'nodes' : requestedTab
 
   return (
     <div className="space-y-9">
@@ -151,9 +156,11 @@ export function ProjectPage() {
 
       <ProjectTabs project={project} activeTab={activeTab} />
 
+      {project.contributionOrigin ? <ContributionOriginBanner origin={project.contributionOrigin} /> : null}
+
       {activeTab === 'nodes' ? (
         <>
-          {isArchived ? <ArchivedProjectNotice /> : <ProjectWorkstation project={project} contracts={contracts} currentContract={currentContract} activeBranchContracts={activeBranchContracts} latestCompleted={latestCompleted} requestedParent={requestedParent} requestedClosure={requestedClosure} requestedBranch={requestedBranch} isFork={isFork} />}
+          {isArchived ? <ArchivedProjectNotice /> : <ProjectWorkstation project={project} contracts={contracts} currentContract={currentContract} activeBranchContracts={activeBranchContracts} latestCompleted={latestCompleted} requestedParent={requestedParent} requestedClosure={requestedClosure} requestedSupplement={requestedSupplement} requestedRetry={requestedRetry} requestedBranch={requestedBranch} isFork={isFork} />}
 
           {project.visibility === 'public' && currentContract?.stage === 'frozen' ? <ProjectCollaborationPublisher projectId={project.id} node={currentContract} accessToken={accessToken} /> : null}
 
@@ -167,7 +174,10 @@ export function ProjectPage() {
         </>
       ) : null}
 
-      {activeTab === 'records' ? <ProjectRecords records={sortedCompletionRecords} contracts={contracts} /> : null}
+      {activeTab === 'records' ? <>
+        {project.contributionOrigin ? <ContributionHandoff origin={project.contributionOrigin} records={completionRecords.filter(isAcceptedRecord)} token={accessToken} /> : null}
+        <ProjectRecords records={sortedCompletionRecords} contracts={contracts} />
+      </> : null}
 
       {activeTab === 'graph' ? (
         <ProjectGraphTab project={project} contracts={contracts} branches={branches} />
@@ -277,6 +287,89 @@ function ProjectAISettings({ project, accessToken, isArchived, onUpdated }: { pr
   )
 }
 
+function ContributionOriginBanner({ origin }: { origin: NonNullable<Project['contributionOrigin']> }) {
+  return (
+    <section className="grid gap-4 border-y border-rail bg-shell/45 py-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+      <div>
+        <div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal"><Network size={15} aria-hidden="true" />协作贡献工作区</div>
+        <h2 className="mt-2 text-lg font-semibold text-ink">正在为「{origin.projectTitle}」补上「{origin.callTitle}」</h2>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-graphite">你的行动会围绕这个缺口推进；成果通过验收后，在“成果与封存”中回交给维护者组合审查。</p>
+		{origin.availableSources.length > 0 ? <p className="mt-2 max-w-3xl text-xs leading-5 text-graphite">可参考的已有成果：{origin.availableSources.map((source) => `「${source.title}」`).join('、')}。它们是协作背景，不会替代你的独立贡献。</p> : null}
+      </div>
+      <Link to={`/explore/projects/${origin.projectId}#call-${origin.callId}`} className="inline-flex h-10 items-center justify-center gap-2 border border-rail bg-surface px-3 text-sm font-semibold text-ink hover:border-signal"><ArrowRight size={16} aria-hidden="true" />查看原始协作目标</Link>
+    </section>
+  )
+}
+
+function ContributionHandoff({ origin, records, token }: { origin: NonNullable<Project['contributionOrigin']>; records: CompletionRecord[]; token: string }) {
+  const [call, setCall] = useState<CollaborationCall | null>(null)
+  const [submissions, setSubmissions] = useState<CollaborationSubmission[]>([])
+  const [recordID, setRecordID] = useState('')
+  const [mapping, setMapping] = useState('')
+  const [message, setMessage] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const load = useCallback(async () => {
+    try {
+      const data = await getCall(token, origin.callId)
+      setCall(data.call)
+      setSubmissions(data.submissions)
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : '读取协作交接失败')
+    }
+  }, [origin.callId, token])
+
+  useEffect(() => { void load() }, [load])
+  useEffect(() => {
+    const available = records.find((record) => !submissions.some((submission) => submission.sourceRecordId === record.id))
+    if (available) setRecordID((current) => current || available.id)
+  }, [records, submissions])
+
+  const submitted = submissions.filter((submission) => records.some((record) => record.id === submission.sourceRecordId))
+  const availableRecords = records.filter((record) => !submissions.some((submission) => submission.sourceRecordId === record.id))
+  const handoff = async () => {
+    if (!recordID || mapping.trim().length < 8) {
+      setMessage('说明这份成果对应目标标准的哪一部分，以及证据在哪里。')
+      return
+    }
+    setBusy(true); setMessage('')
+    try {
+      await submitContribution(token, origin.callId, recordID, mapping, '')
+      setMapping('')
+      setMessage('成果已回交，等待维护者选择来源并进行组合审查。')
+      await load()
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : '回交成果失败')
+    } finally { setBusy(false) }
+  }
+
+  return (
+    <section className="mb-7 border border-rail bg-surface">
+      <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <div>
+          <div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal"><Network size={15} aria-hidden="true" />回交协作成果</div>
+          <h2 className="mt-2 text-xl font-semibold text-ink">把已验收成果接回「{origin.projectTitle}」</h2>
+          <p className="mt-2 text-sm leading-6 text-graphite">目标：{origin.verifiableGoal}</p>
+          <div className="mt-4 border-y border-rail py-3 text-sm leading-6 text-graphite">
+            {origin.acceptanceCriteria.map((criterion) => <p key={criterion.id}><span className="font-mono text-xs font-semibold text-signal">{criterion.id.toUpperCase()}</span> {criterion.text}</p>)}
+          </div>
+        </div>
+        <aside className="border-l border-rail pl-0 lg:pl-5">
+          <div className="font-mono text-xs font-semibold uppercase text-graphite">当前状态</div>
+          <div className="mt-3 text-sm leading-6 text-graphite">
+            <p><b className="text-ink">{submitted.length}</b> 份本项目成果已回交</p>
+            <p className="mt-1">开放缺口：<b className={call?.status === 'open' ? 'text-signal' : 'text-graphite'}>{call?.status === 'open' ? '仍在接收贡献' : call?.status === 'adopted' ? '已形成采纳' : '已关闭'}</b></p>
+          </div>
+        </aside>
+      </div>
+      {submitted.length > 0 ? <div className="divide-y divide-rail border-t border-rail">{submitted.map((submission) => <div key={submission.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm"><span className="font-semibold text-ink">{submission.sourceTitle}</span><span className={submission.status === 'adopted' ? 'font-semibold text-moss' : 'font-semibold text-graphite'}>{submission.status === 'adopted' ? '已被维护者采纳' : '等待组合审查'}</span></div>)}</div> : null}
+      {call?.status === 'open' && availableRecords.length > 0 ? <div className="border-t border-rail bg-shell/45 p-5"><div className="grid gap-3"><select value={recordID} onChange={(event) => setRecordID(event.target.value)} className="h-11 border border-rail bg-paper px-3 text-sm outline-none focus:border-signal"><option value="">选择一份已验收成果</option>{availableRecords.map((record) => <option key={record.id} value={record.id}>{record.title}</option>)}</select><textarea value={mapping} onChange={(event) => setMapping(event.target.value)} placeholder="说明这份成果对应哪些验收标准，以及证据在哪里。" className="min-h-20 border border-rail bg-paper px-3 py-2 text-sm leading-6 outline-none focus:border-signal" /><button type="button" disabled={busy || !recordID} onClick={() => void handoff()} className="inline-flex h-10 w-fit items-center gap-2 bg-signal px-3 text-sm font-semibold text-white disabled:opacity-50"><Send size={16} aria-hidden="true" />{busy ? '正在回交' : '提交回协作目标'}</button></div></div> : null}
+      {availableRecords.length === 0 && submitted.length === 0 ? <p className="border-t border-rail px-5 py-4 text-sm leading-6 text-graphite">先完成并确认至少一项行动成果，它会出现在这里供你回交。</p> : null}
+      {message ? <p className="border-t border-rail px-5 py-3 text-sm font-semibold text-graphite">{message}</p> : null}
+    </section>
+  )
+}
+
 function ProjectTabs({ project, activeTab }: { project: Project; activeTab: ProjectTab }) {
   const projectId = project.id
   return (
@@ -333,6 +426,7 @@ function ProjectGraphLegend() {
       <LegendLine label="分叉" className="border-signal border-dashed" />
       <LegendLine label="补充" className="border-clay border-dashed" />
       <LegendLine label="收束" className="border-moss border-dashed" />
+      <LegendLine label="重新尝试" className="border-graphite border-dotted" />
     </div>
   )
 }
@@ -474,14 +568,14 @@ function ProjectRecords({ records, contracts }: { records: CompletionRecord[]; c
   )
 }
 
-function ProjectWorkstation({ project, contracts, currentContract, activeBranchContracts, latestCompleted, requestedParent, requestedClosure, requestedBranch, isFork }: { project: Project; contracts: ExecutionContract[]; currentContract?: ExecutionContract; activeBranchContracts: Array<{ branch: ExecutionBranch; contract: ExecutionContract }>; latestCompleted?: ExecutionContract; requestedParent?: ExecutionContract; requestedClosure?: ExecutionContract; requestedBranch?: ExecutionBranch; isFork: boolean }) {
+function ProjectWorkstation({ project, contracts, currentContract, activeBranchContracts, latestCompleted, requestedParent, requestedClosure, requestedSupplement, requestedRetry, requestedBranch, isFork }: { project: Project; contracts: ExecutionContract[]; currentContract?: ExecutionContract; activeBranchContracts: Array<{ branch: ExecutionBranch; contract: ExecutionContract }>; latestCompleted?: ExecutionContract; requestedParent?: ExecutionContract; requestedClosure?: ExecutionContract; requestedSupplement?: ExecutionContract; requestedRetry?: ExecutionContract; requestedBranch?: ExecutionBranch; isFork: boolean }) {
   const activeActions = [
     ...(currentContract ? [{ branch: undefined, contract: currentContract }] : []),
     ...activeBranchContracts,
   ]
   if (requestedParent) {
     return (
-      <section id="new-node" className="grid gap-7 border-y border-rail py-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+      <section id="new-node" className="space-y-6 border-y border-rail py-8">
         <FlowIntroduction icon={isFork ? GitFork : ArrowRight} title={isFork ? `从「${requestedParent.title}」拆分新路径` : `从「${requestedParent.title}」继续下一项`} />
         <ContractComposer projectId={project.id} lockProject parentContractId={requestedParent.id} branchId={requestedBranch?.id} fork={isFork} />
       </section>
@@ -490,9 +584,27 @@ function ProjectWorkstation({ project, contracts, currentContract, activeBranchC
 
   if (requestedClosure) {
     return (
-      <section id="new-node" className="grid gap-7 border-y border-rail py-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+      <section id="new-node" className="space-y-6 border-y border-rail py-8">
         <FlowIntroduction icon={GitMerge} title={`补齐并收束「${requestedClosure.title}」`} />
         <ContractComposer projectId={project.id} lockProject parentContractId={requestedClosure.id} sourceContractIds={[requestedClosure.id]} closureSourceIds={[requestedClosure.id]} branchId={requestedBranch?.id} />
+      </section>
+    )
+  }
+
+  if (requestedSupplement) {
+    return (
+      <section id="new-node" className="space-y-6 border-y border-rail py-8">
+        <FlowIntroduction icon={GitBranchPlus} title={`补足「${requestedSupplement.title}」中的缺口`} />
+        <ContractComposer projectId={project.id} lockProject parentContractId={requestedSupplement.id} sourceContractIds={[requestedSupplement.id]} supplementOfContractId={requestedSupplement.id} branchId={requestedBranch?.id} />
+      </section>
+    )
+  }
+
+  if (requestedRetry) {
+    return (
+      <section id="new-node" className="space-y-6 border-y border-rail py-8">
+        <FlowIntroduction icon={GitBranchPlus} title={`从「${requestedRetry.title}」的经验重新尝试`} />
+        <ContractComposer projectId={project.id} lockProject retryOfContractId={requestedRetry.id} />
       </section>
     )
   }
@@ -518,7 +630,7 @@ function ProjectWorkstation({ project, contracts, currentContract, activeBranchC
 
   if (contracts.length > 0 && latestCompleted) {
     return (
-      <section className="grid gap-6 border-y border-rail py-8 xl:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)]">
+      <section className="space-y-6 border-y border-rail py-8">
         <div>
           <div className="font-mono text-xs font-semibold uppercase text-signal">下一次推进</div>
           <h2 className="mt-3 font-display text-3xl font-semibold leading-tight text-ink">从最近完成记录继续</h2>
@@ -530,17 +642,21 @@ function ProjectWorkstation({ project, contracts, currentContract, activeBranchC
   }
 
   if (contracts.length > 0) {
+    const latestSealed = contracts.filter((contract) => contract.stage === 'sealed').sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))[0]
     return (
-      <section className="border-y border-rail py-8">
-        <div className="max-w-2xl border-l-2 border-graphite py-2 pl-4 text-sm leading-6 text-graphite">
-          这个项目目前没有可接续的已验收行动。已封存的节点会保留证据，但不能作为下一项推进的来源。
+      <section className="space-y-6 border-y border-rail py-8">
+        <div>
+          <div className="font-mono text-xs font-semibold uppercase text-graphite">调整方向</div>
+          <h2 className="mt-3 font-display text-3xl font-semibold leading-tight text-ink">保留这次经验，再开始新的尝试</h2>
+          <p className="mt-3 max-w-md text-sm leading-6 text-graphite">封存不会变成已验收成果，但 AI 会带入原目标、已提交证据和指出的缺口，帮助你调整下一步。</p>
         </div>
+        {latestSealed ? <ContractComposer projectId={project.id} lockProject retryOfContractId={latestSealed.id} /> : <div className="border-l-2 border-graphite py-2 pl-4 text-sm leading-6 text-graphite">当前项目没有可接续的已验收行动。</div>}
       </section>
     )
   }
 
   return (
-    <section id="new-node" className="grid gap-7 border-y border-rail py-8 xl:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)]">
+    <section id="new-node" className="space-y-6 border-y border-rail py-8">
       <FlowIntroduction icon={LockKeyhole} title="创建第一项推进" />
       <ContractComposer projectId={project.id} lockProject />
     </section>

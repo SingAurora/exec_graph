@@ -93,6 +93,7 @@ func (s *server) routes() http.Handler {
 	explore.GET("/projects", gin.WrapF(s.handleExploreProjects))
 	explore.GET("/projects/:id", gin.WrapF(s.handleExploreProject))
 	explore.GET("/contribution-sources", gin.WrapF(s.handleContributionSources))
+	explore.GET("/my-contributions", gin.WrapF(s.handleMyContributions))
 
 	collaboration := api.Group("/collaboration-calls")
 	collaboration.GET("/:id", gin.WrapF(s.handleCollaborationCall))
