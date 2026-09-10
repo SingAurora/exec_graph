@@ -20,8 +20,8 @@ type CurrentNodeCopy = {
 type ProjectTab = 'nodes' | 'records' | 'graph' | 'profile' | 'ai'
 
 const projectTabs: Array<{ id: ProjectTab; label: string; icon: LucideIcon }> = [
-  { id: 'nodes', label: '节点', icon: FileCheck2 },
-  { id: 'records', label: '记录', icon: CheckCircle2 },
+  { id: 'nodes', label: '行动', icon: FileCheck2 },
+  { id: 'records', label: '成果与封存', icon: CheckCircle2 },
   { id: 'graph', label: '关系图', icon: GitFork },
   { id: 'profile', label: '项目资料', icon: Settings2 },
   { id: 'ai', label: '审查 AI', icon: Bot },
@@ -44,17 +44,17 @@ const currentNodeCopy = (contract: ExecutionContract): CurrentNodeCopy => {
       icon: CheckCircle2,
       eyebrow: '待确认 AI 结果',
       title: '确认 AI 审查结果',
-      description: 'AI 已通过审查。确认结果后，节点会被锁定并生成一条记录。',
-      actionLabel: '确认 AI 结果',
+      description: 'AI 已通过审查。确认后会生成一条可接续的已验收成果。',
+      actionLabel: '确认验收',
     }
   }
   if (contract.stage === 'needs_supplement') {
     return {
       icon: GitBranchPlus,
-      eyebrow: '待确认 AI 结果',
-      title: '处理 AI 审查结果',
-      description: 'AI 未通过。你可以生成补足节点继续推进，也可以带着这个结论锁定。',
-      actionLabel: '查看 AI 结果',
+      eyebrow: '有缺口',
+      title: '补足缺口或封存行动',
+      description: 'AI 指出了未满足项。继续补足会保留这次行动的上下文；封存只保留记录，不会成为已验收成果。',
+      actionLabel: '处理缺口',
     }
   }
   return {
@@ -131,8 +131,8 @@ export function ProjectPage() {
           <h1 className="mt-3 font-display text-4xl font-semibold leading-tight text-ink">{project.title}</h1>
           <p className="mt-3 max-w-3xl text-base leading-7 text-graphite">{project.description}</p>
           <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold text-graphite">
-            <span>{completionRecords.length} 条完成记录</span>
-            <span>{unlockedContracts.length} 个推进节点未锁定</span>
+            <span>{completionRecords.filter((record) => record.recordKind === 'accepted').length} 条已验收成果</span>
+            <span>{unlockedContracts.length} 个未闭合行动</span>
             {branches.length > 0 ? <span>{branches.length} 条行为路径</span> : null}
           </div>
         </div>
@@ -144,7 +144,7 @@ export function ProjectPage() {
           </> : <>
             <div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal"><Compass size={15} aria-hidden="true" />自主推进</div>
             <div className="mt-3 text-lg font-semibold text-ink">下一步由你决定</div>
-            <p className="mt-2 text-sm leading-6 text-graphite">每个节点仍由项目审查 AI 验证完成说明，再由你确认锁定。</p>
+            <p className="mt-2 text-sm leading-6 text-graphite">每次行动由项目审查 AI 验证；只有通过并确认后才会成为可接续成果。</p>
           </>}
         </div>
       </section>
@@ -325,8 +325,9 @@ function ProjectGraphLegend() {
     <div className="flex flex-wrap gap-x-5 gap-y-3 border-y border-rail py-3 text-xs font-semibold text-graphite" aria-label="关系图图例">
       <LegendNode label="待推进" className="border-signal bg-surface" />
       <LegendNode label="待确认" className="border-moss bg-moss/10" />
-      <LegendNode label="待补充" className="border-clay bg-clay/10" />
-      <LegendNode label="已锁定" className="border-moss bg-moss/10 ring-2 ring-moss/35" />
+      <LegendNode label="有缺口" className="border-clay bg-clay/10" />
+      <LegendNode label="已验收" className="border-moss bg-moss/10 ring-2 ring-moss/35" />
+      <LegendNode label="已封存" className="border-graphite bg-paper border-dashed" />
       <LegendLine label="继续" className="border-graphite" />
       <LegendLine label="分叉" className="border-signal border-dashed" />
       <LegendLine label="补充" className="border-clay border-dashed" />
@@ -382,16 +383,17 @@ function ProjectQueues({ project, contracts, activeBranchContracts, showComposer
         <span className="text-sm font-semibold text-graphite">{pendingProgress.length + awaitingConfirmation.length + reviewing.length} 个当前待处理节点</span>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-3">
-        <QueueList title="待推进" eyebrow="Next action" count={pendingProgress.length} icon={FileCheck2} empty="暂无待推进节点。">
-          {pendingProgress.map((contract) => <QueueNodeRow key={contract.id} contract={contract} mode="pending" />)}
-        </QueueList>
-        <QueueList title="待确认 AI 结果" eyebrow="User decision" count={awaitingConfirmation.length} icon={CheckCircle2} empty="暂无等待确认的 AI 结果。">
+      <div className="divide-y divide-rail border-y border-rail bg-surface">
+        {awaitingConfirmation.length > 0 ? <QueueList title="等待你的确认" eyebrow="Your decision" count={awaitingConfirmation.length} icon={CheckCircle2} empty="">
           {awaitingConfirmation.map((contract) => <QueueNodeRow key={contract.id} contract={contract} mode="confirmation" />)}
-        </QueueList>
-        <QueueList title="智能合约正在审核" eyebrow="AI review" count={reviewing.length} icon={Bot} empty="暂无正在审核的节点。">
+        </QueueList> : null}
+        {reviewing.length > 0 ? <QueueList title="AI 正在审核" eyebrow="AI review" count={reviewing.length} icon={Bot} empty="">
           {reviewing.map((contract) => <QueueNodeRow key={contract.id} contract={contract} mode="reviewing" />)}
-        </QueueList>
+        </QueueList> : null}
+        {pendingProgress.length > 0 ? <QueueList title="等待推进" eyebrow="Next action" count={pendingProgress.length} icon={FileCheck2} empty="">
+          {pendingProgress.map((contract) => <QueueNodeRow key={contract.id} contract={contract} mode="pending" />)}
+        </QueueList> : null}
+        {pendingProgress.length + awaitingConfirmation.length + reviewing.length === 0 ? <p className="px-5 py-4 text-sm text-graphite">当前没有需要处理的行动。</p> : null}
       </div>
 
       {showComposer ? (
@@ -406,7 +408,7 @@ function ProjectQueues({ project, contracts, activeBranchContracts, showComposer
 
 function QueueList({ title, eyebrow, count, icon: Icon, children, empty }: QueueListProps) {
   return (
-    <section className="min-w-0 border border-rail bg-surface/50" aria-label={title}>
+    <section className="min-w-0" aria-label={title}>
       <div className="flex items-center justify-between gap-3 border-b border-rail px-4 py-4">
         <div className="flex min-w-0 items-center gap-2">
           <Icon size={16} className="shrink-0 text-signal" aria-hidden="true" />
@@ -449,17 +451,17 @@ function ProjectRecords({ records, contracts }: { records: CompletionRecord[]; c
   return (
     <section className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <SectionHeader eyebrow="Locked records" title="阶段完成记录" />
-        <span className="text-sm font-semibold text-graphite">{records.length} 条不可变记录</span>
+        <SectionHeader eyebrow="Project records" title="项目记录" />
+        <span className="text-sm font-semibold text-graphite">{records.filter((record) => record.recordKind === 'accepted').length} 条已验收 · {records.filter((record) => record.recordKind === 'sealed').length} 条已封存</span>
       </div>
       {records.length > 0 ? (
         <div className="border-y border-rail bg-surface">
           {records.slice().reverse().map((record) => {
-            const isPassed = record.aiReviewVerdict === 'pass'
+            const isAccepted = record.recordKind === 'accepted'
             const closingNode = contracts.find((contract) => contract.id === record.closingContractId)
             return (
               <Link key={record.id} to={`/contracts/${record.closingContractId}?tab=completion`} className="group grid gap-4 border-b border-rail px-5 py-5 last:border-b-0 transition hover:bg-shell/45 focus:outline-none focus-visible:shadow-focusline lg:grid-cols-[104px_minmax(0,1fr)_240px_auto] lg:items-start">
-                <div className={`border-l-2 pl-3 font-mono text-xs font-semibold ${isPassed ? 'border-moss text-moss' : 'border-clay text-clay'}`}>
+                <div className={`border-l-2 pl-3 font-mono text-xs font-semibold ${isAccepted ? 'border-moss text-moss' : 'border-graphite text-graphite'}`}>
                   {recordDate(record)}
                 </div>
                 <div className="min-w-0">
@@ -468,7 +470,7 @@ function ProjectRecords({ records, contracts }: { records: CompletionRecord[]; c
                 </div>
                 <div className="text-xs leading-5 text-graphite">
                   <div className="font-semibold text-ink">覆盖 {record.coveredContractIds.length} 个推进节点</div>
-                  <div className={`mt-1 font-semibold ${isPassed ? 'text-moss' : 'text-clay'}`}>{isPassed ? 'AI 审查通过 · 用户确认' : 'AI 审查未通过 · 用户锁定'}</div>
+                  <div className={`mt-1 font-semibold ${isAccepted ? 'text-moss' : 'text-graphite'}`}>{isAccepted ? 'AI 审查通过 · 用户确认' : 'AI 有缺口 · 已封存'}</div>
                   <div className="mt-1 truncate">收束节点：{closingNode?.title ?? '推进节点'}</div>
                 </div>
                 <ArrowRight size={17} className="mt-1 shrink-0 text-signal transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
@@ -476,7 +478,7 @@ function ProjectRecords({ records, contracts }: { records: CompletionRecord[]; c
             )
           })}
         </div>
-      ) : <div className="border-l-2 border-rail py-3 pl-5 text-sm leading-6 text-graphite">项目锁定第一项阶段成果后，记录会出现在这里。</div>}
+      ) : <div className="border-l-2 border-rail py-3 pl-5 text-sm leading-6 text-graphite">通过验收或封存一次行动后，记录会出现在这里。</div>}
     </section>
   )
 }
@@ -563,10 +565,10 @@ function CurrentActionCard({ contract }: { contract: ExecutionContract }) {
   const action = currentNodeCopy(contract)
   const Icon = action.icon
   const nextStep = contract.stage === 'frozen'
-    ? '提交后确认 AI 结果，再决定锁定或继续推进'
+    ? '提交后等待 AI 审查，再决定是否继续补足'
     : contract.stage === 'verified'
-      ? '确认 AI 结果后，节点会被锁定'
-      : '确认 AI 结果后，选择生成补足节点或锁定'
+      ? '确认验收后，这次行动会成为可接续成果'
+      : '可以继续补足，或封存这次尚未验收的行动'
   return (
     <Link to={`/contracts/${contract.id}`} className="group block border-l-2 border-ink bg-surface/72 p-6 transition hover:bg-shell focus:outline-none focus-visible:shadow-focusline">
       <div className="flex flex-wrap items-center justify-between gap-3">

@@ -100,7 +100,7 @@ export function NodePage() {
   const currentContract = allContracts.find((item) => item.id === (branch ? branch.currentContractId : project?.currentContractId))
   const isReviewing = contract.stage === 'frozen' && Boolean(contract.completionClaim) && !contract.aiReview
   const canSubmit = isCurrent && contract.stage === 'frozen' && !isReviewing
-  const canUseCompletionConversation = isCurrent && !isArchived && contract.stage !== 'completed'
+  const canUseCompletionConversation = isCurrent && !isArchived && contract.stage !== 'completed' && contract.stage !== 'sealed'
   const aiReviewPassed = contract.aiReview?.verdict === 'pass'
   const canLock = isCurrent && (contract.stage === 'verified' || contract.stage === 'needs_supplement') && Boolean(contract.aiReview)
   const canClarify = canLock && !contract.completionRecordId
@@ -126,10 +126,10 @@ export function NodePage() {
     : completionRecords.find((record) => record.coveredContractIds.includes(contract.id))
   const canContinue =
     !isArchived &&
-    Boolean(completionRecord) &&
+    completionRecord?.recordKind === 'accepted' &&
     Boolean(project) &&
     (branch ? branch.headContractId === contract.id && !branch.currentContractId : !project?.currentContractId)
-  const canFork = !isArchived && Boolean(completionRecord) && Boolean(project) && completionRecord?.closingContractId === contract.id
+  const canFork = !isArchived && completionRecord?.recordKind === 'accepted' && Boolean(project) && completionRecord.closingContractId === contract.id
   const requestedTab = searchParams.get('tab')
   const activeTab: NodeTab = requestedTab === 'completion' || requestedTab === 'events' ? requestedTab : 'task'
 
@@ -286,11 +286,11 @@ export function NodePage() {
       ) : null}
 
       {contract.aiReview ? (
-        <section className="rounded-md border border-clay/30 bg-clay/5 p-5">
-          <div className="font-mono text-xs font-semibold uppercase text-clay">AI review</div>
+        <section className={`rounded-md border p-5 ${aiReviewPassed ? 'border-moss/30 bg-moss/5' : 'border-clay/30 bg-clay/5'}`}>
+          <div className={`font-mono text-xs font-semibold uppercase ${aiReviewPassed ? 'text-moss' : 'text-clay'}`}>AI review</div>
           <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
             <h2 className="font-display text-2xl font-semibold">AI 审查：{verdictText[contract.aiReview.verdict]}</h2>
-            <span className="rounded-full border border-clay/30 bg-surface/70 px-3 py-1 font-mono text-xs font-semibold text-clay">
+            <span className={`rounded-full border bg-surface/70 px-3 py-1 font-mono text-xs font-semibold ${aiReviewPassed ? 'border-moss/30 text-moss' : 'border-clay/30 text-clay'}`}>
               AI 结论不可改写
             </span>
           </div>
@@ -317,7 +317,7 @@ export function NodePage() {
               <p className="text-sm leading-6 text-graphite">
                 {aiReviewPassed
                   ? 'AI 已通过审查。你确认后，这次推进会生成阶段完成记录。'
-                  : 'AI 没有通过审查。你仍可以锁定这次推进，记录会明确标注 AI 未通过，审查结论不会被改写。'}
+                  : 'AI 指出了尚未满足的验收项。你可以继续补足；若决定在此结束，这次行动会被封存，不能作为已验收成果接续。'}
               </p>
               <button
                 type="button"
@@ -325,7 +325,7 @@ export function NodePage() {
                 className={`mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold text-white transition focus:outline-none focus-visible:shadow-focusline ${aiReviewPassed ? 'bg-moss hover:bg-mossStrong' : 'bg-clay hover:bg-clayStrong'}`}
               >
                 <Check size={17} aria-hidden="true" />
-                {aiReviewPassed ? '确认并生成完成记录' : '仍然锁定并生成记录'}
+                {aiReviewPassed ? '确认并生成验收记录' : '封存这次行动'}
               </button>
             </div>
           ) : null}
@@ -434,9 +434,9 @@ export function NodePage() {
 
 function NodeTabs({ contractId, activeTab }: { contractId: string; activeTab: NodeTab }) {
   const tabs: Array<{ id: NodeTab; label: string }> = [
-    { id: 'task', label: '任务描述' },
-    { id: 'completion', label: '任务完成' },
-    { id: 'events', label: '事件' },
+    { id: 'task', label: '行动目标' },
+    { id: 'completion', label: '提交与验收' },
+    { id: 'events', label: '完整记录' },
   ]
 
   return (
@@ -657,19 +657,19 @@ function InfoBlock({ title, body }: { title: string; body: string }) {
 
 function CompletionRecordSummary({ record, contracts, closingContractId, currentContractId }: { record: CompletionRecord; contracts: ExecutionContract[]; closingContractId: string; currentContractId: string }) {
   const isClosingNode = closingContractId === currentContractId
-  const aiReviewPassed = record.aiReviewVerdict === 'pass'
+  const isAccepted = record.recordKind === 'accepted'
   return (
-    <section className={`rounded-md border p-5 ${aiReviewPassed ? 'border-moss/35 bg-moss/8' : 'border-clay/35 bg-clay/8'}`}>
-      <div className={`font-mono text-xs font-semibold uppercase ${aiReviewPassed ? 'text-moss' : 'text-clay'}`}>{aiReviewPassed ? 'Stage record' : 'User lock'}</div>
-      <h2 className="mt-2 font-display text-2xl font-semibold">{aiReviewPassed ? '已纳入阶段完成记录' : '已锁定阶段记录'}</h2>
+    <section className={`rounded-md border p-5 ${isAccepted ? 'border-moss/35 bg-moss/8' : 'border-graphite/30 bg-shell'}`}>
+      <div className={`font-mono text-xs font-semibold uppercase ${isAccepted ? 'text-moss' : 'text-graphite'}`}>{isAccepted ? 'Accepted record' : 'Sealed record'}</div>
+      <h2 className="mt-2 font-display text-2xl font-semibold">{isAccepted ? '已纳入阶段验收成果' : '已封存，尚未验收'}</h2>
       <p className="mt-3 text-sm leading-6 text-graphite">{record.summary}</p>
       <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold text-graphite">
         <span>覆盖 {record.coveredContractIds.length} 个推进节点</span>
-        <span className={aiReviewPassed ? 'text-moss' : 'text-clay'}>{aiReviewPassed ? 'AI 审查通过 · 用户确认' : 'AI 审查未通过 · 用户锁定'}</span>
+        <span className={isAccepted ? 'text-moss' : 'text-graphite'}>{isAccepted ? 'AI 审查通过 · 用户确认' : 'AI 有缺口 · 用户封存'}</span>
         <span>{new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'numeric', day: 'numeric' }).format(new Date(record.createdAt))}</span>
       </div>
-      <div className={`mt-4 border-t pt-4 ${aiReviewPassed ? 'border-moss/20' : 'border-clay/20'}`}>
-        <div className={`font-mono text-xs font-semibold ${aiReviewPassed ? 'text-moss' : 'text-clay'}`}>本次锁定范围</div>
+      <div className={`mt-4 border-t pt-4 ${isAccepted ? 'border-moss/20' : 'border-rail'}`}>
+        <div className={`font-mono text-xs font-semibold ${isAccepted ? 'text-moss' : 'text-graphite'}`}>{isAccepted ? '本次验收范围' : '本次封存范围'}</div>
         <div className="mt-2 grid gap-1 text-sm text-graphite">
           {record.coveredContractIds.map((contractId) => <span key={contractId}>{contracts.find((contract) => contract.id === contractId)?.title ?? '推进节点'}</span>)}
         </div>

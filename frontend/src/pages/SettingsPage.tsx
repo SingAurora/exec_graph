@@ -439,6 +439,15 @@ export function SettingsPage() {
   const [profileSection, setProfileSection] = useState<ProfileSection>('basic')
   const [accountSection, setAccountSection] = useState<AccountSection>('email')
   const [executionSection, setExecutionSection] = useState<ExecutionSection>('keys')
+
+  useEffect(() => {
+    setAvatarUrl(actor?.avatarUrl ?? '')
+  }, [actor?.avatarUrl])
+
+  useEffect(() => {
+    setProfileBackgroundUrl(actor?.profileBackgroundUrl ?? '')
+  }, [actor?.profileBackgroundUrl])
+
   const {
     register: registerProfile,
     control: profileControl,

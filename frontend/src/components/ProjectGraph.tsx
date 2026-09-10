@@ -101,6 +101,7 @@ export function ProjectGraph({ projectId, heightClassName = 'h-[360px] min-h-[28
         { selector: 'node[stage = "verified"]', style: { 'border-color': colors.moss, 'background-color': colors.mossSurface } },
         { selector: 'node[stage = "needs_supplement"]', style: { 'border-color': colors.clay, 'background-color': colors.claySurface } },
         { selector: 'node[stage = "completed"]', style: { 'border-color': colors.moss, 'background-color': colors.mossSurface } },
+        { selector: 'node[stage = "sealed"]', style: { 'border-color': colors.ink, 'background-color': colors.paper, 'border-style': 'dashed' } },
         { selector: 'node[record = "true"]', style: { 'border-width': '4px' } },
         {
           selector: 'edge',

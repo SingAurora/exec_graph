@@ -858,6 +858,7 @@ export const completionRecords: CompletionRecord[] = [
     ruleHash: '0xc634a21b',
     reviewId: 'review-reading-notes',
     aiReviewVerdict: 'pass',
+    recordKind: 'accepted',
     userVerdict: {
       result: 'confirmed_complete',
       note: '我确认这次整理已经把前面的阅读推进收束为可引用结论。',
@@ -877,6 +878,7 @@ export const completionRecords: CompletionRecord[] = [
     ruleHash: '0xa1d8e4c2',
     reviewId: 'review-skill-contract',
     aiReviewVerdict: 'pass',
+    recordKind: 'accepted',
     userVerdict: {
       result: 'confirmed_complete',
       note: '我确认这个节点已经形成后续实现可以引用的产品模型。',
@@ -896,6 +898,7 @@ export const completionRecords: CompletionRecord[] = [
     ruleHash: '0xd395b22a',
     reviewId: 'review-project-workspace',
     aiReviewVerdict: 'pass',
+    recordKind: 'accepted',
     userVerdict: {
       result: 'confirmed_complete',
       note: '我确认项目页已经能够直接引导下一次闭合。',
@@ -915,6 +918,7 @@ export const completionRecords: CompletionRecord[] = [
     ruleHash: '0x67a0f1be',
     reviewId: 'review-narrative',
     aiReviewVerdict: 'pass',
+    recordKind: 'accepted',
     userVerdict: {
       result: 'confirmed_complete',
       note: '这句话可以作为新的产品定义。',
@@ -934,6 +938,7 @@ export const completionRecords: CompletionRecord[] = [
     ruleHash: '0xb8f2c601',
     reviewId: 'review-story-structure',
     aiReviewVerdict: 'pass',
+    recordKind: 'accepted',
     userVerdict: {
       result: 'confirmed_complete',
       note: '我确认这份介绍已经能用具体事实解释产品。',

@@ -176,7 +176,7 @@ function ProfileCard({ actor, profileHref, publicProjectCount, lockedRecordCount
 
         <div className="mt-4 grid grid-cols-3 border-y border-rail">
           <ProfileCardFact label="公开项目" value={publicProjectCount} />
-          <ProfileCardFact label="公开锁定" value={lockedRecordCount} />
+          <ProfileCardFact label="公开成果" value={lockedRecordCount} />
           <ProfileCardFact label="活跃天数" value={activeDayCount} />
         </div>
 
@@ -304,6 +304,7 @@ export function AppShell() {
   const location = useLocation()
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => (document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'))
   const signOut = useExecStore((state) => state.signOut)
+  const refreshWorkspace = useExecStore((state) => state.refreshWorkspace)
   const projects = useExecStore((state) => state.projects)
   const contracts = useExecStore((state) => state.contracts)
   const branches = useExecStore((state) => state.branches)
@@ -326,6 +327,11 @@ export function AppShell() {
     .filter((record) => publicProjectIds.has(record.projectId))
     .filter((record) => contracts.find((contract) => contract.id === record.closingContractId)?.actorId === currentActorId)
   const activeDays = new Set(publicCompleted.map((record) => new Date(record.createdAt).toDateString())).size
+
+  // Avatar URLs are signed by COS. Refresh persisted workspace data when an existing session restores.
+  useEffect(() => {
+    void refreshWorkspace()
+  }, [refreshWorkspace])
 
   const toggleTheme = () => {
     setThemeMode(nextTheme)
