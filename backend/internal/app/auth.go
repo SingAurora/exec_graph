@@ -77,25 +77,37 @@ func (s *server) routes() http.Handler {
 
 	users := api.Group("/users")
 	users.GET("/me", gin.WrapF(s.handleCurrentUser))
+	users.PATCH("/me", gin.WrapF(s.handleCurrentUser))
 	users.POST("/me/avatar", gin.WrapF(s.handleAvatar))
-	users.DELETE("/me/avatar", gin.WrapF(s.handleAvatar))
+	users.POST("/me/background", gin.WrapF(s.handleProfileBackground))
 
 	projects := api.Group("/projects")
 	projects.GET("", gin.WrapF(s.handleProjects))
 	projects.POST("", gin.WrapF(s.handleProjects))
 	projects.GET("/*path", gin.WrapF(s.handleProjects))
 	projects.POST("/*path", gin.WrapF(s.handleProjects))
+	projects.DELETE("/*path", gin.WrapF(s.handleProjects))
 
 	contracts := api.Group("/smart-contracts")
 	contracts.GET("", gin.WrapF(s.handleSmartContracts))
 	contracts.POST("", gin.WrapF(s.handleSmartContracts))
 	contracts.GET("/*path", gin.WrapF(s.handleSmartContracts))
+	contracts.DELETE("/*path", gin.WrapF(s.handleSmartContracts))
 
 	aiKeys := api.Group("/ai-keys")
 	aiKeys.GET("", gin.WrapF(s.handleAIKeys))
 	aiKeys.POST("", gin.WrapF(s.handleAIKeys))
 	aiKeys.POST("/*path", gin.WrapF(s.handleAIKeys))
 	aiKeys.DELETE("/*path", gin.WrapF(s.handleAIKeys))
+
+	aiReviews := api.Group("/ai-reviews")
+	aiReviews.POST("/node", gin.WrapF(s.reviewExecutionNode))
+	aiReviews.POST("/node/clarification", gin.WrapF(s.reviewExecutionNodeClarification))
+	aiReviews.POST("/node-draft", gin.WrapF(s.reviewNodeDraft))
+
+	conversations := api.Group("/conversations")
+	conversations.GET("/*path", gin.WrapF(s.handleConversations))
+	conversations.POST("/*path", gin.WrapF(s.handleConversations))
 
 	return router
 }
@@ -247,27 +259,40 @@ func (s *server) register(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "确认验证码失败")
 		return
 	}
-	result, err := tx.ExecContext(ctx, `
-		INSERT INTO users (username, email, password_hash, email_verified_at)
-		VALUES (?, ?, ?, NOW())`, username, email, request.Password)
-	if err != nil {
-		if strings.Contains(err.Error(), "Duplicate entry") {
+	var databaseUserID int64
+	var userHandle string
+	for attempt := 0; attempt < 3; attempt++ {
+		userHandle, err = newUserID()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "生成用户 ID 失败")
+			return
+		}
+		result, insertErr := tx.ExecContext(ctx, `
+			INSERT INTO users (username, user_id, email, password_hash, email_verified_at)
+			VALUES (?, ?, ?, ?, NOW())`, username, userHandle, email, request.Password)
+		if insertErr == nil {
+			databaseUserID, err = result.LastInsertId()
+			break
+		}
+		if strings.Contains(strings.ToLower(insertErr.Error()), "uq_users_user_id") {
+			continue
+		}
+		if strings.Contains(insertErr.Error(), "Duplicate entry") {
 			writeError(w, http.StatusConflict, "该邮箱已经注册")
 		} else {
 			writeError(w, http.StatusInternalServerError, "创建账号失败")
 		}
 		return
 	}
-	userID, err := result.LastInsertId()
-	if err != nil {
+	if databaseUserID == 0 || err != nil {
 		writeError(w, http.StatusInternalServerError, "读取账号信息失败")
 		return
 	}
-	if err := ensureDefaultProjectTx(ctx, tx, uint64(userID)); err != nil {
+	if err := ensureDefaultProjectTx(ctx, tx, uint64(databaseUserID)); err != nil {
 		writeError(w, http.StatusInternalServerError, "创建默认项目失败")
 		return
 	}
-	token, err := s.createSessionTx(ctx, tx, uint64(userID))
+	token, err := s.createSessionTx(ctx, tx, uint64(databaseUserID))
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "创建登录会话失败")
 		return
@@ -276,11 +301,21 @@ func (s *server) register(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "保存账号失败")
 		return
 	}
-	s.cacheSession(r.Context(), token, authenticatedUser{ID: uint64(userID), Username: username, Email: email})
+	s.cacheSession(r.Context(), token, authenticatedUser{ID: uint64(databaseUserID), Username: username, UserID: userHandle, Email: email})
 	writeJSON(w, http.StatusCreated, map[string]any{
 		"accessToken": token,
-		"user":        map[string]any{"id": userID, "email": email, "username": username},
+		"user":        map[string]any{"id": databaseUserID, "email": email, "username": username, "userId": userHandle},
 	})
+}
+
+var userIDPattern = regexp.MustCompile(`^[A-Za-z0-9_]{2,24}$`)
+
+func normalizeUserID(value string) (string, error) {
+	userID := strings.TrimPrefix(strings.TrimSpace(value), "@")
+	if !userIDPattern.MatchString(userID) {
+		return "", errors.New("用户 ID 需要是 2 到 24 位字母、数字或下划线")
+	}
+	return userID, nil
 }
 
 func normalizeEmail(value string) (string, error) {
@@ -336,7 +371,7 @@ func corsMiddleware() gin.HandlerFunc {
 	return func(context *gin.Context) {
 		context.Header("Access-Control-Allow-Origin", "http://localhost:5173")
 		context.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		context.Header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+		context.Header("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
 		if context.Request.Method == http.MethodOptions {
 			context.Status(http.StatusNoContent)
 			context.Abort()

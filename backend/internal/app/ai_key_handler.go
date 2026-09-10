@@ -64,7 +64,6 @@ type aiKeyResponse struct {
 	KeyHint        string     `json:"keyHint"`
 	BaseURL        string     `json:"baseUrl"`
 	Model          string     `json:"model"`
-	IsDefault      bool       `json:"isDefault"`
 	LastVerifiedAt *time.Time `json:"lastVerifiedAt,omitempty"`
 	LastUsedAt     *time.Time `json:"lastUsedAt,omitempty"`
 	CreatedAt      time.Time  `json:"createdAt"`
@@ -92,10 +91,6 @@ func (s *server) handleAIKeys(w http.ResponseWriter, r *http.Request) {
 		s.testAIKeyDraft(w, r)
 		return
 	}
-	if len(parts) == 2 && r.Method == http.MethodPost && parts[1] == "default" {
-		s.setDefaultAIKey(w, r, user.ID, parts[0])
-		return
-	}
 	if len(parts) == 2 && r.Method == http.MethodPost && parts[1] == "verify" {
 		s.verifyAIKey(w, r, user.ID, parts[0])
 		return
@@ -111,10 +106,10 @@ func (s *server) listAIKeys(w http.ResponseWriter, r *http.Request, userID uint6
 	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
 	defer cancel()
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, provider, label, key_ciphertext, key_hint, base_url, model, is_default,
+		SELECT id, provider, label, key_ciphertext, key_hint, base_url, model,
 		       last_verified_at, last_used_at, created_at
 		FROM ai_api_keys WHERE user_id = ?
-		ORDER BY is_default DESC, created_at ASC`, userID)
+		ORDER BY created_at ASC`, userID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "读取 AI 密钥失败")
 		return
@@ -160,16 +155,10 @@ func (s *server) createAIKey(w http.ResponseWriter, r *http.Request, userID uint
 		return
 	}
 	defer tx.Rollback()
-	var keyCount int
-	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM ai_api_keys WHERE user_id = ?`, userID).Scan(&keyCount); err != nil {
-		writeError(w, http.StatusInternalServerError, "保存 AI 密钥失败")
-		return
-	}
-	isDefault := keyCount == 0
 	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO ai_api_keys (id, user_id, provider, label, key_ciphertext, key_hint, base_url, model, is_default)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		keyID, userID, provider, label, apiKey, maskAPIKey(apiKey), baseURL, model, isDefault); err != nil {
+		INSERT INTO ai_api_keys (id, user_id, provider, label, key_ciphertext, key_hint, base_url, model)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		keyID, userID, provider, label, apiKey, maskAPIKey(apiKey), baseURL, model); err != nil {
 		writeError(w, http.StatusInternalServerError, "保存 AI 密钥失败")
 		return
 	}
@@ -179,37 +168,8 @@ func (s *server) createAIKey(w http.ResponseWriter, r *http.Request, userID uint
 	}
 	writeJSON(w, http.StatusCreated, aiKeyResponse{
 		ID: keyID, Provider: provider, Label: label, APIKey: apiKey, KeyHint: maskAPIKey(apiKey), BaseURL: baseURL,
-		Model: model, IsDefault: isDefault, CreatedAt: time.Now(),
+		Model: model, CreatedAt: time.Now(),
 	})
-}
-
-func (s *server) setDefaultAIKey(w http.ResponseWriter, r *http.Request, userID uint64, keyID string) {
-	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
-	defer cancel()
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "更新默认 AI 密钥失败")
-		return
-	}
-	defer tx.Rollback()
-	var exists bool
-	if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM ai_api_keys WHERE id = ? AND user_id = ?)`, keyID, userID).Scan(&exists); err != nil || !exists {
-		writeError(w, http.StatusNotFound, "AI 密钥不存在")
-		return
-	}
-	if _, err := tx.ExecContext(ctx, `UPDATE ai_api_keys SET is_default = 0 WHERE user_id = ?`, userID); err != nil {
-		writeError(w, http.StatusInternalServerError, "更新默认 AI 密钥失败")
-		return
-	}
-	if _, err := tx.ExecContext(ctx, `UPDATE ai_api_keys SET is_default = 1 WHERE id = ? AND user_id = ?`, keyID, userID); err != nil {
-		writeError(w, http.StatusInternalServerError, "更新默认 AI 密钥失败")
-		return
-	}
-	if err := tx.Commit(); err != nil {
-		writeError(w, http.StatusInternalServerError, "更新默认 AI 密钥失败")
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]string{"message": "默认 AI 密钥已更新"})
 }
 
 func (s *server) verifyAIKey(w http.ResponseWriter, r *http.Request, userID uint64, keyID string) {
@@ -266,8 +226,8 @@ func (s *server) deleteAIKey(w http.ResponseWriter, r *http.Request, userID uint
 		return
 	}
 	defer tx.Rollback()
-	var wasDefault int
-	err = tx.QueryRowContext(ctx, `SELECT is_default FROM ai_api_keys WHERE id = ? AND user_id = ?`, keyID, userID).Scan(&wasDefault)
+	var projectCount int
+	err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM projects WHERE owner_id = ? AND default_ai_key_id = ?`, userID, keyID).Scan(&projectCount)
 	if err == sql.ErrNoRows {
 		writeError(w, http.StatusNotFound, "AI 密钥不存在")
 		return
@@ -276,23 +236,18 @@ func (s *server) deleteAIKey(w http.ResponseWriter, r *http.Request, userID uint
 		writeError(w, http.StatusInternalServerError, "删除 AI 密钥失败")
 		return
 	}
+	if projectCount > 0 {
+		writeError(w, http.StatusBadRequest, "该 AI 密钥正在被项目使用，请先修改项目审查 AI")
+		return
+	}
+	var exists bool
+	if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM ai_api_keys WHERE id = ? AND user_id = ?)`, keyID, userID).Scan(&exists); err != nil || !exists {
+		writeError(w, http.StatusNotFound, "AI 密钥不存在")
+		return
+	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM ai_api_keys WHERE id = ? AND user_id = ?`, keyID, userID); err != nil {
 		writeError(w, http.StatusInternalServerError, "删除 AI 密钥失败")
 		return
-	}
-	if wasDefault == 1 {
-		var replacementID string
-		err := tx.QueryRowContext(ctx, `SELECT id FROM ai_api_keys WHERE user_id = ? ORDER BY created_at ASC LIMIT 1`, userID).Scan(&replacementID)
-		if err != nil && err != sql.ErrNoRows {
-			writeError(w, http.StatusInternalServerError, "更新默认 AI 密钥失败")
-			return
-		}
-		if replacementID != "" {
-			if _, err := tx.ExecContext(ctx, `UPDATE ai_api_keys SET is_default = 1 WHERE id = ?`, replacementID); err != nil {
-				writeError(w, http.StatusInternalServerError, "更新默认 AI 密钥失败")
-				return
-			}
-		}
 	}
 	if err := tx.Commit(); err != nil {
 		writeError(w, http.StatusInternalServerError, "删除 AI 密钥失败")
@@ -417,13 +372,11 @@ type aiKeyScanner interface {
 
 func scanAIKey(scanner aiKeyScanner) (aiKeyResponse, error) {
 	var key aiKeyResponse
-	var isDefault int
 	var lastVerifiedAt, lastUsedAt sql.NullTime
-	err := scanner.Scan(&key.ID, &key.Provider, &key.Label, &key.APIKey, &key.KeyHint, &key.BaseURL, &key.Model, &isDefault, &lastVerifiedAt, &lastUsedAt, &key.CreatedAt)
+	err := scanner.Scan(&key.ID, &key.Provider, &key.Label, &key.APIKey, &key.KeyHint, &key.BaseURL, &key.Model, &lastVerifiedAt, &lastUsedAt, &key.CreatedAt)
 	if err != nil {
 		return key, err
 	}
-	key.IsDefault = isDefault == 1
 	if lastVerifiedAt.Valid {
 		value := lastVerifiedAt.Time
 		key.LastVerifiedAt = &value

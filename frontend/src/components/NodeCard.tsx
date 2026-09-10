@@ -23,8 +23,9 @@ export function NodeCard({ node, compact = false, actionLabel = '查看节点' }
   return (
     <Link
       to={`/contracts/${node.id}`}
-      className="group block rounded-md border border-rail bg-white/72 p-4 transition hover:-translate-y-0.5 hover:border-graphite/40 hover:bg-white focus:outline-none focus-visible:shadow-focusline"
+      className="group relative block overflow-hidden rounded-md border border-rail bg-surface p-4 transition hover:border-signal/60 hover:bg-shell/25 focus:outline-none focus-visible:shadow-focusline"
     >
+      <span className={`absolute inset-y-0 left-0 w-0.5 ${node.stage === 'completed' ? 'bg-moss' : node.stage === 'needs_supplement' ? 'bg-clay' : node.stage === 'verified' ? 'bg-moss' : 'bg-signal'}`} aria-hidden="true" />
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="truncate text-xs font-semibold text-graphite">{project?.title}</div>

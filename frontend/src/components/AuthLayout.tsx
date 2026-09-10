@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { BrandLogo } from './BrandLogo'
 
 type AuthLayoutProps = {
   eyebrow: string
@@ -15,8 +16,7 @@ export function AuthLayout({ eyebrow, title, description, children, footer }: Au
       <div className="mx-auto grid min-h-[calc(100vh-40px)] w-full max-w-6xl items-center gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(360px,0.6fr)] lg:gap-20">
         <section className="border-b border-rail pb-8 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-16">
           <Link to="/login" className="inline-block focus:outline-none focus-visible:shadow-focusline">
-            <div className="font-display text-4xl font-semibold leading-none">执行图谱</div>
-            <div className="mt-3 text-sm leading-6 text-graphite">项目，验证，签名，接续</div>
+            <BrandLogo tagline="项目，验证，签名，接续" className="[&>svg]:size-14 [&>span>span:first-child]:text-4xl" />
           </Link>
         </section>
 

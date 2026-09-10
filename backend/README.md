@@ -38,19 +38,24 @@ Authorization: Bearer <accessToken>
 - `POST /api/auth/logout`
 - `GET /api/auth/me`
 - `GET /api/users/me`
+- `PATCH /api/users/me`，修改用户名、唯一用户 ID、性别和个人说明
 - `POST|DELETE /api/users/me/avatar`
 - `GET|POST /api/ai-keys`
 - `POST /api/ai-keys/:id/default`
 - `POST /api/ai-keys/:id/verify`
 - `DELETE /api/ai-keys/:id`
+- `POST /api/ai-reviews/node-draft`
+- `POST /api/ai-reviews/node`
 - `GET|POST /api/projects`
 - `GET /api/projects/:id`
 - `GET /api/projects/:id/graph`
+- `POST /api/projects/:id/nodes`
+- `POST /api/projects/:id/nodes/:nodeId/lock`
 - `POST /api/projects/:id/archive`
 - `GET|POST /api/smart-contracts`
 - `GET /api/smart-contracts/:id`
 
-节点创建、AI 审查、用户确认和完成记录写入会在这组基础接口稳定后继续接入。
+节点草案审核、创建节点、提交完成审查、用户确认锁定和完成记录均会写入 MySQL。节点图接口会返回项目、路径、节点关系和完成记录，用于恢复同一条推进链。
 
 头像使用 COS 私有对象：数据库保存对象键，接口返回有效期 24 小时的签名访问链接。
 

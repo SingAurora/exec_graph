@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,13 +6,51 @@
 
 :root {
   color-scheme: light;
+  --color-paper: 247 248 250;
+  --color-shell: 242 244 247;
+  --color-surface: 255 255 255;
+  --color-inverse: 29 41 57;
+  --color-ink: 29 41 57;
+  --color-graphite: 102 112 133;
+  --color-rail: 228 231 236;
+  --color-signal: 22 119 255;
+  --color-signal-strong: 15 102 209;
+  --color-moss: 46 139 87;
+  --color-moss-strong: 36 113 71;
+  --color-amber: 217 119 6;
+  --color-clay: 209 67 67;
+  --color-clay-strong: 177 50 50;
+  --color-moss-surface: 237 248 241;
+  --color-clay-surface: 255 241 240;
+  --color-edge: 152 162 179;
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-  background: #f7f5ef;
-  color: #161814;
+  background: rgb(var(--color-paper));
+  color: rgb(var(--color-ink));
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --color-paper: 23 25 29;
+  --color-shell: 32 35 41;
+  --color-surface: 39 43 49;
+  --color-inverse: 15 18 22;
+  --color-ink: 243 244 246;
+  --color-graphite: 167 175 186;
+  --color-rail: 58 64 72;
+  --color-signal: 45 104 213;
+  --color-signal-strong: 36 88 184;
+  --color-moss: 85 183 122;
+  --color-moss-strong: 109 203 143;
+  --color-amber: 240 170 61;
+  --color-clay: 242 118 118;
+  --color-clay-strong: 255 143 143;
+  --color-moss-surface: 24 57 39;
+  --color-clay-surface: 72 32 35;
+  --color-edge: 112 122 138;
 }
 
 * {
@@ -21,16 +59,13 @@
 
 html {
   min-width: 320px;
-  background:
-    linear-gradient(90deg, rgba(217, 210, 196, 0.28) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(217, 210, 196, 0.24) 1px, transparent 1px),
-    #f7f5ef;
-  background-size: 48px 48px;
+  background: rgb(var(--color-paper));
 }
 
 body {
   min-width: 320px;
   margin: 0;
+  background: rgb(var(--color-paper));
 }
 
 button,
@@ -48,7 +83,7 @@ button:disabled {
 }
 
 ::selection {
-  background: rgba(31, 122, 140, 0.2);
+  background: rgb(var(--color-signal) / 0.18);
 }
 
 @media (prefers-reduced-motion: reduce) {

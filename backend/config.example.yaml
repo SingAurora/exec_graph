@@ -36,3 +36,12 @@ tencent:
     region: ap-guangzhou
     bucket: exec-graph-1253847355
     avatar_prefix: avatars/
+
+# Only enable this in a local config. The backend creates or refreshes this
+# account at startup, so browser debugging always uses a real backend session.
+development:
+  test_account:
+    enabled: false
+    username: exec-graph-test
+    email: test@execgraph.local
+    password: replace-with-local-test-password

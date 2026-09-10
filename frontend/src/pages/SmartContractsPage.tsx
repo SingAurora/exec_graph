@@ -1,10 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Check, FileText, FolderKanban, Plus, ShieldCheck, SlidersHorizontal, X } from 'lucide-react'
-import { useState } from 'react'
+import { Check, FileText, FolderKanban, Plus, ShieldCheck, SlidersHorizontal, Trash2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link } from 'react-router-dom'
 import { z } from 'zod'
 import { MarkdownContent } from '../components/MarkdownContent'
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../components/ui/dialog'
 import { useExecStore } from '../store/useExecStore'
 import type { SmartContractDefinition, SmartContractSource } from '../types'
 
@@ -17,10 +18,18 @@ const contractSchema = z.object({
 type ContractForm = z.infer<typeof contractSchema>
 type ContractFilter = 'all' | SmartContractSource
 
+type SmartContractEvent = {
+  id: string
+  contractId: string
+  eventType: 'created' | 'deleted'
+  smartContract: SmartContractDefinition
+  createdAt: string
+}
+
 const filterLabels: Array<{ value: ContractFilter; label: string }> = [
   { value: 'all', label: '全部' },
-  { value: 'official', label: '平台提供' },
-  { value: 'custom', label: '自定义' },
+  { value: 'official', label: '平台' },
+  { value: 'custom', label: '自定' },
 ]
 
 const inputClass = 'h-11 rounded-md border border-rail bg-paper px-3 text-sm outline-none focus:border-signal focus:shadow-focusline'
@@ -29,8 +38,12 @@ export function SmartContractsPage({ compact = false }: { compact?: boolean }) {
   const smartContracts = useExecStore((state) => state.smartContracts)
   const projects = useExecStore((state) => state.projects)
   const createSmartContract = useExecStore((state) => state.createSmartContract)
+  const deleteSmartContract = useExecStore((state) => state.deleteSmartContract)
+  const accessToken = useExecStore((state) => state.accessToken)
   const [filter, setFilter] = useState<ContractFilter>('all')
   const [isCreating, setIsCreating] = useState(false)
+  const [events, setEvents] = useState<SmartContractEvent[]>([])
+  const [message, setMessage] = useState('')
   const {
     register,
     handleSubmit,
@@ -42,54 +55,80 @@ export function SmartContractsPage({ compact = false }: { compact?: boolean }) {
   })
 
   const visibleContracts = smartContracts.filter((contract) => filter === 'all' || contract.source === filter)
-  const onSubmit = (values: ContractForm) => {
-    createSmartContract({
+  useEffect(() => {
+    if (!accessToken) {
+      setEvents([])
+      return
+    }
+    let cancelled = false
+    const loadEvents = async () => {
+      try {
+        const response = await fetch('/api/smart-contracts/history', { headers: { Authorization: `Bearer ${accessToken}` } })
+        const data = (await response.json().catch(() => ({}))) as { events?: SmartContractEvent[] }
+        if (response.ok && !cancelled) setEvents(data.events ?? [])
+      } catch {
+        // The active contract library remains usable if the history request fails.
+      }
+    }
+    void loadEvents()
+    return () => { cancelled = true }
+  }, [accessToken, smartContracts])
+
+  const onSubmit = async (values: ContractForm) => {
+    setMessage('')
+    const contractID = await createSmartContract({
       name: values.name,
       description: values.description,
       body: values.body,
     })
+    if (!contractID) {
+      setMessage('创建智能合约失败。')
+      return
+    }
     reset()
     setIsCreating(false)
   }
 
+  const onDelete = async (contractId: string) => {
+    setMessage('')
+    const result = await deleteSmartContract(contractId)
+    if (!result.success) {
+      setMessage(result.message ?? '删除智能合约失败。')
+      return false
+    }
+    return true
+  }
+
   return (
-    <div className={compact ? 'space-y-7' : 'space-y-8'}>
-      <section className="flex flex-wrap items-end justify-between gap-5 border-b border-rail pb-7">
+    <div className="space-y-8">
+      <section className={`flex flex-wrap justify-between gap-5 border-b border-rail ${compact ? 'items-start pb-5' : 'items-end pb-7'}`}>
         <div>
-          <div className="font-mono text-xs font-semibold uppercase text-signal">Smart contracts</div>
+          <div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal">
+            <ShieldCheck size={16} aria-hidden="true" />
+            Smart contracts
+          </div>
           {compact ? <h2 className="mt-2 font-display text-2xl font-semibold leading-tight text-ink">智能合约</h2> : <h1 className="mt-3 font-display text-4xl font-semibold leading-tight text-ink">智能合约</h1>}
         </div>
         <button
           type="button"
           onClick={() => setIsCreating(true)}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-ink px-4 text-sm font-semibold text-paper transition hover:bg-graphite focus:outline-none focus-visible:shadow-focusline"
+          className={`inline-flex items-center justify-center gap-2 rounded-md bg-signal text-sm font-semibold text-white transition hover:bg-signalStrong focus:outline-none focus-visible:shadow-focusline ${compact ? 'h-10 px-3' : 'h-11 px-4'}`}
         >
           <Plus size={17} aria-hidden="true" />
           新建自定义合约
         </button>
       </section>
 
-      {isCreating ? (
-        <form className="border-y border-rail py-6" onSubmit={handleSubmit(onSubmit)}>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <div className="font-mono text-xs font-semibold uppercase text-signal">Custom contract</div>
-              <h2 className="mt-2 font-display text-2xl font-semibold text-ink">新建自定义智能合约</h2>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                reset()
-                setIsCreating(false)
-              }}
-              className="grid size-9 place-items-center rounded-md text-graphite transition hover:bg-white/70 hover:text-ink focus:outline-none focus-visible:shadow-focusline"
-              aria-label="关闭新建智能合约"
-              title="关闭"
-            >
-              <X size={18} aria-hidden="true" />
-            </button>
-          </div>
-          <div className="mt-5 grid gap-5 xl:grid-cols-2">
+      <Dialog open={isCreating} onOpenChange={(open) => {
+        setIsCreating(open)
+        if (!open) reset()
+      }}>
+        <DialogContent className="grid-rows-[auto_minmax(0,1fr)] max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>新建自定义智能合约</DialogTitle>
+            <DialogDescription>用 Markdown 编写部署规则和 AI 审查原则。</DialogDescription>
+          </DialogHeader>
+          <form className="grid max-h-[calc(100dvh-12rem)] gap-5 overflow-y-auto px-6 py-6 xl:grid-cols-2" onSubmit={handleSubmit(onSubmit)}>
             <label className="grid gap-2">
               <span className="text-sm font-semibold text-ink">合约名称</span>
               <input className={inputClass} {...register('name')} />
@@ -112,51 +151,78 @@ export function SmartContractsPage({ compact = false }: { compact?: boolean }) {
               />
               {errors.body?.message ? <span className="text-sm font-medium text-clay">{errors.body.message}</span> : null}
             </label>
-          </div>
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-md bg-ink px-4 text-sm font-semibold text-paper transition hover:bg-graphite disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus-visible:shadow-focusline"
-          >
-            <Check size={17} aria-hidden="true" />
-            创建智能合约
-          </button>
-        </form>
-      ) : null}
+            <div className="flex items-center gap-3 border-t border-rail pt-5 xl:col-span-2">
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-signal px-4 text-sm font-semibold text-white transition hover:bg-signalStrong disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus-visible:shadow-focusline"
+              >
+                <Check size={17} aria-hidden="true" />
+                创建智能合约
+              </button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <section className="space-y-5" aria-labelledby="contract-library-title">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <h2 id="contract-library-title" className="font-display text-2xl font-semibold text-ink">合约库</h2>
-          <div className="grid grid-cols-3 overflow-hidden rounded-md border border-rail bg-paper" aria-label="合约来源筛选">
+          {compact ? <span id="contract-library-title" className="text-sm font-medium text-graphite">{visibleContracts.length} 份可用合约</span> : <h2 id="contract-library-title" className="font-display text-2xl font-semibold text-ink">合约库</h2>}
+          <div className="grid w-[216px] grid-cols-3 overflow-hidden rounded-md border border-rail bg-paper" aria-label="合约来源筛选">
             {filterLabels.map((item) => (
               <button
                 key={item.value}
                 type="button"
                 onClick={() => setFilter(item.value)}
-                className={`h-10 border-r border-rail text-sm font-semibold last:border-r-0 focus:outline-none focus-visible:shadow-focusline ${filter === item.value ? 'bg-ink text-paper' : 'text-graphite hover:bg-white/70 hover:text-ink'}`}
+                className={`h-10 px-3 text-sm font-semibold focus:outline-none focus-visible:shadow-focusline ${item.value !== 'custom' ? 'border-r border-rail' : ''} ${filter === item.value ? 'bg-signal/10 text-signal' : 'text-graphite hover:bg-shell/70 hover:text-ink'}`}
               >
                 {item.label}
               </button>
             ))}
           </div>
         </div>
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className={compact ? 'divide-y divide-rail border-y border-rail' : 'grid gap-4 xl:grid-cols-2'}>
           {visibleContracts.map((smartContract) => (
-            <SmartContractCard key={smartContract.id} smartContract={smartContract} projectIds={projects.filter((project) => project.contractRevisions.some((revision) => revision.id === project.activeContractRevisionId && revision.smartContractId === smartContract.id)).map((project) => project.id)} />
+            <SmartContractCard key={smartContract.id} compact={compact} smartContract={smartContract} projectIds={projects.filter((project) => project.contractRevisions.some((revision) => revision.id === project.activeContractRevisionId && revision.smartContractId === smartContract.id)).map((project) => project.id)} onDelete={onDelete} />
           ))}
+        </div>
+      </section>
+
+      {message ? <p className="text-sm font-semibold text-clay">{message}</p> : null}
+
+      <section className="border-t border-rail pt-6" aria-labelledby="contract-history-title">
+        <div className="flex items-center justify-between gap-4">
+          <h2 id="contract-history-title" className="font-display text-2xl font-semibold text-ink">合约记录</h2>
+          <span className="font-mono text-xs font-semibold text-graphite">{events.length} 条</span>
+        </div>
+        <div className="mt-5 grid gap-3">
+          {events.length === 0 ? <p className="text-sm text-graphite">新的自定义合约会在这里记录创建与删除。</p> : events.map((event) => <SmartContractEventRow key={event.id} event={event} />)}
         </div>
       </section>
     </div>
   )
 }
 
-function SmartContractCard({ smartContract, projectIds }: { smartContract: SmartContractDefinition; projectIds: string[] }) {
+function SmartContractCard({ compact = false, smartContract, projectIds, onDelete }: { compact?: boolean; smartContract: SmartContractDefinition; projectIds: string[]; onDelete: (contractId: string) => Promise<boolean> }) {
   const projects = useExecStore((state) => state.projects)
   const activeProjects = projects.filter((project) => projectIds.includes(project.id))
   const isOfficial = smartContract.source === 'official'
+  const [isBodyOpen, setIsBodyOpen] = useState(false)
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteMessage, setDeleteMessage] = useState('')
+
+  const remove = async () => {
+    setIsDeleting(true)
+    setDeleteMessage('')
+    const deleted = await onDelete(smartContract.id)
+    if (deleted) setIsDeleteOpen(false)
+    else setDeleteMessage('当前不能删除这份合约。')
+    setIsDeleting(false)
+  }
 
   return (
-    <article className="rounded-md border border-rail bg-white/72 p-5">
+    <article className={compact ? 'py-5 first:pt-0 last:pb-0' : 'rounded-md border border-rail bg-surface/72 p-5'}>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className={`inline-flex items-center gap-2 font-mono text-xs font-semibold ${isOfficial ? 'text-signal' : 'text-moss'}`}>
@@ -167,17 +233,57 @@ function SmartContractCard({ smartContract, projectIds }: { smartContract: Smart
         </div>
       </div>
       <p className="mt-3 text-sm leading-6 text-graphite">{smartContract.description}</p>
-      <details className="mt-5 border-t border-rail pt-4">
-        <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold text-ink marker:hidden focus:outline-none focus-visible:shadow-focusline">
+      <div className={compact ? 'mt-4' : 'mt-5 border-t border-rail pt-4'}>
+        <button
+          type="button"
+          onClick={() => setIsBodyOpen(true)}
+          className="inline-flex h-10 items-center gap-2 rounded-md border border-rail bg-paper px-3 text-sm font-semibold text-ink transition hover:border-signal hover:text-signal focus:outline-none focus-visible:shadow-focusline"
+        >
           <FileText size={16} className="text-signal" aria-hidden="true" />
           查看合约正文
-        </summary>
-        <MarkdownContent content={smartContract.body} className="mt-4 grid gap-4 text-sm" />
-      </details>
-      <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-rail pt-4 text-sm">
+        </button>
+      </div>
+      <Dialog open={isBodyOpen} onOpenChange={setIsBodyOpen}>
+        <DialogContent className="grid-rows-[auto_minmax(0,1fr)]">
+          <DialogHeader>
+            <DialogTitle>{smartContract.name}</DialogTitle>
+            <DialogDescription>{smartContract.description}</DialogDescription>
+          </DialogHeader>
+          <div className="min-h-0 overflow-y-auto px-6 py-6">
+            <MarkdownContent content={smartContract.body} className="grid gap-4 text-sm" />
+          </div>
+        </DialogContent>
+      </Dialog>
+      <div className={`flex flex-wrap items-center gap-2 text-sm ${compact ? 'mt-3' : 'mt-5 border-t border-rail pt-4'}`}>
         <FolderKanban size={16} className="text-signal" aria-hidden="true" />
         {activeProjects.length > 0 ? activeProjects.map((project) => <Link key={project.id} to={`/projects/${project.id}`} className="font-semibold text-signal transition hover:text-ink focus:outline-none focus-visible:shadow-focusline">{project.title}</Link>) : <span className="text-graphite">尚未采用</span>}
+        {!isOfficial ? <button type="button" onClick={() => setIsDeleteOpen(true)} className="ml-auto grid size-9 place-items-center rounded-md text-graphite transition hover:bg-clay/10 hover:text-clay focus:outline-none focus-visible:shadow-focusline" title="删除智能合约" aria-label={`删除 ${smartContract.name}`}><Trash2 size={16} aria-hidden="true" /></button> : null}
       </div>
+      <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>删除智能合约</DialogTitle><DialogDescription>删除后不会出现在可选合约库中，但正文和操作记录会保留以供追溯。</DialogDescription></DialogHeader>
+          <div className="flex flex-wrap justify-end gap-3 px-6 py-5">
+            <DialogClose className="inline-flex h-10 items-center rounded-md border border-rail bg-surface px-3 text-sm font-semibold text-ink transition hover:bg-paper focus:outline-none focus-visible:shadow-focusline">取消</DialogClose>
+            <button type="button" onClick={() => void remove()} disabled={isDeleting} className="inline-flex h-10 items-center rounded-md bg-clay px-3 text-sm font-semibold text-white transition hover:bg-clayStrong disabled:opacity-55 focus:outline-none focus-visible:shadow-focusline">{isDeleting ? '删除中' : '删除合约'}</button>
+            {deleteMessage ? <p className="w-full text-sm font-semibold text-clay">{deleteMessage}</p> : null}
+          </div>
+        </DialogContent>
+      </Dialog>
     </article>
+  )
+}
+
+function SmartContractEventRow({ event }: { event: SmartContractEvent }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const isDeleted = event.eventType === 'deleted'
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 border-l-2 border-rail py-2 pl-4">
+      <div>
+        <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-ink"><span>{event.smartContract.name}</span><span className={isDeleted ? 'text-clay' : 'text-moss'}>{isDeleted ? '已删除' : '已创建'}</span></div>
+        <div className="mt-1 text-xs text-graphite">{new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(event.createdAt))}</div>
+      </div>
+      <button type="button" onClick={() => setIsOpen(true)} className="inline-flex h-9 items-center gap-2 rounded-md border border-rail bg-paper px-3 text-sm font-semibold text-ink transition hover:border-signal hover:text-signal focus:outline-none focus-visible:shadow-focusline"><FileText size={15} aria-hidden="true" />查看正文</button>
+      <Dialog open={isOpen} onOpenChange={setIsOpen}><DialogContent className="grid-rows-[auto_minmax(0,1fr)]"><DialogHeader><DialogTitle>{event.smartContract.name}</DialogTitle><DialogDescription>{event.smartContract.description}</DialogDescription></DialogHeader><div className="min-h-0 overflow-y-auto px-6 py-6"><MarkdownContent content={event.smartContract.body} className="grid gap-4 text-sm" /></div></DialogContent></Dialog>
+    </div>
   )
 }

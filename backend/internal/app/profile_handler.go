@@ -25,24 +25,47 @@ const (
 	maxAvatarBodyBytes   = maxAvatarUploadBytes + 128*1024
 	maxAvatarDimension   = 512
 	maxStoredAvatarBytes = 300 * 1024
+
+	maxProfileBackgroundUploadBytes = 2 * 1024 * 1024
+	maxProfileBackgroundBodyBytes   = maxProfileBackgroundUploadBytes + 128*1024
+	maxProfileBackgroundWidth       = 1600
+	maxProfileBackgroundHeight      = 640
+	maxStoredProfileBackgroundBytes = 700 * 1024
 )
 
 type userProfileResponse struct {
-	ID        uint64  `json:"id"`
-	Username  string  `json:"username"`
-	Email     string  `json:"email"`
-	Bio       string  `json:"bio"`
-	Gender    string  `json:"gender"`
-	AvatarURL *string `json:"avatarUrl,omitempty"`
+	ID                    uint64  `json:"id"`
+	Username              string  `json:"username"`
+	UserID                string  `json:"userId"`
+	Email                 string  `json:"email"`
+	Bio                   string  `json:"bio"`
+	Gender                string  `json:"gender"`
+	AvatarURL             *string `json:"avatarUrl,omitempty"`
+	ProfileBackgroundURL  *string `json:"profileBackgroundUrl,omitempty"`
+	CustomProfileEnabled  bool    `json:"customProfileEnabled"`
+	CustomProfileMarkdown string  `json:"customProfileMarkdown"`
+}
+
+type updateUserProfileRequest struct {
+	Username              string `json:"username"`
+	UserID                string `json:"userId"`
+	Bio                   string `json:"bio"`
+	Gender                string `json:"gender"`
+	CustomProfileEnabled  bool   `json:"customProfileEnabled"`
+	CustomProfileMarkdown string `json:"customProfileMarkdown"`
 }
 
 func (s *server) handleCurrentUser(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, "不支持的请求方法")
-		return
-	}
 	user, ok := s.requireUser(w, r)
 	if !ok {
+		return
+	}
+	if r.Method == http.MethodPatch {
+		s.updateCurrentUser(w, r, user)
+		return
+	}
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "不支持的请求方法")
 		return
 	}
 	profile, err := s.loadUserProfile(r.Context(), user.ID)
@@ -50,6 +73,57 @@ func (s *server) handleCurrentUser(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "读取个人资料失败")
 		return
 	}
+	writeJSON(w, http.StatusOK, map[string]any{"user": profile})
+}
+
+func (s *server) updateCurrentUser(w http.ResponseWriter, r *http.Request, user authenticatedUser) {
+	var request updateUserProfileRequest
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, "请求格式不正确")
+		return
+	}
+	username := strings.TrimSpace(request.Username)
+	userID, err := normalizeUserID(request.UserID)
+	if len([]rune(username)) < 2 || len([]rune(username)) > 64 {
+		writeError(w, http.StatusBadRequest, "用户名长度需要在 2 到 64 个字符之间")
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	bio := strings.TrimSpace(request.Bio)
+	if len([]rune(bio)) > 120 {
+		writeError(w, http.StatusBadRequest, "个人说明最多 120 个字符")
+		return
+	}
+	customProfileMarkdown := strings.TrimSpace(request.CustomProfileMarkdown)
+	if len([]rune(customProfileMarkdown)) > 20000 {
+		writeError(w, http.StatusBadRequest, "自定义主页最多 20000 个字符")
+		return
+	}
+	if request.Gender != "female" && request.Gender != "male" && request.Gender != "undisclosed" {
+		writeError(w, http.StatusBadRequest, "性别选项不正确")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+	defer cancel()
+	_, err = s.db.ExecContext(ctx, `UPDATE users SET username = ?, user_id = ?, bio = ?, gender = ?, custom_profile_enabled = ?, custom_profile_markdown = ? WHERE id = ?`, username, userID, bio, request.Gender, request.CustomProfileEnabled, customProfileMarkdown, user.ID)
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "duplicate") {
+			writeError(w, http.StatusConflict, "该用户 ID 已被使用")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "保存个人资料失败")
+		return
+	}
+	profile, err := s.loadUserProfile(ctx, user.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "读取个人资料失败")
+		return
+	}
+	s.cacheSession(r.Context(), bearerToken(r), authenticatedUser{ID: user.ID, Username: profile.Username, UserID: profile.UserID, Email: user.Email})
 	writeJSON(w, http.StatusOK, map[string]any{"user": profile})
 }
 
@@ -61,8 +135,19 @@ func (s *server) handleAvatar(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
 		s.uploadAvatar(w, r, user)
-	case http.MethodDelete:
-		s.deleteAvatar(w, r, user)
+	default:
+		writeError(w, http.StatusMethodNotAllowed, "不支持的请求方法")
+	}
+}
+
+func (s *server) handleProfileBackground(w http.ResponseWriter, r *http.Request) {
+	user, ok := s.requireUser(w, r)
+	if !ok {
+		return
+	}
+	switch r.Method {
+	case http.MethodPost:
+		s.uploadProfileBackground(w, r, user)
 	default:
 		writeError(w, http.StatusMethodNotAllowed, "不支持的请求方法")
 	}
@@ -130,6 +215,68 @@ func (s *server) uploadAvatar(w http.ResponseWriter, r *http.Request, user authe
 	writeJSON(w, http.StatusCreated, map[string]string{"avatarUrl": avatarURL})
 }
 
+func (s *server) uploadProfileBackground(w http.ResponseWriter, r *http.Request, user authenticatedUser) {
+	if s.storage == nil {
+		writeError(w, http.StatusServiceUnavailable, "背景图存储暂不可用")
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxProfileBackgroundBodyBytes)
+	if err := r.ParseMultipartForm(maxProfileBackgroundBodyBytes); err != nil {
+		writeError(w, http.StatusBadRequest, "背景图片不能超过 2 MB")
+		return
+	}
+	file, _, err := r.FormFile("background")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "请选择背景图片")
+		return
+	}
+	defer file.Close()
+	contents, err := io.ReadAll(io.LimitReader(file, maxProfileBackgroundUploadBytes+1))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "读取背景图片失败")
+		return
+	}
+	if len(contents) == 0 || len(contents) > maxProfileBackgroundUploadBytes {
+		writeError(w, http.StatusBadRequest, "背景图片不能超过 2 MB")
+		return
+	}
+	contentType := http.DetectContentType(contents)
+	if _, ok := avatarExtension(contentType); !ok {
+		writeError(w, http.StatusBadRequest, "背景图片仅支持 PNG、JPEG 或 WebP 格式")
+		return
+	}
+	compressedContents, err := compressProfileBackground(contents)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "背景图片处理失败，请更换一张 PNG、JPEG 或 WebP 图片")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+	oldObjectKey, err := s.loadProfileBackgroundObjectKey(ctx, user.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "读取当前背景图失败")
+		return
+	}
+	newObjectKey, backgroundURL, err := s.storage.putProfileBackground(ctx, user.ID, "image/jpeg", compressedContents)
+	if err != nil {
+		log.Printf("upload profile background for user %d failed: %v", user.ID, err)
+		writeError(w, http.StatusBadGateway, "背景图片上传失败，请稍后重试")
+		return
+	}
+	if _, err := s.db.ExecContext(ctx, `UPDATE users SET profile_background_url = ? WHERE id = ?`, newObjectKey, user.ID); err != nil {
+		_ = s.storage.deleteProfileBackground(ctx, newObjectKey)
+		writeError(w, http.StatusInternalServerError, "保存背景图片失败")
+		return
+	}
+	if oldObjectKey != "" && oldObjectKey != newObjectKey {
+		if err := s.storage.deleteProfileBackground(ctx, oldObjectKey); err != nil {
+			log.Printf("delete previous profile background for user %d failed: %v", user.ID, err)
+		}
+	}
+	writeJSON(w, http.StatusCreated, map[string]string{"profileBackgroundUrl": backgroundURL})
+}
+
 func compressAvatar(contents []byte) ([]byte, error) {
 	source, _, err := image.Decode(bytes.NewReader(contents))
 	if err != nil {
@@ -160,6 +307,32 @@ func compressAvatar(contents []byte) ([]byte, error) {
 	return nil, fmt.Errorf("compressed avatar is too large")
 }
 
+func compressProfileBackground(contents []byte) ([]byte, error) {
+	source, _, err := image.Decode(bytes.NewReader(contents))
+	if err != nil {
+		return nil, fmt.Errorf("decode profile background: %w", err)
+	}
+	bounds := source.Bounds()
+	if bounds.Dx() <= 0 || bounds.Dy() <= 0 {
+		return nil, fmt.Errorf("invalid profile background dimensions")
+	}
+
+	targetWidth, targetHeight := resizeProfileBackgroundDimensions(bounds.Dx(), bounds.Dy(), maxProfileBackgroundWidth, maxProfileBackgroundHeight)
+	canvas := image.NewRGBA(image.Rect(0, 0, targetWidth, targetHeight))
+	stdDraw.Draw(canvas, canvas.Bounds(), image.NewUniform(color.White), image.Point{}, stdDraw.Src)
+	xdraw.CatmullRom.Scale(canvas, canvas.Bounds(), source, bounds, stdDraw.Over, nil)
+	for _, quality := range []int{86, 78, 70, 62} {
+		var output bytes.Buffer
+		if err := jpeg.Encode(&output, canvas, &jpeg.Options{Quality: quality}); err != nil {
+			return nil, fmt.Errorf("encode profile background: %w", err)
+		}
+		if output.Len() <= maxStoredProfileBackgroundBytes {
+			return output.Bytes(), nil
+		}
+	}
+	return nil, fmt.Errorf("compressed profile background is too large")
+}
+
 func resizeAvatarDimensions(width, height, maxDimension int) (int, int) {
 	if width <= maxDimension && height <= maxDimension {
 		return width, height
@@ -170,41 +343,25 @@ func resizeAvatarDimensions(width, height, maxDimension int) (int, int) {
 	return max(1, width*maxDimension/height), maxDimension
 }
 
-func (s *server) deleteAvatar(w http.ResponseWriter, r *http.Request, user authenticatedUser) {
-	if s.storage == nil {
-		writeError(w, http.StatusServiceUnavailable, "头像存储暂不可用")
-		return
+func resizeProfileBackgroundDimensions(width, height, maxWidth, maxHeight int) (int, int) {
+	if width <= maxWidth && height <= maxHeight {
+		return width, height
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
-	defer cancel()
-	objectKey, err := s.loadAvatarObjectKey(ctx, user.ID)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "读取当前头像失败")
-		return
-	}
-	if objectKey == "" {
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-	if _, err := s.db.ExecContext(ctx, `UPDATE users SET avatar_url = NULL WHERE id = ?`, user.ID); err != nil {
-		writeError(w, http.StatusInternalServerError, "移除头像失败")
-		return
-	}
-	if err := s.storage.deleteAvatar(ctx, objectKey); err != nil {
-		log.Printf("delete avatar for user %d failed: %v", user.ID, err)
-	}
-	w.WriteHeader(http.StatusNoContent)
+	widthRatio := float64(maxWidth) / float64(width)
+	heightRatio := float64(maxHeight) / float64(height)
+	ratio := min(widthRatio, heightRatio)
+	return max(1, int(float64(width)*ratio)), max(1, int(float64(height)*ratio))
 }
 
 func (s *server) loadUserProfile(requestContext context.Context, userID uint64) (userProfileResponse, error) {
 	ctx, cancel := context.WithTimeout(requestContext, 8*time.Second)
 	defer cancel()
 	var profile userProfileResponse
-	var bio, gender, avatarObjectKey sql.NullString
+	var bio, gender, avatarObjectKey, profileBackgroundObjectKey, customProfileMarkdown sql.NullString
 	err := s.db.QueryRowContext(ctx, `
-		SELECT id, username, email, bio, gender, avatar_url
+		SELECT id, username, user_id, email, bio, gender, avatar_url, profile_background_url, custom_profile_enabled, custom_profile_markdown
 		FROM users WHERE id = ?`, userID).
-		Scan(&profile.ID, &profile.Username, &profile.Email, &bio, &gender, &avatarObjectKey)
+		Scan(&profile.ID, &profile.Username, &profile.UserID, &profile.Email, &bio, &gender, &avatarObjectKey, &profileBackgroundObjectKey, &profile.CustomProfileEnabled, &customProfileMarkdown)
 	if err != nil {
 		return profile, err
 	}
@@ -214,6 +371,9 @@ func (s *server) loadUserProfile(requestContext context.Context, userID uint64) 
 	if gender.Valid {
 		profile.Gender = gender.String
 	}
+	if customProfileMarkdown.Valid {
+		profile.CustomProfileMarkdown = customProfileMarkdown.String
+	}
 	if avatarObjectKey.Valid && avatarObjectKey.String != "" && s.storage != nil && s.storage.isAvatarKey(avatarObjectKey.String) {
 		avatarURL, err := s.storage.signedAvatarURL(ctx, avatarObjectKey.String)
 		if err != nil {
@@ -221,12 +381,30 @@ func (s *server) loadUserProfile(requestContext context.Context, userID uint64) 
 		}
 		profile.AvatarURL = &avatarURL
 	}
+	if profileBackgroundObjectKey.Valid && profileBackgroundObjectKey.String != "" && s.storage != nil && s.storage.isProfileBackgroundKey(profileBackgroundObjectKey.String) {
+		backgroundURL, err := s.storage.signedProfileBackgroundURL(ctx, profileBackgroundObjectKey.String)
+		if err != nil {
+			return profile, fmt.Errorf("sign profile background URL: %w", err)
+		}
+		profile.ProfileBackgroundURL = &backgroundURL
+	}
 	return profile, nil
 }
 
 func (s *server) loadAvatarObjectKey(ctx context.Context, userID uint64) (string, error) {
 	var objectKey sql.NullString
 	if err := s.db.QueryRowContext(ctx, `SELECT avatar_url FROM users WHERE id = ?`, userID).Scan(&objectKey); err != nil {
+		return "", err
+	}
+	if !objectKey.Valid || !strings.HasPrefix(objectKey.String, s.storage.avatarPrefix) {
+		return "", nil
+	}
+	return objectKey.String, nil
+}
+
+func (s *server) loadProfileBackgroundObjectKey(ctx context.Context, userID uint64) (string, error) {
+	var objectKey sql.NullString
+	if err := s.db.QueryRowContext(ctx, `SELECT profile_background_url FROM users WHERE id = ?`, userID).Scan(&objectKey); err != nil {
 		return "", err
 	}
 	if !objectKey.Valid || !strings.HasPrefix(objectKey.String, s.storage.avatarPrefix) {

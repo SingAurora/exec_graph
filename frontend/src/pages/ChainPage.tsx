@@ -42,7 +42,7 @@ export function ChainPage() {
     : pathToTip(privateCurrent ?? privateLatestCompleted, contracts)
   const visibleIds = useMemo(() => new Set(visibleContracts.map((contract) => contract.id)), [visibleContracts])
   const edges = useMemo(
-    () => allEdges.filter((edge) => visibleIds.has(edge.sourceContractId) && visibleIds.has(edge.targetContractId) && ['lineage', 'fork', 'supplement'].includes(edge.type)),
+    () => allEdges.filter((edge) => visibleIds.has(edge.sourceContractId) && visibleIds.has(edge.targetContractId) && ['lineage', 'fork', 'supplement', 'closure'].includes(edge.type)),
     [allEdges, visibleIds],
   )
   const childrenBySource = useMemo(() => {
@@ -103,6 +103,6 @@ function BranchContext({ branch, contracts }: { branch: ExecutionBranch; contrac
 
 function ChainTree({ node, edgeType, childrenBySource }: { node: ExecutionContract; edgeType?: ExecutionEdge['type']; childrenBySource: Map<string, LinkedContract[]> }) {
   const children = childrenBySource.get(node.id) ?? []
-  const relation = edgeType === 'supplement' ? '补充' : edgeType === 'fork' ? '分叉' : edgeType === 'lineage' ? '接续' : undefined
-  return <li><Link to={`/contracts/${node.id}`} className="group flex min-w-0 items-center gap-2 rounded-md px-2 py-2 transition hover:bg-white/72 focus:outline-none focus-visible:shadow-focusline"><span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{node.title}</span>{relation ? <span className="font-mono text-[11px] font-semibold text-signal">{relation}</span> : null}<StatusBadge stage={node.stage} /></Link>{children.length > 0 ? <ul className="ml-3 border-l border-rail pl-3">{children.map((child) => <ChainTree key={`${node.id}-${child.contract.id}`} node={child.contract} edgeType={child.edgeType} childrenBySource={childrenBySource} />)}</ul> : null}</li>
+  const relation = edgeType === 'closure' ? '收束' : edgeType === 'supplement' ? '补充' : edgeType === 'fork' ? '分叉' : edgeType === 'lineage' ? '接续' : undefined
+  return <li><Link to={`/contracts/${node.id}`} className="group flex min-w-0 items-center gap-2 rounded-md px-2 py-2 transition hover:bg-shell/72 focus:outline-none focus-visible:shadow-focusline"><span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{node.title}</span>{relation ? <span className="font-mono text-[11px] font-semibold text-signal">{relation}</span> : null}<StatusBadge stage={node.stage} /></Link>{children.length > 0 ? <ul className="ml-3 border-l border-rail pl-3">{children.map((child) => <ChainTree key={`${node.id}-${child.contract.id}`} node={child.contract} edgeType={child.edgeType} childrenBySource={childrenBySource} />)}</ul> : null}</li>
 }

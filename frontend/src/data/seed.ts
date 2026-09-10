@@ -11,6 +11,96 @@ export const actors: Actor[] = [
     role: '最终确认者',
     bio: '把行动变成可验证的完成记录。',
     gender: 'undisclosed',
+    customProfileEnabled: true,
+    customProfileMarkdown: `<style>
+.profile-board {
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.profile-board h1 {
+  margin: 0;
+  color: #1d2939;
+}
+
+.profile-board p {
+  margin: 0;
+  color: #667085;
+}
+
+.pulse {
+  display: inline-flex;
+  width: 10px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #1677ff;
+  box-shadow: 0 0 0 0 rgba(22, 119, 255, 0.42);
+  animation: pulse 1.8s ease-out infinite;
+}
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid #e4e7ec;
+}
+
+.profile-grid div {
+  padding: 14px;
+  border-right: 1px solid #e4e7ec;
+}
+
+.profile-grid div:last-child {
+  border-right: 0;
+}
+
+.profile-grid strong {
+  display: block;
+  color: #1d2939;
+  font-size: 26px;
+}
+
+.profile-grid span {
+  color: #667085;
+  font: 700 11px/1 "JetBrains Mono", ui-monospace, monospace;
+}
+
+@keyframes pulse {
+  to {
+    box-shadow: 0 0 0 14px rgba(22, 119, 255, 0);
+  }
+}
+
+@media (max-width: 700px) {
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-grid div {
+    border-right: 0;
+    border-bottom: 1px solid #e4e7ec;
+  }
+
+  .profile-grid div:last-child {
+    border-bottom: 0;
+  }
+}
+</style>
+
+<section class="profile-board">
+  <h1><span class="pulse"></span> 正在建立可验证的执行系统</h1>
+  <p>我用 ExecG 记录真实推进，而不是只写待办。公开项目里只展示已经愿意接受旁观的行动路径。</p>
+  <div class="profile-grid">
+    <div><strong>1</strong><span>PUBLIC PROJECT</span></div>
+    <div><strong>2</strong><span>LOCKED RECORDS</span></div>
+    <div><strong>AI</strong><span>REVIEW + CONFIRM</span></div>
+  </div>
+  <p>节点记录行动，完成记录由智能合约审查后生成。</p>
+</section>
+`,
   },
   {
     id: 'actor-lin',
@@ -84,6 +174,8 @@ export const projects: Project[] = [
     description: '默认项目。任何还不需要单独归档的行动，都可以直接在这里开始。',
     isDefault: true,
     visibility: 'private',
+    projectType: 'guided',
+    projectRules: '每次只推进一个明确行动；所有完成结果必须有可核验的证据。',
     currentContractId: 'contract-focus-supplement',
     activeContractRevisionId: 'project-default-r1',
     contractRevisions: [
@@ -103,6 +195,8 @@ export const projects: Project[] = [
     description: '用智能合约冻结目标规则，用 AI 验证和用户签名形成公开完成记录。',
     isDefault: false,
     visibility: 'public',
+    projectType: 'guided',
+    projectRules: '所有行动都要围绕执行图谱的可用性展开；公开记录必须能够被旁观者复核。',
     currentContractId: null,
     activeContractRevisionId: 'project-exec-graph-r1',
     contractRevisions: [
@@ -122,6 +216,8 @@ export const projects: Project[] = [
     description: '把执行力传播、智能合约审查、公开记录和补充节点整理成一套清晰叙事。',
     isDefault: false,
     visibility: 'private',
+    projectType: 'autonomous',
+    projectRules: '',
     currentContractId: 'contract-case-notes',
     activeContractRevisionId: 'project-writing-r1',
     contractRevisions: [

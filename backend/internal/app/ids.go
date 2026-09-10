@@ -14,6 +14,14 @@ func newOpaqueID(prefix string) (string, error) {
 	return fmt.Sprintf("%s-%s", prefix, hex.EncodeToString(value)), nil
 }
 
+func newUserID() (string, error) {
+	value := make([]byte, 10)
+	if _, err := rand.Read(value); err != nil {
+		return "", fmt.Errorf("generate user id: %w", err)
+	}
+	return "u" + hex.EncodeToString(value), nil
+}
+
 func newSessionToken() (string, error) {
 	value := make([]byte, 32)
 	if _, err := rand.Read(value); err != nil {

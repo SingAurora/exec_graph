@@ -8,10 +8,11 @@ import (
 )
 
 type Config struct {
-	App      AppConfig      `yaml:"app"`
-	Database DatabaseConfig `yaml:"database"`
-	Redis    RedisConfig    `yaml:"redis"`
-	Tencent  TencentConfig  `yaml:"tencent"`
+	App         AppConfig         `yaml:"app"`
+	Database    DatabaseConfig    `yaml:"database"`
+	Redis       RedisConfig       `yaml:"redis"`
+	Tencent     TencentConfig     `yaml:"tencent"`
+	Development DevelopmentConfig `yaml:"development"`
 }
 
 type AppConfig struct {
@@ -58,6 +59,19 @@ type COSConfig struct {
 	Region       string `yaml:"region"`
 	Bucket       string `yaml:"bucket"`
 	AvatarPrefix string `yaml:"avatar_prefix"`
+}
+
+// DevelopmentConfig only provisions local fixtures. It must remain disabled
+// for deployments that should not create a known account on startup.
+type DevelopmentConfig struct {
+	TestAccount TestAccountConfig `yaml:"test_account"`
+}
+
+type TestAccountConfig struct {
+	Enabled  bool   `yaml:"enabled"`
+	Username string `yaml:"username"`
+	Email    string `yaml:"email"`
+	Password string `yaml:"password"`
 }
 
 func loadConfig(path string) (Config, error) {

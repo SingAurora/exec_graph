@@ -3,7 +3,6 @@ import { persist } from 'zustand/middleware'
 import { actors, branches as seedBranches, completionRecords as seedCompletionRecords, contracts, currentActorId, defaultProjectId, edges, projects, smartContracts } from '../data/seed'
 import type {
   AIReview,
-  AcceptanceCriterion,
   Actor,
   CompletionRecord,
   ContractStage,
@@ -11,18 +10,22 @@ import type {
   ExecutionBranch,
   ExecutionContract,
   ExecutionEdge,
-  ExecutionNodeKind,
   Gender,
   Project,
+  ProjectType,
   ProjectContractRevision,
-  ReviewVerdict,
   SmartContractDefinition,
-  UserVerdict,
 } from '../types'
 
 type SubmitCompletionInput = {
   completionClaim: string
   evidenceText: string
+}
+
+type ReviewClarificationInput = {
+  criterionIds: string[]
+  explanation: string
+  evidenceReferences?: string
 }
 
 type CreateContractInput = {
@@ -32,13 +35,23 @@ type CreateContractInput = {
   sourceContractIds?: string[]
   branchId?: string
   fork?: boolean
+  closureSourceIds?: string[]
+  draftReview?: DraftReview
+  planningConversationId?: string
+}
+
+type ReviewNodeDraftInput = {
+  projectId: string
+  draft: string
 }
 
 type CreateProjectInput = {
   title: string
   description: string
-  smartContractId: string
+  projectType: ProjectType
+  projectRules: string
   visibility: 'private' | 'public'
+  aiKeyId: string
 }
 
 type UpdateProjectInput = {
@@ -58,16 +71,28 @@ type CreateContractResult = {
   draftReview: DraftReview
 }
 
+type ProjectStateResponse = {
+  project: Project
+  nodes: ExecutionContract[]
+  edges: ExecutionEdge[]
+  branches: ExecutionBranch[]
+  completionRecords: CompletionRecord[]
+}
+
 type AuthResult = {
   success: boolean
   message?: string
 }
 
 type ProfileInput = {
-  handle: string
+	username: string
+	userId: string
   bio: string
   gender: Gender
   avatarUrl?: string
+  profileBackgroundUrl?: string
+  customProfileEnabled?: boolean
+  customProfileMarkdown?: string
 }
 
 type CompiledDraft = {
@@ -90,18 +115,24 @@ type ExecState = {
   contracts: ExecutionContract[]
   completionRecords: CompletionRecord[]
   edges: ExecutionEdge[]
-  createProject: (input: CreateProjectInput) => string | null
+  createProject: (input: CreateProjectInput) => Promise<string | null>
   updateProject: (projectId: string, input: UpdateProjectInput) => void
-  createSmartContract: (input: CreateSmartContractInput) => string
-  upgradeProjectContract: (projectId: string, smartContractId: string) => void
+  createSmartContract: (input: CreateSmartContractInput) => Promise<string | null>
+  deleteSmartContract: (contractId: string) => Promise<AuthResult>
+  upgradeProjectContract: (projectId: string, smartContractId: string) => Promise<AuthResult>
   archiveProject: (projectId: string) => void
-  createContract: (input: CreateContractInput) => CreateContractResult
-  submitCompletion: (contractId: string, input: SubmitCompletionInput) => void
-  confirmCompletion: (contractId: string) => void
-  createSupplementContract: (contractId: string) => void
+  restoreProject: (projectId: string) => void
+  deleteProject: (projectId: string) => void
+  reviewNodeDraft: (input: ReviewNodeDraftInput) => Promise<CreateContractResult>
+  createContract: (input: CreateContractInput) => Promise<CreateContractResult>
+  submitCompletion: (contractId: string, input: SubmitCompletionInput) => Promise<AuthResult>
+  submitReviewClarification: (contractId: string, input: ReviewClarificationInput) => Promise<AuthResult>
+  confirmCompletion: (contractId: string) => Promise<AuthResult>
+  createSupplementContract: (contractId: string) => Promise<AuthResult>
   signIn: (email: string, password: string) => AuthResult
-  registerAccount: (username: string, email: string, password: string) => AuthResult
+	registerAccount: (username: string, userId: string, email: string, password: string) => AuthResult
   setAccessToken: (token: string) => void
+  refreshWorkspace: () => Promise<void>
   signOut: () => void
   updateProfile: (input: ProfileInput) => void
   updateAccountEmail: (email: string, currentPassword: string) => AuthResult
@@ -222,96 +253,105 @@ const buildDraftReview = (draft: string): { review: DraftReview; compiled: Compi
       verdict,
       summary:
         verdict === 'pass'
-          ? '部署校验通过。这项行为将继承项目当前智能合约版本，并冻结目标、验收标准和证据要求。'
-          : '部署校验未通过。此草案尚不能成为项目中的行为承诺，请按平台规则补全后再提交。',
+          ? '节点草案审核通过。这个行动将遵循项目规则，并冻结目标、验收标准和证据要求。'
+          : '节点草案审核未通过。此草案尚不能成为项目中的推进节点，请按平台规则补全后再提交。',
       missingRequirements,
       createdAt: now(),
     },
   }
 }
 
-const buildTaskDraftReview = (draft: string): { review: DraftReview; compiled: CompiledDraft } => {
-  const compiled = compileDraft(draft)
-  const lines = draft
-    .split('\n')
-    .map(stripListMarker)
-    .filter(Boolean)
-  const title = compiled.title || lines[0] || ''
-  const taskBody = compiled.verifiableGoal || lines.slice(1).join(' ') || draft.trim()
-  const missingRequirements: string[] = []
-
-  if (title.length < 4) missingRequirements.push('需要给第一次任务一个明确标题。')
-  if (taskBody.length < 20) missingRequirements.push('需要说明这个项目首先要解决什么任务。')
-
-  const verdict = missingRequirements.length === 0 ? 'pass' : 'fail'
-  return {
-    compiled: {
-      title,
-      verifiableGoal: taskBody,
-      acceptanceCriteria: [],
-      evidenceRequirement: '首个节点只定义任务起点，不要求提交完成证明；后续推进节点会提交证据并接受智能合约审查。',
-    },
-    review: {
-      id: `draft-review-${crypto.randomUUID()}`,
-      verdict,
-      summary:
-        verdict === 'pass'
-          ? '第一次任务定义已记录。它会作为项目起点，后续推进节点从这里展开。'
-          : '第一次任务定义还不够清楚，暂时不能作为项目起点。',
-      missingRequirements,
-      createdAt: now(),
-    },
+const requestNodeDraftReview = async (accessToken: string, project: Project, smartContract: SmartContractDefinition, draft: string, compiled: CompiledDraft) => {
+  const response = await fetch('/api/ai-reviews/node-draft', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({
+      project: {
+        id: project.id,
+        title: project.title,
+        description: project.description,
+        projectType: project.projectType,
+        projectRules: project.projectRules,
+      },
+      smartContract: {
+        id: smartContract.id,
+        name: smartContract.name,
+        description: smartContract.description,
+        body: smartContract.body,
+      },
+      draft: draft.trim(),
+      title: compiled.title,
+      verifiableGoal: compiled.verifiableGoal,
+      acceptanceCriteria: compiled.acceptanceCriteria,
+      evidenceRequirement: compiled.evidenceRequirement,
+    }),
+  })
+  const data = (await response.json().catch(() => ({}))) as { error?: string; review?: DraftReview }
+  if (!response.ok || !data.review) {
+    throw new Error(data.error ?? `节点草案审核失败（HTTP ${response.status}）。`)
   }
+  return data.review
 }
 
-const criterionIsCovered = (contract: ExecutionContract, criterion: AcceptanceCriterion, index: number) => {
-  const combined = `${contract.completionClaim ?? ''}\n${contract.evidenceText ?? ''}`
-  const label = new RegExp(`(?:C|标准|验收)\\s*${index + 1}(?!\\d)`, 'i')
-  const criterionStart = criterion.text.slice(0, Math.min(12, criterion.text.length))
-  if (contract.smartContractId === 'skill-strict-self') return label.test(contract.evidenceText ?? '')
-  return label.test(combined) || combined.includes(criterionStart)
-}
-
-const buildAIReview = (contract: ExecutionContract): AIReview => {
-  const covered = contract.acceptanceCriteria.map((criterion, index) => criterionIsCovered(contract, criterion, index))
-  const metCount = covered.filter(Boolean).length
-  const combinedLength = `${contract.completionClaim ?? ''}${contract.evidenceText ?? ''}`.trim().length
-  const minimumEvidenceLength = contract.smartContractId === 'skill-strict-self' ? 80 : 40
-  const verdict: ReviewVerdict =
-    combinedLength < minimumEvidenceLength || metCount === 0
-      ? 'fail'
-      : metCount === contract.acceptanceCriteria.length
-        ? 'pass'
-        : 'partial'
-  const createdAt = now()
-
-  return {
-    id: `review-${crypto.randomUUID()}`,
-    verdict,
-    summary:
-      verdict === 'pass'
-        ? '智能合约审查通过。这次推进满足了冻结验收标准，确认后可以生成阶段完成记录。'
-          : verdict === 'partial'
-          ? '智能合约审查未通过。部分标准已有证明，但仍存在缺口；你可以继续补足，也可以选择带着该结论锁定。'
-          : '智能合约审查未通过。当前提交不能证明冻结目标已经达成；你可以继续补足，也可以选择带着该结论锁定。',
-    criterionReviews: contract.acceptanceCriteria.map((criterion, index) => ({
-      criterionId: criterion.id,
-      result: covered[index] ? 'met' : verdict === 'fail' ? 'unmet' : 'unclear',
-      reason: covered[index]
-        ? contract.smartContractId === 'skill-strict-self'
-          ? '严格自证合约确认了证据区中与该标准一一对应的编号。'
-          : '提交结果中存在该标准的直接说明或编号证据。'
-        : contract.smartContractId === 'skill-strict-self'
-          ? '严格自证合约要求在证据区用 C 编号逐条对应，当前没有找到该标准的编号证据。'
-          : '没有找到与该冻结标准一一对应的结果或证据。',
-    })),
-    suggestedSupplementTitle:
-      verdict === 'pass'
-        ? undefined
-        : `补齐「${contract.acceptanceCriteria.find((_, index) => !covered[index])?.text ?? contract.title}」`,
-    createdAt,
+const requestRealAIReview = async (accessToken: string, contract: ExecutionContract, input: SubmitCompletionInput) => {
+  const response = await fetch('/api/ai-reviews/node', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({
+      nodeId: contract.id,
+      completionClaim: input.completionClaim.trim(),
+      evidenceText: input.evidenceText.trim(),
+    }),
+  })
+  const data = (await response.json().catch(() => ({}))) as { error?: string; review?: AIReview }
+  if (!response.ok || !data.review) {
+    throw new Error(data.error ?? `AI 审查失败（HTTP ${response.status}）。`)
   }
+  return data.review
 }
+
+const requestReviewClarification = async (accessToken: string, contract: ExecutionContract, input: ReviewClarificationInput) => {
+  const response = await fetch('/api/ai-reviews/node/clarification', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({
+      nodeId: contract.id,
+      criterionIds: input.criterionIds,
+      explanation: input.explanation.trim(),
+      evidenceReferences: input.evidenceReferences?.trim() ?? '',
+    }),
+  })
+  const data = (await response.json().catch(() => ({}))) as { error?: string; review?: AIReview }
+  if (!response.ok || !data.review) {
+    throw new Error(data.error ?? `补充审查失败（HTTP ${response.status}）。`)
+  }
+  return data.review
+}
+
+const requestProjectState = async (accessToken: string, path: string, init?: RequestInit) => {
+  const response = await fetch(path, {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+      ...(init?.headers ?? {}),
+    },
+  })
+  const data = (await response.json().catch(() => ({}))) as ProjectStateResponse & { error?: string }
+  if (!response.ok || !data.project) throw new Error(data.error ?? `项目操作失败（HTTP ${response.status}）。`)
+  return data
+}
+
+const mergeProjectState = (state: Pick<ExecState, 'projects' | 'contracts' | 'branches' | 'completionRecords' | 'edges'>, snapshot: ProjectStateResponse) => ({
+  projects: state.projects.map((project) => (project.id === snapshot.project.id ? snapshot.project : project)),
+  contracts: [...state.contracts.filter((contract) => contract.projectId !== snapshot.project.id), ...snapshot.nodes],
+  branches: [...state.branches.filter((branch) => branch.projectId !== snapshot.project.id), ...snapshot.branches],
+  completionRecords: [...state.completionRecords.filter((record) => record.projectId !== snapshot.project.id), ...snapshot.completionRecords],
+  edges: [
+    ...state.edges.filter((edge) => !state.contracts.some((contract) => contract.projectId === snapshot.project.id && (contract.id === edge.sourceContractId || contract.id === edge.targetContractId))),
+    ...snapshot.edges,
+  ],
+})
 
 const cloneSeedProjects = () => projects.map((project) => ({ ...project, contractRevisions: [...project.contractRevisions] }))
 const cloneSeedBranches = () => seedBranches.map((branch) => ({ ...branch }))
@@ -426,34 +466,15 @@ const reconcileBranchCurrentNodes = (branchList: ExecutionBranch[], allContracts
 const normalizeProject = (project: Project): Project => {
   const seededProject = projects.find((item) => item.id === project.id)
   const visibility = project.isDefault ? 'private' : project.visibility ?? seededProject?.visibility ?? 'private'
+  const projectType = project.projectType ?? seededProject?.projectType ?? 'guided'
+  const projectRules = project.projectRules ?? seededProject?.projectRules ?? ''
   return {
     ...project,
     visibility,
+    projectType,
+    projectRules,
     currentContractId: project.currentContractId,
   }
-}
-
-const parentIdsFor = (contract: ExecutionContract) =>
-  contract.sourceContractIds?.length
-    ? contract.sourceContractIds
-    : contract.parentContractId
-      ? [contract.parentContractId]
-      : []
-
-const collectCoverageIds = (closingContract: ExecutionContract, allContracts: ExecutionContract[]) => {
-  const byId = new Map(allContracts.map((contract) => [contract.id, contract]))
-  const covered = new Set<string>()
-  const visit = (contract: ExecutionContract | undefined) => {
-    if (!contract || contract.projectId !== closingContract.projectId || covered.has(contract.id)) return
-    if (contract.nodeKind !== 'task') covered.add(contract.id)
-    if (contract.completionRecordId) return
-    parentIdsFor(contract).forEach((parentId) => visit(byId.get(parentId)))
-  }
-  visit(closingContract)
-  return allContracts
-    .filter((contract) => covered.has(contract.id))
-    .sort((left, right) => Date.parse(left.createdAt) - Date.parse(right.createdAt))
-    .map((contract) => contract.id)
 }
 
 const ensureCompletionRecords = (allContracts: ExecutionContract[], existingRecords: CompletionRecord[] = []) => {
@@ -564,6 +585,7 @@ const migrateContract = (contract: LegacyContract, migratedProjects: Project[]):
     (revision) => revision.smartContractId === smartContractId && revision.smartContractVersion === smartContractVersion,
   )
   const projectRevision = matchingRevision ?? currentRevision(project)
+  const wasTaskNode = contract.nodeKind === 'task' || contract.stage === 'task'
   const stageMap: Record<string, ContractStage> = {
     contracted: 'frozen',
     submitted: 'frozen',
@@ -574,18 +596,31 @@ const migrateContract = (contract: LegacyContract, migratedProjects: Project[]):
     verified: 'verified',
     needs_supplement: 'needs_supplement',
     completed: 'completed',
-    task: 'task',
+    task: 'frozen',
   }
   const stage = stageMap[contract.stage ?? 'frozen'] ?? 'frozen'
-  const acceptanceCriteria = contract.acceptanceCriteria ?? []
-  const evidenceRequirement = contract.evidenceRequirement ?? '提交完成结果，并逐条说明每项验收标准对应的证据。'
+  const acceptanceCriteria =
+    contract.acceptanceCriteria?.length
+      ? contract.acceptanceCriteria
+      : wasTaskNode
+        ? [
+            {
+              id: 'c1',
+              text: '完成这个节点草案中描述的第一项推进，并提交可检查的结果说明。',
+              requiredEvidence: '提交本次推进留下的产出、链接、截图说明或前后对比。',
+            },
+          ]
+        : []
+  const evidenceRequirement = wasTaskNode
+    ? '提交本次推进留下的产出、链接、截图说明或前后对比。'
+    : contract.evidenceRequirement ?? '提交完成结果，并逐条说明每项验收标准对应的证据。'
 
   return {
     ...(contract as ExecutionContract),
     projectId,
     projectContractRevisionId: contract.projectContractRevisionId ?? projectRevision.id,
     stage,
-    nodeKind: contract.nodeKind ?? 'progress',
+    nodeKind: contract.nodeKind === 'task' ? 'progress' : contract.nodeKind ?? 'progress',
     sourceContractIds: contract.sourceContractIds ?? (contract.parentContractId ? [contract.parentContractId] : undefined),
     smartContractId,
     smartContractVersion,
@@ -643,20 +678,53 @@ export const useExecStore = create<ExecState>()(
   persist(
     (set, get) => ({
       ...initialState,
-      createSmartContract: (input) => {
-        const smartContract: SmartContractDefinition = {
-          id: `smart-contract-${crypto.randomUUID()}`,
-          name: input.name.trim(),
-          source: 'custom',
-          version: '1.0.0',
-          description: input.description.trim(),
-          body: input.body.trim(),
+      createSmartContract: async (input) => {
+        const accessToken = get().accessToken
+        if (!accessToken) return null
+        try {
+          const response = await fetch('/api/smart-contracts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+            body: JSON.stringify(input),
+          })
+          const contract = (await response.json().catch(() => ({}))) as SmartContractDefinition & { error?: string }
+          if (!response.ok || !contract.id) return null
+          set((state) => ({ smartContracts: [...state.smartContracts.filter((item) => item.id !== contract.id), contract] }))
+          return contract.id
+        } catch {
+          return null
         }
-        set((state) => ({ smartContracts: [...state.smartContracts, smartContract] }))
-        return smartContract.id
       },
-      createProject: (input) => {
-        const smartContract = get().smartContracts.find((item) => item.id === input.smartContractId) ?? get().smartContracts[0]
+      deleteSmartContract: async (contractId) => {
+        const accessToken = get().accessToken
+        if (!accessToken) return { success: false, message: '请先登录后再删除智能合约。' }
+        try {
+          const response = await fetch(`/api/smart-contracts/${contractId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${accessToken}` } })
+          const data = (await response.json().catch(() => ({}))) as { error?: string }
+          if (!response.ok) return { success: false, message: data.error ?? '删除智能合约失败。' }
+          set((state) => ({ smartContracts: state.smartContracts.filter((contract) => contract.id !== contractId) }))
+          return { success: true }
+        } catch {
+          return { success: false, message: '无法连接服务，请确认后端已启动。' }
+        }
+      },
+      createProject: async (input) => {
+        if (get().accessToken) {
+          try {
+            const response = await fetch('/api/projects', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${get().accessToken}` },
+              body: JSON.stringify(input),
+            })
+            const project = (await response.json().catch(() => ({}))) as Project & { error?: string }
+            if (!response.ok || !project.id) throw new Error(project.error ?? `项目创建失败（HTTP ${response.status}）。`)
+            set((state) => ({ projects: [...state.projects.filter((item) => item.id !== project.id), project] }))
+            return project.id
+          } catch (error) {
+            throw error instanceof Error ? error : new Error('无法连接服务，请确认后端已启动。')
+          }
+        }
+        const smartContract = get().smartContracts.find((item) => item.id === 'skill-general-contract') ?? get().smartContracts[0]
         if (!smartContract) return null
         const projectId = `project-${crypto.randomUUID()}`
         const revision: ProjectContractRevision = {
@@ -672,6 +740,8 @@ export const useExecStore = create<ExecState>()(
           description: input.description.trim(),
           isDefault: false,
           visibility: input.visibility,
+          projectType: input.projectType,
+          projectRules: input.projectRules.trim(),
           currentContractId: null,
           activeContractRevisionId: revision.id,
           contractRevisions: [revision],
@@ -698,31 +768,24 @@ export const useExecStore = create<ExecState>()(
           ),
         }))
       },
-      upgradeProjectContract: (projectId, smartContractId) => {
-        const smartContract = get().smartContracts.find((item) => item.id === smartContractId)
-        const project = get().projects.find((item) => item.id === projectId)
-        if (!project || project.archivedAt || !smartContract) return
-        const active = currentRevision(project)
-        if (active.smartContractId === smartContract.id && active.smartContractVersion === smartContract.version) return
-
-        const revision: ProjectContractRevision = {
-          id: `project-revision-${crypto.randomUUID()}`,
-          smartContractId: smartContract.id,
-          smartContractVersion: smartContract.version,
-          reason: `从 ${active.smartContractId}@${active.smartContractVersion} 升级`,
-          activatedAt: now(),
-        }
-        set((state) => ({
-          projects: state.projects.map((item) =>
-            item.id === projectId
-              ? {
-                  ...item,
-                  activeContractRevisionId: revision.id,
-                  contractRevisions: [revision, ...item.contractRevisions],
-                }
-              : item,
-          ),
-        }))
+      upgradeProjectContract: async (projectId, smartContractId) => {
+		const smartContract = get().smartContracts.find((item) => item.id === smartContractId)
+		const project = get().projects.find((item) => item.id === projectId)
+		if (!project || project.archivedAt || !smartContract) return { success: false, message: '当前项目不能修改智能合约。' }
+		const active = currentRevision(project)
+		if (active.smartContractId === smartContract.id && active.smartContractVersion === smartContract.version) return { success: false, message: '该合约已经是项目当前配置。' }
+		const accessToken = get().accessToken
+		if (!accessToken) return { success: false, message: '请先登录后再修改项目智能合约。' }
+		try {
+			const snapshot = await requestProjectState(accessToken, `/api/projects/${projectId}/smart-contract`, {
+				method: 'POST',
+				body: JSON.stringify({ smartContractId }),
+			})
+			set((state) => mergeProjectState(state, snapshot))
+			return { success: true }
+		} catch (error) {
+			return { success: false, message: error instanceof Error ? error.message : '更新项目智能合约失败。' }
+		}
       },
       archiveProject: (projectId) => {
         set((state) => ({
@@ -731,7 +794,91 @@ export const useExecStore = create<ExecState>()(
           ),
         }))
       },
-      createContract: (input) => {
+      restoreProject: (projectId) => {
+        set((state) => ({
+          projects: state.projects.map((project) =>
+            project.id === projectId && !project.isDefault && project.archivedAt ? { ...project, archivedAt: undefined } : project,
+          ),
+        }))
+      },
+      deleteProject: (projectId) => {
+        const project = get().projects.find((item) => item.id === projectId)
+        if (!project || project.isDefault) return
+        const contractIds = new Set(get().contracts.filter((contract) => contract.projectId === projectId).map((contract) => contract.id))
+        set((state) => ({
+          projects: state.projects.filter((item) => item.id !== projectId),
+          contracts: state.contracts.filter((contract) => contract.projectId !== projectId),
+          branches: state.branches.filter((branch) => branch.projectId !== projectId),
+          completionRecords: state.completionRecords.filter((record) => record.projectId !== projectId),
+          edges: state.edges.filter((edge) => !contractIds.has(edge.sourceContractId) && !contractIds.has(edge.targetContractId)),
+        }))
+      },
+      reviewNodeDraft: async (input) => {
+        const project = get().projects.find((item) => item.id === input.projectId) ?? get().projects.find((item) => item.id === defaultProjectId)
+        if (!project) {
+          return {
+            draftReview: {
+              id: `draft-review-${crypto.randomUUID()}`,
+              verdict: 'fail',
+              summary: '找不到项目，不能审核节点草案。',
+              missingRequirements: ['请选择一个存在的项目。'],
+              createdAt: now(),
+            },
+          }
+        }
+        if (project.archivedAt) {
+          return {
+            draftReview: {
+              id: `draft-review-${crypto.randomUUID()}`,
+              verdict: 'fail',
+              summary: '项目已归档，不能审核新的推进节点。',
+              missingRequirements: ['归档项目仅保留查看和追溯功能。'],
+              createdAt: now(),
+            },
+          }
+        }
+        const localReview = buildDraftReview(input.draft)
+        if (localReview.review.verdict === 'fail') return { draftReview: localReview.review }
+        if (!get().accessToken) {
+          return {
+            draftReview: {
+              id: `draft-review-${crypto.randomUUID()}`,
+              verdict: 'fail',
+              summary: '节点草案需要 AI 审核后才能创建。',
+              missingRequirements: ['请先登录，并为项目选择审查 AI。'],
+              createdAt: now(),
+            },
+          }
+        }
+        const projectRevision = currentRevision(project)
+        const smartContract = get().smartContracts.find((item) => item.id === projectRevision.smartContractId) ?? get().smartContracts[0]
+        if (!smartContract) {
+          return {
+            draftReview: {
+              id: `draft-review-${crypto.randomUUID()}`,
+              verdict: 'fail',
+              summary: '找不到平台基础审查规则，不能审核节点草案。',
+              missingRequirements: ['请检查后端的基础审查规则配置。'],
+              createdAt: now(),
+            },
+          }
+        }
+        try {
+          const draftReview = await requestNodeDraftReview(get().accessToken, project, smartContract, input.draft, localReview.compiled)
+          return { draftReview }
+        } catch (error) {
+          return {
+            draftReview: {
+              id: `draft-review-${crypto.randomUUID()}`,
+              verdict: 'fail',
+              summary: error instanceof Error ? error.message : '节点草案审核失败，请稍后重试。',
+              missingRequirements: ['请检查项目审查 AI、模型和后端服务。'],
+              createdAt: now(),
+            },
+          }
+        }
+      },
+      createContract: async (input) => {
         const project = get().projects.find((item) => item.id === input.projectId) ?? get().projects.find((item) => item.id === defaultProjectId)
         if (!project) {
           return {
@@ -764,9 +911,11 @@ export const useExecStore = create<ExecState>()(
           .filter((contract): contract is ExecutionContract => Boolean(contract))
         const parentContract = sourceContracts[0]
         const isConvergence = sourceIds.length > 1
+        const isClosure = input.closureSourceIds?.length === 1 && input.closureSourceIds[0] === sourceIds[0] && sourceIds.length === 1
+        const isClosureSource = isClosure && Boolean(parentContract) && parentContract?.stage === 'frozen' && isCurrentContract(project, parentContract, allContracts, get().branches)
         const invalidSources =
           sourceContracts.length !== sourceIds.length ||
-          sourceContracts.some((contract) => contract.projectId !== project.id || (contract.nodeKind !== 'task' && (contract.stage !== 'completed' || !contract.completionRecordId)))
+          sourceContracts.some((contract) => contract.projectId !== project.id || (!isClosureSource && (contract.stage !== 'completed' || !contract.completionRecordId)))
         if (invalidSources) {
           return {
             draftReview: {
@@ -802,7 +951,7 @@ export const useExecStore = create<ExecState>()(
             }
           }
         } else if (project.visibility === 'private') {
-          if (currentContractForProject(project, allContracts)) {
+          if (currentContractForProject(project, allContracts) && !isClosureSource) {
             return {
               draftReview: {
                 id: `draft-review-${crypto.randomUUID()}`,
@@ -829,7 +978,7 @@ export const useExecStore = create<ExecState>()(
           }
           if (selectedPrivateBranch) {
             selectedBranch = selectedPrivateBranch
-            if (currentContractForBranch(selectedPrivateBranch, allContracts)) {
+            if (currentContractForBranch(selectedPrivateBranch, allContracts) && !isClosureSource) {
               return {
                 draftReview: {
                   id: `draft-review-${crypto.randomUUID()}`,
@@ -857,7 +1006,7 @@ export const useExecStore = create<ExecState>()(
                 },
               }
             }
-            if (parentContract && parentContract.nodeKind !== 'task' && latestCompleted?.id !== parentContract.id) {
+            if (!isClosureSource && parentContract && latestCompleted?.id !== parentContract.id) {
               return {
                 draftReview: {
                   id: `draft-review-${crypto.randomUUID()}`,
@@ -921,7 +1070,7 @@ export const useExecStore = create<ExecState>()(
             shouldCreateBranch = true
           }
 
-          if (selectedBranch && currentContractForBranch(selectedBranch, allContracts)) {
+          if (selectedBranch && currentContractForBranch(selectedBranch, allContracts) && !isClosureSource) {
             return {
               draftReview: {
                 id: `draft-review-${crypto.randomUUID()}`,
@@ -934,205 +1083,132 @@ export const useExecStore = create<ExecState>()(
           }
         }
 
-        const projectRevision = currentRevision(project)
-        const smartContract =
-          get().smartContracts.find((item) => item.id === projectRevision.smartContractId) ?? get().smartContracts[0]
-        const nodeKind: ExecutionNodeKind = projectContracts.length === 0 && sourceIds.length === 0 ? 'task' : 'progress'
-        const { review: draftReview, compiled } = nodeKind === 'task' ? buildTaskDraftReview(input.draft) : buildDraftReview(input.draft)
-        if (draftReview.verdict === 'fail') return { draftReview }
-
-        const contractId = `contract-${crypto.randomUUID()}`
-        const createdBranch: ExecutionBranch | undefined =
-          shouldCreateBranch
-            ? {
-                id: `branch-${crypto.randomUUID()}`,
-                projectId: project.id,
-                title: compiled.title,
-                rootContractId: contractId,
-                forkedFromContractId: parentContract?.id,
-                headContractId: contractId,
-                currentContractId: contractId,
-                createdById: get().currentActorId,
-                createdAt: now(),
-              }
-            : undefined
-        const branch = selectedBranch ?? createdBranch
-        const criteria = compiled.acceptanceCriteria.slice(0, 6)
-        const ruleHash = makeRuleHash(
-          `${project.id}|${projectRevision.id}|${smartContract.id}@${projectRevision.smartContractVersion}|${compiled.verifiableGoal}|${criteria.join('|')}|${compiled.evidenceRequirement}`,
-        )
-        const contract: ExecutionContract = {
-          id: contractId,
-          projectId: project.id,
-          branchId: branch?.id,
-          projectContractRevisionId: projectRevision.id,
-          parentContractId: parentContract?.id,
-          sourceContractIds: sourceIds.length > 0 ? sourceIds : undefined,
-          title: compiled.title,
-          nodeKind,
-          stage: nodeKind === 'task' ? 'task' : 'frozen',
-          originalIntent: input.draft.trim(),
-          smartContractId: smartContract.id,
-          smartContractVersion: projectRevision.smartContractVersion,
-          ruleHash,
-          verifiableGoal: compiled.verifiableGoal,
-          acceptanceCriteria: criteria.map((criterion, index) => ({
-            id: `c${index + 1}`,
-            text: criterion,
-            requiredEvidence: `C${index + 1}：提交能直接证明“${criterion}”的结果、链接、截图说明或前后对比。`,
-          })),
-          evidenceRequirement: compiled.evidenceRequirement,
-          draftReview,
-          reviewMessages: [
-            {
-              id: `msg-${crypto.randomUUID()}`,
-              speaker: 'ai',
-              body:
-                nodeKind === 'task'
-                  ? `第一次任务已通过项目「${project.title}」的智能合约「${smartContract.name}」校验。它会作为项目起点，规则指纹 ${ruleHash} 已记录。`
-                  : `行为承诺已通过项目「${project.title}」的智能合约「${smartContract.name}」校验。目标、验收标准和证据要求已冻结，规则指纹 ${ruleHash} 已记录。`,
+        const localDraft = buildDraftReview(input.draft)
+        const compiled = localDraft.compiled
+        if (localDraft.review.verdict === 'fail') return { draftReview: localDraft.review }
+        if (!input.draftReview) {
+          return {
+            draftReview: {
+              id: `draft-review-${crypto.randomUUID()}`,
+              verdict: 'fail',
+              summary: '节点草案需要 AI 审核后才能创建。',
+              missingRequirements: ['请使用页面上的“AI 审核并创建推进节点”完成审核。'],
               createdAt: now(),
             },
-          ],
-          createdAt: now(),
-          updatedAt: now(),
+          }
+        }
+        const draftReview = input.draftReview
+        if (draftReview.verdict === 'fail') return { draftReview }
+
+        const criteria = compiled.acceptanceCriteria.slice(0, 6)
+        if (!get().accessToken) {
+          return {
+            draftReview: {
+              id: `draft-review-${crypto.randomUUID()}`,
+              verdict: 'fail',
+              summary: '请先登录后再创建推进节点。',
+              missingRequirements: ['登录后才能把节点与 AI 审查结果写入项目链。'],
+              createdAt: now(),
+            },
+          }
+        }
+        try {
+          const snapshot = await requestProjectState(get().accessToken, `/api/projects/${project.id}/nodes`, {
+            method: 'POST',
+            body: JSON.stringify({
+              draft: input.draft.trim(),
+              draftReview,
+              title: compiled.title,
+              verifiableGoal: compiled.verifiableGoal,
+              acceptanceCriteria: criteria.map((criterion, index) => ({
+                id: `c${index + 1}`,
+                text: criterion,
+                requiredEvidence: `C${index + 1}：提交能直接证明“${criterion}”的结果、链接、截图说明或前后对比。`,
+              })),
+              evidenceRequirement: compiled.evidenceRequirement,
+              parentContractId: parentContract?.id,
+              sourceContractIds: sourceIds,
+              branchId: selectedBranch?.id,
+              fork: shouldCreateBranch,
+              closure: isClosure,
+              planningConversationId: input.planningConversationId,
+            }),
+          })
+          const created = snapshot.nodes.find((node) => node.originalIntent === input.draft.trim() && node.title === compiled.title)
+          set((state) => mergeProjectState(state, snapshot))
+          if (!created) throw new Error('节点已保存，但未能读取新节点编号。')
+          return { contractId: created.id, draftReview }
+        } catch (error) {
+          return {
+            draftReview: {
+              id: `draft-review-${crypto.randomUUID()}`,
+              verdict: 'fail',
+              summary: error instanceof Error ? error.message : '节点创建失败，请稍后重试。',
+              missingRequirements: ['请检查后端服务，并重新提交已通过审核的草案。'],
+              createdAt: now(),
+            },
+          }
+        }
+      },
+      submitCompletion: async (contractId, input) => {
+        const state = get()
+        const contract = state.contracts.find((item) => item.id === contractId)
+        const project = state.projects.find((item) => item.id === contract?.projectId)
+        if (!contract || !project || project.archivedAt || contract.stage !== 'frozen' || !isCurrentContract(project, contract, state.contracts, state.branches)) {
+          return { success: false, message: '当前节点不能提交审查。' }
+        }
+        if (!state.accessToken) {
+          return { success: false, message: '请先登录，并为项目选择审查 AI。' }
         }
 
-        const relationType: ExecutionEdge['type'] = createdBranch ? 'fork' : 'lineage'
-        const lineageEdges = sourceIds.map<ExecutionEdge>((sourceContractId) => ({
-          id: `edge-${crypto.randomUUID()}`,
-          sourceContractId,
-          targetContractId: contract.id,
-          type: relationType,
-        }))
-
-        set((state) => ({
-          contracts: [contract, ...state.contracts],
-          edges: lineageEdges.length > 0 ? [...state.edges, ...lineageEdges] : state.edges,
-          branches: createdBranch
-            ? [...state.branches, createdBranch]
-            : branch
-              ? state.branches.map((item) =>
-                  item.id === branch.id ? { ...item, headContractId: contract.id, currentContractId: contract.id } : item,
-                )
-              : state.branches,
-          projects: state.projects.map((item) =>
-            item.id === project.id && ((nodeKind === 'task' && !branch) || isConvergence || (item.visibility === 'private' && !branch)) ? { ...item, currentContractId: contract.id } : item,
-          ),
-        }))
-        return { contractId, draftReview }
+        try {
+          await requestRealAIReview(state.accessToken, contract, input)
+          const snapshot = await requestProjectState(state.accessToken, `/api/projects/${project.id}/graph`)
+          set((latestState) => mergeProjectState(latestState, snapshot))
+          return { success: true }
+        } catch (error) {
+          return { success: false, message: error instanceof Error ? error.message : 'AI 审查失败，请稍后重试。' }
+        }
       },
-      submitCompletion: (contractId, input) => {
-        set((state) => ({
-          contracts: state.contracts.map((contract) => {
-            const project = state.projects.find((item) => item.id === contract.projectId)
-            if (!project || project.archivedAt || contract.id !== contractId || contract.stage !== 'frozen' || !isCurrentContract(project, contract, state.contracts, state.branches)) return contract
+      submitReviewClarification: async (contractId, input) => {
+        const state = get()
+        const contract = state.contracts.find((item) => item.id === contractId)
+        const project = state.projects.find((item) => item.id === contract?.projectId)
+        const canReview = contract?.stage === 'verified' || contract?.stage === 'needs_supplement'
+        if (!contract || !project || project.archivedAt || !contract.aiReview || !canReview || !isCurrentContract(project, contract, state.contracts, state.branches)) {
+          return { success: false, message: '当前节点不能补充审查说明。' }
+        }
+        if (!input.criterionIds.length || input.explanation.trim().length < 4) {
+          return { success: false, message: '请选择争议验收标准，并说明 AI 可能误解的地方。' }
+        }
+        if (!state.accessToken) return { success: false, message: '请先登录，并为项目选择审查 AI。' }
 
-            const submittedContract: ExecutionContract = {
-              ...contract,
-              actorId: state.currentActorId,
-              completionClaim: input.completionClaim.trim(),
-              evidenceText: input.evidenceText.trim(),
-            }
-            const review = buildAIReview(submittedContract)
-            const stage: ContractStage = review.verdict === 'pass' ? 'verified' : 'needs_supplement'
-
-            return {
-              ...submittedContract,
-              stage,
-              aiReview: review,
-              reviewMessages: [
-                ...contract.reviewMessages,
-                {
-                  id: `msg-${crypto.randomUUID()}`,
-                  speaker: 'user',
-                  body: input.completionClaim.trim(),
-                  createdAt: now(),
-                },
-                {
-                  id: `msg-${crypto.randomUUID()}`,
-                  speaker: 'ai',
-                  body: review.summary,
-                  createdAt: review.createdAt,
-                },
-              ],
-              updatedAt: now(),
-            }
-          }),
-        }))
+        try {
+          await requestReviewClarification(state.accessToken, contract, input)
+          const snapshot = await requestProjectState(state.accessToken, `/api/projects/${project.id}/graph`)
+          set((latestState) => mergeProjectState(latestState, snapshot))
+          return { success: true }
+        } catch (error) {
+          return { success: false, message: error instanceof Error ? error.message : '补充审查失败，请稍后重试。' }
+        }
       },
-      confirmCompletion: (contractId) => {
+      confirmCompletion: async (contractId) => {
         const source = get().contracts.find((contract) => contract.id === contractId)
         const project = get().projects.find((item) => item.id === source?.projectId)
         const canLockStage = source?.stage === 'verified' || source?.stage === 'needs_supplement'
-        if (!source || !project || project.archivedAt || !isCurrentContract(project, source, get().contracts, get().branches) || !canLockStage || !source.aiReview) return
-
-        const createdAt = now()
-        const aiReviewPassed = source.aiReview.verdict === 'pass'
-        const verdict: UserVerdict = aiReviewPassed
-          ? {
-              result: 'confirmed_complete',
-              note: '我确认 AI 审查通过的结果属实，并签名锁定这次推进覆盖的节点。',
-              createdAt,
-            }
-          : {
-              result: 'locked_with_ai_failure',
-              note: '我已看到 AI 审查未通过的结论，仍选择锁定这次推进，并保留该审查结果。',
-              createdAt,
-            }
-        const coveredContractIds = collectCoverageIds(source, get().contracts)
-        const completionRecord: CompletionRecord = {
-          id: `record-${crypto.randomUUID()}`,
-          projectId: source.projectId,
-          closingContractId: source.id,
-          coveredContractIds,
-          title: source.title,
-          summary: aiReviewPassed
-            ? `智能合约审查通过，并由本人确认；这条完成记录覆盖 ${coveredContractIds.length} 个推进节点。`
-            : `AI 审查未通过，但本人选择锁定；这条记录覆盖 ${coveredContractIds.length} 个推进节点。`,
-          smartContractId: source.smartContractId,
-          smartContractVersion: source.smartContractVersion,
-          ruleHash: source.ruleHash,
-          reviewId: source.aiReview.id,
-          aiReviewVerdict: source.aiReview.verdict,
-          userVerdict: verdict,
-          createdAt,
+        if (!source || !project || project.archivedAt || !isCurrentContract(project, source, get().contracts, get().branches) || !canLockStage || !source.aiReview) {
+          return { success: false, message: '当前节点不能锁定。' }
         }
-        set((state) => ({
-          contracts: state.contracts.map((contract) => {
-            if (!coveredContractIds.includes(contract.id)) return contract
-            if (contract.id === contractId) {
-              return {
-                ...contract,
-                stage: 'completed',
-                completionRecordId: completionRecord.id,
-                userVerdict: verdict,
-                reviewMessages: [
-                  ...contract.reviewMessages,
-                  {
-                    id: `msg-${crypto.randomUUID()}`,
-                    speaker: 'user' as const,
-                    body: aiReviewPassed
-                      ? '我签名确认：AI 审查通过，并锁定这次推进覆盖的节点。'
-                      : '我已看到 AI 审查未通过，仍签名锁定这次推进覆盖的节点。',
-                    createdAt: verdict.createdAt,
-                  },
-                ],
-                updatedAt: createdAt,
-              }
-            }
-            return { ...contract, stage: 'completed', completionRecordId: completionRecord.id }
-          }),
-          completionRecords: [completionRecord, ...state.completionRecords],
-          projects: state.projects.map((item) =>
-            item.id === source.projectId && item.currentContractId === source.id ? { ...item, currentContractId: null } : item,
-          ),
-          branches: state.branches.map((branch) =>
-            branch.id === source.branchId ? { ...branch, headContractId: source.id, currentContractId: null } : branch,
-          ),
-        }))
+        if (!get().accessToken) return { success: false, message: '请先登录后再锁定节点。' }
+        try {
+          const snapshot = await requestProjectState(get().accessToken, `/api/projects/${project.id}/nodes/${source.id}/lock`, { method: 'POST' })
+          set((state) => mergeProjectState(state, snapshot))
+          return { success: true }
+        } catch (error) {
+          return { success: false, message: error instanceof Error ? error.message : '锁定节点失败，请稍后重试。' }
+        }
       },
-      createSupplementContract: (contractId) => {
+      createSupplementContract: async (contractId) => {
         const source = get().contracts.find((contract) => contract.id === contractId)
         const project = get().projects.find((item) => item.id === source?.projectId)
         if (
@@ -1142,10 +1218,10 @@ export const useExecStore = create<ExecState>()(
           !isCurrentContract(project, source, get().contracts, get().branches) ||
           source.stage !== 'needs_supplement' ||
           !source.aiReview?.suggestedSupplementTitle
-        )
-          return
+        ) return { success: false, message: '当前节点不能生成补足推进。' }
         const existing = get().contracts.find((contract) => contract.supplementOfContractId === source.id)
-        if (existing) return
+        if (existing) return { success: false, message: '这项节点已经有补足推进。' }
+        if (!get().accessToken) return { success: false, message: '请先登录后再生成补足推进。' }
 
         const unmetCriteria = source.acceptanceCriteria.filter((criterion) =>
           source.aiReview?.criterionReviews.some(
@@ -1155,65 +1231,40 @@ export const useExecStore = create<ExecState>()(
         const criteria = unmetCriteria.length > 0 ? unmetCriteria : source.acceptanceCriteria
         const title = source.aiReview.suggestedSupplementTitle
         const evidenceRequirement = '提交能直接补足上述冻结标准缺口的结果，并按 C1、C2… 逐条标明证据位置。'
-        const ruleHash = makeRuleHash(
-          `${source.projectId}|${source.projectContractRevisionId}|${source.smartContractId}@${source.smartContractVersion}|${title}|${criteria.map((criterion) => criterion.text).join('|')}|${evidenceRequirement}`,
-        )
-        const supplement: ExecutionContract = {
-          id: `contract-${crypto.randomUUID()}`,
-          projectId: source.projectId,
-          branchId: source.branchId,
-          projectContractRevisionId: source.projectContractRevisionId,
-          parentContractId: source.id,
-          supplementOfContractId: source.id,
-          title,
-          stage: 'frozen',
-          originalIntent: `智能合约对原行为「${source.title}」的审查未通过。本补足行为只处理被标记的缺口。`,
-          smartContractId: source.smartContractId,
-          smartContractVersion: source.smartContractVersion,
-          ruleHash,
-          verifiableGoal: title,
-          acceptanceCriteria: criteria.map((criterion, index) => ({
-            ...criterion,
-            id: `c${index + 1}`,
-            requiredEvidence: `C${index + 1}：${criterion.requiredEvidence}`,
-          })),
-          evidenceRequirement,
-          draftReview: {
-            id: `draft-review-${crypto.randomUUID()}`,
-            verdict: 'pass',
-            summary: '补足行为由智能合约的未通过审查结果生成，继承原行为的项目合约版本并立即开始。',
-            missingRequirements: [],
-            createdAt: now(),
-          },
-          reviewMessages: [
-            {
-              id: `msg-${crypto.randomUUID()}`,
-              speaker: 'ai',
-              body: `该补足行为继承项目合约版本与规则指纹 ${ruleHash}，只用于处理原行为未满足的标准。`,
-              createdAt: now(),
-            },
-          ],
+        const draftReview: DraftReview = {
+          id: `draft-review-${crypto.randomUUID()}`,
+          verdict: 'pass',
+          summary: '补足推进由上一节点的 AI 审查缺口生成，继承原节点冻结的规则。',
+          missingRequirements: [],
           createdAt: now(),
-          updatedAt: now(),
         }
-
-        const supplementEdge: ExecutionEdge = {
-          id: `edge-${crypto.randomUUID()}`,
-          sourceContractId: source.id,
-          targetContractId: supplement.id,
-          type: 'supplement',
+        const originalIntent = `智能合约对原行为「${source.title}」的审查未通过。本补足行为只处理被标记的缺口。`
+        try {
+          const snapshot = await requestProjectState(get().accessToken, `/api/projects/${source.projectId}/nodes`, {
+            method: 'POST',
+            body: JSON.stringify({
+              draft: originalIntent,
+              draftReview,
+              title,
+              verifiableGoal: title,
+              acceptanceCriteria: criteria.map((criterion, index) => ({
+                ...criterion,
+                id: `c${index + 1}`,
+                requiredEvidence: `C${index + 1}：${criterion.requiredEvidence}`,
+              })),
+              evidenceRequirement,
+              parentContractId: source.id,
+              sourceContractIds: [source.id],
+              branchId: source.branchId,
+              fork: false,
+              supplementOfContractId: source.id,
+            }),
+          })
+          set((state) => mergeProjectState(state, snapshot))
+          return { success: true }
+        } catch (error) {
+          return { success: false, message: error instanceof Error ? error.message : '生成补足推进失败。' }
         }
-
-        set((state) => ({
-          contracts: [...state.contracts, supplement],
-          edges: [...state.edges, supplementEdge],
-          projects: state.projects.map((item) =>
-            item.id === source.projectId && (item.currentContractId === source.id || (item.visibility === 'private' && !source.branchId)) ? { ...item, currentContractId: supplement.id } : item,
-          ),
-          branches: state.branches.map((branch) =>
-            branch.id === source.branchId ? { ...branch, headContractId: supplement.id, currentContractId: supplement.id } : branch,
-          ),
-        }))
       },
       signIn: (email, password) => {
         if (!email.trim() || !password.trim()) {
@@ -1227,12 +1278,12 @@ export const useExecStore = create<ExecState>()(
         set({ isAuthenticated: true, accountEmail: normalizedEmail, accountPassword: isDemoAccount ? 'execgraph' : get().accountPassword })
         return { success: true }
       },
-      registerAccount: (username, email, password) => {
-        if (!username.trim() || !email.trim() || !password.trim()) {
-          return { success: false, message: '请完整填写用户名、邮箱和密码。' }
-        }
-        const normalizedEmail = email.trim().toLowerCase()
-        const normalizedUsername = username.trim().replace(/^@+/, '')
+		registerAccount: (username, userId, email, password) => {
+			if (!username.trim() || !userId.trim() || !email.trim() || !password.trim()) {
+				return { success: false, message: '请完整填写用户名、用户 ID、邮箱和密码。' }
+			}
+			const normalizedEmail = email.trim().toLowerCase()
+			const normalizedUserID = userId.trim().replace(/^@+/, '')
         set((state) => ({
           isAuthenticated: true,
           accountEmail: normalizedEmail,
@@ -1241,8 +1292,8 @@ export const useExecStore = create<ExecState>()(
             actor.id === state.currentActorId
               ? {
                   ...actor,
-                  name: normalizedUsername,
-                  handle: `@${normalizedUsername}`,
+					name: username.trim(),
+					handle: `@${normalizedUserID}`,
                 }
               : actor,
           ),
@@ -1250,19 +1301,69 @@ export const useExecStore = create<ExecState>()(
         return { success: true }
       },
       setAccessToken: (token) => set({ accessToken: token }),
+      refreshWorkspace: async () => {
+        const accessToken = get().accessToken
+        if (!accessToken) return
+        const headers = { Authorization: `Bearer ${accessToken}` }
+        try {
+          const [profileResponse, projectResponse, smartContractResponse] = await Promise.all([
+            fetch('/api/users/me', { headers }),
+            fetch('/api/projects', { headers }),
+            fetch('/api/smart-contracts', { headers }),
+          ])
+          const profileData = (await profileResponse.json().catch(() => ({}))) as { user?: { username?: string; userId?: string; bio?: string; gender?: Gender; avatarUrl?: string; profileBackgroundUrl?: string; customProfileEnabled?: boolean; customProfileMarkdown?: string } }
+          const projectData = (await projectResponse.json().catch(() => ({}))) as { projects?: Project[] }
+          const smartContractData = (await smartContractResponse.json().catch(() => ({}))) as { smartContracts?: SmartContractDefinition[] }
+          if (!projectResponse.ok || !smartContractResponse.ok || !projectData.projects || !smartContractData.smartContracts) return
+          const snapshots = await Promise.all(
+            projectData.projects.map((project) => requestProjectState(accessToken, `/api/projects/${project.id}/graph`)),
+          )
+          const profileUser = profileResponse.ok && profileData.user?.username && profileData.user.userId ? profileData.user : undefined
+          set((state) => ({
+            projects: (projectData.projects ?? state.projects).map(normalizeProject),
+            smartContracts: smartContractData.smartContracts ?? state.smartContracts,
+            contracts: snapshots.flatMap((snapshot) => snapshot.nodes),
+            branches: snapshots.flatMap((snapshot) => snapshot.branches),
+            completionRecords: snapshots.flatMap((snapshot) => snapshot.completionRecords),
+            edges: snapshots.flatMap((snapshot) => snapshot.edges),
+            actors: profileUser
+              ? state.actors.map((actor) =>
+                  actor.id === state.currentActorId
+                    ? {
+                        ...actor,
+                        name: profileUser.username ?? actor.name,
+                        handle: `@${profileUser.userId}`,
+                        bio: profileUser.bio ?? '',
+                        gender: profileUser.gender ?? 'undisclosed',
+                        avatarUrl: profileUser.avatarUrl,
+                        profileBackgroundUrl: profileUser.profileBackgroundUrl,
+                        customProfileEnabled: profileUser.customProfileEnabled,
+                        customProfileMarkdown: profileUser.customProfileMarkdown,
+                      }
+                    : actor,
+                )
+              : state.actors,
+          }))
+        } catch {
+          // Keep the current local view available when the backend is temporarily unreachable.
+        }
+      },
       signOut: () => set({ isAuthenticated: false, accessToken: '' }),
       updateProfile: (input) => {
-        const normalizedUsername = input.handle.trim().replace(/^@+/, '')
+		const normalizedUserID = input.userId.trim().replace(/^@+/, '')
         set((state) => ({
           actors: state.actors.map((actor) =>
             actor.id === state.currentActorId
               ? {
                   ...actor,
-                  name: normalizedUsername,
-                  handle: `@${normalizedUsername}`,
+					name: input.username.trim(),
+					handle: `@${normalizedUserID}`,
                   bio: input.bio.trim(),
                   gender: input.gender,
-                  avatarUrl: input.avatarUrl,
+                  avatarUrl: input.avatarUrl ?? actor.avatarUrl,
+                  profileBackgroundUrl: input.profileBackgroundUrl ?? actor.profileBackgroundUrl,
+                  customProfileEnabled: input.customProfileEnabled,
+                  customProfileMarkdown: input.customProfileMarkdown,
                 }
               : actor,
           ),
@@ -1298,7 +1399,7 @@ export const useExecStore = create<ExecState>()(
     }),
     {
       name: 'exec-graph-demo',
-      version: 17,
+      version: 18,
       migrate: (persistedState) => mergeSeedData(persistedState as LegacyState),
     },
   ),

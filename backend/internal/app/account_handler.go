@@ -84,8 +84,8 @@ func (s *server) changeEmail(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "保存新邮箱失败")
 		return
 	}
-	s.cacheSession(r.Context(), bearerToken(r), authenticatedUser{ID: user.ID, Username: user.Username, Email: email})
-	writeJSON(w, http.StatusOK, map[string]any{"user": map[string]any{"id": user.ID, "username": user.Username, "email": email}})
+	s.cacheSession(r.Context(), bearerToken(r), authenticatedUser{ID: user.ID, Username: user.Username, UserID: user.UserID, Email: email})
+	writeJSON(w, http.StatusOK, map[string]any{"user": map[string]any{"id": user.ID, "username": user.Username, "userId": user.UserID, "email": email}})
 }
 
 func (s *server) changePassword(w http.ResponseWriter, r *http.Request) {

@@ -18,7 +18,7 @@ export function NewProjectPage() {
           我的项目
         </div>
         <h1 className="mt-3 font-display text-4xl font-semibold leading-tight text-ink">新建项目</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-graphite">先为项目选择一份智能合约，之后的每个执行节点都会继承这套规则。</p>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-graphite">选择项目的推进方式，并配置项目规则与节点审查 AI。</p>
       </section>
 
       <ProjectComposer />

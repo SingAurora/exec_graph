@@ -69,7 +69,7 @@ export function ForgotPasswordPage() {
 
   return (
     <AuthLayout eyebrow="Reset password" title="找回密码" description="验证邮箱后设置新密码。" footer={<Link className="font-semibold text-signal hover:text-ink" to="/login">返回登录 <ArrowRight className="ml-1 inline-block" size={14} aria-hidden="true" /></Link>}>
-      <form className="rounded-md border border-rail bg-white/72 p-5" onSubmit={handleSubmit(onSubmit)}>
+      <form className="rounded-md border border-rail bg-surface/72 p-5" onSubmit={handleSubmit(onSubmit)}>
         <div className="grid gap-4">
           <label className="grid gap-2">
             <span className="text-sm font-semibold text-ink">注册邮箱</span>
@@ -99,7 +99,7 @@ export function ForgotPasswordPage() {
           </label>
           {message ? <p className="text-sm font-semibold text-moss" role="status">{message}</p> : null}
           {errorMessage ? <p className="text-sm font-medium text-clay" role="alert">{errorMessage}</p> : null}
-          <button type="submit" disabled={isSubmitting} className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-ink px-4 text-sm font-semibold text-paper transition hover:bg-graphite disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus-visible:shadow-focusline"><KeyRound size={17} aria-hidden="true" />重设密码</button>
+          <button type="submit" disabled={isSubmitting} className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-signal px-4 text-sm font-semibold text-white transition hover:bg-signalStrong disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus-visible:shadow-focusline"><KeyRound size={17} aria-hidden="true" />重设密码</button>
         </div>
       </form>
     </AuthLayout>

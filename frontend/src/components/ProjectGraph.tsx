@@ -1,6 +1,7 @@
 import cytoscape, { type Core } from 'cytoscape'
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { graphColor } from '../lib/theme'
 import { useExecStore } from '../store/useExecStore'
 
 type ProjectGraphProps = {
@@ -12,6 +13,7 @@ type ProjectGraphProps = {
 export function ProjectGraph({ projectId, heightClassName = 'h-[360px] min-h-[280px]', visibleContractIds }: ProjectGraphProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const cyRef = useRef<Core | null>(null)
+  const [themeRevision, setThemeRevision] = useState(0)
   const navigate = useNavigate()
   const allContracts = useExecStore((state) => state.contracts)
   const allEdges = useExecStore((state) => state.edges)
@@ -33,9 +35,27 @@ export function ProjectGraph({ projectId, heightClassName = 'h-[360px] min-h-[28
   }, [contracts, edges])
 
   useEffect(() => {
+    const refreshGraph = () => setThemeRevision((value) => value + 1)
+    window.addEventListener('exec-graph-theme-change', refreshGraph)
+    return () => window.removeEventListener('exec-graph-theme-change', refreshGraph)
+  }, [])
+
+  useEffect(() => {
     if (!containerRef.current) return
 
     cyRef.current?.destroy()
+    const colors = {
+      paper: graphColor('paper'),
+      surface: graphColor('surface'),
+      ink: graphColor('ink'),
+      rail: graphColor('rail'),
+      signal: graphColor('signal'),
+      moss: graphColor('moss'),
+      clay: graphColor('clay'),
+      mossSurface: graphColor('moss-surface'),
+      claySurface: graphColor('clay-surface'),
+      edge: graphColor('edge'),
+    }
     const isCompact = containerRef.current.clientWidth < 520
     const cy = cytoscape({
       container: containerRef.current,
@@ -70,17 +90,17 @@ export function ProjectGraph({ projectId, heightClassName = 'h-[360px] min-h-[28
             'text-max-width': '92px',
             'text-valign': 'bottom',
             'text-margin-y': 8,
-            color: '#161814',
-            'background-color': '#f7f5ef',
+            color: colors.ink,
+            'background-color': colors.paper,
             'border-width': '2px',
-            'border-color': '#d9d2c4',
+            'border-color': colors.rail,
           },
         },
-        { selector: 'node[stage = "task"]', style: { 'border-color': '#161814', 'background-color': '#ffffff' } },
-        { selector: 'node[stage = "frozen"]', style: { 'border-color': '#1f7a8c' } },
-        { selector: 'node[stage = "verified"]', style: { 'border-color': '#5d7c52', 'background-color': '#ecf2e7' } },
-        { selector: 'node[stage = "needs_supplement"]', style: { 'border-color': '#a44a3f', 'background-color': '#f7e6e2' } },
-        { selector: 'node[stage = "completed"]', style: { 'border-color': '#5d7c52', 'background-color': '#ecf2e7' } },
+        { selector: 'node[stage = "task"]', style: { 'border-color': colors.ink, 'background-color': colors.surface } },
+        { selector: 'node[stage = "frozen"]', style: { 'border-color': colors.signal } },
+        { selector: 'node[stage = "verified"]', style: { 'border-color': colors.moss, 'background-color': colors.mossSurface } },
+        { selector: 'node[stage = "needs_supplement"]', style: { 'border-color': colors.clay, 'background-color': colors.claySurface } },
+        { selector: 'node[stage = "completed"]', style: { 'border-color': colors.moss, 'background-color': colors.mossSurface } },
         { selector: 'node[record = "true"]', style: { 'border-width': '4px' } },
         {
           selector: 'edge',
@@ -88,24 +108,32 @@ export function ProjectGraph({ projectId, heightClassName = 'h-[360px] min-h-[28
             width: '2px',
             'curve-style': 'bezier',
             'target-arrow-shape': 'triangle',
-            'line-color': '#8d9488',
-            'target-arrow-color': '#8d9488',
+            'line-color': colors.edge,
+            'target-arrow-color': colors.edge,
           },
         },
         {
           selector: 'edge[type = "supplement"]',
           style: {
             'line-style': 'dashed',
-            'line-color': '#a44a3f',
-            'target-arrow-color': '#a44a3f',
+            'line-color': colors.clay,
+            'target-arrow-color': colors.clay,
+          },
+        },
+        {
+          selector: 'edge[type = "closure"]',
+          style: {
+            'line-style': 'dashed',
+            'line-color': colors.moss,
+            'target-arrow-color': colors.moss,
           },
         },
         {
           selector: 'edge[type = "fork"]',
           style: {
             'line-style': 'dashed',
-            'line-color': '#1f7a8c',
-            'target-arrow-color': '#1f7a8c',
+            'line-color': colors.signal,
+            'target-arrow-color': colors.signal,
           },
         },
       ],
@@ -124,7 +152,7 @@ export function ProjectGraph({ projectId, heightClassName = 'h-[360px] min-h-[28
     cy.on('tap', 'node', (event) => navigate(`/contracts/${event.target.id()}`))
     cyRef.current = cy
     return () => cy.destroy()
-  }, [contracts, edges, navigate, rootIds])
+  }, [contracts, edges, navigate, rootIds, themeRevision])
 
-  return <div ref={containerRef} className={`${heightClassName} w-full rounded-md border border-rail bg-white`} />
+  return <div ref={containerRef} className={`${heightClassName} w-full rounded-md border border-rail bg-surface`} />
 }

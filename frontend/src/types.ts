@@ -1,4 +1,4 @@
-export type ContractStage = 'task' | 'frozen' | 'verified' | 'needs_supplement' | 'completed'
+export type ContractStage = 'frozen' | 'verified' | 'needs_supplement' | 'completed'
 
 export type ExecutionNodeKind = 'task' | 'progress'
 
@@ -7,6 +7,8 @@ export type SmartContractSource = 'official' | 'custom'
 export type ReviewVerdict = 'pass' | 'partial' | 'fail'
 
 export type ProjectVisibility = 'private' | 'public'
+
+export type ProjectType = 'guided' | 'autonomous'
 
 export type Gender = 'female' | 'male' | 'undisclosed'
 
@@ -18,6 +20,9 @@ export type Actor = {
   bio?: string
   gender?: Gender
   avatarUrl?: string
+  profileBackgroundUrl?: string
+  customProfileEnabled?: boolean
+  customProfileMarkdown?: string
 }
 
 export type ProjectContractRevision = {
@@ -26,6 +31,7 @@ export type ProjectContractRevision = {
   smartContractVersion: string
   reason: string
   activatedAt: string
+  smartContract?: SmartContractDefinition
 }
 
 export type Project = {
@@ -34,12 +40,25 @@ export type Project = {
   description: string
   isDefault: boolean
   visibility: ProjectVisibility
+  /** Fixed at creation time so a project's execution semantics stay consistent. */
+  projectType: ProjectType
+  /** User-authored project rules consumed by guided action-contract generation. */
+  projectRules: string
+  reviewAIKeyId?: string
   /** The sole behavior commitment this project is currently asking its owner to close. */
   currentContractId?: string | null
   activeContractRevisionId: string
   contractRevisions: ProjectContractRevision[]
   createdAt: string
   archivedAt?: string
+}
+
+export type AIConfigSnapshot = {
+  keyId: string
+  label: string
+  provider: string
+  model: string
+  baseUrl: string
 }
 
 export type ExecutionBranch = {
@@ -90,6 +109,25 @@ export type AIReview = {
   criterionReviews: CriterionReview[]
   suggestedSupplementTitle?: string
   createdAt: string
+  aiConfig?: AIConfigSnapshot
+}
+
+export type ReviewClarification = {
+  id: string
+  criterionIds: string[]
+  explanation: string
+  evidenceReferences?: string
+  createdAt: string
+}
+
+/** One immutable AI judgment over the original submission and, optionally, a clarification. */
+export type CompletionReviewRound = {
+  id: string
+  kind: 'initial' | 'clarification'
+  clarification?: ReviewClarification
+  review: AIReview
+  aiConfig?: AIConfigSnapshot
+  createdAt: string
 }
 
 export type DraftReview = {
@@ -98,6 +136,7 @@ export type DraftReview = {
   summary: string
   missingRequirements: string[]
   createdAt: string
+  aiConfig?: AIConfigSnapshot
 }
 
 export type UserVerdict = {
@@ -148,8 +187,13 @@ export type ExecutionContract = {
   /** The immutable completion record that covers this action, if any. */
   completionRecordId?: string
   draftReview?: DraftReview
+  draftReviewAIConfig?: AIConfigSnapshot
   reviewMessages: ReviewMessage[]
   aiReview?: AIReview
+  completionReviewAIConfig?: AIConfigSnapshot
+  completionReviewRounds?: CompletionReviewRound[]
+  planningConversationId?: string
+  completionConversationId?: string
   userVerdict?: UserVerdict
   nextContractTitle?: string
   createdAt: string
@@ -160,5 +204,5 @@ export type ExecutionEdge = {
   id: string
   sourceContractId: string
   targetContractId: string
-  type: 'lineage' | 'fork' | 'supplement' | 'reference' | 'merge'
+  type: 'lineage' | 'fork' | 'supplement' | 'closure' | 'reference' | 'merge'
 }

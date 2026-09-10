@@ -1,124 +1,160 @@
-import { Archive, ArrowRight, CheckCircle2, Eye, FileCheck2, FolderKanban, FolderPlus, GitBranchPlus, LockKeyhole, ShieldCheck } from 'lucide-react'
+import { Archive, ArrowRight, Bot, CheckCircle2, Eye, FileCheck2, FolderKanban, FolderPlus, ShieldCheck, type LucideIcon } from 'lucide-react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
-import { ContractComposer } from '../components/ContractComposer'
 import { SectionHeader } from '../components/SectionHeader'
 import { StatusBadge } from '../components/StatusBadge'
 import { useExecStore } from '../store/useExecStore'
-import type { ExecutionContract, Project } from '../types'
+import type { ExecutionBranch, ExecutionContract, Project } from '../types'
 
-const currentAction = (contract: ExecutionContract) => {
-  if (contract.nodeKind === 'task') return { label: '开始第一次推进', description: '任务起点已经建立，下一步从这里创建第一条推进节点。', icon: LockKeyhole }
-  if (contract.stage === 'verified') return { label: '确认 AI 结果', description: 'AI 已通过审查，确认后节点会被锁定并生成记录。', icon: CheckCircle2 }
-  if (contract.stage === 'needs_supplement') return { label: '处理 AI 结果', description: 'AI 未通过，可以生成补足节点，也可以带着结论锁定。', icon: GitBranchPlus }
-  return { label: '提交推进结果', description: '完成一次推进后，节点会进入待确认 AI 结果。', icon: FileCheck2 }
+type QueueKind = 'reviewing' | 'awaiting' | 'progress'
+
+type QueueCopy = {
+  title: string
+  eyebrow: string
+  empty: string
+  icon: LucideIcon
+  accentClassName: string
+  railClassName: string
+}
+
+const queueCopy: Record<QueueKind, QueueCopy> = {
+  awaiting: { title: '等待你的确认', eyebrow: 'Your decision', empty: '暂无等待确认的审核结果。', icon: CheckCircle2, accentClassName: 'text-moss', railClassName: 'border-moss text-moss' },
+  reviewing: { title: 'AI 正在审核', eyebrow: 'AI review', empty: '暂无正在审核的节点。', icon: Bot, accentClassName: 'text-amber', railClassName: 'border-amber text-amber' },
+  progress: { title: '等待推进', eyebrow: 'Next action', empty: '暂无等待推进的节点。', icon: FileCheck2, accentClassName: 'text-signal', railClassName: 'border-signal text-signal' },
+}
+
+function currentNodeIDs(projects: Project[], branches: ExecutionBranch[]) {
+  return new Set([
+    ...projects.flatMap((project) => project.currentContractId ?? ''),
+    ...branches.flatMap((branch) => branch.currentContractId ?? ''),
+  ])
+}
+
+function actionLabel(contract: ExecutionContract) {
+  if (contract.stage === 'verified') return '确认 AI 结果'
+  if (contract.stage === 'needs_supplement') return '处理 AI 结果'
+  if (contract.completionClaim && !contract.aiReview) return '查看提交'
+  return '提交推进结果'
 }
 
 export function DashboardPage() {
   const [searchParams] = useSearchParams()
   const projects = useExecStore((state) => state.projects)
   const contracts = useExecStore((state) => state.contracts)
-  const defaultProject = projects.find((project) => project.isDefault) ?? projects[0]
-  const defaultCurrent = contracts.find((contract) => contract.id === defaultProject?.currentContractId)
+  const branches = useExecStore((state) => state.branches)
+  const completionRecords = useExecStore((state) => state.completionRecords)
 
   if (searchParams.get('new') === 'project') return <Navigate to="/projects/new" replace />
 
+  const activeProjects = projects.filter((project) => !project.archivedAt)
+  const currentIDs = currentNodeIDs(activeProjects, branches.filter((branch) => activeProjects.some((project) => project.id === branch.projectId)))
+  const currentNodes = contracts
+    .filter((contract) => currentIDs.has(contract.id) && !contract.completionRecordId)
+    .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))
+  const reviewing = currentNodes.filter((contract) => contract.stage === 'frozen' && Boolean(contract.completionClaim) && !contract.aiReview)
+  const awaiting = currentNodes.filter((contract) => contract.stage === 'verified' || contract.stage === 'needs_supplement')
+  const progress = currentNodes.filter((contract) => contract.stage === 'frozen' && !contract.completionClaim)
+  const projectByID = new Map(projects.map((project) => [project.id, project]))
+
   return (
-    <div className="space-y-10">
-      <section className="border-b border-rail pb-7">
-        <div className="font-mono text-xs font-semibold uppercase text-signal">我的项目</div>
-        <h1 className="mt-3 max-w-3xl font-display text-4xl font-semibold leading-tight text-ink">一次只推进一个节点，完成按范围锁定。</h1>
+    <div className="space-y-11">
+      <section className="border-b border-rail pb-8">
+        <div className="flex flex-wrap items-end justify-between gap-5">
+          <div>
+            <div className="font-mono text-xs font-semibold uppercase text-signal">工作总览 / 行为验证</div>
+            <h1 className="mt-3 font-display text-4xl font-semibold leading-tight text-ink">从下一次行动开始</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-graphite">先确认已经返回的审查结论，再处理正在验证和等待推进的节点。</p>
+          </div>
+          <Link to="/projects/new" className="inline-flex h-10 items-center gap-2 rounded-md bg-signal px-3 text-sm font-semibold text-white transition hover:bg-signalStrong focus:outline-none focus-visible:shadow-focusline">
+            <FolderPlus size={16} aria-hidden="true" />
+            新建项目
+          </Link>
+        </div>
+        <dl className="mt-8 grid grid-cols-2 divide-x divide-rail border-y border-rail sm:grid-cols-4">
+          <DashboardMetric label="进行中的项目" value={activeProjects.length} />
+          <DashboardMetric label="等待推进" value={progress.length} />
+          <DashboardMetric label="AI 审核中" value={reviewing.length} />
+          <DashboardMetric label="等待确认" value={awaiting.length} />
+        </dl>
       </section>
 
-      {defaultProject ? (
-        <section className="grid gap-7 border-b border-rail pb-8 xl:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)]">
-          <DefaultProjectGuide project={defaultProject} />
-          {defaultCurrent ? <CurrentActionCard contract={defaultCurrent} /> : <ContractComposer projectId={defaultProject.id} lockProject />}
-        </section>
-      ) : null}
+      <section className="space-y-5" aria-labelledby="global-queue-title">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <SectionHeader eyebrow="需要处理" title="验证队列" />
+          <span className="text-sm font-semibold text-graphite">{currentNodes.length} 个当前节点</span>
+        </div>
+        <div className="border-y border-rail bg-surface">
+          <NodeQueue kind="awaiting" contracts={awaiting} projects={projectByID} />
+          <NodeQueue kind="reviewing" contracts={reviewing} projects={projectByID} />
+          <NodeQueue kind="progress" contracts={progress} projects={projectByID} />
+        </div>
+      </section>
 
-      <section className="space-y-4">
+      <section className="space-y-4 border-t border-rail pt-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <SectionHeader eyebrow="所有项目" title="我的项目" />
           <div className="flex flex-wrap items-center gap-3">
-            <Link
-              to="/smart-contracts"
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-rail bg-white/72 px-3 text-sm font-semibold text-ink transition hover:border-graphite/50 focus:outline-none focus-visible:shadow-focusline"
-            >
+            <Link to="/smart-contracts" className="inline-flex h-10 items-center gap-2 border border-rail bg-surface/72 px-3 text-sm font-semibold text-ink transition hover:border-graphite/50 focus:outline-none focus-visible:shadow-focusline">
               <ShieldCheck size={16} aria-hidden="true" />
               管理智能合约
             </Link>
-            <Link
-              to="/projects/new"
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-rail bg-white/72 px-3 text-sm font-semibold text-ink transition hover:border-graphite/50 focus:outline-none focus-visible:shadow-focusline"
-            >
-              <FolderPlus size={16} aria-hidden="true" />
-              新建项目
-            </Link>
+            <span className="text-sm font-semibold text-graphite">{completionRecords.length} 条完成记录</span>
           </div>
         </div>
-        <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-          {projects.map((project) => (
-            <ProjectCard key={project.id} project={project} />
-          ))}
+        <div className="border-y border-rail bg-surface">
+          {projects.map((project) => <ProjectCard key={project.id} project={project} />)}
         </div>
       </section>
     </div>
   )
 }
 
-function DefaultProjectGuide({ project }: { project: Project }) {
-  const smartContracts = useExecStore((state) => state.smartContracts)
-  const activeRevision = project.contractRevisions.find((revision) => revision.id === project.activeContractRevisionId)
-  const smartContract = smartContracts.find((item) => item.id === activeRevision?.smartContractId)
-
+function DashboardMetric({ label, value }: { label: string; value: number }) {
   return (
-    <div>
-      <div className="font-mono text-xs font-semibold uppercase text-signal">默认项目</div>
-      <h2 className="mt-3 font-display text-3xl font-semibold leading-tight text-ink">{project.title}</h2>
-      <p className="mt-3 max-w-md text-sm leading-6 text-graphite">{project.description}</p>
-      <div className="mt-6 border-y border-rail py-4">
-        <div className="flex items-center gap-2 font-mono text-xs font-semibold text-signal">
-          <LockKeyhole size={15} aria-hidden="true" />
-          当前项目智能合约
-        </div>
-        <div className="mt-2 text-sm font-semibold text-ink">{smartContract?.name}</div>
-        <p className="mt-2 text-sm leading-6 text-graphite">{smartContract?.description}</p>
-      </div>
-      <Link
-        className="mt-6 inline-flex h-10 items-center gap-2 text-sm font-semibold text-signal transition hover:text-ink focus:outline-none focus-visible:shadow-focusline"
-        to={`/projects/${project.id}`}
-      >
-        进入项目
-        <ArrowRight size={16} aria-hidden="true" />
-      </Link>
+    <div className="min-w-0 px-4 py-4 first:pl-0 sm:px-5 sm:first:pl-0">
+      <dt className="truncate text-xs font-semibold text-graphite">{label}</dt>
+      <dd className="mt-1 font-display text-3xl font-semibold text-ink">{value}</dd>
     </div>
   )
 }
 
-function CurrentActionCard({ contract }: { contract: ExecutionContract }) {
-  const action = currentAction(contract)
-  const Icon = action.icon
-
+function NodeQueue({ kind, contracts, projects }: { kind: QueueKind; contracts: ExecutionContract[]; projects: Map<string, Project> }) {
+  const copy = queueCopy[kind]
+  const Icon = copy.icon
   return (
-    <Link
-      to={`/contracts/${contract.id}`}
-      className="group block border-l-2 border-ink bg-white/72 p-6 transition hover:bg-white focus:outline-none focus-visible:shadow-focusline"
-    >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal">
-          <Icon size={16} aria-hidden="true" />
-          当前要处理
+    <section className="min-w-0 border-b border-rail last:border-b-0" aria-label={copy.title}>
+      <div className="flex items-center justify-between gap-3 px-5 py-4">
+        <div className="flex min-w-0 items-center gap-2">
+          <Icon size={16} className={`shrink-0 ${copy.accentClassName}`} aria-hidden="true" />
+          <div className="min-w-0">
+            <div className={`font-mono text-[11px] font-semibold uppercase ${copy.accentClassName}`}>{copy.eyebrow}</div>
+            <h2 className="mt-1 truncate text-base font-semibold text-ink">{copy.title}</h2>
+          </div>
         </div>
-        <StatusBadge stage={contract.stage} />
+        <span className="font-mono text-sm font-semibold text-graphite">{contracts.length}</span>
       </div>
-      <h2 className="mt-4 font-display text-3xl font-semibold leading-tight text-ink">{contract.title}</h2>
-      <p className="mt-3 max-w-2xl text-sm leading-6 text-graphite">{contract.verifiableGoal}</p>
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-rail pt-4">
-        <p className="text-sm leading-6 text-graphite">{action.description}</p>
-        <span className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-ink">
-          {action.label}
-          <ArrowRight size={16} aria-hidden="true" />
-        </span>
+      <div className="divide-y divide-rail">
+        {contracts.length > 0 ? contracts.map((contract) => <QueueNode key={contract.id} contract={contract} project={projects.get(contract.projectId)} railClassName={copy.railClassName} />) : <p className="px-5 pb-5 text-sm text-graphite">{copy.empty}</p>}
+      </div>
+    </section>
+  )
+}
+
+function QueueNode({ contract, project, railClassName }: { contract: ExecutionContract; project?: Project; railClassName: string }) {
+  return (
+    <Link to={`/contracts/${contract.id}?tab=completion`} className="group flex gap-4 px-5 py-4 transition hover:bg-shell/45 focus:outline-none focus-visible:shadow-focusline">
+      <div className={`flex w-3 shrink-0 justify-center border-l-2 ${railClassName}`}><span className="-mt-0.5 size-2.5 rounded-full border-2 border-surface bg-current" /></div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="truncate text-xs font-semibold text-graphite">{project?.title ?? '项目'}</div>
+            <h3 className="mt-1 line-clamp-2 text-sm font-semibold leading-5 text-ink group-hover:text-signal">{contract.title}</h3>
+          </div>
+          <StatusBadge stage={contract.stage} />
+        </div>
+        <div className="mt-3 flex items-center justify-between gap-3 text-sm font-semibold text-graphite">
+          <span className="truncate">{actionLabel(contract)}</span>
+          <ArrowRight size={16} className="shrink-0 text-signal transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+        </div>
       </div>
     </Link>
   )
@@ -128,24 +164,17 @@ function ProjectCard({ project }: { project: Project }) {
   const contracts = useExecStore((state) => state.contracts)
   const completionRecords = useExecStore((state) => state.completionRecords)
   const branches = useExecStore((state) => state.branches)
-  const smartContracts = useExecStore((state) => state.smartContracts)
-  const activeRevision = project.contractRevisions.find((revision) => revision.id === project.activeContractRevisionId)
-  const smartContract = smartContracts.find((item) => item.id === activeRevision?.smartContractId)
   const projectContracts = contracts.filter((contract) => contract.projectId === project.id)
   const projectRecords = completionRecords.filter((record) => record.projectId === project.id)
   const isArchived = Boolean(project.archivedAt)
   const currentContract = contracts.find((contract) => contract.id === project.currentContractId)
   const activeBranches = branches.filter((branch) => branch.projectId === project.id && branch.currentContractId)
-  const currentContractIds = new Set([project.currentContractId ?? '', ...activeBranches.map((branch) => branch.currentContractId ?? '')])
-  const pendingContracts = projectContracts.filter((contract) => currentContractIds.has(contract.id) && !contract.completionRecordId && contract.nodeKind !== 'task').length
-  const action = currentContract ? currentAction(currentContract) : undefined
-  const branchStatus = activeBranches.length > 0 ? `${activeBranches.length} 条路径推进中` : '可从完成记录拆分路径'
+  const currentContractIDs = new Set([project.currentContractId ?? '', ...activeBranches.map((branch) => branch.currentContractId ?? '')])
+  const pendingContracts = projectContracts.filter((contract) => currentContractIDs.has(contract.id) && !contract.completionRecordId).length
+  const branchStatus = activeBranches.length > 0 ? `${activeBranches.length} 条路径推进中` : '可以开始下一项推进'
 
   return (
-    <Link
-      to={`/projects/${project.id}`}
-      className="group block rounded-md border border-rail bg-white/72 p-5 transition hover:-translate-y-0.5 hover:border-graphite/40 hover:bg-white focus:outline-none focus-visible:shadow-focusline"
-    >
+    <Link to={`/projects/${project.id}`} className="group grid min-w-0 gap-4 border-b border-rail px-5 py-5 last:border-b-0 transition hover:bg-shell/45 focus:outline-none focus-visible:shadow-focusline lg:grid-cols-[minmax(0,1fr)_220px_220px_auto] lg:items-center">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2 font-mono text-xs font-semibold text-signal">{project.isDefault ? '默认项目' : '项目'}{project.visibility === 'public' ? <span className="inline-flex items-center gap-1"><Eye size={12} aria-hidden="true" />公开</span> : null}{isArchived ? <span className="inline-flex items-center gap-1 text-graphite"><Archive size={12} aria-hidden="true" />已归档</span> : null}</div>
@@ -153,14 +182,14 @@ function ProjectCard({ project }: { project: Project }) {
         </div>
         <FolderKanban size={18} className="shrink-0 text-signal" aria-hidden="true" />
       </div>
-      <p className="mt-3 line-clamp-2 text-sm leading-6 text-graphite">{project.description}</p>
-      <div className="mt-4 border-t border-rail pt-3 text-xs leading-5 text-graphite">
-        <div className="font-semibold text-ink">{smartContract?.name}</div>
+      <p className="line-clamp-2 text-sm leading-6 text-graphite">{project.description}</p>
+      <div className="text-xs leading-5 text-graphite">
+        <div className="font-semibold text-ink">{project.projectType === 'guided' ? '规则引导 · AI 动态出具行动合约' : '自主推进 · 平台基础规则'}</div>
         <div className="mt-1">{projectRecords.length} 条完成记录 · {pendingContracts} 个当前待处理节点</div>
       </div>
-      <div className="mt-4 flex items-center justify-between gap-3 text-sm font-semibold text-ink">
-        <span className="truncate">{isArchived ? '项目已归档，只读' : activeBranches.length > 0 ? branchStatus : currentContract ? `当前：${currentContract.title}` : '可以开始下一项推进'}</span>
-        <span className="shrink-0 text-signal">{isArchived ? '查看记录' : project.visibility === 'public' ? '查看分支' : action?.label ?? '开始'}</span>
+      <div className="flex items-center justify-between gap-3 text-sm font-semibold text-ink">
+        <span className="truncate">{isArchived ? '项目已归档，只读' : currentContract ? `当前：${currentContract.title}` : branchStatus}</span>
+        <ArrowRight size={17} className="shrink-0 text-signal transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
       </div>
     </Link>
   )

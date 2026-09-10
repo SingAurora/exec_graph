@@ -41,15 +41,26 @@ func migrateDatabase(ctx context.Context, db *sql.DB) error {
 		`CREATE TABLE IF NOT EXISTS users (
 			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
 			username VARCHAR(64) NOT NULL,
+			user_id VARCHAR(24) NOT NULL,
 			email VARCHAR(255) NOT NULL UNIQUE,
 			password_hash TEXT NOT NULL,
 			email_verified_at DATETIME NULL,
+			profile_background_url VARCHAR(512) NULL,
+			custom_profile_enabled TINYINT(1) NOT NULL DEFAULT 0,
+			custom_profile_markdown LONGTEXT NULL,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+		`ALTER TABLE users ADD COLUMN user_id VARCHAR(24) NULL AFTER username`,
+		`UPDATE users SET user_id = CONCAT('user', id) WHERE user_id IS NULL OR user_id = ''`,
+		`ALTER TABLE users MODIFY COLUMN user_id VARCHAR(24) NOT NULL`,
+		`ALTER TABLE users ADD UNIQUE KEY uq_users_user_id (user_id)`,
 		`ALTER TABLE users ADD COLUMN bio TEXT NULL`,
 		`ALTER TABLE users ADD COLUMN gender VARCHAR(20) NULL`,
 		`ALTER TABLE users ADD COLUMN avatar_url VARCHAR(512) NULL`,
+		`ALTER TABLE users ADD COLUMN profile_background_url VARCHAR(512) NULL`,
+		`ALTER TABLE users ADD COLUMN custom_profile_enabled TINYINT(1) NOT NULL DEFAULT 0`,
+		`ALTER TABLE users ADD COLUMN custom_profile_markdown LONGTEXT NULL`,
 		`ALTER TABLE users MODIFY COLUMN password_hash TEXT NOT NULL`,
 		`CREATE TABLE IF NOT EXISTS email_verification_codes (
 			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -79,18 +90,35 @@ func migrateDatabase(ctx context.Context, db *sql.DB) error {
 			description TEXT NOT NULL,
 			body LONGTEXT NOT NULL,
 			created_by BIGINT UNSIGNED NULL,
+			deleted_at DATETIME NULL,
+			deleted_by BIGINT UNSIGNED NULL,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 			INDEX idx_smart_contracts_owner (created_by),
 			INDEX idx_smart_contracts_source (source)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+		`ALTER TABLE smart_contracts ADD COLUMN deleted_at DATETIME NULL AFTER created_by`,
+		`ALTER TABLE smart_contracts ADD COLUMN deleted_by BIGINT UNSIGNED NULL AFTER deleted_at`,
+		`CREATE TABLE IF NOT EXISTS smart_contract_events (
+			id VARCHAR(100) NOT NULL PRIMARY KEY,
+			contract_id VARCHAR(100) NOT NULL,
+			actor_id BIGINT UNSIGNED NULL,
+			event_type VARCHAR(32) NOT NULL,
+			contract_snapshot_json LONGTEXT NOT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			INDEX idx_contract_events_contract (contract_id, created_at),
+			INDEX idx_contract_events_actor (actor_id, created_at)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
 		`CREATE TABLE IF NOT EXISTS projects (
 			id VARCHAR(100) NOT NULL PRIMARY KEY,
 			owner_id BIGINT UNSIGNED NOT NULL,
 			title VARCHAR(160) NOT NULL,
 			description TEXT NOT NULL,
+			project_type VARCHAR(20) NOT NULL DEFAULT 'guided',
+			project_rules LONGTEXT NULL,
 			is_default TINYINT(1) NOT NULL DEFAULT 0,
 			visibility VARCHAR(20) NOT NULL DEFAULT 'private',
+			default_ai_key_id VARCHAR(100) NULL,
 			current_contract_id VARCHAR(100) NULL,
 			active_contract_revision_id VARCHAR(100) NULL,
 			archived_at DATETIME NULL,
@@ -99,6 +127,10 @@ func migrateDatabase(ctx context.Context, db *sql.DB) error {
 			INDEX idx_projects_owner (owner_id, archived_at),
 			INDEX idx_projects_visibility (visibility, archived_at)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+		`ALTER TABLE projects ADD COLUMN default_ai_key_id VARCHAR(100) NULL AFTER visibility`,
+		`ALTER TABLE projects ADD COLUMN project_type VARCHAR(20) NOT NULL DEFAULT 'guided' AFTER description`,
+		`ALTER TABLE projects ADD COLUMN project_rules LONGTEXT NULL AFTER project_type`,
+		`UPDATE projects SET project_type = 'guided' WHERE project_type IS NULL OR project_type NOT IN ('guided', 'autonomous')`,
 		`CREATE TABLE IF NOT EXISTS project_contract_revisions (
 			id VARCHAR(100) NOT NULL PRIMARY KEY,
 			project_id VARCHAR(100) NOT NULL,
@@ -106,9 +138,15 @@ func migrateDatabase(ctx context.Context, db *sql.DB) error {
 			smart_contract_version VARCHAR(32) NOT NULL,
 			rule_hash VARCHAR(128) NOT NULL,
 			reason VARCHAR(255) NOT NULL,
+			smart_contract_name VARCHAR(120) NULL,
+			smart_contract_description TEXT NULL,
+			smart_contract_body LONGTEXT NULL,
 			activated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			INDEX idx_revisions_project (project_id, activated_at)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+		`ALTER TABLE project_contract_revisions ADD COLUMN smart_contract_name VARCHAR(120) NULL AFTER reason`,
+		`ALTER TABLE project_contract_revisions ADD COLUMN smart_contract_description TEXT NULL AFTER smart_contract_name`,
+		`ALTER TABLE project_contract_revisions ADD COLUMN smart_contract_body LONGTEXT NULL AFTER smart_contract_description`,
 		`CREATE TABLE IF NOT EXISTS execution_branches (
 			id VARCHAR(100) NOT NULL PRIMARY KEY,
 			project_id VARCHAR(100) NOT NULL,
@@ -142,8 +180,10 @@ func migrateDatabase(ctx context.Context, db *sql.DB) error {
 			evidence_text TEXT NULL,
 			completion_record_id VARCHAR(100) NULL,
 			draft_review_json LONGTEXT NULL,
+			draft_review_ai_config_json LONGTEXT NULL,
 			review_messages_json LONGTEXT NOT NULL,
 			ai_review_json LONGTEXT NULL,
+			completion_review_ai_config_json LONGTEXT NULL,
 			user_verdict_json LONGTEXT NULL,
 			next_contract_title VARCHAR(200) NULL,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -151,6 +191,38 @@ func migrateDatabase(ctx context.Context, db *sql.DB) error {
 			INDEX idx_execution_project_stage (project_id, stage),
 			INDEX idx_execution_parent (parent_contract_id),
 			INDEX idx_execution_branch (branch_id)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+		`ALTER TABLE execution_contracts ADD COLUMN supplement_of_contract_id VARCHAR(100) NULL AFTER source_contract_ids_json`,
+		`ALTER TABLE execution_contracts ADD COLUMN draft_review_ai_config_json LONGTEXT NULL AFTER draft_review_json`,
+		`ALTER TABLE execution_contracts ADD COLUMN completion_review_ai_config_json LONGTEXT NULL AFTER ai_review_json`,
+		`ALTER TABLE execution_contracts ADD COLUMN completion_review_rounds_json LONGTEXT NULL AFTER completion_review_ai_config_json`,
+		`ALTER TABLE execution_contracts ADD COLUMN planning_conversation_id VARCHAR(100) NULL AFTER completion_review_rounds_json`,
+		`ALTER TABLE execution_contracts ADD COLUMN completion_conversation_id VARCHAR(100) NULL AFTER planning_conversation_id`,
+		`CREATE TABLE IF NOT EXISTS node_conversations (
+			id VARCHAR(100) NOT NULL PRIMARY KEY,
+			project_id VARCHAR(100) NOT NULL,
+			node_id VARCHAR(100) NULL,
+			owner_id BIGINT UNSIGNED NOT NULL,
+			phase VARCHAR(20) NOT NULL,
+			status VARCHAR(32) NOT NULL DEFAULT 'active',
+			context_json LONGTEXT NOT NULL,
+			current_draft_json LONGTEXT NULL,
+			latest_review_json LONGTEXT NULL,
+			ai_config_json LONGTEXT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			INDEX idx_conversations_project (project_id, phase, updated_at),
+			INDEX idx_conversations_node (node_id, phase)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+		`CREATE TABLE IF NOT EXISTS node_conversation_messages (
+			id VARCHAR(100) NOT NULL PRIMARY KEY,
+			conversation_id VARCHAR(100) NOT NULL,
+			role VARCHAR(16) NOT NULL,
+			body LONGTEXT NOT NULL,
+			structured_payload_json LONGTEXT NULL,
+			ai_config_json LONGTEXT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			INDEX idx_conversation_messages (conversation_id, created_at)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
 		`CREATE TABLE IF NOT EXISTS execution_edges (
 			id VARCHAR(100) NOT NULL PRIMARY KEY,
@@ -199,7 +271,8 @@ func migrateDatabase(ctx context.Context, db *sql.DB) error {
 
 	for _, statement := range statements {
 		if _, err := db.ExecContext(ctx, statement); err != nil {
-			if strings.HasPrefix(statement, "ALTER TABLE users ADD COLUMN") && strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
+			message := strings.ToLower(err.Error())
+			if strings.HasPrefix(statement, "ALTER TABLE") && (strings.Contains(message, "duplicate column") || strings.Contains(message, "duplicate key name")) {
 				continue
 			}
 			return fmt.Errorf("migrate database: %w", err)

@@ -20,6 +20,7 @@ export function RegisterPage() {
   const navigate = useNavigate()
   const registerAccount = useExecStore((state) => state.registerAccount)
   const setAccessToken = useExecStore((state) => state.setAccessToken)
+  const refreshWorkspace = useExecStore((state) => state.refreshWorkspace)
   const [authError, setAuthError] = useState('')
   const [notice, setNotice] = useState('')
   const [countdown, setCountdown] = useState(0)
@@ -73,7 +74,7 @@ export function RegisterPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(values),
       })
-      const data = (await response.json().catch(() => ({}))) as { error?: string; accessToken?: string }
+      const data = (await response.json().catch(() => ({}))) as { error?: string; accessToken?: string; user?: { username?: string; userId?: string } }
       if (!response.ok) {
         setAuthError(data.error ?? '创建失败，请稍后重试。')
         return
@@ -83,12 +84,17 @@ export function RegisterPage() {
         return
       }
 
-      const result = registerAccount(values.username, values.email, values.password)
+      if (!data.user?.userId) {
+        setAuthError('账号已创建，但用户 ID 生成失败，请稍后重新登录。')
+        return
+      }
+      const result = registerAccount(data.user.username ?? values.username, data.user.userId, values.email, values.password)
       if (!result.success) {
         setAuthError(result.message ?? '创建失败，请稍后重试。')
         return
       }
       setAccessToken(data.accessToken)
+      await refreshWorkspace()
       navigate('/')
     } catch {
       setAuthError('无法连接服务，请确认后端已启动。')
@@ -110,7 +116,7 @@ export function RegisterPage() {
         </span>
       }
     >
-      <form className="rounded-md border border-rail bg-white/72 p-5" onSubmit={handleSubmit(onSubmit)}>
+      <form className="rounded-md border border-rail bg-surface/72 p-5" onSubmit={handleSubmit(onSubmit)}>
         <div className="grid gap-4">
           <label className="grid gap-2">
             <span className="text-sm font-semibold text-ink">用户名</span>
@@ -134,7 +140,7 @@ export function RegisterPage() {
                 type="button"
                 onClick={sendCode}
                 disabled={isSendingCode || countdown > 0}
-                className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-md border border-rail bg-white px-3 text-sm font-semibold text-ink transition hover:border-signal hover:text-signal disabled:cursor-not-allowed disabled:opacity-55 focus:outline-none focus-visible:shadow-focusline"
+                className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-md border border-rail bg-surface px-3 text-sm font-semibold text-ink transition hover:border-signal hover:text-signal disabled:cursor-not-allowed disabled:opacity-55 focus:outline-none focus-visible:shadow-focusline"
               >
                 <MailCheck size={16} aria-hidden="true" />
                 {isSendingCode ? '发送中' : countdown > 0 ? `${countdown}s 后重发` : '发送验证码'}
@@ -174,7 +180,7 @@ export function RegisterPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-ink px-4 text-sm font-semibold text-paper transition hover:bg-graphite disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus-visible:shadow-focusline"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-signal px-4 text-sm font-semibold text-white transition hover:bg-signalStrong disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus-visible:shadow-focusline"
           >
             <UserPlus size={17} aria-hidden="true" />
             创建并进入

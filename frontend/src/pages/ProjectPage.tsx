@@ -1,6 +1,6 @@
-import { Archive, ArrowRight, Bot, CheckCircle2, Eye, FileCheck2, GitBranchPlus, GitFork, GitMerge, LockKeyhole, Settings2, type LucideIcon } from 'lucide-react'
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { Archive, ArchiveRestore, ArrowRight, Bot, CheckCircle2, Compass, Eye, FileCheck2, GitBranchPlus, GitFork, GitMerge, ListChecks, LockKeyhole, Settings2, Trash2, type LucideIcon } from 'lucide-react'
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ContractComposer } from '../components/ContractComposer'
 import { NodeCard } from '../components/NodeCard'
 import { ProjectGraph } from '../components/ProjectGraph'
@@ -17,28 +17,28 @@ type CurrentNodeCopy = {
   actionLabel: string
 }
 
-type ProjectTab = 'nodes' | 'graph' | 'profile' | 'contract'
+type ProjectTab = 'nodes' | 'records' | 'graph' | 'profile' | 'ai'
 
 const projectTabs: Array<{ id: ProjectTab; label: string; icon: LucideIcon }> = [
   { id: 'nodes', label: '节点', icon: FileCheck2 },
+  { id: 'records', label: '记录', icon: CheckCircle2 },
   { id: 'graph', label: '关系图', icon: GitFork },
   { id: 'profile', label: '项目资料', icon: Settings2 },
-  { id: 'contract', label: '智能合约', icon: LockKeyhole },
+  { id: 'ai', label: '审查 AI', icon: Bot },
 ]
 
 const projectTabFrom = (value: string | null): ProjectTab =>
-  value === 'graph' || value === 'profile' || value === 'contract' ? value : 'nodes'
+  value === 'records' || value === 'graph' || value === 'profile' || value === 'ai' ? value : 'nodes'
+
+type ProjectAIKey = {
+  id: string
+  provider: string
+  label: string
+  model: string
+  baseUrl: string
+}
 
 const currentNodeCopy = (contract: ExecutionContract): CurrentNodeCopy => {
-  if (contract.nodeKind === 'task') {
-    return {
-      icon: LockKeyhole,
-      eyebrow: '任务起点',
-      title: '从任务起点开始推进',
-      description: '首个节点只定义任务。下一步需要创建第一条推进节点，记录真实行动和证据。',
-      actionLabel: '开始第一次推进',
-    }
-  }
   if (contract.stage === 'verified') {
     return {
       icon: CheckCircle2,
@@ -71,40 +71,41 @@ const recordDate = (record: { createdAt: string }) =>
 
 export function ProjectPage() {
   const { projectId = '' } = useParams()
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const project = useExecStore((state) => state.projects.find((item) => item.id === projectId))
   const allContracts = useExecStore((state) => state.contracts)
   const allCompletionRecords = useExecStore((state) => state.completionRecords)
   const allBranches = useExecStore((state) => state.branches)
-  const smartContracts = useExecStore((state) => state.smartContracts)
   const updateProject = useExecStore((state) => state.updateProject)
-  const upgradeProjectContract = useExecStore((state) => state.upgradeProjectContract)
   const archiveProject = useExecStore((state) => state.archiveProject)
-  const [nextSmartContractId, setNextSmartContractId] = useState('')
+  const restoreProject = useExecStore((state) => state.restoreProject)
+  const deleteProject = useExecStore((state) => state.deleteProject)
+  const accessToken = useExecStore((state) => state.accessToken)
+  const refreshWorkspace = useExecStore((state) => state.refreshWorkspace)
   const contracts = useMemo(() => allContracts.filter((contract) => contract.projectId === projectId), [allContracts, projectId])
   const completionRecords = useMemo(() => allCompletionRecords.filter((record) => record.projectId === projectId), [allCompletionRecords, projectId])
   const branches = useMemo(() => allBranches.filter((branch) => branch.projectId === projectId), [allBranches, projectId])
 
   if (!project) {
     return (
-      <div className="rounded-md border border-rail bg-white/72 p-6">
+      <div className="rounded-md border border-rail bg-surface/72 p-6">
         <h1 className="font-display text-3xl font-semibold">项目不存在</h1>
         <Link className="mt-4 inline-block text-sm font-semibold text-signal" to="/">返回我的项目</Link>
       </div>
     )
   }
 
-  const activeRevision = project.contractRevisions.find((revision) => revision.id === project.activeContractRevisionId) ?? project.contractRevisions[0]
-  const activeContract = smartContracts.find((contract) => contract.id === activeRevision?.smartContractId)
-  const selectedContractId = nextSmartContractId || activeRevision?.smartContractId || ''
   const isArchived = Boolean(project.archivedAt)
-  const unlockedContracts = contracts.filter((contract) => contract.nodeKind !== 'task' && !contract.completionRecordId)
+  const unlockedContracts = contracts.filter((contract) => !contract.completionRecordId)
   const sortedCompletionRecords = completionRecords.slice().sort((left, right) => Date.parse(left.createdAt) - Date.parse(right.createdAt))
   const currentContract = contracts.find((contract) => contract.id === project.currentContractId)
   const requestedParentId = searchParams.get('parent') ?? undefined
-  const requestedParent = contracts.find((contract) => contract.id === requestedParentId && (contract.stage === 'completed' || contract.nodeKind === 'task'))
+  const requestedParent = contracts.find((contract) => contract.id === requestedParentId && contract.stage === 'completed')
+  const requestedClosureId = searchParams.get('close') ?? undefined
+  const requestedClosure = contracts.find((contract) => contract.id === requestedClosureId && contract.stage === 'frozen')
   const isFork = searchParams.get('fork') === '1'
-  const requestedBranch = branches.find((branch) => branch.id === searchParams.get('branch'))
+  const requestedBranch = branches.find((branch) => branch.id === (searchParams.get('branch') ?? requestedClosure?.branchId))
   const activeBranchContracts = branches
     .map((branch) => ({ branch, contract: contracts.find((contract) => contract.id === branch.currentContractId) }))
     .filter((item): item is { branch: ExecutionBranch; contract: ExecutionContract } => Boolean(item.contract))
@@ -114,7 +115,8 @@ export function ProjectPage() {
     .filter((contract, index, list) => list.findIndex((item) => item.id === contract.id) === index)
   const latestRecord = sortedCompletionRecords.at(-1)
   const latestCompleted = latestRecord ? contracts.find((contract) => contract.id === latestRecord.closingContractId) : undefined
-  const activeTab = requestedParent ? 'nodes' : projectTabFrom(searchParams.get('tab'))
+  const requestedTab = projectTabFrom(searchParams.get('tab'))
+  const activeTab = requestedParent || requestedClosure ? 'nodes' : requestedTab
 
   return (
     <div className="space-y-9">
@@ -123,6 +125,7 @@ export function ProjectPage() {
           <div className="flex flex-wrap items-center gap-3 font-mono text-xs font-semibold uppercase text-signal">
             项目
             <ProjectVisibilityBadge visibility={project.visibility} />
+            <ProjectTypeBadge projectType={project.projectType} />
             {isArchived ? <ProjectArchiveBadge /> : null}
           </div>
           <h1 className="mt-3 font-display text-4xl font-semibold leading-tight text-ink">{project.title}</h1>
@@ -133,30 +136,37 @@ export function ProjectPage() {
             {branches.length > 0 ? <span>{branches.length} 条行为路径</span> : null}
           </div>
         </div>
-        <div className="border-l-2 border-ink bg-[#efebe1] p-5">
-          <div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal"><LockKeyhole size={15} aria-hidden="true" />项目智能合约</div>
-          <div className="mt-3 text-lg font-semibold text-ink">{activeContract?.name}</div>
-          <p className="mt-2 text-sm leading-6 text-graphite">{activeContract?.description}</p>
+        <div className="border-l-2 border-ink bg-shell p-5">
+          {project.projectType === 'guided' ? <>
+            <div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal"><ListChecks size={15} aria-hidden="true" />项目规则</div>
+            <div className="mt-3 text-lg font-semibold text-ink">AI 根据规则出具行动合约</div>
+            <p className="mt-2 line-clamp-4 text-sm leading-6 text-graphite">{project.projectRules}</p>
+          </> : <>
+            <div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal"><Compass size={15} aria-hidden="true" />自主推进</div>
+            <div className="mt-3 text-lg font-semibold text-ink">下一步由你决定</div>
+            <p className="mt-2 text-sm leading-6 text-graphite">每个节点仍由项目审查 AI 验证完成说明，再由你确认锁定。</p>
+          </>}
         </div>
       </section>
 
-      <ProjectTabs projectId={project.id} activeTab={activeTab} />
+      <ProjectTabs project={project} activeTab={activeTab} />
 
       {activeTab === 'nodes' ? (
         <>
-          {isArchived ? <ArchivedProjectNotice /> : requestedParent ? <ProjectWorkstation project={project} contracts={contracts} currentContract={currentContract} activeBranchContracts={activeBranchContracts} latestCompleted={latestCompleted} requestedParent={requestedParent} requestedBranch={requestedBranch} isFork={isFork} /> : null}
+          {isArchived ? <ArchivedProjectNotice /> : <ProjectWorkstation project={project} contracts={contracts} currentContract={currentContract} activeBranchContracts={activeBranchContracts} latestCompleted={latestCompleted} requestedParent={requestedParent} requestedClosure={requestedClosure} requestedBranch={requestedBranch} isFork={isFork} />}
 
           <ProjectQueues
             project={project}
             contracts={contracts}
             activeBranchContracts={activeBranchContracts}
-            completionRecords={sortedCompletionRecords}
             showComposer={!isArchived && !requestedParent && !currentContract && activeBranchContracts.length === 0}
           />
 
           {branches.length > 1 ? <ConvergenceGate project={project} branches={branches} sources={mergeSources} /> : null}
         </>
       ) : null}
+
+      {activeTab === 'records' ? <ProjectRecords records={sortedCompletionRecords} contracts={contracts} /> : null}
 
       {activeTab === 'graph' ? (
         <ProjectGraphTab project={project} contracts={contracts} branches={branches} />
@@ -168,25 +178,106 @@ export function ProjectPage() {
           isArchived={isArchived}
           onUpdateProject={(input) => updateProject(project.id, input)}
           onArchive={() => archiveProject(project.id)}
+          onRestore={() => restoreProject(project.id)}
+          onDelete={() => {
+            deleteProject(project.id)
+            navigate('/')
+          }}
         />
       ) : null}
 
-      {activeTab === 'contract' ? (
-        <ProjectContractSettings
-          project={project}
-          smartContracts={smartContracts}
-          activeContractId={activeRevision?.smartContractId ?? ''}
-          selectedContractId={selectedContractId}
-          onChange={setNextSmartContractId}
-          onUpgrade={() => upgradeProjectContract(project.id, selectedContractId)}
-          isArchived={isArchived}
-        />
+      {activeTab === 'ai' ? (
+        <ProjectAISettings project={project} accessToken={accessToken} isArchived={isArchived} onUpdated={refreshWorkspace} />
       ) : null}
     </div>
   )
 }
 
-function ProjectTabs({ projectId, activeTab }: { projectId: string; activeTab: ProjectTab }) {
+function ProjectAISettings({ project, accessToken, isArchived, onUpdated }: { project: Project; accessToken: string; isArchived: boolean; onUpdated: () => Promise<void> }) {
+  const [keys, setKeys] = useState<ProjectAIKey[]>([])
+  const [selectedKeyID, setSelectedKeyID] = useState(project.reviewAIKeyId ?? '')
+  const [isLoading, setIsLoading] = useState(Boolean(accessToken))
+  const [isSaving, setIsSaving] = useState(false)
+  const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    setSelectedKeyID(project.reviewAIKeyId ?? '')
+  }, [project.reviewAIKeyId])
+
+  useEffect(() => {
+    if (!accessToken) {
+      setKeys([])
+      setIsLoading(false)
+      return
+    }
+    let cancelled = false
+    const load = async () => {
+      setIsLoading(true)
+      try {
+        const response = await fetch('/api/ai-keys', { headers: { Authorization: `Bearer ${accessToken}` } })
+        const data = (await response.json().catch(() => ({}))) as { keys?: ProjectAIKey[]; error?: string }
+        if (!response.ok) throw new Error(data.error ?? '读取 AI 密钥失败。')
+        if (!cancelled) setKeys(data.keys ?? [])
+      } catch (error) {
+        if (!cancelled) setMessage(error instanceof Error ? error.message : '读取 AI 密钥失败。')
+      } finally {
+        if (!cancelled) setIsLoading(false)
+      }
+    }
+    void load()
+    return () => { cancelled = true }
+  }, [accessToken])
+
+  const save = async () => {
+    if (!selectedKeyID || !accessToken) return
+    setIsSaving(true)
+    setMessage('')
+    try {
+      const response = await fetch(`/api/projects/${project.id}/ai-key`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ aiKeyId: selectedKeyID }),
+      })
+      const data = (await response.json().catch(() => ({}))) as { error?: string }
+      if (!response.ok) throw new Error(data.error ?? '更新项目审查 AI 失败。')
+      await onUpdated()
+      setMessage('项目审查 AI 已更新。')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '更新项目审查 AI 失败。')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const selected = keys.find((key) => key.id === selectedKeyID)
+  return (
+    <section className="max-w-3xl rounded-md border border-rail bg-surface/72 p-5">
+      <div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal"><Bot size={17} aria-hidden="true" />Review AI</div>
+      <h2 className="mt-2 font-display text-2xl font-semibold">项目审查 AI</h2>
+      {isArchived ? <p className="mt-4 text-sm leading-6 text-graphite">项目已归档，审查配置保持为历史记录。</p> : null}
+      {!isArchived ? (
+        <>
+          <label className="mt-5 grid gap-2">
+            <span className="text-sm font-semibold text-ink">审核节点描述与完成证明</span>
+            <select value={selectedKeyID} onChange={(event) => { setSelectedKeyID(event.target.value); setMessage('') }} disabled={isLoading || !accessToken} className="h-11 rounded-md border border-rail bg-paper px-3 text-sm outline-none focus:border-signal focus:shadow-focusline">
+              <option value="">选择 AI 配置</option>
+              {keys.map((key) => <option key={key.id} value={key.id}>{key.label} · {key.provider} · {key.model}</option>)}
+            </select>
+          </label>
+          {selected ? <p className="mt-3 text-sm text-graphite">{selected.label} · {selected.provider} · {selected.model}</p> : null}
+          {keys.length === 0 && !isLoading ? <p className="mt-3 text-sm text-clay">请先到个人设置添加 AI 密钥。</p> : null}
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <button type="button" onClick={() => void save()} disabled={!selectedKeyID || selectedKeyID === project.reviewAIKeyId || isSaving} className="inline-flex h-10 items-center gap-2 rounded-md bg-signal px-3 text-sm font-semibold text-white transition hover:bg-signalStrong disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:shadow-focusline"><Bot size={16} aria-hidden="true" />保存审查 AI</button>
+            {message ? <span className="text-sm font-semibold text-signal">{message}</span> : null}
+          </div>
+        </>
+      ) : null}
+    </section>
+  )
+}
+
+function ProjectTabs({ project, activeTab }: { project: Project; activeTab: ProjectTab }) {
+  const projectId = project.id
   return (
     <nav className="-mt-5 flex gap-1 overflow-x-auto border-b border-rail" aria-label="项目页面">
       {projectTabs.map((tab) => {
@@ -232,14 +323,14 @@ function ProjectGraphTab({ project, contracts, branches }: { project: Project; c
 function ProjectGraphLegend() {
   return (
     <div className="flex flex-wrap gap-x-5 gap-y-3 border-y border-rail py-3 text-xs font-semibold text-graphite" aria-label="关系图图例">
-      <LegendNode label="任务起点" className="border-ink bg-white" />
-      <LegendNode label="待推进" className="border-signal bg-white" />
-      <LegendNode label="待确认" className="border-moss bg-[#ecf2e7]" />
-      <LegendNode label="待补充" className="border-clay bg-[#f7e6e2]" />
-      <LegendNode label="已锁定" className="border-moss bg-[#ecf2e7] ring-2 ring-moss/35" />
+      <LegendNode label="待推进" className="border-signal bg-surface" />
+      <LegendNode label="待确认" className="border-moss bg-moss/10" />
+      <LegendNode label="待补充" className="border-clay bg-clay/10" />
+      <LegendNode label="已锁定" className="border-moss bg-moss/10 ring-2 ring-moss/35" />
       <LegendLine label="继续" className="border-graphite" />
       <LegendLine label="分叉" className="border-signal border-dashed" />
       <LegendLine label="补充" className="border-clay border-dashed" />
+      <LegendLine label="收束" className="border-moss border-dashed" />
     </div>
   )
 }
@@ -271,7 +362,7 @@ type QueueListProps = {
   empty: string
 }
 
-function ProjectQueues({ project, contracts, activeBranchContracts, completionRecords, showComposer }: { project: Project; contracts: ExecutionContract[]; activeBranchContracts: Array<{ branch: ExecutionBranch; contract: ExecutionContract }>; completionRecords: CompletionRecord[]; showComposer: boolean }) {
+function ProjectQueues({ project, contracts, activeBranchContracts, showComposer }: { project: Project; contracts: ExecutionContract[]; activeBranchContracts: Array<{ branch: ExecutionBranch; contract: ExecutionContract }>; showComposer: boolean }) {
   const currentContractIds = new Set([
     project.currentContractId ?? '',
     ...activeBranchContracts.map(({ contract }) => contract.id),
@@ -291,7 +382,7 @@ function ProjectQueues({ project, contracts, activeBranchContracts, completionRe
         <span className="text-sm font-semibold text-graphite">{pendingProgress.length + awaitingConfirmation.length + reviewing.length} 个当前待处理节点</span>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid gap-4 xl:grid-cols-3">
         <QueueList title="待推进" eyebrow="Next action" count={pendingProgress.length} icon={FileCheck2} empty="暂无待推进节点。">
           {pendingProgress.map((contract) => <QueueNodeRow key={contract.id} contract={contract} mode="pending" />)}
         </QueueList>
@@ -301,14 +392,11 @@ function ProjectQueues({ project, contracts, activeBranchContracts, completionRe
         <QueueList title="智能合约正在审核" eyebrow="AI review" count={reviewing.length} icon={Bot} empty="暂无正在审核的节点。">
           {reviewing.map((contract) => <QueueNodeRow key={contract.id} contract={contract} mode="reviewing" />)}
         </QueueList>
-        <QueueList title="完成记录" eyebrow="Locked records" count={completionRecords.length} icon={LockKeyhole} empty="暂无完成记录。">
-          {completionRecords.slice().reverse().map((record) => <CompletionRecordRow key={record.id} record={record} />)}
-        </QueueList>
       </div>
 
       {showComposer ? (
         <div id="new-node" className="grid gap-7 border-t border-rail pt-7 xl:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)]">
-          <FlowIntroduction icon={FileCheck2} title={contracts.length > 0 ? '开始下一项推进' : '第一次：定义任务起点'} />
+          <FlowIntroduction icon={FileCheck2} title={contracts.length > 0 ? '开始下一项推进' : '创建第一项推进'} />
           <ContractComposer projectId={project.id} lockProject />
         </div>
       ) : null}
@@ -318,7 +406,7 @@ function ProjectQueues({ project, contracts, activeBranchContracts, completionRe
 
 function QueueList({ title, eyebrow, count, icon: Icon, children, empty }: QueueListProps) {
   return (
-    <section className="min-w-0 border border-rail bg-white/50" aria-label={title}>
+    <section className="min-w-0 border border-rail bg-surface/50" aria-label={title}>
       <div className="flex items-center justify-between gap-3 border-b border-rail px-4 py-4">
         <div className="flex min-w-0 items-center gap-2">
           <Icon size={16} className="shrink-0 text-signal" aria-hidden="true" />
@@ -343,7 +431,7 @@ function QueueNodeRow({ contract, mode }: { contract: ExecutionContract; mode: '
       ? contract.aiReview?.verdict === 'pass' ? 'AI 已通过 · 等待确认' : 'AI 未通过 · 等待确认'
       : '打开节点提交这次推进结果'
   return (
-    <Link to={`/contracts/${contract.id}`} className="group grid gap-3 px-4 py-4 transition hover:bg-white focus:outline-none focus-visible:shadow-focusline sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+    <Link to={`/contracts/${contract.id}`} className="group grid gap-3 px-4 py-4 transition hover:bg-shell focus:outline-none focus-visible:shadow-focusline sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
       <span className="min-w-0">
         <span className="block truncate text-sm font-semibold text-ink">{contract.title}</span>
         <span className="mt-1 block line-clamp-2 text-xs leading-5 text-graphite">{contract.verifiableGoal}</span>
@@ -357,19 +445,43 @@ function QueueNodeRow({ contract, mode }: { contract: ExecutionContract; mode: '
   )
 }
 
-function CompletionRecordRow({ record }: { record: CompletionRecord }) {
+function ProjectRecords({ records, contracts }: { records: CompletionRecord[]; contracts: ExecutionContract[] }) {
   return (
-    <Link to={`/contracts/${record.closingContractId}`} className="group grid gap-3 px-4 py-4 transition hover:bg-white focus:outline-none focus-visible:shadow-focusline sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-      <span className="min-w-0">
-        <span className="block truncate text-sm font-semibold text-ink">{record.title}</span>
-        <span className="mt-1 block line-clamp-2 text-xs leading-5 text-graphite">覆盖 {record.coveredContractIds.length} 个推进节点 · {record.aiReviewVerdict === 'pass' ? 'AI 审查通过 · 用户确认' : 'AI 审查未通过 · 用户锁定'} · {recordDate(record)}</span>
-      </span>
-      <ArrowRight size={16} className="text-graphite transition group-hover:translate-x-0.5 group-hover:text-ink" aria-hidden="true" />
-    </Link>
+    <section className="space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <SectionHeader eyebrow="Locked records" title="阶段完成记录" />
+        <span className="text-sm font-semibold text-graphite">{records.length} 条不可变记录</span>
+      </div>
+      {records.length > 0 ? (
+        <div className="border-y border-rail bg-surface">
+          {records.slice().reverse().map((record) => {
+            const isPassed = record.aiReviewVerdict === 'pass'
+            const closingNode = contracts.find((contract) => contract.id === record.closingContractId)
+            return (
+              <Link key={record.id} to={`/contracts/${record.closingContractId}?tab=completion`} className="group grid gap-4 border-b border-rail px-5 py-5 last:border-b-0 transition hover:bg-shell/45 focus:outline-none focus-visible:shadow-focusline lg:grid-cols-[104px_minmax(0,1fr)_240px_auto] lg:items-start">
+                <div className={`border-l-2 pl-3 font-mono text-xs font-semibold ${isPassed ? 'border-moss text-moss' : 'border-clay text-clay'}`}>
+                  {recordDate(record)}
+                </div>
+                <div className="min-w-0">
+                  <h2 className="text-base font-semibold text-ink group-hover:text-signal">{record.title}</h2>
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-graphite">{record.summary}</p>
+                </div>
+                <div className="text-xs leading-5 text-graphite">
+                  <div className="font-semibold text-ink">覆盖 {record.coveredContractIds.length} 个推进节点</div>
+                  <div className={`mt-1 font-semibold ${isPassed ? 'text-moss' : 'text-clay'}`}>{isPassed ? 'AI 审查通过 · 用户确认' : 'AI 审查未通过 · 用户锁定'}</div>
+                  <div className="mt-1 truncate">收束节点：{closingNode?.title ?? '推进节点'}</div>
+                </div>
+                <ArrowRight size={17} className="mt-1 shrink-0 text-signal transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+              </Link>
+            )
+          })}
+        </div>
+      ) : <div className="border-l-2 border-rail py-3 pl-5 text-sm leading-6 text-graphite">项目锁定第一项阶段成果后，记录会出现在这里。</div>}
+    </section>
   )
 }
 
-function ProjectWorkstation({ project, contracts, currentContract, activeBranchContracts, latestCompleted, requestedParent, requestedBranch, isFork }: { project: Project; contracts: ExecutionContract[]; currentContract?: ExecutionContract; activeBranchContracts: Array<{ branch: ExecutionBranch; contract: ExecutionContract }>; latestCompleted?: ExecutionContract; requestedParent?: ExecutionContract; requestedBranch?: ExecutionBranch; isFork: boolean }) {
+function ProjectWorkstation({ project, contracts, currentContract, activeBranchContracts, latestCompleted, requestedParent, requestedClosure, requestedBranch, isFork }: { project: Project; contracts: ExecutionContract[]; currentContract?: ExecutionContract; activeBranchContracts: Array<{ branch: ExecutionBranch; contract: ExecutionContract }>; latestCompleted?: ExecutionContract; requestedParent?: ExecutionContract; requestedClosure?: ExecutionContract; requestedBranch?: ExecutionBranch; isFork: boolean }) {
   const activeActions = [
     ...(currentContract ? [{ branch: undefined, contract: currentContract }] : []),
     ...activeBranchContracts,
@@ -379,6 +491,15 @@ function ProjectWorkstation({ project, contracts, currentContract, activeBranchC
       <section id="new-node" className="grid gap-7 border-y border-rail py-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
         <FlowIntroduction icon={isFork ? GitFork : ArrowRight} title={isFork ? `从「${requestedParent.title}」拆分新路径` : `从「${requestedParent.title}」继续下一项`} />
         <ContractComposer projectId={project.id} lockProject parentContractId={requestedParent.id} branchId={requestedBranch?.id} fork={isFork} />
+      </section>
+    )
+  }
+
+  if (requestedClosure) {
+    return (
+      <section id="new-node" className="grid gap-7 border-y border-rail py-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+        <FlowIntroduction icon={GitMerge} title={`补齐并收束「${requestedClosure.title}」`} />
+        <ContractComposer projectId={project.id} lockProject parentContractId={requestedClosure.id} sourceContractIds={[requestedClosure.id]} closureSourceIds={[requestedClosure.id]} branchId={requestedBranch?.id} />
       </section>
     )
   }
@@ -417,7 +538,7 @@ function ProjectWorkstation({ project, contracts, currentContract, activeBranchC
 
   return (
     <section id="new-node" className="grid gap-7 border-y border-rail py-8 xl:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)]">
-      <FlowIntroduction icon={LockKeyhole} title="第一次：定义任务起点" />
+      <FlowIntroduction icon={LockKeyhole} title="创建第一项推进" />
       <ContractComposer projectId={project.id} lockProject />
     </section>
   )
@@ -443,13 +564,11 @@ function CurrentActionCard({ contract }: { contract: ExecutionContract }) {
   const Icon = action.icon
   const nextStep = contract.stage === 'frozen'
     ? '提交后确认 AI 结果，再决定锁定或继续推进'
-    : contract.nodeKind === 'task'
-      ? '从这里创建第一条推进节点'
-      : contract.stage === 'verified'
+    : contract.stage === 'verified'
       ? '确认 AI 结果后，节点会被锁定'
       : '确认 AI 结果后，选择生成补足节点或锁定'
   return (
-    <Link to={`/contracts/${contract.id}`} className="group block border-l-2 border-ink bg-white/72 p-6 transition hover:bg-white focus:outline-none focus-visible:shadow-focusline">
+    <Link to={`/contracts/${contract.id}`} className="group block border-l-2 border-ink bg-surface/72 p-6 transition hover:bg-shell focus:outline-none focus-visible:shadow-focusline">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal"><Icon size={16} aria-hidden="true" />当前要处理</div>
         <StatusBadge stage={contract.stage} />
@@ -474,7 +593,7 @@ function ConvergenceGate({ project, branches, sources }: { project: Project; bra
           <div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal"><GitMerge size={16} aria-hidden="true" />路径汇合</div>
           <h2 className="mt-2 font-display text-3xl font-semibold leading-tight text-ink">{sources.length} / {branches.length} 条路径已有锁定记录</h2>
         </div>
-        {canConverge && !isOpen ? <button type="button" onClick={() => setIsOpen(true)} className="inline-flex h-10 items-center gap-2 rounded-md bg-ink px-3 text-sm font-semibold text-paper transition hover:bg-graphite focus:outline-none focus-visible:shadow-focusline"><GitMerge size={16} aria-hidden="true" />开始汇合行动</button> : null}
+        {canConverge && !isOpen ? <button type="button" onClick={() => setIsOpen(true)} className="inline-flex h-10 items-center gap-2 rounded-md bg-signal px-3 text-sm font-semibold text-white transition hover:bg-signalStrong focus:outline-none focus-visible:shadow-focusline"><GitMerge size={16} aria-hidden="true" />开始汇合行动</button> : null}
       </div>
       {canConverge ? isOpen ? <ContractComposer projectId={project.id} lockProject sourceContractIds={sources.map((source) => source.id)} /> : <p className="text-sm leading-6 text-graphite">把多条路径的完成记录作为依据，开始一个普通行动节点。这个节点提交的结果仍由同一份智能合约审查，必要时可以把前置推进一起锁定。</p> : <p className="text-sm leading-6 text-graphite">当多条路径都形成完成记录后，可以从它们开始一项汇合行动；当前仍有路径在推进。</p>}
     </section>
@@ -487,18 +606,37 @@ function FlowIntroduction({ icon: Icon, title }: { icon: LucideIcon; title: stri
 
 function ProjectVisibilityBadge({ visibility }: { visibility: Project['visibility'] }) {
   const isPublic = visibility === 'public'
-  return <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 normal-case ${isPublic ? 'border-signal/30 bg-signal/10 text-signal' : 'border-rail bg-white/70 text-graphite'}`}>{isPublic ? <Eye size={13} aria-hidden="true" /> : <LockKeyhole size={13} aria-hidden="true" />}{isPublic ? '公开项目' : '私人项目'}</span>
+  return <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 normal-case ${isPublic ? 'border-signal/30 bg-signal/10 text-signal' : 'border-rail bg-surface/70 text-graphite'}`}>{isPublic ? <Eye size={13} aria-hidden="true" /> : <LockKeyhole size={13} aria-hidden="true" />}{isPublic ? '公开项目' : '私人项目'}</span>
+}
+
+function ProjectTypeBadge({ projectType }: { projectType: Project['projectType'] }) {
+  const guided = projectType === 'guided'
+  return <span className="inline-flex items-center gap-1 rounded-md border border-rail bg-surface/70 px-2 py-1 normal-case text-graphite">{guided ? <ListChecks size={13} aria-hidden="true" /> : <Compass size={13} aria-hidden="true" />}{guided ? '规则引导型' : '自主推进型'}</span>
 }
 
 function ProjectArchiveBadge() {
-  return <span className="inline-flex items-center gap-1 rounded-full border border-graphite/20 bg-white/70 px-2 py-1 normal-case text-graphite"><Archive size={13} aria-hidden="true" />已归档</span>
+  return <span className="inline-flex items-center gap-1 rounded-md border border-graphite/20 bg-surface/70 px-2 py-1 normal-case text-graphite"><Archive size={13} aria-hidden="true" />已归档</span>
 }
 
 function ArchivedProjectNotice() {
   return <section className="border-y border-rail py-8"><div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-graphite"><Archive size={16} aria-hidden="true" />Read-only project</div><h2 className="mt-3 font-display text-3xl font-semibold leading-tight text-ink">项目已归档</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-graphite">完成记录、行为路径和审查证据会一直保留，但不能再开始行为、提交结果、签名或修改项目智能合约。</p></section>
 }
 
-function ProjectProfileSettings({ project, isArchived, onUpdateProject, onArchive }: { project: Project; isArchived: boolean; onUpdateProject: (input: { title: string; description: string; visibility: Project['visibility'] }) => void; onArchive: () => void }) {
+function ProjectProfileSettings({
+  project,
+  isArchived,
+  onUpdateProject,
+  onArchive,
+  onRestore,
+  onDelete,
+}: {
+  project: Project
+  isArchived: boolean
+  onUpdateProject: (input: { title: string; description: string; visibility: Project['visibility'] }) => void
+  onArchive: () => void
+  onRestore: () => void
+  onDelete: () => void
+}) {
   return (
     <div className="grid max-w-3xl gap-4">
       {isArchived ? (
@@ -506,66 +644,7 @@ function ProjectProfileSettings({ project, isArchived, onUpdateProject, onArchiv
       ) : (
         <ProjectDetailsSettings key={project.id} project={project} onSave={onUpdateProject} />
       )}
-      {!project.isDefault && !isArchived ? <ArchiveProjectControl onArchive={onArchive} /> : null}
-    </div>
-  )
-}
-
-function ProjectContractSettings({ project, smartContracts, activeContractId, selectedContractId, onChange, onUpgrade, isArchived }: { project: Project; smartContracts: ReturnType<typeof useExecStore.getState>['smartContracts']; activeContractId: string; selectedContractId: string; onChange: (value: string) => void; onUpgrade: () => void; isArchived: boolean }) {
-  return (
-    <div className="grid max-w-3xl gap-4">
-      {isArchived ? (
-        <div className="border-l-2 border-graphite py-2 pl-4 text-sm leading-6 text-graphite">项目智能合约与所有行为记录已锁定为只读记录。</div>
-      ) : (
-        <section className="rounded-md border border-rail bg-white/72 p-5">
-          <div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal">
-            <Settings2 size={17} aria-hidden="true" />
-            Project contract
-          </div>
-          <h2 className="mt-2 font-display text-2xl font-semibold">修改项目智能合约</h2>
-          <label className="mt-5 grid gap-2">
-            <span className="text-sm font-semibold text-ink">下一项行为使用的合约</span>
-            <select
-              value={selectedContractId}
-              onChange={(event) => onChange(event.target.value)}
-              className="h-11 rounded-md border border-rail bg-paper px-3 text-sm outline-none focus:border-signal focus:shadow-focusline"
-            >
-              {smartContracts.map((smartContract) => (
-                <option key={smartContract.id} value={smartContract.id}>{smartContract.name} · {smartContract.source === 'official' ? '平台提供' : '自定义'}</option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="button"
-            disabled={selectedContractId === activeContractId}
-            onClick={onUpgrade}
-            className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-md bg-ink px-4 text-sm font-semibold text-paper transition hover:bg-graphite disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:shadow-focusline"
-          >
-            <Settings2 size={16} aria-hidden="true" />
-            更新项目合约
-          </button>
-        </section>
-      )}
-
-      <section className="rounded-md border border-rail bg-white/72 p-5">
-        <div className="font-mono text-xs font-semibold uppercase text-signal">Contract history</div>
-        <h2 className="mt-2 font-display text-2xl font-semibold">合约变更记录</h2>
-        <div className="mt-5 space-y-3">
-          {project.contractRevisions.map((revision) => {
-            const contract = smartContracts.find((item) => item.id === revision.smartContractId)
-            const isCurrent = revision.id === project.activeContractRevisionId
-            return (
-              <div key={revision.id} className="border-l-2 border-rail pl-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-semibold text-ink">{contract?.name}</span>
-                  {isCurrent ? <span className="font-mono text-xs font-semibold text-signal">当前</span> : null}
-                </div>
-                <p className="mt-1 text-xs leading-5 text-graphite">{revision.reason}</p>
-              </div>
-            )
-          })}
-        </div>
-      </section>
+      {!project.isDefault ? <ProjectDangerZone isArchived={isArchived} projectTitle={project.title} onArchive={onArchive} onRestore={onRestore} onDelete={onDelete} /> : null}
     </div>
   )
 }
@@ -587,7 +666,7 @@ function ProjectDetailsSettings({ project, onSave }: { project: Project; onSave:
   }
 
   return (
-    <section className="rounded-md border border-rail bg-white/72 p-5">
+    <section className="rounded-md border border-rail bg-surface/72 p-5">
       <div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal">
         <Settings2 size={17} aria-hidden="true" />
         Project profile
@@ -597,30 +676,67 @@ function ProjectDetailsSettings({ project, onSave }: { project: Project; onSave:
         <label className="grid gap-2"><span className="text-sm font-semibold text-ink">项目名称</span><input value={title} onChange={(event) => { setTitle(event.target.value); setMessage('') }} className="h-11 rounded-md border border-rail bg-paper px-3 text-sm outline-none focus:border-signal focus:shadow-focusline" /></label>
         <label className="grid gap-2"><span className="text-sm font-semibold text-ink">项目描述</span><textarea value={description} onChange={(event) => { setDescription(event.target.value); setMessage('') }} className="min-h-24 rounded-md border border-rail bg-paper px-3 py-3 text-sm leading-6 outline-none focus:border-signal focus:shadow-focusline" /></label>
         <label className="grid gap-2"><span className="text-sm font-semibold text-ink">项目可见性</span><select value={project.isDefault ? 'private' : visibility} disabled={project.isDefault} onChange={(event) => setVisibility(event.target.value as Project['visibility'])} className="h-11 rounded-md border border-rail bg-paper px-3 text-sm outline-none focus:border-signal focus:shadow-focusline"><option value="private">私人项目</option><option value="public">公开项目</option></select></label>
-        <div className="flex flex-wrap items-center gap-3"><button type="submit" className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-ink px-3 text-sm font-semibold text-paper transition hover:bg-graphite focus:outline-none focus-visible:shadow-focusline"><Settings2 size={16} aria-hidden="true" />保存项目资料</button>{message ? <span className="text-sm font-semibold text-signal">{message}</span> : null}</div>
+        <div className="flex flex-wrap items-center gap-3"><button type="submit" className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-signal px-3 text-sm font-semibold text-white transition hover:bg-signalStrong focus:outline-none focus-visible:shadow-focusline"><Settings2 size={16} aria-hidden="true" />保存项目资料</button>{message ? <span className="text-sm font-semibold text-signal">{message}</span> : null}</div>
       </form>
     </section>
   )
 }
 
-function ArchiveProjectControl({ onArchive }: { onArchive: () => void }) {
+function ProjectDangerZone({
+  isArchived,
+  projectTitle,
+  onArchive,
+  onRestore,
+  onDelete,
+}: {
+  isArchived: boolean
+  projectTitle: string
+  onArchive: () => void
+  onRestore: () => void
+  onDelete: () => void
+}) {
   const [confirmingArchive, setConfirmingArchive] = useState(false)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
 
   return (
     <section className="rounded-md border border-clay/35 bg-clay/5 p-5">
       <div className="flex items-center gap-2 text-sm font-semibold text-clay">
-        <Archive size={17} aria-hidden="true" />
-        归档项目
+        <Settings2 size={17} aria-hidden="true" />
+        危险操作
       </div>
-      <p className="mt-3 text-sm leading-6 text-graphite">归档后项目不可恢复为可写状态，完成记录、行为路径和证据仍可查看。</p>
-      {confirmingArchive ? (
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <button type="button" onClick={onArchive} className="inline-flex h-10 items-center gap-2 rounded-md bg-clay px-3 text-sm font-semibold text-white transition hover:bg-[#8c3f36] focus:outline-none focus-visible:shadow-focusline"><Archive size={16} aria-hidden="true" />确认归档</button>
-          <button type="button" onClick={() => setConfirmingArchive(false)} className="inline-flex h-10 items-center px-3 text-sm font-semibold text-graphite transition hover:text-ink focus:outline-none focus-visible:shadow-focusline">取消</button>
+      <div className="mt-4 divide-y divide-clay/15 border-y border-clay/15">
+        <div className="flex flex-wrap items-center justify-between gap-4 py-4">
+          <div>
+            <div className="text-sm font-semibold text-ink">{isArchived ? '撤销归档' : '归档项目'}</div>
+            <p className="mt-1 text-sm leading-6 text-graphite">{isArchived ? '恢复后可以继续推进节点、提交审查和修改项目设置。' : '归档后项目进入只读，之后可以恢复。'}</p>
+          </div>
+          {isArchived ? (
+            <button type="button" onClick={onRestore} className="inline-flex h-10 items-center gap-2 rounded-md border border-rail bg-surface px-3 text-sm font-semibold text-ink transition hover:border-graphite/50 focus:outline-none focus-visible:shadow-focusline"><ArchiveRestore size={16} aria-hidden="true" />恢复项目</button>
+          ) : confirmingArchive ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <button type="button" onClick={onArchive} className="inline-flex h-10 items-center gap-2 rounded-md bg-clay px-3 text-sm font-semibold text-white transition hover:bg-clayStrong focus:outline-none focus-visible:shadow-focusline"><Archive size={16} aria-hidden="true" />确认归档</button>
+              <button type="button" onClick={() => setConfirmingArchive(false)} className="inline-flex h-10 items-center px-3 text-sm font-semibold text-graphite transition hover:text-ink focus:outline-none focus-visible:shadow-focusline">取消</button>
+            </div>
+          ) : (
+            <button type="button" onClick={() => setConfirmingArchive(true)} className="inline-flex h-10 items-center gap-2 rounded-md border border-clay/40 bg-surface px-3 text-sm font-semibold text-clay transition hover:border-clay focus:outline-none focus-visible:shadow-focusline"><Archive size={16} aria-hidden="true" />归档项目</button>
+          )}
         </div>
-      ) : (
-        <button type="button" onClick={() => setConfirmingArchive(true)} className="mt-4 inline-flex h-10 items-center gap-2 rounded-md border border-clay/40 bg-white px-3 text-sm font-semibold text-clay transition hover:border-clay focus:outline-none focus-visible:shadow-focusline"><Archive size={16} aria-hidden="true" />归档项目</button>
-      )}
+
+        <div className="flex flex-wrap items-center justify-between gap-4 py-4">
+          <div>
+            <div className="text-sm font-semibold text-ink">删除项目</div>
+            <p className="mt-1 text-sm leading-6 text-graphite">删除「{projectTitle}」以及它的节点、关系和完成记录。</p>
+          </div>
+          {confirmingDelete ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <button type="button" onClick={onDelete} className="inline-flex h-10 items-center gap-2 rounded-md bg-clay px-3 text-sm font-semibold text-white transition hover:bg-clayStrong focus:outline-none focus-visible:shadow-focusline"><Trash2 size={16} aria-hidden="true" />确认删除</button>
+              <button type="button" onClick={() => setConfirmingDelete(false)} className="inline-flex h-10 items-center px-3 text-sm font-semibold text-graphite transition hover:text-ink focus:outline-none focus-visible:shadow-focusline">取消</button>
+            </div>
+          ) : (
+            <button type="button" onClick={() => setConfirmingDelete(true)} className="inline-flex h-10 items-center gap-2 rounded-md border border-clay/40 bg-surface px-3 text-sm font-semibold text-clay transition hover:border-clay focus:outline-none focus-visible:shadow-focusline"><Trash2 size={16} aria-hidden="true" />删除项目</button>
+          )}
+        </div>
+      </div>
     </section>
   )
 }

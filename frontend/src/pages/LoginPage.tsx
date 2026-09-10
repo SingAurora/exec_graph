@@ -14,11 +14,16 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>
 
+const testAccount = {
+  email: import.meta.env.VITE_TEST_ACCOUNT_EMAIL ?? 'test@execgraph.local',
+  password: import.meta.env.VITE_TEST_ACCOUNT_PASSWORD ?? '',
+}
+
 export function LoginPage() {
   const navigate = useNavigate()
-  const signIn = useExecStore((state) => state.signIn)
   const registerAccount = useExecStore((state) => state.registerAccount)
   const setAccessToken = useExecStore((state) => state.setAccessToken)
+  const refreshWorkspace = useExecStore((state) => state.refreshWorkspace)
   const [authError, setAuthError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const {
@@ -27,31 +32,25 @@ export function LoginPage() {
     formState: { errors, isSubmitting },
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: 'demo@execgraph.local', password: 'execgraph' },
+    defaultValues: testAccount,
   })
 
   const onSubmit = async (values: LoginForm) => {
-    const isDemoAccount = values.email.trim().toLowerCase() === 'demo@execgraph.local' && values.password === 'execgraph'
-    if (isDemoAccount) {
-      const result = signIn(values.email, values.password)
-      if (!result.success) setAuthError(result.message ?? '登录失败，请稍后重试。')
-      else navigate('/')
-      return
-    }
     setAuthError('')
     try {
       const response = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) })
-      const data = (await response.json().catch(() => ({}))) as { accessToken?: string; error?: string; user?: { username?: string } }
+      const data = (await response.json().catch(() => ({}))) as { accessToken?: string; error?: string; user?: { username?: string; userId?: string } }
       if (!response.ok || !data.accessToken) {
         setAuthError(data.error ?? '邮箱或密码不正确。')
         return
       }
-      const result = registerAccount(data.user?.username ?? values.email.split('@')[0], values.email, values.password)
+      const result = registerAccount(data.user?.username ?? values.email.split('@')[0], data.user?.userId ?? values.email.split('@')[0], values.email, values.password)
       if (!result.success) {
         setAuthError(result.message ?? '登录失败，请稍后重试。')
         return
       }
       setAccessToken(data.accessToken)
+      await refreshWorkspace()
       navigate('/')
     } catch {
       setAuthError('无法连接服务，请确认后端已启动。')
@@ -62,18 +61,18 @@ export function LoginPage() {
     <AuthLayout
       eyebrow="Sign in"
       title="登录"
-      description="使用演示身份进入你的项目。"
+      description="使用邮箱登录你的项目。"
       footer={
         <span>
           还没有身份？{' '}
           <Link className="font-semibold text-signal hover:text-ink" to="/register">
-            创建演示账号
+            注册账号
             <ArrowRight className="ml-1 inline-block" size={14} aria-hidden="true" />
           </Link>
         </span>
       }
     >
-      <form className="rounded-md border border-rail bg-white/72 p-5" onSubmit={handleSubmit(onSubmit)}>
+      <form className="rounded-md border border-rail bg-surface/72 p-5" onSubmit={handleSubmit(onSubmit)}>
         <div className="grid gap-4">
           <label className="grid gap-2">
             <span className="text-sm font-semibold text-ink">邮箱</span>
@@ -105,7 +104,7 @@ export function LoginPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-ink px-4 text-sm font-semibold text-paper transition hover:bg-graphite disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus-visible:shadow-focusline"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-signal px-4 text-sm font-semibold text-white transition hover:bg-signalStrong disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus-visible:shadow-focusline"
           >
             <LogIn size={17} aria-hidden="true" />
             登录

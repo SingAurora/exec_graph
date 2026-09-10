@@ -34,6 +34,9 @@ func Run() error {
 	if err := seedSystemData(ctx, db); err != nil {
 		return fmt.Errorf("seed system data: %w", err)
 	}
+	if err := seedDevelopmentTestAccount(ctx, db, config.Development.TestAccount); err != nil {
+		return fmt.Errorf("seed development test account: %w", err)
+	}
 
 	mailer, err := newMailer(config.Tencent.SES)
 	if err != nil {

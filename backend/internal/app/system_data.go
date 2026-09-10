@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 )
 
 const generalSmartContractID = "smart-contract-general"
@@ -34,6 +35,51 @@ func seedSystemData(ctx context.Context, db *sql.DB) error {
 	return nil
 }
 
+// seedDevelopmentTestAccount makes local browser testing use the same
+// authenticated path as a registered user, including a real default project.
+func seedDevelopmentTestAccount(ctx context.Context, db *sql.DB, account TestAccountConfig) error {
+	if !account.Enabled {
+		return nil
+	}
+	username := strings.TrimSpace(account.Username)
+	email, err := normalizeEmail(account.Email)
+	if err != nil {
+		return fmt.Errorf("test account email: %w", err)
+	}
+	if len([]rune(username)) < 2 || len([]rune(username)) > 64 {
+		return fmt.Errorf("test account username must contain 2 to 64 characters")
+	}
+	if len(account.Password) < 6 {
+		return fmt.Errorf("test account password must contain at least 6 characters")
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO users (username, user_id, email, password_hash, email_verified_at)
+		VALUES (?, 'execgraph_test', ?, ?, NOW())
+		ON DUPLICATE KEY UPDATE
+			username = VALUES(username),
+			password_hash = VALUES(password_hash),
+			email_verified_at = COALESCE(email_verified_at, VALUES(email_verified_at))`, username, email, account.Password); err != nil {
+		return fmt.Errorf("upsert test account: %w", err)
+	}
+	var userID uint64
+	if err := tx.QueryRowContext(ctx, `SELECT id FROM users WHERE email = ?`, email).Scan(&userID); err != nil {
+		return fmt.Errorf("load test account: %w", err)
+	}
+	if err := ensureDefaultProjectTx(ctx, tx, userID); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func ensureDefaultProjectTx(ctx context.Context, tx *sql.Tx, userID uint64) error {
 	var exists bool
 	if err := tx.QueryRowContext(ctx, `
@@ -55,8 +101,8 @@ func ensureDefaultProjectTx(ctx context.Context, tx *sql.Tx, userID uint64) erro
 	ruleHash := hashValue(generalSmartContractBody)
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO projects
-			(id, owner_id, title, description, is_default, visibility, active_contract_revision_id)
-		VALUES (?, ?, '我的执行', '默认项目。任何还不需要单独归档的行动，都可以直接在这里开始。', 1, 'private', ?)`,
+			(id, owner_id, title, description, project_type, project_rules, is_default, visibility, active_contract_revision_id)
+		VALUES (?, ?, '我的执行', '默认项目。任何还不需要单独归档的行动，都可以直接在这里开始。', 'guided', '每次只推进一个明确行动；所有完成结果必须有可核验的证据。', 1, 'private', ?)`,
 		projectID, userID, revisionID); err != nil {
 		return fmt.Errorf("create default project: %w", err)
 	}

@@ -17,6 +17,7 @@ type loginRequest struct {
 type authenticatedUser struct {
 	ID       uint64 `json:"id"`
 	Username string `json:"username"`
+	UserID   string `json:"userId"`
 	Email    string `json:"email"`
 }
 
@@ -41,8 +42,8 @@ func (s *server) login(w http.ResponseWriter, r *http.Request) {
 	var user authenticatedUser
 	var passwordHash string
 	err = s.db.QueryRowContext(ctx, `
-		SELECT id, username, email, password_hash
-		FROM users WHERE email = ?`, email).Scan(&user.ID, &user.Username, &user.Email, &passwordHash)
+		SELECT id, username, user_id, email, password_hash
+		FROM users WHERE email = ?`, email).Scan(&user.ID, &user.Username, &user.UserID, &user.Email, &passwordHash)
 	if errors.Is(err, sql.ErrNoRows) || passwordHash != request.Password {
 		writeError(w, http.StatusUnauthorized, "邮箱或密码不正确")
 		return
@@ -118,10 +119,10 @@ func (s *server) authenticate(r *http.Request) (authenticatedUser, error) {
 	defer cancel()
 	var user authenticatedUser
 	err := s.db.QueryRowContext(ctx, `
-		SELECT u.id, u.username, u.email
+		SELECT u.id, u.username, u.user_id, u.email
 		FROM auth_sessions session
 		JOIN users u ON u.id = session.user_id
-		WHERE session.token_hash = ? AND session.expires_at > NOW()`, hashValue(token)).Scan(&user.ID, &user.Username, &user.Email)
+		WHERE session.token_hash = ? AND session.expires_at > NOW()`, hashValue(token)).Scan(&user.ID, &user.Username, &user.UserID, &user.Email)
 	if err != nil {
 		return authenticatedUser{}, err
 	}

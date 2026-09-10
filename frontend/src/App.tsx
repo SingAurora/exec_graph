@@ -1,9 +1,12 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from './components/AppShell'
 import { DashboardPage } from './pages/DashboardPage'
+import { ExplorePage } from './pages/ExplorePage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { LoginPage } from './pages/LoginPage'
 import { ProjectPage } from './pages/ProjectPage'
+import { PublicProfilePage } from './pages/PublicProfilePage'
+import { PublicProjectPage } from './pages/PublicProjectPage'
 import { NodePage } from './pages/NodePage'
 import { MePage } from './pages/MePage'
 import { NewProjectPage } from './pages/NewProjectPage'
@@ -21,6 +24,9 @@ export function App() {
         <Route path="/register" element={<RegisterRoute />} />
         <Route element={<ProtectedApp />}>
           <Route index element={<DashboardPage />} />
+          <Route path="/explore" element={<ExplorePage />} />
+          <Route path="/explore/projects/:projectId" element={<PublicProjectPage />} />
+          <Route path="/u/:handle" element={<PublicProfilePage />} />
           <Route path="/chains" element={<Navigate to="/projects/project-default" replace />} />
           <Route path="/projects/new" element={<NewProjectPage />} />
           <Route path="/projects/:projectId" element={<ProjectPage />} />

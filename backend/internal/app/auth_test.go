@@ -64,6 +64,16 @@ func TestNewOpaqueID(t *testing.T) {
 	}
 }
 
+func TestNewUserID(t *testing.T) {
+	userID, err := newUserID()
+	if err != nil {
+		t.Fatalf("newUserID(): %v", err)
+	}
+	if !userIDPattern.MatchString(userID) {
+		t.Fatalf("newUserID() = %q, which does not match the user ID rules", userID)
+	}
+}
+
 func TestAvatarExtension(t *testing.T) {
 	tests := []struct {
 		contentType string

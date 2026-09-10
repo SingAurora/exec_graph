@@ -85,6 +85,34 @@ func (storage *COSStorage) putAvatar(ctx context.Context, userID uint64, content
 	return objectKey, avatarURL, nil
 }
 
+func (storage *COSStorage) putProfileBackground(ctx context.Context, userID uint64, contentType string, contents []byte) (string, string, error) {
+	extension, ok := avatarExtension(contentType)
+	if !ok {
+		return "", "", fmt.Errorf("unsupported profile background content type: %s", contentType)
+	}
+	name, err := newOpaqueID("background")
+	if err != nil {
+		return "", "", err
+	}
+	objectKey := path.Join(storage.avatarPrefix, strconv.FormatUint(userID, 10), name+extension)
+	_, err = storage.client.Object.Put(ctx, objectKey, bytes.NewReader(contents), &cos.ObjectPutOptions{
+		ObjectPutHeaderOptions: &cos.ObjectPutHeaderOptions{
+			ContentType:   contentType,
+			ContentLength: int64(len(contents)),
+			CacheControl:  "private, max-age=86400",
+		},
+	})
+	if err != nil {
+		return "", "", fmt.Errorf("upload profile background to COS: %w", err)
+	}
+	backgroundURL, err := storage.signedProfileBackgroundURL(ctx, objectKey)
+	if err != nil {
+		_ = storage.deleteProfileBackground(ctx, objectKey)
+		return "", "", err
+	}
+	return objectKey, backgroundURL, nil
+}
+
 func (storage *COSStorage) signedAvatarURL(ctx context.Context, objectKey string) (string, error) {
 	if !storage.isAvatarKey(objectKey) {
 		return "", fmt.Errorf("invalid avatar object key")
@@ -104,6 +132,25 @@ func (storage *COSStorage) signedAvatarURL(ctx context.Context, objectKey string
 	return signedURL.String(), nil
 }
 
+func (storage *COSStorage) signedProfileBackgroundURL(ctx context.Context, objectKey string) (string, error) {
+	if !storage.isProfileBackgroundKey(objectKey) {
+		return "", fmt.Errorf("invalid profile background object key")
+	}
+	signedURL, err := storage.client.Object.GetPresignedURL(
+		ctx,
+		http.MethodGet,
+		objectKey,
+		storage.secretID,
+		storage.secretKey,
+		24*time.Hour,
+		nil,
+	)
+	if err != nil {
+		return "", fmt.Errorf("sign profile background URL: %w", err)
+	}
+	return signedURL.String(), nil
+}
+
 func (storage *COSStorage) deleteAvatar(ctx context.Context, objectKey string) error {
 	if !storage.isAvatarKey(objectKey) {
 		return nil
@@ -114,7 +161,21 @@ func (storage *COSStorage) deleteAvatar(ctx context.Context, objectKey string) e
 	return nil
 }
 
+func (storage *COSStorage) deleteProfileBackground(ctx context.Context, objectKey string) error {
+	if !storage.isProfileBackgroundKey(objectKey) {
+		return nil
+	}
+	if _, err := storage.client.Object.Delete(ctx, objectKey); err != nil {
+		return fmt.Errorf("delete profile background from COS: %w", err)
+	}
+	return nil
+}
+
 func (storage *COSStorage) isAvatarKey(objectKey string) bool {
+	return strings.HasPrefix(objectKey, storage.avatarPrefix) && !strings.Contains(objectKey, "..")
+}
+
+func (storage *COSStorage) isProfileBackgroundKey(objectKey string) bool {
 	return strings.HasPrefix(objectKey, storage.avatarPrefix) && !strings.Contains(objectKey, "..")
 }
 
