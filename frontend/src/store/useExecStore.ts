@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { actors, branches as seedBranches, completionRecords as seedCompletionRecords, contracts, currentActorId, defaultProjectId, edges, projects, smartContracts } from '../data/seed'
+import { isActionableStage, needsReviewDecision } from '../lib/execution'
 import type {
   AIReview,
   Actor,
@@ -116,13 +117,13 @@ type ExecState = {
   completionRecords: CompletionRecord[]
   edges: ExecutionEdge[]
   createProject: (input: CreateProjectInput) => Promise<string | null>
-  updateProject: (projectId: string, input: UpdateProjectInput) => void
+  updateProject: (projectId: string, input: UpdateProjectInput) => Promise<AuthResult>
   createSmartContract: (input: CreateSmartContractInput) => Promise<string | null>
   deleteSmartContract: (contractId: string) => Promise<AuthResult>
   upgradeProjectContract: (projectId: string, smartContractId: string) => Promise<AuthResult>
-  archiveProject: (projectId: string) => void
-  restoreProject: (projectId: string) => void
-  deleteProject: (projectId: string) => void
+  archiveProject: (projectId: string) => Promise<AuthResult>
+  restoreProject: (projectId: string) => Promise<AuthResult>
+  deleteProject: (projectId: string) => Promise<AuthResult>
   reviewNodeDraft: (input: ReviewNodeDraftInput) => Promise<CreateContractResult>
   createContract: (input: CreateContractInput) => Promise<CreateContractResult>
   submitCompletion: (contractId: string, input: SubmitCompletionInput) => Promise<AuthResult>
@@ -132,7 +133,7 @@ type ExecState = {
   signIn: (email: string, password: string) => AuthResult
 	registerAccount: (username: string, userId: string, email: string, password: string) => AuthResult
   setAccessToken: (token: string) => void
-  refreshWorkspace: () => Promise<void>
+  refreshWorkspace: () => Promise<AuthResult>
   signOut: () => void
   updateProfile: (input: ProfileInput) => void
   updateAccountEmail: (email: string, currentPassword: string) => AuthResult
@@ -342,9 +343,14 @@ const requestProjectState = async (accessToken: string, path: string, init?: Req
   return data
 }
 
+const normalizeExecutionContract = (contract: ExecutionContract): ExecutionContract => ({
+  ...contract,
+  actorId: contract.actorId === undefined || contract.actorId === null ? undefined : String(contract.actorId),
+})
+
 const mergeProjectState = (state: Pick<ExecState, 'projects' | 'contracts' | 'branches' | 'completionRecords' | 'edges'>, snapshot: ProjectStateResponse) => ({
   projects: state.projects.map((project) => (project.id === snapshot.project.id ? snapshot.project : project)),
-  contracts: [...state.contracts.filter((contract) => contract.projectId !== snapshot.project.id), ...snapshot.nodes],
+  contracts: [...state.contracts.filter((contract) => contract.projectId !== snapshot.project.id), ...snapshot.nodes.map(normalizeExecutionContract)],
   branches: [...state.branches.filter((branch) => branch.projectId !== snapshot.project.id), ...snapshot.branches],
   completionRecords: [...state.completionRecords.filter((record) => record.projectId !== snapshot.project.id), ...snapshot.completionRecords],
   edges: [
@@ -378,8 +384,6 @@ const normalizeSmartContract = (smartContract: LegacySmartContract): SmartContra
 
 const currentRevision = (project: Project) =>
   project.contractRevisions.find((revision) => revision.id === project.activeContractRevisionId) ?? project.contractRevisions[0]
-
-const isActionableStage = (stage: ContractStage) => stage === 'frozen' || stage === 'verified' || stage === 'needs_supplement'
 
 const currentContractForProject = (project: Project, allContracts: ExecutionContract[]) => {
   if (!project.currentContractId) return undefined
@@ -753,23 +757,19 @@ export const useExecStore = create<ExecState>()(
         set((state) => ({ projects: [...state.projects, project] }))
         return projectId
       },
-      updateProject: (projectId, input) => {
+      updateProject: async (projectId, input) => {
         const title = input.title.trim()
         const description = input.description.trim()
-        if (!title || !description) return
-
-        set((state) => ({
-          projects: state.projects.map((project) =>
-            project.id === projectId && !project.archivedAt
-              ? {
-                  ...project,
-                  title,
-                  description,
-                  visibility: project.isDefault ? 'private' : input.visibility,
-                }
-              : project,
-          ),
-        }))
+        if (!title || !description) return { success: false, message: '项目名称和描述不能为空。' }
+        const accessToken = get().accessToken
+        if (!accessToken) return { success: false, message: '请先登录后再修改项目。' }
+        try {
+          const snapshot = await requestProjectState(accessToken, `/api/projects/${projectId}`, { method: 'PATCH', body: JSON.stringify({ title, description, visibility: input.visibility }) })
+          set((state) => mergeProjectState(state, snapshot))
+          return { success: true }
+        } catch (error) {
+          return { success: false, message: error instanceof Error ? error.message : '保存项目资料失败。' }
+        }
       },
       upgradeProjectContract: async (projectId, smartContractId) => {
 		const smartContract = get().smartContracts.find((item) => item.id === smartContractId)
@@ -790,23 +790,37 @@ export const useExecStore = create<ExecState>()(
 			return { success: false, message: error instanceof Error ? error.message : '更新项目智能合约失败。' }
 		}
       },
-      archiveProject: (projectId) => {
-        set((state) => ({
-          projects: state.projects.map((project) =>
-            project.id === projectId && !project.isDefault && !project.archivedAt ? { ...project, archivedAt: now() } : project,
-          ),
-        }))
+      archiveProject: async (projectId) => {
+        const accessToken = get().accessToken
+        if (!accessToken) return { success: false, message: '请先登录后再归档项目。' }
+        try {
+          const response = await fetch(`/api/projects/${projectId}/archive`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` } })
+          const data = await response.json().catch(() => ({})) as { error?: string }
+          if (!response.ok) return { success: false, message: data.error ?? '归档项目失败。' }
+          await get().refreshWorkspace()
+          return { success: true }
+        } catch (error) { return { success: false, message: error instanceof Error ? error.message : '归档项目失败。' } }
       },
-      restoreProject: (projectId) => {
-        set((state) => ({
-          projects: state.projects.map((project) =>
-            project.id === projectId && !project.isDefault && project.archivedAt ? { ...project, archivedAt: undefined } : project,
-          ),
-        }))
+      restoreProject: async (projectId) => {
+        const accessToken = get().accessToken
+        if (!accessToken) return { success: false, message: '请先登录后再恢复项目。' }
+        try {
+          const response = await fetch(`/api/projects/${projectId}/unarchive`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` } })
+          const data = await response.json().catch(() => ({})) as { error?: string }
+          if (!response.ok) return { success: false, message: data.error ?? '恢复项目失败。' }
+          await get().refreshWorkspace()
+          return { success: true }
+        } catch (error) { return { success: false, message: error instanceof Error ? error.message : '恢复项目失败。' } }
       },
-      deleteProject: (projectId) => {
+      deleteProject: async (projectId) => {
         const project = get().projects.find((item) => item.id === projectId)
-        if (!project || project.isDefault) return
+        if (!project || project.isDefault) return { success: false, message: '默认项目不能删除。' }
+        const accessToken = get().accessToken
+        if (!accessToken) return { success: false, message: '请先登录后再删除项目。' }
+        try {
+          const response = await fetch(`/api/projects/${projectId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${accessToken}` } })
+          const data = await response.json().catch(() => ({})) as { error?: string }
+          if (!response.ok) return { success: false, message: data.error ?? '删除项目失败。' }
         const contractIds = new Set(get().contracts.filter((contract) => contract.projectId === projectId).map((contract) => contract.id))
         set((state) => ({
           projects: state.projects.filter((item) => item.id !== projectId),
@@ -815,6 +829,8 @@ export const useExecStore = create<ExecState>()(
           completionRecords: state.completionRecords.filter((record) => record.projectId !== projectId),
           edges: state.edges.filter((edge) => !contractIds.has(edge.sourceContractId) && !contractIds.has(edge.targetContractId)),
         }))
+		  return { success: true }
+        } catch (error) { return { success: false, message: error instanceof Error ? error.message : '删除项目失败。' } }
       },
       reviewNodeDraft: async (input) => {
         const project = get().projects.find((item) => item.id === input.projectId) ?? get().projects.find((item) => item.id === defaultProjectId)
@@ -1177,7 +1193,7 @@ export const useExecStore = create<ExecState>()(
         const state = get()
         const contract = state.contracts.find((item) => item.id === contractId)
         const project = state.projects.find((item) => item.id === contract?.projectId)
-        const canReview = contract?.stage === 'verified' || contract?.stage === 'needs_supplement'
+        const canReview = Boolean(contract && needsReviewDecision(contract))
         if (!contract || !project || project.archivedAt || !contract.aiReview || !canReview || !isCurrentContract(project, contract, state.contracts, state.branches)) {
           return { success: false, message: '当前节点不能补充审查说明。' }
         }
@@ -1198,7 +1214,7 @@ export const useExecStore = create<ExecState>()(
       confirmCompletion: async (contractId) => {
         const source = get().contracts.find((contract) => contract.id === contractId)
         const project = get().projects.find((item) => item.id === source?.projectId)
-        const canLockStage = source?.stage === 'verified' || source?.stage === 'needs_supplement'
+        const canLockStage = Boolean(source && needsReviewDecision(source))
         if (!source || !project || project.archivedAt || !isCurrentContract(project, source, get().contracts, get().branches) || !canLockStage || !source.aiReview) {
           return { success: false, message: '当前节点不能锁定。' }
         }
@@ -1306,7 +1322,7 @@ export const useExecStore = create<ExecState>()(
       setAccessToken: (token) => set({ accessToken: token }),
       refreshWorkspace: async () => {
         const accessToken = get().accessToken
-        if (!accessToken) return
+        if (!accessToken) return { success: false, message: '当前没有登录会话。' }
         const headers = { Authorization: `Bearer ${accessToken}` }
         try {
           const [profileResponse, projectResponse, smartContractResponse] = await Promise.all([
@@ -1314,44 +1330,46 @@ export const useExecStore = create<ExecState>()(
             fetch('/api/projects', { headers }),
             fetch('/api/smart-contracts', { headers }),
           ])
-          const profileData = (await profileResponse.json().catch(() => ({}))) as { user?: { username?: string; userId?: string; bio?: string; gender?: Gender; avatarUrl?: string; profileBackgroundUrl?: string; customProfileEnabled?: boolean; customProfileMarkdown?: string } }
+          const profileData = (await profileResponse.json().catch(() => ({}))) as { user?: { id?: number; username?: string; userId?: string; bio?: string; gender?: Gender; avatarUrl?: string; profileBackgroundUrl?: string; customProfileEnabled?: boolean; customProfileMarkdown?: string } }
           const projectData = (await projectResponse.json().catch(() => ({}))) as { projects?: Project[] }
           const smartContractData = (await smartContractResponse.json().catch(() => ({}))) as { smartContracts?: SmartContractDefinition[] }
-          if (!projectResponse.ok || !smartContractResponse.ok || !projectData.projects || !smartContractData.smartContracts) return
+          if (!profileResponse.ok || !projectResponse.ok || !smartContractResponse.ok || !profileData.user?.id || !projectData.projects || !smartContractData.smartContracts) {
+            throw new Error('读取账户工作区失败。')
+          }
           const snapshots = await Promise.all(
             projectData.projects.map((project) => requestProjectState(accessToken, `/api/projects/${project.id}/graph`)),
           )
-          const profileUser = profileResponse.ok && profileData.user?.username && profileData.user.userId ? profileData.user : undefined
-          set((state) => ({
-            projects: (projectData.projects ?? state.projects).map(normalizeProject),
-            smartContracts: smartContractData.smartContracts ?? state.smartContracts,
-            contracts: snapshots.flatMap((snapshot) => snapshot.nodes),
+          const profileUser = profileData.user
+          const actorId = String(profileUser.id)
+          const actor: Actor = {
+            id: actorId,
+            name: profileUser.username ?? profileUser.userId ?? '未命名用户',
+            handle: `@${profileUser.userId ?? actorId}`,
+            role: '成员',
+            bio: profileUser.bio ?? '',
+            gender: profileUser.gender ?? 'undisclosed',
+            avatarUrl: profileUser.avatarUrl,
+            profileBackgroundUrl: profileUser.profileBackgroundUrl,
+            customProfileEnabled: profileUser.customProfileEnabled,
+            customProfileMarkdown: profileUser.customProfileMarkdown,
+          }
+          set({
+            currentActorId: actorId,
+            actors: [actor],
+            projects: projectData.projects.map(normalizeProject),
+            smartContracts: smartContractData.smartContracts,
+            contracts: snapshots.flatMap((snapshot) => snapshot.nodes.map(normalizeExecutionContract)),
             branches: snapshots.flatMap((snapshot) => snapshot.branches),
             completionRecords: snapshots.flatMap((snapshot) => snapshot.completionRecords),
             edges: snapshots.flatMap((snapshot) => snapshot.edges),
-            actors: profileUser
-              ? state.actors.map((actor) =>
-                  actor.id === state.currentActorId
-                    ? {
-                        ...actor,
-                        name: profileUser.username ?? actor.name,
-                        handle: `@${profileUser.userId}`,
-                        bio: profileUser.bio ?? '',
-                        gender: profileUser.gender ?? 'undisclosed',
-                        avatarUrl: profileUser.avatarUrl,
-                        profileBackgroundUrl: profileUser.profileBackgroundUrl,
-                        customProfileEnabled: profileUser.customProfileEnabled,
-                        customProfileMarkdown: profileUser.customProfileMarkdown,
-                      }
-                    : actor,
-                )
-              : state.actors,
-          }))
-        } catch {
-          // Keep the current local view available when the backend is temporarily unreachable.
+          })
+          return { success: true }
+        } catch (error) {
+          set({ actors: [], currentActorId: '', projects: [], smartContracts: [], branches: [], contracts: [], completionRecords: [], edges: [] })
+          return { success: false, message: error instanceof Error ? error.message : '读取账户工作区失败。' }
         }
       },
-      signOut: () => set({ isAuthenticated: false, accessToken: '' }),
+      signOut: () => set({ isAuthenticated: false, accessToken: '', accountEmail: '', accountPassword: '', actors: [], currentActorId: '', projects: [], smartContracts: [], branches: [], contracts: [], completionRecords: [], edges: [] }),
       updateProfile: (input) => {
 		const normalizedUserID = input.userId.trim().replace(/^@+/, '')
         set((state) => ({

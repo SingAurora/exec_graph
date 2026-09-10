@@ -7,6 +7,7 @@ import { EvidenceCoverage } from '../components/EvidenceCoverage'
 import { RelayRail } from '../components/RelayRail'
 import { StatusBadge } from '../components/StatusBadge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../components/ui/dialog'
+import { completionRecordForContract, isAcceptedRecord, isReviewInProgress, needsReviewDecision } from '../lib/execution'
 import { useExecStore } from '../store/useExecStore'
 import type { AIConfigSnapshot, CompletionRecord, CompletionReviewRound, ExecutionContract } from '../types'
 
@@ -98,11 +99,11 @@ export function NodePage() {
   const isArchived = Boolean(project?.archivedAt)
   const isCurrent = !isArchived && (project?.currentContractId === contract.id || branch?.currentContractId === contract.id)
   const currentContract = allContracts.find((item) => item.id === (branch ? branch.currentContractId : project?.currentContractId))
-  const isReviewing = contract.stage === 'frozen' && Boolean(contract.completionClaim) && !contract.aiReview
+  const isReviewing = isReviewInProgress(contract)
   const canSubmit = isCurrent && contract.stage === 'frozen' && !isReviewing
   const canUseCompletionConversation = isCurrent && !isArchived && contract.stage !== 'completed' && contract.stage !== 'sealed'
   const aiReviewPassed = contract.aiReview?.verdict === 'pass'
-  const canLock = isCurrent && (contract.stage === 'verified' || contract.stage === 'needs_supplement') && Boolean(contract.aiReview)
+  const canLock = isCurrent && needsReviewDecision(contract) && Boolean(contract.aiReview)
   const canClarify = canLock && !contract.completionRecordId
   const supplement = allContracts.find((item) => item.supplementOfContractId === contract.id)
   const sourceIds = contract.sourceContractIds ?? (contract.parentContractId ? [contract.parentContractId] : [])
@@ -121,15 +122,13 @@ export function NodePage() {
   }
   const canSupplement =
     isCurrent && contract.stage === 'needs_supplement' && Boolean(contract.aiReview?.suggestedSupplementTitle) && !supplement
-  const completionRecord = contract.completionRecordId
-    ? completionRecords.find((record) => record.id === contract.completionRecordId)
-    : completionRecords.find((record) => record.coveredContractIds.includes(contract.id))
+  const completionRecord = completionRecordForContract(completionRecords, contract)
   const canContinue =
     !isArchived &&
-    completionRecord?.recordKind === 'accepted' &&
+    Boolean(completionRecord && isAcceptedRecord(completionRecord)) &&
     Boolean(project) &&
     (branch ? branch.headContractId === contract.id && !branch.currentContractId : !project?.currentContractId)
-  const canFork = !isArchived && completionRecord?.recordKind === 'accepted' && Boolean(project) && completionRecord.closingContractId === contract.id
+  const canFork = !isArchived && Boolean(completionRecord && isAcceptedRecord(completionRecord)) && Boolean(project) && completionRecord?.closingContractId === contract.id
   const requestedTab = searchParams.get('tab')
   const activeTab: NodeTab = requestedTab === 'completion' || requestedTab === 'events' ? requestedTab : 'task'
 
@@ -657,7 +656,7 @@ function InfoBlock({ title, body }: { title: string; body: string }) {
 
 function CompletionRecordSummary({ record, contracts, closingContractId, currentContractId }: { record: CompletionRecord; contracts: ExecutionContract[]; closingContractId: string; currentContractId: string }) {
   const isClosingNode = closingContractId === currentContractId
-  const isAccepted = record.recordKind === 'accepted'
+  const isAccepted = isAcceptedRecord(record)
   return (
     <section className={`rounded-md border p-5 ${isAccepted ? 'border-moss/35 bg-moss/8' : 'border-graphite/30 bg-shell'}`}>
       <div className={`font-mono text-xs font-semibold uppercase ${isAccepted ? 'text-moss' : 'text-graphite'}`}>{isAccepted ? 'Accepted record' : 'Sealed record'}</div>

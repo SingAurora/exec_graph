@@ -2,8 +2,9 @@ import { Archive, ArrowRight, Bot, CheckCircle2, Eye, FileCheck2, FolderKanban, 
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { SectionHeader } from '../components/SectionHeader'
 import { StatusBadge } from '../components/StatusBadge'
+import { currentContractIDs, isAcceptedRecord, isReadyToProgress, isReviewInProgress, needsReviewDecision, nextActionLabel } from '../lib/execution'
 import { useExecStore } from '../store/useExecStore'
-import type { ExecutionBranch, ExecutionContract, Project } from '../types'
+import type { ExecutionContract, Project } from '../types'
 
 type QueueKind = 'reviewing' | 'awaiting' | 'progress'
 
@@ -22,20 +23,6 @@ const queueCopy: Record<QueueKind, QueueCopy> = {
   progress: { title: '等待推进', eyebrow: 'Next action', empty: '暂无等待推进的节点。', icon: FileCheck2, accentClassName: 'text-signal', railClassName: 'border-signal text-signal' },
 }
 
-function currentNodeIDs(projects: Project[], branches: ExecutionBranch[]) {
-  return new Set([
-    ...projects.flatMap((project) => project.currentContractId ?? ''),
-    ...branches.flatMap((branch) => branch.currentContractId ?? ''),
-  ])
-}
-
-function actionLabel(contract: ExecutionContract) {
-  if (contract.stage === 'verified') return '确认 AI 结果'
-  if (contract.stage === 'needs_supplement') return '处理缺口'
-  if (contract.completionClaim && !contract.aiReview) return '查看提交'
-  return '提交推进结果'
-}
-
 export function DashboardPage() {
   const [searchParams] = useSearchParams()
   const projects = useExecStore((state) => state.projects)
@@ -46,13 +33,13 @@ export function DashboardPage() {
   if (searchParams.get('new') === 'project') return <Navigate to="/projects/new" replace />
 
   const activeProjects = projects.filter((project) => !project.archivedAt)
-  const currentIDs = currentNodeIDs(activeProjects, branches.filter((branch) => activeProjects.some((project) => project.id === branch.projectId)))
+  const currentIDs = currentContractIDs(activeProjects, branches)
   const currentNodes = contracts
     .filter((contract) => currentIDs.has(contract.id) && !contract.completionRecordId)
     .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))
-  const reviewing = currentNodes.filter((contract) => contract.stage === 'frozen' && Boolean(contract.completionClaim) && !contract.aiReview)
-  const awaiting = currentNodes.filter((contract) => contract.stage === 'verified' || contract.stage === 'needs_supplement')
-  const progress = currentNodes.filter((contract) => contract.stage === 'frozen' && !contract.completionClaim)
+  const reviewing = currentNodes.filter(isReviewInProgress)
+  const awaiting = currentNodes.filter(needsReviewDecision)
+  const progress = currentNodes.filter(isReadyToProgress)
   const projectByID = new Map(projects.map((project) => [project.id, project]))
 
   return (
@@ -87,7 +74,7 @@ export function DashboardPage() {
       <section className="space-y-4 border-t border-rail pt-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <SectionHeader eyebrow="所有项目" title="我的项目" />
-          <span className="text-sm font-semibold text-graphite">{completionRecords.filter((record) => record.recordKind === 'accepted').length} 条已验收成果</span>
+          <span className="text-sm font-semibold text-graphite">{completionRecords.filter(isAcceptedRecord).length} 条已验收成果</span>
         </div>
         <div className="border-y border-rail bg-surface">
           {projects.map((project) => <ProjectCard key={project.id} project={project} />)}
@@ -132,7 +119,7 @@ function QueueNode({ contract, project, railClassName }: { contract: ExecutionCo
           <StatusBadge stage={contract.stage} />
         </div>
         <div className="mt-3 flex items-center justify-between gap-3 text-sm font-semibold text-graphite">
-          <span className="truncate">{actionLabel(contract)}</span>
+          <span className="truncate">{nextActionLabel(contract)}</span>
           <ArrowRight size={16} className="shrink-0 text-signal transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
         </div>
       </div>
@@ -145,7 +132,7 @@ function ProjectCard({ project }: { project: Project }) {
   const completionRecords = useExecStore((state) => state.completionRecords)
   const branches = useExecStore((state) => state.branches)
   const projectContracts = contracts.filter((contract) => contract.projectId === project.id)
-  const projectRecords = completionRecords.filter((record) => record.projectId === project.id && record.recordKind === 'accepted')
+  const projectRecords = completionRecords.filter((record) => record.projectId === project.id && isAcceptedRecord(record))
   const isArchived = Boolean(project.archivedAt)
   const currentContract = contracts.find((contract) => contract.id === project.currentContractId)
   const activeBranches = branches.filter((branch) => branch.projectId === project.id && branch.currentContractId)

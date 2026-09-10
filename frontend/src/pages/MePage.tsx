@@ -2,6 +2,7 @@ import { ArrowRight, CheckCircle2, CircleAlert, Eye, FolderKanban } from 'lucide
 import { Link, useSearchParams } from 'react-router-dom'
 import { CompletionHeatmap } from '../components/CompletionHeatmap'
 import { CustomProfileContent } from '../components/CustomProfileContent'
+import { isAcceptedRecord } from '../lib/execution'
 import { useExecStore } from '../store/useExecStore'
 import type { Actor, CompletionRecord, Project } from '../types'
 
@@ -37,7 +38,7 @@ export function MePage() {
   const publicProjectIds = new Set(publicProjects.map((project) => project.id))
   const publicCompleted = completionRecords
     .filter((record) => publicProjectIds.has(record.projectId))
-    .filter((record) => record.recordKind === 'accepted')
+    .filter(isAcceptedRecord)
     .filter((record) => contracts.find((contract) => contract.id === record.closingContractId)?.actorId === currentActorId)
     .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
   const activeDays = new Set(publicCompleted.map((record) => new Date(record.createdAt).toDateString())).size

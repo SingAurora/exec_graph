@@ -50,7 +50,11 @@ export function LoginPage() {
         return
       }
       setAccessToken(data.accessToken)
-      await refreshWorkspace()
+      const workspace = await refreshWorkspace()
+      if (!workspace.success) {
+        setAuthError(workspace.message ?? '登录成功，但无法读取你的工作区。')
+        return
+      }
       navigate('/')
     } catch {
       setAuthError('无法连接服务，请确认后端已启动。')

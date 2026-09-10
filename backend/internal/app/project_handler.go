@@ -19,6 +19,12 @@ type createProjectRequest struct {
 	AIKeyID      string `json:"aiKeyId"`
 }
 
+type updateProjectRequest struct {
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Visibility  string `json:"visibility"`
+}
+
 type projectRevisionResponse struct {
 	ID                   string                 `json:"id"`
 	SmartContractID      string                 `json:"smartContractId"`
@@ -174,8 +180,17 @@ func (s *server) handleProjects(w http.ResponseWriter, r *http.Request) {
 	}
 	parts := strings.Split(remainder, "/")
 	projectID := parts[0]
-	if len(parts) == 1 && r.Method == http.MethodGet {
-		s.getProject(w, r, user.ID, projectID)
+	if len(parts) == 1 {
+		switch r.Method {
+		case http.MethodGet:
+			s.getProject(w, r, user.ID, projectID)
+		case http.MethodPatch:
+			s.updateProject(w, r, user.ID, projectID)
+		case http.MethodDelete:
+			s.deleteProject(w, r, user.ID, projectID)
+		default:
+			writeError(w, http.StatusMethodNotAllowed, "不支持的请求方法")
+		}
 		return
 	}
 	if len(parts) == 2 && parts[1] == "graph" && r.Method == http.MethodGet {
@@ -214,11 +229,42 @@ func (s *server) handleProjects(w http.ResponseWriter, r *http.Request) {
 		s.unarchiveProject(w, r, user.ID, projectID)
 		return
 	}
-	if len(parts) == 1 && r.Method == http.MethodDelete {
-		s.deleteProject(w, r, user.ID, projectID)
+	writeError(w, http.StatusNotFound, "项目接口不存在")
+}
+
+func (s *server) updateProject(w http.ResponseWriter, r *http.Request, userID uint64, projectID string) {
+	var request updateProjectRequest
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, "请求格式不正确")
 		return
 	}
-	writeError(w, http.StatusNotFound, "项目接口不存在")
+	title := strings.TrimSpace(request.Title)
+	description := strings.TrimSpace(request.Description)
+	if title == "" || description == "" {
+		writeError(w, http.StatusBadRequest, "项目名称和描述不能为空")
+		return
+	}
+	if len([]rune(title)) > 160 || len([]rune(description)) > 2000 {
+		writeError(w, http.StatusBadRequest, "项目名称或描述过长")
+		return
+	}
+	if request.Visibility != "private" && request.Visibility != "public" {
+		writeError(w, http.StatusBadRequest, "项目可见性不正确")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+	defer cancel()
+	result, err := s.db.ExecContext(ctx, `UPDATE projects SET title = ?, description = ?, visibility = CASE WHEN is_default = 1 THEN 'private' ELSE ? END WHERE id = ? AND owner_id = ? AND archived_at IS NULL`, title, description, request.Visibility, projectID, userID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "保存项目资料失败")
+		return
+	}
+	updated, _ := result.RowsAffected()
+	if updated == 0 {
+		writeError(w, http.StatusBadRequest, "项目不存在或已归档")
+		return
+	}
+	s.writeProjectState(ctx, w, userID, projectID, http.StatusOK)
 }
 
 func (s *server) listProjects(w http.ResponseWriter, r *http.Request, userID uint64) {
@@ -537,6 +583,14 @@ func (s *server) deleteProject(w http.ResponseWriter, r *http.Request, userID ui
 		WHERE source_contract_id IN (SELECT id FROM execution_contracts WHERE project_id = ?)
 		   OR target_contract_id IN (SELECT id FROM execution_contracts WHERE project_id = ?)`, projectID, projectID); err != nil {
 		writeError(w, http.StatusInternalServerError, "删除节点关系失败")
+		return
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE m FROM node_conversation_messages m JOIN node_conversations c ON c.id = m.conversation_id WHERE c.project_id = ?`, projectID); err != nil {
+		writeError(w, http.StatusInternalServerError, "删除节点对话消息失败")
+		return
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM node_conversations WHERE project_id = ?`, projectID); err != nil {
+		writeError(w, http.StatusInternalServerError, "删除节点对话失败")
 		return
 	}
 	statements := []string{
@@ -1043,13 +1097,6 @@ func uniqueNonEmpty(values []string) []string {
 	return result
 }
 
-type storedExecutionNode struct {
-	ID                 string
-	ParentContractID   string
-	SourceContractIDs  []string
-	CompletionRecordID string
-}
-
 func (s *server) lockExecutionNode(w http.ResponseWriter, r *http.Request, userID uint64, projectID, nodeID string) {
 	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
 	defer cancel()
@@ -1108,16 +1155,9 @@ func (s *server) lockExecutionNode(w http.ResponseWriter, r *http.Request, userI
 		writeError(w, http.StatusBadRequest, "节点没有可锁定的 AI 审查记录")
 		return
 	}
-	coveredNodes, err := loadNodesForCoverage(ctx, tx, projectID)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "读取节点覆盖范围失败")
-		return
-	}
-	coveredIDs := collectCoverageNodeIDs(nodeID, coveredNodes)
-	if len(coveredIDs) == 0 {
-		writeError(w, http.StatusBadRequest, "无法确定本次锁定的节点范围")
-		return
-	}
+	// A completion review currently assesses one frozen node. Never infer an
+	// ancestor scope from graph topology: that could lock evidence AI never saw.
+	coveredIDs := []string{nodeID}
 
 	createdAt := time.Now()
 	verdict := map[string]any{}
@@ -1179,6 +1219,10 @@ func (s *server) lockExecutionNode(w http.ResponseWriter, r *http.Request, userI
 			return
 		}
 	}
+	if _, err := tx.ExecContext(ctx, `UPDATE node_conversations SET status = 'closed' WHERE project_id = ? AND node_id = ? AND owner_id = ? AND phase = 'completion' AND status = 'active'`, projectID, nodeID, userID); err != nil {
+		writeError(w, http.StatusInternalServerError, "关闭节点审查对话失败")
+		return
+	}
 	if _, err := tx.ExecContext(ctx, `UPDATE execution_contracts SET user_verdict_json = ?, review_messages_json = ? WHERE id = ?`, verdictJSON, updatedMessagesJSON, nodeID); err != nil {
 		writeError(w, http.StatusInternalServerError, "保存节点确认失败")
 		return
@@ -1197,59 +1241,6 @@ func (s *server) lockExecutionNode(w http.ResponseWriter, r *http.Request, userI
 		return
 	}
 	s.writeProjectState(ctx, w, userID, projectID, http.StatusOK)
-}
-
-func loadNodesForCoverage(ctx context.Context, tx *sql.Tx, projectID string) (map[string]storedExecutionNode, error) {
-	rows, err := tx.QueryContext(ctx, `SELECT id, parent_contract_id, source_contract_ids_json, completion_record_id FROM execution_contracts WHERE project_id = ?`, projectID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	nodes := make(map[string]storedExecutionNode)
-	for rows.Next() {
-		var node storedExecutionNode
-		var parentID, sourceIDs, completionID sql.NullString
-		if err := rows.Scan(&node.ID, &parentID, &sourceIDs, &completionID); err != nil {
-			return nil, err
-		}
-		node.ParentContractID = parentID.String
-		node.CompletionRecordID = completionID.String
-		if sourceIDs.Valid {
-			_ = json.Unmarshal([]byte(sourceIDs.String), &node.SourceContractIDs)
-		}
-		if len(node.SourceContractIDs) == 0 && node.ParentContractID != "" {
-			node.SourceContractIDs = []string{node.ParentContractID}
-		}
-		nodes[node.ID] = node
-	}
-	return nodes, rows.Err()
-}
-
-func collectCoverageNodeIDs(closingNodeID string, nodes map[string]storedExecutionNode) []string {
-	covered := make(map[string]struct{})
-	var visit func(string)
-	visit = func(id string) {
-		node, exists := nodes[id]
-		if !exists {
-			return
-		}
-		if _, visited := covered[id]; visited {
-			return
-		}
-		if node.CompletionRecordID != "" {
-			return
-		}
-		covered[id] = struct{}{}
-		for _, sourceID := range node.SourceContractIDs {
-			visit(sourceID)
-		}
-	}
-	visit(closingNodeID)
-	ids := make([]string, 0, len(covered))
-	for id := range covered {
-		ids = append(ids, id)
-	}
-	return ids
 }
 
 func (s *server) handleSmartContracts(w http.ResponseWriter, r *http.Request) {

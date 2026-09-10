@@ -2,10 +2,10 @@ import { Archive, ArchiveRestore, ArrowRight, Bot, CheckCircle2, Compass, Eye, F
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ContractComposer } from '../components/ContractComposer'
-import { NodeCard } from '../components/NodeCard'
 import { ProjectGraph } from '../components/ProjectGraph'
 import { SectionHeader } from '../components/SectionHeader'
 import { StatusBadge } from '../components/StatusBadge'
+import { currentContractIDs, isAcceptedRecord, isReadyToProgress, isReviewInProgress, isSealedRecord, needsReviewDecision } from '../lib/execution'
 import { useExecStore } from '../store/useExecStore'
 import type { CompletionRecord, ExecutionBranch, ExecutionContract, Project } from '../types'
 
@@ -110,10 +110,10 @@ export function ProjectPage() {
     .map((branch) => ({ branch, contract: contracts.find((contract) => contract.id === branch.currentContractId) }))
     .filter((item): item is { branch: ExecutionBranch; contract: ExecutionContract } => Boolean(item.contract))
   const mergeSources = branches
-    .map((branch) => contracts.find((contract) => contract.id === branch.headContractId && contract.completionRecordId))
+    .map((branch) => contracts.find((contract) => contract.id === branch.headContractId && contract.stage === 'completed' && contract.completionRecordId))
     .filter((contract): contract is ExecutionContract => Boolean(contract))
     .filter((contract, index, list) => list.findIndex((item) => item.id === contract.id) === index)
-  const latestRecord = sortedCompletionRecords.at(-1)
+  const latestRecord = sortedCompletionRecords.filter(isAcceptedRecord).at(-1)
   const latestCompleted = latestRecord ? contracts.find((contract) => contract.id === latestRecord.closingContractId) : undefined
   const requestedTab = projectTabFrom(searchParams.get('tab'))
   const activeTab = requestedParent || requestedClosure ? 'nodes' : requestedTab
@@ -131,7 +131,7 @@ export function ProjectPage() {
           <h1 className="mt-3 font-display text-4xl font-semibold leading-tight text-ink">{project.title}</h1>
           <p className="mt-3 max-w-3xl text-base leading-7 text-graphite">{project.description}</p>
           <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold text-graphite">
-            <span>{completionRecords.filter((record) => record.recordKind === 'accepted').length} 条已验收成果</span>
+            <span>{completionRecords.filter(isAcceptedRecord).length} 条已验收成果</span>
             <span>{unlockedContracts.length} 个未闭合行动</span>
             {branches.length > 0 ? <span>{branches.length} 条行为路径</span> : null}
           </div>
@@ -159,7 +159,6 @@ export function ProjectPage() {
             project={project}
             contracts={contracts}
             activeBranchContracts={activeBranchContracts}
-            showComposer={!isArchived && !requestedParent && !currentContract && activeBranchContracts.length === 0}
           />
 
           {branches.length > 1 ? <ConvergenceGate project={project} branches={branches} sources={mergeSources} /> : null}
@@ -179,9 +178,9 @@ export function ProjectPage() {
           onUpdateProject={(input) => updateProject(project.id, input)}
           onArchive={() => archiveProject(project.id)}
           onRestore={() => restoreProject(project.id)}
-          onDelete={() => {
-            deleteProject(project.id)
-            navigate('/')
+          onDelete={async () => {
+            const result = await deleteProject(project.id)
+            if (result.success) navigate('/')
           }}
         />
       ) : null}
@@ -193,7 +192,7 @@ export function ProjectPage() {
   )
 }
 
-function ProjectAISettings({ project, accessToken, isArchived, onUpdated }: { project: Project; accessToken: string; isArchived: boolean; onUpdated: () => Promise<void> }) {
+function ProjectAISettings({ project, accessToken, isArchived, onUpdated }: { project: Project; accessToken: string; isArchived: boolean; onUpdated: () => Promise<unknown> }) {
   const [keys, setKeys] = useState<ProjectAIKey[]>([])
   const [selectedKeyID, setSelectedKeyID] = useState(project.reviewAIKeyId ?? '')
   const [isLoading, setIsLoading] = useState(Boolean(accessToken))
@@ -363,15 +362,12 @@ type QueueListProps = {
   empty: string
 }
 
-function ProjectQueues({ project, contracts, activeBranchContracts, showComposer }: { project: Project; contracts: ExecutionContract[]; activeBranchContracts: Array<{ branch: ExecutionBranch; contract: ExecutionContract }>; showComposer: boolean }) {
-  const currentContractIds = new Set([
-    project.currentContractId ?? '',
-    ...activeBranchContracts.map(({ contract }) => contract.id),
-  ])
+function ProjectQueues({ project, contracts, activeBranchContracts }: { project: Project; contracts: ExecutionContract[]; activeBranchContracts: Array<{ branch: ExecutionBranch; contract: ExecutionContract }> }) {
+  const currentContractIds = currentContractIDs([project], activeBranchContracts.map(({ branch }) => branch))
   const currentContracts = contracts.filter((contract) => currentContractIds.has(contract.id))
-  const pendingProgress = currentContracts.filter((contract) => !contract.completionRecordId && contract.stage === 'frozen' && !contract.completionClaim)
-  const awaitingConfirmation = currentContracts.filter((contract) => !contract.completionRecordId && (contract.stage === 'verified' || contract.stage === 'needs_supplement'))
-  const reviewing = currentContracts.filter((contract) => !contract.completionRecordId && contract.stage === 'frozen' && Boolean(contract.completionClaim) && !contract.aiReview)
+  const pendingProgress = currentContracts.filter((contract) => !contract.completionRecordId && isReadyToProgress(contract))
+  const awaitingConfirmation = currentContracts.filter((contract) => !contract.completionRecordId && needsReviewDecision(contract))
+  const reviewing = currentContracts.filter((contract) => !contract.completionRecordId && isReviewInProgress(contract))
 
   return (
     <section className="space-y-5 border-y border-rail py-8" aria-labelledby="project-queues-title">
@@ -395,13 +391,6 @@ function ProjectQueues({ project, contracts, activeBranchContracts, showComposer
         </QueueList> : null}
         {pendingProgress.length + awaitingConfirmation.length + reviewing.length === 0 ? <p className="px-5 py-4 text-sm text-graphite">当前没有需要处理的行动。</p> : null}
       </div>
-
-      {showComposer ? (
-        <div id="new-node" className="grid gap-7 border-t border-rail pt-7 xl:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)]">
-          <FlowIntroduction icon={FileCheck2} title={contracts.length > 0 ? '开始下一项推进' : '创建第一项推进'} />
-          <ContractComposer projectId={project.id} lockProject />
-        </div>
-      ) : null}
     </section>
   )
 }
@@ -452,12 +441,12 @@ function ProjectRecords({ records, contracts }: { records: CompletionRecord[]; c
     <section className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <SectionHeader eyebrow="Project records" title="项目记录" />
-        <span className="text-sm font-semibold text-graphite">{records.filter((record) => record.recordKind === 'accepted').length} 条已验收 · {records.filter((record) => record.recordKind === 'sealed').length} 条已封存</span>
+        <span className="text-sm font-semibold text-graphite">{records.filter(isAcceptedRecord).length} 条已验收 · {records.filter(isSealedRecord).length} 条已封存</span>
       </div>
       {records.length > 0 ? (
         <div className="border-y border-rail bg-surface">
           {records.slice().reverse().map((record) => {
-            const isAccepted = record.recordKind === 'accepted'
+            const isAccepted = isAcceptedRecord(record)
             const closingNode = contracts.find((contract) => contract.id === record.closingContractId)
             return (
               <Link key={record.id} to={`/contracts/${record.closingContractId}?tab=completion`} className="group grid gap-4 border-b border-rail px-5 py-5 last:border-b-0 transition hover:bg-shell/45 focus:outline-none focus-visible:shadow-focusline lg:grid-cols-[104px_minmax(0,1fr)_240px_auto] lg:items-start">
@@ -533,7 +522,17 @@ function ProjectWorkstation({ project, contracts, currentContract, activeBranchC
           <h2 className="mt-3 font-display text-3xl font-semibold leading-tight text-ink">从最近完成记录继续</h2>
           <p className="mt-3 max-w-md text-sm leading-6 text-graphite">完成记录只锁定已经闭合的范围，下一项行动仍会作为新的节点加入链上。</p>
         </div>
-        <NodeCard node={latestCompleted} actionLabel="查看收束节点" />
+        <ContractComposer projectId={project.id} lockProject parentContractId={latestCompleted.id} />
+      </section>
+    )
+  }
+
+  if (contracts.length > 0) {
+    return (
+      <section className="border-y border-rail py-8">
+        <div className="max-w-2xl border-l-2 border-graphite py-2 pl-4 text-sm leading-6 text-graphite">
+          这个项目目前没有可接续的已验收行动。已封存的节点会保留证据，但不能作为下一项推进的来源。
+        </div>
       </section>
     )
   }
@@ -634,10 +633,10 @@ function ProjectProfileSettings({
 }: {
   project: Project
   isArchived: boolean
-  onUpdateProject: (input: { title: string; description: string; visibility: Project['visibility'] }) => void
-  onArchive: () => void
-  onRestore: () => void
-  onDelete: () => void
+  onUpdateProject: (input: { title: string; description: string; visibility: Project['visibility'] }) => Promise<{ success: boolean; message?: string }>
+  onArchive: () => Promise<{ success: boolean; message?: string }>
+  onRestore: () => Promise<{ success: boolean; message?: string }>
+  onDelete: () => Promise<void>
 }) {
   return (
     <div className="grid max-w-3xl gap-4">
@@ -651,20 +650,20 @@ function ProjectProfileSettings({
   )
 }
 
-function ProjectDetailsSettings({ project, onSave }: { project: Project; onSave: (input: { title: string; description: string; visibility: Project['visibility'] }) => void }) {
+function ProjectDetailsSettings({ project, onSave }: { project: Project; onSave: (input: { title: string; description: string; visibility: Project['visibility'] }) => Promise<{ success: boolean; message?: string }> }) {
   const [title, setTitle] = useState(project.title)
   const [description, setDescription] = useState(project.description)
   const [visibility, setVisibility] = useState<Project['visibility']>(project.visibility)
   const [message, setMessage] = useState('')
 
-  const save = (event: FormEvent<HTMLFormElement>) => {
+  const save = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!title.trim() || !description.trim()) {
       setMessage('项目名称和描述不能为空。')
       return
     }
-    onSave({ title, description, visibility })
-    setMessage('项目资料已更新。')
+    const result = await onSave({ title, description, visibility })
+    setMessage(result.success ? '项目资料已更新。' : (result.message ?? '项目资料更新失败。'))
   }
 
   return (

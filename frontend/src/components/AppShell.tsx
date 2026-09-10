@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { BrandLogo } from './BrandLogo'
+import { currentContractIDs, isAcceptedRecord, isReviewInProgress, needsReviewDecision } from '../lib/execution'
 import { applyTheme, type ThemeMode } from '../lib/theme'
 import { useExecStore } from '../store/useExecStore'
 import type { Actor, CompletionRecord, ExecutionBranch, ExecutionContract, Project } from '../types'
@@ -53,12 +54,7 @@ type ProjectStatus = {
 function projectStatus(project: Project, contracts: ExecutionContract[], branches: ExecutionBranch[]): ProjectStatus {
   if (project.archivedAt) return { label: '只读项目', dotClassName: 'bg-graphite/45' }
 
-  const currentIds = new Set([
-    project.currentContractId ?? '',
-    ...branches
-      .filter((branch) => branch.projectId === project.id)
-      .map((branch) => branch.currentContractId ?? ''),
-  ])
+  const currentIds = currentContractIDs([project], branches)
   const currentContracts = contracts.filter(
     (contract) => contract.projectId === project.id && currentIds.has(contract.id) && !contract.completionRecordId,
   )
@@ -66,10 +62,10 @@ function projectStatus(project: Project, contracts: ExecutionContract[], branche
   if (currentContracts.length > 1) return { label: `${currentContracts.length} 条路径待处理`, dotClassName: 'bg-signal' }
   const currentContract = currentContracts[0]
   if (!currentContract) return { label: '可以开始下一项', dotClassName: 'bg-graphite/35' }
-  if (currentContract.stage === 'verified' || currentContract.stage === 'needs_supplement') {
+  if (needsReviewDecision(currentContract)) {
     return { label: '待确认 AI 结果', dotClassName: 'bg-moss' }
   }
-  if (currentContract.completionClaim && !currentContract.aiReview) {
+  if (isReviewInProgress(currentContract)) {
     return { label: '智能合约审核中', dotClassName: 'bg-signal' }
   }
   return { label: '待推进', dotClassName: 'bg-signal' }
@@ -325,7 +321,7 @@ export function AppShell() {
   const publicProjectIds = new Set(publicProjects.map((project) => project.id))
   const publicCompleted = completionRecords
     .filter((record) => publicProjectIds.has(record.projectId))
-    .filter((record) => record.recordKind === 'accepted')
+    .filter(isAcceptedRecord)
     .filter((record) => contracts.find((contract) => contract.id === record.closingContractId)?.actorId === currentActorId)
   const activeDays = new Set(publicCompleted.map((record) => new Date(record.createdAt).toDateString())).size
 
@@ -341,7 +337,7 @@ export function AppShell() {
 
   const cardProject = activeProject ?? activeProjects.find((project) => project.currentContractId) ?? activeProjects[0]
   const cardProjectStatus = cardProject ? projectStatus(cardProject, contracts, branches) : undefined
-  const cardProjectRecordCount = cardProject ? completionRecords.filter((record) => record.projectId === cardProject.id && record.recordKind === 'accepted').length : 0
+  const cardProjectRecordCount = cardProject ? completionRecords.filter((record) => record.projectId === cardProject.id && isAcceptedRecord(record)).length : 0
   const cardProjectBranchCount = cardProject ? branches.filter((branch) => branch.projectId === cardProject.id).length : 0
 
   return (

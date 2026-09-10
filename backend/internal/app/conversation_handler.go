@@ -121,6 +121,16 @@ func (s *server) createPlanningConversation(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	contextJSON, _ := jsonValue(map[string]any{"project": map[string]string{"title": title, "description": description, "rules": rules}, "relation": input})
+	var existing string
+	err := s.db.QueryRowContext(ctx, `SELECT id FROM node_conversations WHERE project_id = ? AND owner_id = ? AND phase = 'planning' AND status IN ('active', 'ready_for_freeze') AND context_json = ? ORDER BY updated_at DESC LIMIT 1`, projectID, userID, contextJSON).Scan(&existing)
+	if err == nil {
+		s.getConversation(w, r, userID, existing)
+		return
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		writeError(w, http.StatusInternalServerError, "读取目标对话失败")
+		return
+	}
 	id, err := newOpaqueID("conversation")
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "创建对话失败")
@@ -137,7 +147,7 @@ func (s *server) createCompletionConversation(w http.ResponseWriter, r *http.Req
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 	var existing string
-	err := s.db.QueryRowContext(ctx, `SELECT id FROM node_conversations WHERE project_id = ? AND node_id = ? AND owner_id = ? AND phase = 'completion' ORDER BY updated_at DESC LIMIT 1`, projectID, nodeID, userID).Scan(&existing)
+	err := s.db.QueryRowContext(ctx, `SELECT id FROM node_conversations WHERE project_id = ? AND node_id = ? AND owner_id = ? AND phase = 'completion' AND status = 'active' ORDER BY updated_at DESC LIMIT 1`, projectID, nodeID, userID).Scan(&existing)
 	if err == nil {
 		s.getConversation(w, r, userID, existing)
 		return
@@ -158,7 +168,7 @@ func (s *server) createCompletionConversation(w http.ResponseWriter, r *http.Req
 		writeError(w, http.StatusNotFound, "节点不存在")
 		return
 	}
-	if stage == "completed" {
+	if stage == "completed" || stage == "sealed" {
 		writeError(w, http.StatusBadRequest, "节点已锁定，不能继续审查")
 		return
 	}
@@ -323,10 +333,6 @@ func (s *server) sendConversationMessage(w http.ResponseWriter, r *http.Request,
 		if strings.TrimSpace(output.Reply) == "" {
 			output.Reply = output.Review.Summary
 		}
-		if err := s.persistAssistantConversationMessage(ctx, conversationID, output.Reply, mustJSON(output), key.snapshot()); err != nil {
-			writeError(w, http.StatusInternalServerError, "保存 AI 回复失败")
-			return
-		}
 		reviewID, err := newOpaqueID("review")
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "生成审查编号失败")
@@ -339,21 +345,68 @@ func (s *server) sendConversationMessage(w http.ResponseWriter, r *http.Request,
 		if review.Verdict == "pass" {
 			stage = "verified"
 		}
-		if _, err := s.db.ExecContext(ctx, `UPDATE node_conversations SET latest_review_json = ?, ai_config_json = ? WHERE id = ?`, reviewJSON, mustJSON(key.snapshot()), conversationID); err != nil {
-			writeError(w, http.StatusInternalServerError, "保存审查结果失败")
-			return
-		}
-		if conversation.NodeID != nil {
-			messagesJSON, _ := jsonValue(conversationToLegacyMessages(conversation.Messages, output.Reply))
-			_, err = s.db.ExecContext(ctx, `UPDATE execution_contracts SET stage = ?, completion_claim = ?, evidence_text = ?, ai_review_json = ?, completion_review_ai_config_json = ?, review_messages_json = ? WHERE id = ?`, stage, input.Body, input.Body, reviewJSON, mustJSON(key.snapshot()), messagesJSON, *conversation.NodeID)
-			if err != nil {
-				writeError(w, http.StatusInternalServerError, "同步节点审查结果失败")
+		if err := s.persistCompletionReview(ctx, userID, conversation, conversationID, input.Body, output, reviewJSON, key.snapshot(), stage); err != nil {
+			if errors.Is(err, errConversationNoLongerMutable) {
+				writeError(w, http.StatusConflict, "节点已锁定或审查对话已结束，本轮 AI 结果未写入")
 				return
 			}
+			writeError(w, http.StatusInternalServerError, "保存审查结果失败")
+			return
 		}
 	}
 	_, _ = s.db.ExecContext(ctx, `UPDATE ai_api_keys SET last_used_at = NOW() WHERE id = ? AND user_id = ?`, key.ID, userID)
 	s.getConversation(w, r, userID, conversationID)
+}
+
+var errConversationNoLongerMutable = errors.New("conversation no longer mutable")
+
+// The model request happens outside a transaction. Recheck every mutable resource
+// before writing its result so a user lock cannot be overwritten by a late response.
+func (s *server) persistCompletionReview(ctx context.Context, userID uint64, conversation conversationResponse, conversationID, claim string, output completionConversationOutput, reviewJSON string, config aiConfigSnapshot, stage string) error {
+	if conversation.NodeID == nil {
+		return errConversationNoLongerMutable
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var status string
+	if err := tx.QueryRowContext(ctx, `SELECT status FROM node_conversations WHERE id = ? AND owner_id = ? FOR UPDATE`, conversationID, userID).Scan(&status); err != nil {
+		return errConversationNoLongerMutable
+	}
+	if status != "active" {
+		return errConversationNoLongerMutable
+	}
+	var nodeStage string
+	var linkedConversation sql.NullString
+	if err := tx.QueryRowContext(ctx, `SELECT stage, completion_conversation_id FROM execution_contracts WHERE id = ? FOR UPDATE`, *conversation.NodeID).Scan(&nodeStage, &linkedConversation); err != nil {
+		return errConversationNoLongerMutable
+	}
+	if (nodeStage != "frozen" && nodeStage != "verified" && nodeStage != "needs_supplement") || !linkedConversation.Valid || linkedConversation.String != conversationID {
+		return errConversationNoLongerMutable
+	}
+	messageID, err := newOpaqueID("message")
+	if err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO node_conversation_messages (id, conversation_id, role, body, structured_payload_json, ai_config_json) VALUES (?, ?, 'assistant', ?, ?, ?)`, messageID, conversationID, output.Reply, mustJSON(output), mustJSON(config)); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE node_conversations SET latest_review_json = ?, ai_config_json = ? WHERE id = ? AND status = 'active'`, reviewJSON, mustJSON(config), conversationID); err != nil {
+		return err
+	}
+	messagesJSON, _ := jsonValue(conversationToLegacyMessages(conversation.Messages, output.Reply))
+	result, err := tx.ExecContext(ctx, `UPDATE execution_contracts SET stage = ?, completion_claim = ?, evidence_text = ?, ai_review_json = ?, completion_review_ai_config_json = ?, review_messages_json = ? WHERE id = ? AND completion_conversation_id = ? AND stage IN ('frozen', 'verified', 'needs_supplement')`, stage, claim, claim, reviewJSON, mustJSON(config), messagesJSON, *conversation.NodeID, conversationID)
+	if err != nil {
+		return err
+	}
+	updated, _ := result.RowsAffected()
+	if updated != 1 {
+		return errConversationNoLongerMutable
+	}
+	return tx.Commit()
 }
 
 func (s *server) persistAssistantConversationMessage(ctx context.Context, conversationID, body, payload string, config aiConfigSnapshot) error {

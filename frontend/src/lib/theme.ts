@@ -37,5 +37,5 @@ export function applyTheme(mode: ThemeMode) {
 
 export function graphColor(token: ThemeColor) {
   const value = getComputedStyle(document.documentElement).getPropertyValue(`--color-${token}`).trim() || fallbacks[token]
-  return `rgb(${value})`
+  return `rgb(${value.trim().split(/\s+/).join(', ')})`
 }
