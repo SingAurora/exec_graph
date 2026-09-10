@@ -245,11 +245,15 @@ func migrateDatabase(ctx context.Context, db *sql.DB) error {
 			rule_hash VARCHAR(128) NOT NULL,
 			review_id VARCHAR(100) NOT NULL,
 			ai_review_verdict VARCHAR(20) NOT NULL,
+			record_kind VARCHAR(20) NOT NULL DEFAULT 'accepted',
 			user_verdict_json LONGTEXT NOT NULL,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			INDEX idx_completion_project (project_id, created_at),
 			INDEX idx_completion_closing (closing_contract_id)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+		`ALTER TABLE completion_records ADD COLUMN record_kind VARCHAR(20) NOT NULL DEFAULT 'accepted' AFTER ai_review_verdict`,
+		`UPDATE completion_records SET record_kind = 'sealed' WHERE ai_review_verdict <> 'pass' AND record_kind = 'accepted'`,
+		`UPDATE execution_contracts n JOIN completion_records r ON r.id = n.completion_record_id SET n.stage = 'sealed' WHERE r.record_kind = 'sealed' AND n.stage = 'completed'`,
 		`CREATE TABLE IF NOT EXISTS ai_api_keys (
 			id VARCHAR(100) NOT NULL PRIMARY KEY,
 			user_id BIGINT UNSIGNED NOT NULL,

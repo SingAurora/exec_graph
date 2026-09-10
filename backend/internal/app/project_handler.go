@@ -130,6 +130,7 @@ type completionRecordResponse struct {
 	RuleHash             string    `json:"ruleHash"`
 	ReviewID             string    `json:"reviewId"`
 	AIReviewVerdict      string    `json:"aiReviewVerdict"`
+	RecordKind           string    `json:"recordKind"`
 	UserVerdict          any       `json:"userVerdict"`
 	CreatedAt            time.Time `json:"createdAt"`
 }
@@ -723,7 +724,7 @@ func (s *server) loadCompletionRecords(ctx context.Context, projectID string) ([
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT id, project_id, closing_contract_id, covered_contract_ids_json, title, summary,
 		       smart_contract_id, smart_contract_version, rule_hash, review_id,
-		       ai_review_verdict, user_verdict_json, created_at
+		       ai_review_verdict, record_kind, user_verdict_json, created_at
 		FROM completion_records WHERE project_id = ? ORDER BY created_at DESC`, projectID)
 	if err != nil {
 		return nil, err
@@ -736,7 +737,7 @@ func (s *server) loadCompletionRecords(ctx context.Context, projectID string) ([
 		if err := rows.Scan(
 			&record.ID, &record.ProjectID, &record.ClosingContractID, &coveredIDs, &record.Title, &record.Summary,
 			&record.SmartContractID, &record.SmartContractVersion, &record.RuleHash, &record.ReviewID,
-			&record.AIReviewVerdict, &userVerdict, &record.CreatedAt,
+			&record.AIReviewVerdict, &record.RecordKind, &userVerdict, &record.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1122,14 +1123,18 @@ func (s *server) lockExecutionNode(w http.ResponseWriter, r *http.Request, userI
 	verdict := map[string]any{}
 	summary := ""
 	message := ""
+	recordKind := "accepted"
+	terminalStage := "completed"
 	if review.Verdict == "pass" {
 		verdict = map[string]any{"result": "confirmed_complete", "note": "我确认 AI 审查通过的结果属实，并签名锁定这次推进覆盖的节点。", "createdAt": createdAt}
 		summary = fmt.Sprintf("智能合约审查通过，并由本人确认；这条完成记录覆盖 %d 个推进节点。", len(coveredIDs))
 		message = "我签名确认：AI 审查通过，并锁定这次推进覆盖的节点。"
 	} else {
-		verdict = map[string]any{"result": "locked_with_ai_failure", "note": "我已看到 AI 审查未通过的结论，仍选择锁定这次推进，并保留该审查结果。", "createdAt": createdAt}
-		summary = fmt.Sprintf("AI 审查未通过，但本人选择锁定；这条记录覆盖 %d 个推进节点。", len(coveredIDs))
-		message = "我已看到 AI 审查未通过，仍签名锁定这次推进覆盖的节点。"
+		recordKind = "sealed"
+		terminalStage = "sealed"
+		verdict = map[string]any{"result": "sealed_with_ai_gap", "note": "我已看到 AI 审查指出的缺口，决定封存这次推进；它不会作为已验收成果使用。", "createdAt": createdAt}
+		summary = fmt.Sprintf("AI 审查仍有缺口，本人决定封存这次推进；保留 %d 个行动节点及其证据，但不记为已验收成果。", len(coveredIDs))
+		message = "我已看到 AI 审查指出的缺口，决定封存这次推进并保留全部证据。"
 	}
 	verdictJSON, err := jsonValue(verdict)
 	if err != nil {
@@ -1162,14 +1167,14 @@ func (s *server) lockExecutionNode(w http.ResponseWriter, r *http.Request, userI
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO completion_records
 			(id, project_id, closing_contract_id, covered_contract_ids_json, title, summary,
-			 smart_contract_id, smart_contract_version, rule_hash, review_id, ai_review_verdict, user_verdict_json)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		recordID, projectID, nodeID, coveredJSON, title, summary, smartContractID, smartContractVersion, ruleHash, review.ID, review.Verdict, verdictJSON); err != nil {
+			 smart_contract_id, smart_contract_version, rule_hash, review_id, ai_review_verdict, record_kind, user_verdict_json)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		recordID, projectID, nodeID, coveredJSON, title, summary, smartContractID, smartContractVersion, ruleHash, review.ID, review.Verdict, recordKind, verdictJSON); err != nil {
 		writeError(w, http.StatusInternalServerError, "写入完成记录失败")
 		return
 	}
 	for _, coveredID := range coveredIDs {
-		if _, err := tx.ExecContext(ctx, `UPDATE execution_contracts SET stage = 'completed', completion_record_id = ? WHERE id = ? AND project_id = ?`, recordID, coveredID, projectID); err != nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE execution_contracts SET stage = ?, completion_record_id = ? WHERE id = ? AND project_id = ?`, terminalStage, recordID, coveredID, projectID); err != nil {
 			writeError(w, http.StatusInternalServerError, "锁定节点失败")
 			return
 		}
@@ -1231,10 +1236,10 @@ func collectCoverageNodeIDs(closingNodeID string, nodes map[string]storedExecuti
 		if _, visited := covered[id]; visited {
 			return
 		}
-		covered[id] = struct{}{}
 		if node.CompletionRecordID != "" {
 			return
 		}
+		covered[id] = struct{}{}
 		for _, sourceID := range node.SourceContractIDs {
 			visit(sourceID)
 		}

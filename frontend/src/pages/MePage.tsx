@@ -37,6 +37,7 @@ export function MePage() {
   const publicProjectIds = new Set(publicProjects.map((project) => project.id))
   const publicCompleted = completionRecords
     .filter((record) => publicProjectIds.has(record.projectId))
+    .filter((record) => record.recordKind === 'accepted')
     .filter((record) => contracts.find((contract) => contract.id === record.closingContractId)?.actorId === currentActorId)
     .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
   const activeDays = new Set(publicCompleted.map((record) => new Date(record.createdAt).toDateString())).size

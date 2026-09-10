@@ -1,4 +1,6 @@
-export type ContractStage = 'frozen' | 'verified' | 'needs_supplement' | 'completed'
+export type ContractStage = 'frozen' | 'verified' | 'needs_supplement' | 'completed' | 'sealed'
+
+export type CompletionRecordKind = 'accepted' | 'sealed'
 
 export type ExecutionNodeKind = 'task' | 'progress'
 
@@ -140,7 +142,7 @@ export type DraftReview = {
 }
 
 export type UserVerdict = {
-  result: 'confirmed_complete' | 'locked_with_ai_failure'
+  result: 'confirmed_complete' | 'sealed_with_ai_gap' | 'locked_with_ai_failure'
   note: string
   createdAt: string
 }
@@ -158,6 +160,7 @@ export type CompletionRecord = {
   ruleHash: string
   reviewId: string
   aiReviewVerdict: ReviewVerdict
+  recordKind: CompletionRecordKind
   userVerdict: UserVerdict
   createdAt: string
 }

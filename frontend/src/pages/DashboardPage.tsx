@@ -1,4 +1,4 @@
-import { Archive, ArrowRight, Bot, CheckCircle2, Eye, FileCheck2, FolderKanban, FolderPlus, ShieldCheck, type LucideIcon } from 'lucide-react'
+import { Archive, ArrowRight, Bot, CheckCircle2, Eye, FileCheck2, FolderKanban, FolderPlus, type LucideIcon } from 'lucide-react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { SectionHeader } from '../components/SectionHeader'
 import { StatusBadge } from '../components/StatusBadge'
@@ -31,7 +31,7 @@ function currentNodeIDs(projects: Project[], branches: ExecutionBranch[]) {
 
 function actionLabel(contract: ExecutionContract) {
   if (contract.stage === 'verified') return '确认 AI 结果'
-  if (contract.stage === 'needs_supplement') return '处理 AI 结果'
+  if (contract.stage === 'needs_supplement') return '处理缺口'
   if (contract.completionClaim && !contract.aiReview) return '查看提交'
   return '提交推进结果'
 }
@@ -56,49 +56,38 @@ export function DashboardPage() {
   const projectByID = new Map(projects.map((project) => [project.id, project]))
 
   return (
-    <div className="space-y-11">
+    <div className="space-y-9">
       <section className="border-b border-rail pb-8">
         <div className="flex flex-wrap items-end justify-between gap-5">
           <div>
-            <div className="font-mono text-xs font-semibold uppercase text-signal">工作总览 / 行为验证</div>
-            <h1 className="mt-3 font-display text-4xl font-semibold leading-tight text-ink">从下一次行动开始</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-graphite">先确认已经返回的审查结论，再处理正在验证和等待推进的节点。</p>
+            <div className="font-mono text-xs font-semibold uppercase text-signal">工作总览</div>
+            <h1 className="mt-3 font-display text-4xl font-semibold leading-tight text-ink">现在该处理什么</h1>
           </div>
           <Link to="/projects/new" className="inline-flex h-10 items-center gap-2 rounded-md bg-signal px-3 text-sm font-semibold text-white transition hover:bg-signalStrong focus:outline-none focus-visible:shadow-focusline">
             <FolderPlus size={16} aria-hidden="true" />
             新建项目
           </Link>
         </div>
-        <dl className="mt-8 grid grid-cols-2 divide-x divide-rail border-y border-rail sm:grid-cols-4">
-          <DashboardMetric label="进行中的项目" value={activeProjects.length} />
-          <DashboardMetric label="等待推进" value={progress.length} />
-          <DashboardMetric label="AI 审核中" value={reviewing.length} />
-          <DashboardMetric label="等待确认" value={awaiting.length} />
-        </dl>
       </section>
 
       <section className="space-y-5" aria-labelledby="global-queue-title">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <SectionHeader eyebrow="需要处理" title="验证队列" />
+          <SectionHeader eyebrow="需要处理" title="当前行动" />
           <span className="text-sm font-semibold text-graphite">{currentNodes.length} 个当前节点</span>
         </div>
         <div className="border-y border-rail bg-surface">
-          <NodeQueue kind="awaiting" contracts={awaiting} projects={projectByID} />
-          <NodeQueue kind="reviewing" contracts={reviewing} projects={projectByID} />
-          <NodeQueue kind="progress" contracts={progress} projects={projectByID} />
+          {currentNodes.length > 0 ? <>
+            <NodeQueue kind="awaiting" contracts={awaiting} projects={projectByID} />
+            <NodeQueue kind="reviewing" contracts={reviewing} projects={projectByID} />
+            <NodeQueue kind="progress" contracts={progress} projects={projectByID} />
+          </> : <p className="px-5 py-4 text-sm text-graphite">暂时没有待处理行动。新建项目后，从第一项推进开始。</p>}
         </div>
       </section>
 
       <section className="space-y-4 border-t border-rail pt-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <SectionHeader eyebrow="所有项目" title="我的项目" />
-          <div className="flex flex-wrap items-center gap-3">
-            <Link to="/smart-contracts" className="inline-flex h-10 items-center gap-2 border border-rail bg-surface/72 px-3 text-sm font-semibold text-ink transition hover:border-graphite/50 focus:outline-none focus-visible:shadow-focusline">
-              <ShieldCheck size={16} aria-hidden="true" />
-              管理智能合约
-            </Link>
-            <span className="text-sm font-semibold text-graphite">{completionRecords.length} 条完成记录</span>
-          </div>
+          <span className="text-sm font-semibold text-graphite">{completionRecords.filter((record) => record.recordKind === 'accepted').length} 条已验收成果</span>
         </div>
         <div className="border-y border-rail bg-surface">
           {projects.map((project) => <ProjectCard key={project.id} project={project} />)}
@@ -108,20 +97,11 @@ export function DashboardPage() {
   )
 }
 
-function DashboardMetric({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="min-w-0 px-4 py-4 first:pl-0 sm:px-5 sm:first:pl-0">
-      <dt className="truncate text-xs font-semibold text-graphite">{label}</dt>
-      <dd className="mt-1 font-display text-3xl font-semibold text-ink">{value}</dd>
-    </div>
-  )
-}
-
 function NodeQueue({ kind, contracts, projects }: { kind: QueueKind; contracts: ExecutionContract[]; projects: Map<string, Project> }) {
   const copy = queueCopy[kind]
   const Icon = copy.icon
   return (
-    <section className="min-w-0 border-b border-rail last:border-b-0" aria-label={copy.title}>
+    <section className={`min-w-0 border-b border-rail last:border-b-0 ${contracts.length === 0 ? 'hidden' : ''}`} aria-label={copy.title}>
       <div className="flex items-center justify-between gap-3 px-5 py-4">
         <div className="flex min-w-0 items-center gap-2">
           <Icon size={16} className={`shrink-0 ${copy.accentClassName}`} aria-hidden="true" />
@@ -165,7 +145,7 @@ function ProjectCard({ project }: { project: Project }) {
   const completionRecords = useExecStore((state) => state.completionRecords)
   const branches = useExecStore((state) => state.branches)
   const projectContracts = contracts.filter((contract) => contract.projectId === project.id)
-  const projectRecords = completionRecords.filter((record) => record.projectId === project.id)
+  const projectRecords = completionRecords.filter((record) => record.projectId === project.id && record.recordKind === 'accepted')
   const isArchived = Boolean(project.archivedAt)
   const currentContract = contracts.find((contract) => contract.id === project.currentContractId)
   const activeBranches = branches.filter((branch) => branch.projectId === project.id && branch.currentContractId)
@@ -185,7 +165,7 @@ function ProjectCard({ project }: { project: Project }) {
       <p className="line-clamp-2 text-sm leading-6 text-graphite">{project.description}</p>
       <div className="text-xs leading-5 text-graphite">
         <div className="font-semibold text-ink">{project.projectType === 'guided' ? '规则引导 · AI 动态出具行动合约' : '自主推进 · 平台基础规则'}</div>
-        <div className="mt-1">{projectRecords.length} 条完成记录 · {pendingContracts} 个当前待处理节点</div>
+        <div className="mt-1">{projectRecords.length} 条验收成果 · {pendingContracts} 个当前待处理节点</div>
       </div>
       <div className="flex items-center justify-between gap-3 text-sm font-semibold text-ink">
         <span className="truncate">{isArchived ? '项目已归档，只读' : currentContract ? `当前：${currentContract.title}` : branchStatus}</span>

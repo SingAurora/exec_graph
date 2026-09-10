@@ -14,8 +14,12 @@ const stageMeta: Record<ContractStage, { label: string; className: string }> = {
     className: 'border-clay/40 bg-clay/12 text-clay',
   },
   completed: {
-    label: '锁定',
+    label: '已验收',
     className: 'border-moss/40 bg-moss/12 text-moss',
+  },
+  sealed: {
+    label: '已封存',
+    className: 'border-graphite/30 bg-shell text-graphite',
   },
 }
 

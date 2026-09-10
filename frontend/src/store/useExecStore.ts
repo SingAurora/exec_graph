@@ -482,16 +482,17 @@ const ensureCompletionRecords = (allContracts: ExecutionContract[], existingReco
     ...record,
     aiReviewVerdict:
       record.aiReviewVerdict ?? allContracts.find((contract) => contract.aiReview?.id === record.reviewId)?.aiReview?.verdict ?? 'pass',
+    recordKind: record.recordKind ?? (record.aiReviewVerdict === 'pass' ? 'accepted' : 'sealed'),
   }))
   const recordById = new Map(records.map((record) => [record.id, record]))
   const updatedContracts = allContracts.map((contract) => {
     const record = records.find((item) => item.coveredContractIds.includes(contract.id))
-    return record ? { ...contract, stage: 'completed' as const, completionRecordId: record.id } : contract
+    return record ? { ...contract, stage: record.recordKind === 'sealed' ? ('sealed' as const) : ('completed' as const), completionRecordId: record.id } : contract
   })
 
   updatedContracts
     .forEach((contract) => {
-      if (contract.stage !== 'completed' || !contract.aiReview || !contract.userVerdict) return
+      if ((contract.stage !== 'completed' && contract.stage !== 'sealed') || !contract.aiReview || !contract.userVerdict) return
       if (contract.completionRecordId && recordById.has(contract.completionRecordId)) return
       const recordId = `record-${contract.id}`
       if (recordById.has(recordId)) return
@@ -504,12 +505,13 @@ const ensureCompletionRecords = (allContracts: ExecutionContract[], existingReco
         summary:
           contract.aiReview.verdict === 'pass'
             ? '智能合约审查通过，并由本人确认写入完成记录。'
-            : 'AI 审查未通过，但本人选择锁定这次推进；审查结论和锁定行为均已记录。',
+            : 'AI 审查仍有缺口，本人决定封存这次推进；审查结论和行动证据均已保留。',
         smartContractId: contract.smartContractId,
         smartContractVersion: contract.smartContractVersion,
         ruleHash: contract.ruleHash,
         reviewId: contract.aiReview.id,
         aiReviewVerdict: contract.aiReview.verdict,
+        recordKind: contract.aiReview.verdict === 'pass' ? 'accepted' : 'sealed',
         userVerdict: contract.userVerdict,
         createdAt: contract.userVerdict.createdAt,
       }
@@ -524,7 +526,7 @@ const ensureCompletionRecords = (allContracts: ExecutionContract[], existingReco
       const record = contract.completionRecordId
         ? completedByRecord.get(contract.completionRecordId)
         : records.find((item) => item.coveredContractIds.includes(contract.id))
-      return record ? { ...contract, stage: 'completed' as const, completionRecordId: record.id } : contract
+      return record ? { ...contract, stage: record.recordKind === 'sealed' ? ('sealed' as const) : ('completed' as const), completionRecordId: record.id } : contract
     }),
     completionRecords: records,
   }
@@ -596,6 +598,7 @@ const migrateContract = (contract: LegacyContract, migratedProjects: Project[]):
     verified: 'verified',
     needs_supplement: 'needs_supplement',
     completed: 'completed',
+    sealed: 'sealed',
     task: 'frozen',
   }
   const stage = stageMap[contract.stage ?? 'frozen'] ?? 'frozen'
@@ -629,7 +632,7 @@ const migrateContract = (contract: LegacyContract, migratedProjects: Project[]):
       makeRuleHash(`${projectId}|${projectRevision.id}|${smartContractId}@${smartContractVersion}|${contract.verifiableGoal ?? ''}|${acceptanceCriteria.map((item) => item.text).join('|')}|${evidenceRequirement}`),
     acceptanceCriteria,
     evidenceRequirement,
-    userVerdict: stage === 'completed' ? contract.userVerdict : undefined,
+    userVerdict: stage === 'completed' || stage === 'sealed' ? contract.userVerdict : undefined,
   }
 }
 
