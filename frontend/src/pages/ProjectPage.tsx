@@ -1,4 +1,4 @@
-import { Archive, ArchiveRestore, ArrowRight, Bot, CheckCircle2, Compass, Eye, FileCheck2, GitBranchPlus, GitFork, GitMerge, ListChecks, LockKeyhole, Settings2, Trash2, type LucideIcon } from 'lucide-react'
+import { Archive, ArchiveRestore, ArrowRight, Bot, CheckCircle2, Compass, Eye, FileCheck2, GitBranchPlus, GitFork, GitMerge, ListChecks, LockKeyhole, Settings2, Trash2, UsersRound, type LucideIcon } from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ContractComposer } from '../components/ContractComposer'
@@ -154,6 +154,8 @@ export function ProjectPage() {
       {activeTab === 'nodes' ? (
         <>
           {isArchived ? <ArchivedProjectNotice /> : <ProjectWorkstation project={project} contracts={contracts} currentContract={currentContract} activeBranchContracts={activeBranchContracts} latestCompleted={latestCompleted} requestedParent={requestedParent} requestedClosure={requestedClosure} requestedBranch={requestedBranch} isFork={isFork} />}
+
+          {project.visibility === 'public' && currentContract?.stage === 'frozen' ? <ProjectCollaborationPublisher projectId={project.id} node={currentContract} accessToken={accessToken} /> : null}
 
           <ProjectQueues
             project={project}
@@ -558,6 +560,24 @@ function CurrentActionSection({ contract }: { contract: ExecutionContract }) {
       <CurrentActionCard contract={contract} />
     </section>
   )
+}
+
+function ProjectCollaborationPublisher({ projectId, node, accessToken }: { projectId: string; node: ExecutionContract; accessToken: string }) {
+  const [isPublishing, setIsPublishing] = useState(false)
+	const [published, setPublished] = useState(false)
+  const [message, setMessage] = useState('')
+  const publish = async () => {
+    setIsPublishing(true); setMessage('')
+    try {
+      const response = await fetch(`/api/projects/${projectId}/collaboration-calls`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ targetContractId: node.id, title: node.title }) })
+      const data = await response.json().catch(() => ({})) as { error?: string }
+      if (!response.ok) throw new Error(data.error ?? '发布开放缺口失败。')
+		setPublished(true)
+      setMessage('开放缺口已发布，可以在协作探索中接收其他人的成果。')
+    } catch (reason) { setMessage(reason instanceof Error ? reason.message : '发布开放缺口失败。') }
+    finally { setIsPublishing(false) }
+  }
+  return <section className="flex flex-wrap items-center justify-between gap-4 border-y border-rail py-5"><div><div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal"><UsersRound size={15} />公开协作</div><p className="mt-2 text-sm leading-6 text-graphite">把这项冻结行动发布为开放缺口。贡献者只能提交自己的公开已验收成果，最终是否采纳仍由你确认。</p>{message ? <p className="mt-2 text-sm font-semibold text-signal">{message}</p> : null}</div><button type="button" disabled={isPublishing || published} onClick={publish} className="inline-flex h-10 shrink-0 items-center gap-2 border border-signal bg-surface px-3 text-sm font-semibold text-signal disabled:opacity-50"><UsersRound size={16} />{published ? '已发布' : '发布开放缺口'}</button></section>
 }
 
 function CurrentActionCard({ contract }: { contract: ExecutionContract }) {

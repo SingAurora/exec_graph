@@ -271,6 +271,46 @@ func migrateDatabase(ctx context.Context, db *sql.DB) error {
 			INDEX idx_ai_keys_user (user_id, created_at),
 			INDEX idx_ai_keys_default (user_id, is_default)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+		`CREATE TABLE IF NOT EXISTS collaboration_calls (
+			id VARCHAR(100) NOT NULL PRIMARY KEY,
+			project_id VARCHAR(100) NOT NULL,
+			target_contract_id VARCHAR(100) NOT NULL,
+			created_by BIGINT UNSIGNED NOT NULL,
+			title VARCHAR(200) NOT NULL,
+			status VARCHAR(24) NOT NULL DEFAULT 'open',
+			max_submissions INT NOT NULL DEFAULT 10,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			INDEX idx_collaboration_calls_project (project_id, status),
+			INDEX idx_collaboration_calls_target (target_contract_id, status)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+		`CREATE TABLE IF NOT EXISTS collaboration_submissions (
+			id VARCHAR(100) NOT NULL PRIMARY KEY,
+			call_id VARCHAR(100) NOT NULL,
+			source_record_id VARCHAR(100) NOT NULL,
+			contributor_id BIGINT UNSIGNED NOT NULL,
+			mapping_text LONGTEXT NOT NULL,
+			note TEXT NULL,
+			status VARCHAR(24) NOT NULL DEFAULT 'submitted',
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			UNIQUE KEY uq_collaboration_submission (call_id, source_record_id),
+			INDEX idx_collaboration_submissions_call (call_id, status),
+			INDEX idx_collaboration_submissions_contributor (contributor_id, status)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+		`CREATE TABLE IF NOT EXISTS collaboration_review_batches (
+			id VARCHAR(100) NOT NULL PRIMARY KEY,
+			call_id VARCHAR(100) NOT NULL,
+			project_id VARCHAR(100) NOT NULL,
+			target_contract_id VARCHAR(100) NOT NULL,
+			created_by BIGINT UNSIGNED NOT NULL,
+			submission_ids_json LONGTEXT NOT NULL,
+			ai_review_json LONGTEXT NOT NULL,
+			status VARCHAR(24) NOT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			adopted_at DATETIME NULL,
+			INDEX idx_collaboration_batches_call (call_id, created_at)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
 	}
 
 	for _, statement := range statements {

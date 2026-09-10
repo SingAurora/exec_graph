@@ -2,8 +2,9 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Compass, FolderPlus, ListChecks } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { z } from 'zod'
+import { getCall } from '../lib/collaboration'
 import { useExecStore } from '../store/useExecStore'
 
 const projectSchema = z.object({
@@ -30,6 +31,7 @@ type AIKeyOption = {
 
 export function ProjectComposer() {
   const navigate = useNavigate()
+	const [searchParams] = useSearchParams()
   const createProject = useExecStore((state) => state.createProject)
   const accessToken = useExecStore((state) => state.accessToken)
   const [aiKeys, setAIKeys] = useState<AIKeyOption[]>([])
@@ -38,6 +40,7 @@ export function ProjectComposer() {
     register,
     handleSubmit,
     setError,
+    setValue,
     watch,
     formState: { errors },
   } = useForm<ProjectForm>({
@@ -45,6 +48,7 @@ export function ProjectComposer() {
     defaultValues: { title: '', description: '', projectType: 'guided', projectRules: '', aiKeyId: '', visibility: 'private' },
   })
   const projectType = watch('projectType')
+	const contributionCallID = searchParams.get('fromCall')
 
   useEffect(() => {
     if (!accessToken) {
@@ -66,6 +70,19 @@ export function ProjectComposer() {
     void loadAIKeys()
     return () => { cancelled = true }
   }, [accessToken])
+
+	useEffect(() => {
+		if (!contributionCallID || !accessToken) return
+		let cancelled = false
+		getCall(accessToken, contributionCallID).then(({ call }) => {
+			if (cancelled) return
+			setValue('title', `贡献：${call.title}`)
+			setValue('description', `为「${call.projectTitle}」补充「${call.target.title}」所需的可验证成果。`)
+			setValue('projectType', 'autonomous')
+			setValue('visibility', 'public')
+		}).catch(() => undefined)
+		return () => { cancelled = true }
+	}, [accessToken, contributionCallID, setValue])
 
   const onSubmit = async (values: ProjectForm) => {
     try {

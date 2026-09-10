@@ -86,7 +86,19 @@ func (s *server) routes() http.Handler {
 	projects.POST("", gin.WrapF(s.handleProjects))
 	projects.GET("/*path", gin.WrapF(s.handleProjects))
 	projects.POST("/*path", gin.WrapF(s.handleProjects))
+	projects.PATCH("/*path", gin.WrapF(s.handleProjects))
 	projects.DELETE("/*path", gin.WrapF(s.handleProjects))
+
+	explore := api.Group("/explore")
+	explore.GET("/projects", gin.WrapF(s.handleExploreProjects))
+	explore.GET("/projects/:id", gin.WrapF(s.handleExploreProject))
+	explore.GET("/contribution-sources", gin.WrapF(s.handleContributionSources))
+
+	collaboration := api.Group("/collaboration-calls")
+	collaboration.GET("/:id", gin.WrapF(s.handleCollaborationCall))
+	collaboration.POST("/:id/submissions", gin.WrapF(s.handleCollaborationCall))
+	collaboration.POST("/:id/reviews", gin.WrapF(s.handleCollaborationCall))
+	collaboration.POST("/reviews/:id/adopt", gin.WrapF(s.handleCollaborationReview))
 
 	contracts := api.Group("/smart-contracts")
 	contracts.GET("", gin.WrapF(s.handleSmartContracts))

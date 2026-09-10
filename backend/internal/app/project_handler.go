@@ -201,6 +201,10 @@ func (s *server) handleProjects(w http.ResponseWriter, r *http.Request) {
 		s.createExecutionNode(w, r, user.ID, projectID)
 		return
 	}
+	if len(parts) == 2 && parts[1] == "collaboration-calls" {
+		s.handleProjectCollaborationCalls(w, r, user.ID, projectID)
+		return
+	}
 	if len(parts) == 2 && parts[1] == "planning-conversations" && r.Method == http.MethodPost {
 		s.createPlanningConversation(w, r, user.ID, projectID)
 		return
@@ -254,6 +258,17 @@ func (s *server) updateProject(w http.ResponseWriter, r *http.Request, userID ui
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
 	defer cancel()
+	if request.Visibility == "private" {
+		var adoptedCount int
+		if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM collaboration_submissions s JOIN completion_records r ON r.id = s.source_record_id WHERE r.project_id = ? AND s.status = 'adopted'`, projectID).Scan(&adoptedCount); err != nil {
+			writeError(w, http.StatusInternalServerError, "读取协作来源失败")
+			return
+		}
+		if adoptedCount > 0 {
+			writeError(w, http.StatusBadRequest, "项目已有被外部采纳的公开成果，不能改为私人项目")
+			return
+		}
+	}
 	result, err := s.db.ExecContext(ctx, `UPDATE projects SET title = ?, description = ?, visibility = CASE WHEN is_default = 1 THEN 'private' ELSE ? END WHERE id = ? AND owner_id = ? AND archived_at IS NULL`, title, description, request.Visibility, projectID, userID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "保存项目资料失败")
@@ -575,6 +590,15 @@ func (s *server) deleteProject(w http.ResponseWriter, r *http.Request, userID ui
 	}
 	if isDefault == 1 {
 		writeError(w, http.StatusBadRequest, "默认项目不能删除")
+		return
+	}
+	var adoptedCount int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM collaboration_submissions s JOIN completion_records r ON r.id = s.source_record_id WHERE r.project_id = ? AND s.status = 'adopted'`, projectID).Scan(&adoptedCount); err != nil {
+		writeError(w, http.StatusInternalServerError, "读取协作来源失败")
+		return
+	}
+	if adoptedCount > 0 {
+		writeError(w, http.StatusBadRequest, "项目已有被外部采纳的成果，不能删除；可以归档保留历史")
 		return
 	}
 
