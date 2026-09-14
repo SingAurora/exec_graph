@@ -1,31 +1,9 @@
 package app
 
-import (
-	"crypto/rand"
-	"encoding/hex"
-	"fmt"
-)
+import sharedid "github.com/singaurora/exec-graph/backend/internal/shared/id"
 
-func newOpaqueID(prefix string) (string, error) {
-	value := make([]byte, 16)
-	if _, err := rand.Read(value); err != nil {
-		return "", fmt.Errorf("generate id: %w", err)
-	}
-	return fmt.Sprintf("%s-%s", prefix, hex.EncodeToString(value)), nil
-}
+func newOpaqueID(prefix string) (string, error) { return sharedid.Opaque(prefix) }
 
-func newUserID() (string, error) {
-	value := make([]byte, 10)
-	if _, err := rand.Read(value); err != nil {
-		return "", fmt.Errorf("generate user id: %w", err)
-	}
-	return "u" + hex.EncodeToString(value), nil
-}
+func newUserID() (string, error) { return sharedid.User() }
 
-func newSessionToken() (string, error) {
-	value := make([]byte, 32)
-	if _, err := rand.Read(value); err != nil {
-		return "", fmt.Errorf("generate session token: %w", err)
-	}
-	return hex.EncodeToString(value), nil
-}
+func newSessionToken() (string, error) { return sharedid.SessionToken() }

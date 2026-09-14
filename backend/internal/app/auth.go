@@ -19,13 +19,18 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	infrastructuremail "github.com/singaurora/exec-graph/backend/internal/infrastructure/mail"
+	infrastructureredis "github.com/singaurora/exec-graph/backend/internal/infrastructure/redis"
+	infrastructurestorage "github.com/singaurora/exec-graph/backend/internal/infrastructure/storage"
+	"gorm.io/gorm"
 )
 
 type server struct {
 	db      *sql.DB
-	mailer  *Mailer
-	storage *COSStorage
-	redis   *RedisStore
+	orm     *gorm.DB
+	mailer  *infrastructuremail.Mailer
+	storage *infrastructurestorage.COSStorage
+	redis   *infrastructureredis.SessionStore
 	config  Config
 }
 
@@ -196,7 +201,7 @@ func (s *server) sendCode(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "生成验证码失败")
 		return
 	}
-	if err := s.mailer.sendVerificationCode(ctx, email, code); err != nil {
+	if err := s.mailer.SendVerificationCode(ctx, email, code); err != nil {
 		fmt.Printf("send verification email failed for %s: %v\n", email, err)
 		writeError(w, http.StatusBadGateway, "验证码邮件发送失败，请稍后重试")
 		return

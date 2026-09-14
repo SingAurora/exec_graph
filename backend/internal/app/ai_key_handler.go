@@ -5,11 +5,14 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	infrastructuremysql "github.com/singaurora/exec-graph/backend/internal/infrastructure/mysql"
 )
 
 const (
@@ -105,28 +108,17 @@ func (s *server) handleAIKeys(w http.ResponseWriter, r *http.Request) {
 func (s *server) listAIKeys(w http.ResponseWriter, r *http.Request, userID uint64) {
 	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
 	defer cancel()
-	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, provider, label, key_ciphertext, key_hint, base_url, model,
-		       last_verified_at, last_used_at, created_at
-		FROM ai_api_keys WHERE user_id = ?
-		ORDER BY created_at ASC`, userID)
+	items, err := infrastructuremysql.NewAIKeyRepository(s.orm).ListForUser(ctx, userID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "读取 AI 密钥失败")
 		return
 	}
-	defer rows.Close()
-	keys := make([]aiKeyResponse, 0)
-	for rows.Next() {
-		key, err := scanAIKey(rows)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "读取 AI 密钥失败")
-			return
-		}
-		keys = append(keys, key)
-	}
-	if err := rows.Err(); err != nil {
-		writeError(w, http.StatusInternalServerError, "读取 AI 密钥失败")
-		return
+	keys := make([]aiKeyResponse, 0, len(items))
+	for _, item := range items {
+		keys = append(keys, aiKeyResponse{
+			ID: item.ID, Provider: item.Provider, Label: item.Label, APIKey: item.KeyCiphertext, KeyHint: item.KeyHint,
+			BaseURL: item.BaseURL, Model: item.Model, LastVerifiedAt: item.LastVerifiedAt, LastUsedAt: item.LastUsedAt, CreatedAt: item.CreatedAt,
+		})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"keys": keys})
 }
@@ -175,9 +167,8 @@ func (s *server) createAIKey(w http.ResponseWriter, r *http.Request, userID uint
 func (s *server) verifyAIKey(w http.ResponseWriter, r *http.Request, userID uint64, keyID string) {
 	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
 	defer cancel()
-	var provider, apiKey, baseURL, model string
-	err := s.db.QueryRowContext(ctx, `SELECT provider, key_ciphertext, base_url, model FROM ai_api_keys WHERE id = ? AND user_id = ?`, keyID, userID).Scan(&provider, &apiKey, &baseURL, &model)
-	if err == sql.ErrNoRows {
+	key, err := infrastructuremysql.NewAIKeyRepository(s.orm).FindForUser(ctx, userID, keyID)
+	if errors.Is(err, infrastructuremysql.ErrNotFound) {
 		writeError(w, http.StatusNotFound, "AI 密钥不存在")
 		return
 	}
@@ -185,7 +176,7 @@ func (s *server) verifyAIKey(w http.ResponseWriter, r *http.Request, userID uint
 		writeError(w, http.StatusInternalServerError, "读取 AI 密钥失败")
 		return
 	}
-	if err := verifyAIKeyConfiguration(ctx, provider, apiKey, baseURL, model); err != nil {
+	if err := verifyAIKeyConfiguration(ctx, key.Provider, key.KeyCiphertext, key.BaseURL, key.Model); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}

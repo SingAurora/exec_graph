@@ -16,6 +16,8 @@ import (
 	"strings"
 	"time"
 
+	infrastructurestorage "github.com/singaurora/exec-graph/backend/internal/infrastructure/storage"
+
 	xdraw "golang.org/x/image/draw"
 	_ "golang.org/x/image/webp"
 )
@@ -196,19 +198,19 @@ func (s *server) uploadAvatar(w http.ResponseWriter, r *http.Request, user authe
 		writeError(w, http.StatusInternalServerError, "读取当前头像失败")
 		return
 	}
-	newObjectKey, avatarURL, err := s.storage.putAvatar(ctx, user.ID, "image/jpeg", compressedContents)
+	newObjectKey, avatarURL, err := s.storage.PutAvatar(ctx, user.ID, "image/jpeg", compressedContents)
 	if err != nil {
 		log.Printf("upload avatar for user %d failed: %v", user.ID, err)
 		writeError(w, http.StatusBadGateway, "头像上传失败，请稍后重试")
 		return
 	}
 	if _, err := s.db.ExecContext(ctx, `UPDATE users SET avatar_url = ? WHERE id = ?`, newObjectKey, user.ID); err != nil {
-		_ = s.storage.deleteAvatar(ctx, newObjectKey)
+		_ = s.storage.DeleteAvatar(ctx, newObjectKey)
 		writeError(w, http.StatusInternalServerError, "保存头像失败")
 		return
 	}
 	if oldObjectKey != "" && oldObjectKey != newObjectKey {
-		if err := s.storage.deleteAvatar(ctx, oldObjectKey); err != nil {
+		if err := s.storage.DeleteAvatar(ctx, oldObjectKey); err != nil {
 			log.Printf("delete previous avatar for user %d failed: %v", user.ID, err)
 		}
 	}
@@ -258,19 +260,19 @@ func (s *server) uploadProfileBackground(w http.ResponseWriter, r *http.Request,
 		writeError(w, http.StatusInternalServerError, "读取当前背景图失败")
 		return
 	}
-	newObjectKey, backgroundURL, err := s.storage.putProfileBackground(ctx, user.ID, "image/jpeg", compressedContents)
+	newObjectKey, backgroundURL, err := s.storage.PutProfileBackground(ctx, user.ID, "image/jpeg", compressedContents)
 	if err != nil {
 		log.Printf("upload profile background for user %d failed: %v", user.ID, err)
 		writeError(w, http.StatusBadGateway, "背景图片上传失败，请稍后重试")
 		return
 	}
 	if _, err := s.db.ExecContext(ctx, `UPDATE users SET profile_background_url = ? WHERE id = ?`, newObjectKey, user.ID); err != nil {
-		_ = s.storage.deleteProfileBackground(ctx, newObjectKey)
+		_ = s.storage.DeleteProfileBackground(ctx, newObjectKey)
 		writeError(w, http.StatusInternalServerError, "保存背景图片失败")
 		return
 	}
 	if oldObjectKey != "" && oldObjectKey != newObjectKey {
-		if err := s.storage.deleteProfileBackground(ctx, oldObjectKey); err != nil {
+		if err := s.storage.DeleteProfileBackground(ctx, oldObjectKey); err != nil {
 			log.Printf("delete previous profile background for user %d failed: %v", user.ID, err)
 		}
 	}
@@ -374,15 +376,15 @@ func (s *server) loadUserProfile(requestContext context.Context, userID uint64) 
 	if customProfileMarkdown.Valid {
 		profile.CustomProfileMarkdown = customProfileMarkdown.String
 	}
-	if avatarObjectKey.Valid && avatarObjectKey.String != "" && s.storage != nil && s.storage.isAvatarKey(avatarObjectKey.String) {
-		avatarURL, err := s.storage.signedAvatarURL(ctx, avatarObjectKey.String)
+	if avatarObjectKey.Valid && avatarObjectKey.String != "" && s.storage != nil && s.storage.IsAvatarKey(avatarObjectKey.String) {
+		avatarURL, err := s.storage.SignedAvatarURL(ctx, avatarObjectKey.String)
 		if err != nil {
 			return profile, fmt.Errorf("sign avatar URL: %w", err)
 		}
 		profile.AvatarURL = &avatarURL
 	}
-	if profileBackgroundObjectKey.Valid && profileBackgroundObjectKey.String != "" && s.storage != nil && s.storage.isProfileBackgroundKey(profileBackgroundObjectKey.String) {
-		backgroundURL, err := s.storage.signedProfileBackgroundURL(ctx, profileBackgroundObjectKey.String)
+	if profileBackgroundObjectKey.Valid && profileBackgroundObjectKey.String != "" && s.storage != nil && s.storage.IsProfileBackgroundKey(profileBackgroundObjectKey.String) {
+		backgroundURL, err := s.storage.SignedProfileBackgroundURL(ctx, profileBackgroundObjectKey.String)
 		if err != nil {
 			return profile, fmt.Errorf("sign profile background URL: %w", err)
 		}
@@ -396,7 +398,7 @@ func (s *server) loadAvatarObjectKey(ctx context.Context, userID uint64) (string
 	if err := s.db.QueryRowContext(ctx, `SELECT avatar_url FROM users WHERE id = ?`, userID).Scan(&objectKey); err != nil {
 		return "", err
 	}
-	if !objectKey.Valid || !strings.HasPrefix(objectKey.String, s.storage.avatarPrefix) {
+	if !objectKey.Valid || !s.storage.IsAvatarKey(objectKey.String) {
 		return "", nil
 	}
 	return objectKey.String, nil
@@ -407,8 +409,12 @@ func (s *server) loadProfileBackgroundObjectKey(ctx context.Context, userID uint
 	if err := s.db.QueryRowContext(ctx, `SELECT profile_background_url FROM users WHERE id = ?`, userID).Scan(&objectKey); err != nil {
 		return "", err
 	}
-	if !objectKey.Valid || !strings.HasPrefix(objectKey.String, s.storage.avatarPrefix) {
+	if !objectKey.Valid || !s.storage.IsProfileBackgroundKey(objectKey.String) {
 		return "", nil
 	}
 	return objectKey.String, nil
+}
+
+func avatarExtension(contentType string) (string, bool) {
+	return infrastructurestorage.AvatarExtension(contentType)
 }

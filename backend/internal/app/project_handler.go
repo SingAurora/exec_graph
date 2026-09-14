@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	infrastructuremysql "github.com/singaurora/exec-graph/backend/internal/infrastructure/mysql"
 )
 
 type createProjectRequest struct {
@@ -325,33 +327,20 @@ func (s *server) updateProject(w http.ResponseWriter, r *http.Request, userID ui
 func (s *server) listProjects(w http.ResponseWriter, r *http.Request, userID uint64) {
 	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
 	defer cancel()
-	rows, err := s.db.QueryContext(ctx, `
-		SELECT id FROM projects
-		WHERE owner_id = ?
-		ORDER BY is_default DESC, created_at DESC`, userID)
+	projectIDs, err := infrastructuremysql.NewProjectRepository(s.orm).ListIDsForOwner(ctx, userID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "读取项目失败")
 		return
 	}
-	defer rows.Close()
 
-	projects := make([]projectResponse, 0)
-	for rows.Next() {
-		var projectID string
-		if err := rows.Scan(&projectID); err != nil {
-			writeError(w, http.StatusInternalServerError, "读取项目失败")
-			return
-		}
+	projects := make([]projectResponse, 0, len(projectIDs))
+	for _, projectID := range projectIDs {
 		project, err := s.loadProject(ctx, userID, projectID)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "读取项目详情失败")
 			return
 		}
 		projects = append(projects, project)
-	}
-	if err := rows.Err(); err != nil {
-		writeError(w, http.StatusInternalServerError, "读取项目失败")
-		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"projects": projects})
 }
@@ -525,67 +514,56 @@ func (s *server) getProject(w http.ResponseWriter, r *http.Request, userID uint6
 }
 
 func (s *server) loadProject(ctx context.Context, userID uint64, projectID string) (projectResponse, error) {
-	var project projectResponse
-	var isDefault int
-	var currentContractID sql.NullString
-	var activeRevisionID sql.NullString
-	var archivedAt sql.NullTime
-	var contributionCallID, contributionSnapshot sql.NullString
-	if err := s.db.QueryRowContext(ctx, `
-	SELECT id, title, description, project_type, COALESCE(project_rules, ''), is_default, visibility, default_ai_key_id, contribution_call_id, contribution_origin_snapshot_json, current_contract_id,
-		       active_contract_revision_id, created_at, archived_at
-		FROM projects WHERE id = ? AND owner_id = ?`, projectID, userID).
-		Scan(&project.ID, &project.Title, &project.Description, &project.ProjectType, &project.ProjectRules, &isDefault, &project.Visibility,
-			&project.ReviewAIKeyID, &contributionCallID, &contributionSnapshot, &currentContractID, &activeRevisionID, &project.CreatedAt, &archivedAt); err != nil {
-		return project, err
+	stored, err := infrastructuremysql.NewProjectRepository(s.orm).FindForOwner(ctx, userID, projectID)
+	if errors.Is(err, infrastructuremysql.ErrNotFound) {
+		return projectResponse{}, sql.ErrNoRows
 	}
-	project.IsDefault = isDefault == 1
-	project.CurrentContractID = nullableString(currentContractID)
-	if activeRevisionID.Valid {
-		project.ActiveContractRevisionID = activeRevisionID.String
+	if err != nil {
+		return projectResponse{}, err
 	}
-	if archivedAt.Valid {
-		value := archivedAt.Time
-		project.ArchivedAt = &value
+	projectRules := ""
+	if stored.ProjectRules != nil {
+		projectRules = *stored.ProjectRules
 	}
-	if contributionSnapshot.Valid {
+	project := projectResponse{
+		ID: stored.ID, Title: stored.Title, Description: stored.Description, ProjectType: stored.ProjectType, ProjectRules: projectRules,
+		IsDefault: stored.IsDefault, Visibility: stored.Visibility, ReviewAIKeyID: stored.DefaultAIKeyID, CurrentContractID: stored.CurrentContractID,
+		CreatedAt: stored.CreatedAt, ArchivedAt: stored.ArchivedAt,
+	}
+	if stored.ActiveContractRevisionID != nil {
+		project.ActiveContractRevisionID = *stored.ActiveContractRevisionID
+	}
+	if stored.ContributionOriginSnapshotJSON != nil {
 		var origin contributionOriginResponse
-		if json.Unmarshal([]byte(contributionSnapshot.String), &origin) == nil {
+		if json.Unmarshal([]byte(*stored.ContributionOriginSnapshotJSON), &origin) == nil {
 			project.ContributionOrigin = &origin
 		}
 	}
-	if project.ContributionOrigin == nil && contributionCallID.Valid {
-		origin, err := s.loadContributionOrigin(ctx, contributionCallID.String)
+	if project.ContributionOrigin == nil && stored.ContributionCallID != nil {
+		origin, err := s.loadContributionOrigin(ctx, *stored.ContributionCallID)
 		if err == nil {
 			project.ContributionOrigin = &origin
 		} else {
-			project.ContributionOrigin = &contributionOriginResponse{CallID: contributionCallID.String, Status: "closed", ProjectTitle: "原始协作目标已不可用", CallTitle: "已关闭的协作交接"}
+			project.ContributionOrigin = &contributionOriginResponse{CallID: *stored.ContributionCallID, Status: "closed", ProjectTitle: "原始协作目标已不可用", CallTitle: "已关闭的协作交接"}
 		}
 	}
-	rows, err := s.db.QueryContext(ctx, `
-		SELECT r.id, r.smart_contract_id, r.smart_contract_version, r.rule_hash, r.reason, r.activated_at,
-		       COALESCE(r.smart_contract_name, c.name, ''), COALESCE(r.smart_contract_description, c.description, ''),
-		       COALESCE(r.smart_contract_body, c.body, ''), COALESCE(c.source, 'custom'), COALESCE(c.created_at, r.activated_at)
-		FROM project_contract_revisions r LEFT JOIN smart_contracts c ON c.id = r.smart_contract_id
-		WHERE r.project_id = ? ORDER BY r.activated_at DESC`, projectID)
+	revisions, err := infrastructuremysql.NewProjectRepository(s.orm).ListContractRevisions(ctx, projectID)
 	if err != nil {
 		return project, err
 	}
-	defer rows.Close()
-	project.ContractRevisions = make([]projectRevisionResponse, 0)
-	for rows.Next() {
-		var revision projectRevisionResponse
-		var contract smartContractResponse
-		if err := rows.Scan(&revision.ID, &revision.SmartContractID, &revision.SmartContractVersion, &revision.RuleHash, &revision.Reason, &revision.ActivatedAt,
-			&contract.Name, &contract.Description, &contract.Body, &contract.Source, &contract.CreatedAt); err != nil {
-			return project, err
+	project.ContractRevisions = make([]projectRevisionResponse, 0, len(revisions))
+	for _, storedRevision := range revisions {
+		contract := smartContractResponse{
+			ID: storedRevision.SmartContractID, Name: storedRevision.SmartContractName, Source: storedRevision.SmartContractSource,
+			Version: storedRevision.SmartContractVersion, Description: storedRevision.SmartContractDescription,
+			Body: storedRevision.SmartContractBody, CreatedAt: storedRevision.SmartContractCreatedAt,
 		}
-		contract.ID = revision.SmartContractID
-		contract.Version = revision.SmartContractVersion
-		revision.SmartContract = &contract
-		project.ContractRevisions = append(project.ContractRevisions, revision)
+		project.ContractRevisions = append(project.ContractRevisions, projectRevisionResponse{
+			ID: storedRevision.ID, SmartContractID: storedRevision.SmartContractID, SmartContractVersion: storedRevision.SmartContractVersion,
+			RuleHash: storedRevision.RuleHash, Reason: storedRevision.Reason, ActivatedAt: storedRevision.ActivatedAt, SmartContract: &contract,
+		})
 	}
-	return project, rows.Err()
+	return project, nil
 }
 
 func (s *server) loadContributionOrigin(ctx context.Context, callID string) (contributionOriginResponse, error) {
@@ -1534,28 +1512,14 @@ func (s *server) handleSmartContracts(w http.ResponseWriter, r *http.Request) {
 func (s *server) listSmartContracts(w http.ResponseWriter, r *http.Request, userID uint64) {
 	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
 	defer cancel()
-	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, name, source, version, description, body, created_at
-		FROM smart_contracts
-		WHERE deleted_at IS NULL AND (source = 'official' OR created_by = ?)
-		ORDER BY source ASC, created_at ASC`, userID)
+	items, err := infrastructuremysql.NewSmartContractRepository(s.orm).ListVisible(ctx, userID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "读取智能合约失败")
 		return
 	}
-	defer rows.Close()
-	contracts := make([]smartContractResponse, 0)
-	for rows.Next() {
-		var contract smartContractResponse
-		if err := rows.Scan(&contract.ID, &contract.Name, &contract.Source, &contract.Version, &contract.Description, &contract.Body, &contract.CreatedAt); err != nil {
-			writeError(w, http.StatusInternalServerError, "读取智能合约失败")
-			return
-		}
-		contracts = append(contracts, contract)
-	}
-	if err := rows.Err(); err != nil {
-		writeError(w, http.StatusInternalServerError, "读取智能合约失败")
-		return
+	contracts := make([]smartContractResponse, 0, len(items))
+	for _, item := range items {
+		contracts = append(contracts, smartContractResponse{ID: item.ID, Name: item.Name, Source: item.Source, Version: item.Version, Description: item.Description, Body: item.Body, CreatedAt: item.CreatedAt})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"smartContracts": contracts})
 }
@@ -1563,13 +1527,8 @@ func (s *server) listSmartContracts(w http.ResponseWriter, r *http.Request, user
 func (s *server) getSmartContract(w http.ResponseWriter, r *http.Request, userID uint64, contractID string) {
 	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
 	defer cancel()
-	var contract smartContractResponse
-	err := s.db.QueryRowContext(ctx, `
-		SELECT id, name, source, version, description, body, created_at
-		FROM smart_contracts
-		WHERE id = ? AND deleted_at IS NULL AND (source = 'official' OR created_by = ?)`, contractID, userID).
-		Scan(&contract.ID, &contract.Name, &contract.Source, &contract.Version, &contract.Description, &contract.Body, &contract.CreatedAt)
-	if err == sql.ErrNoRows {
+	item, err := infrastructuremysql.NewSmartContractRepository(s.orm).FindVisible(ctx, userID, contractID)
+	if errors.Is(err, infrastructuremysql.ErrNotFound) {
 		writeError(w, http.StatusNotFound, "智能合约不存在")
 		return
 	}
@@ -1577,6 +1536,7 @@ func (s *server) getSmartContract(w http.ResponseWriter, r *http.Request, userID
 		writeError(w, http.StatusInternalServerError, "读取智能合约失败")
 		return
 	}
+	contract := smartContractResponse{ID: item.ID, Name: item.Name, Source: item.Source, Version: item.Version, Description: item.Description, Body: item.Body, CreatedAt: item.CreatedAt}
 	writeJSON(w, http.StatusOK, contract)
 }
 

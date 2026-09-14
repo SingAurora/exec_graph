@@ -4,6 +4,8 @@ import (
 	"context"
 	"os"
 	"testing"
+
+	infrastructurestorage "github.com/singaurora/exec-graph/backend/internal/infrastructure/storage"
 	"time"
 )
 
@@ -15,13 +17,13 @@ func TestCOSBucketConnection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load local config: %v", err)
 	}
-	storage, err := newCOSStorage(config.Tencent.COS, config.Tencent.SES)
+	storage, err := infrastructurestorage.NewTencentCOS(config.Tencent.COS, config.Tencent.SES)
 	if err != nil {
 		t.Fatalf("create COS client: %v", err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	if err := storage.check(ctx); err != nil {
+	if err := storage.Check(ctx); err != nil {
 		t.Fatalf("check COS bucket: %v", err)
 	}
 }

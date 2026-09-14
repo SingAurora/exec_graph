@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	infrastructuremysql "github.com/singaurora/exec-graph/backend/internal/infrastructure/mysql"
 )
 
 type reviewCriterionRequest struct {
@@ -740,13 +742,14 @@ func validateReviewNodeDraftRequest(request reviewNodeDraftRequest) error {
 }
 
 func (s *server) loadProjectAIKey(ctx context.Context, userID uint64, projectID string) (aiStoredKey, error) {
-	var key aiStoredKey
-	err := s.db.QueryRowContext(ctx, `
-		SELECT k.id, k.provider, k.label, k.key_ciphertext, k.base_url, k.model
-		FROM projects p JOIN ai_api_keys k ON k.id = p.default_ai_key_id
-		WHERE p.id = ? AND p.owner_id = ?`, projectID, userID).
-		Scan(&key.ID, &key.Provider, &key.Label, &key.APIKey, &key.BaseURL, &key.Model)
-	return key, err
+	stored, err := infrastructuremysql.NewAIKeyRepository(s.orm).FindProjectReviewKey(ctx, userID, projectID)
+	if err != nil {
+		if errors.Is(err, infrastructuremysql.ErrNotFound) {
+			return aiStoredKey{}, sql.ErrNoRows
+		}
+		return aiStoredKey{}, err
+	}
+	return aiStoredKey{ID: stored.ID, Provider: stored.Provider, Label: stored.Label, APIKey: stored.KeyCiphertext, BaseURL: stored.BaseURL, Model: stored.Model}, nil
 }
 
 func (s *server) loadProjectAIConfig(ctx context.Context, userID uint64, projectID string) (aiConfigSnapshot, error) {

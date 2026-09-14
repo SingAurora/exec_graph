@@ -5,36 +5,12 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
-	"time"
 
-	"github.com/go-sql-driver/mysql"
+	infrastructuremysql "github.com/singaurora/exec-graph/backend/internal/infrastructure/mysql"
+	"gorm.io/gorm"
 )
 
-func openDatabase(config DatabaseConfig) (*sql.DB, error) {
-	dbConfig := mysql.Config{
-		User:      config.User,
-		Passwd:    config.Password,
-		Net:       "tcp",
-		Addr:      fmt.Sprintf("%s:%d", config.Host, config.Port),
-		DBName:    config.Name,
-		ParseTime: true,
-		Params: map[string]string{
-			"charset": config.Charset,
-		},
-	}
-	db, err := sql.Open("mysql", dbConfig.FormatDSN())
-	if err != nil {
-		return nil, fmt.Errorf("open mysql: %w", err)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
-	defer cancel()
-	if err := db.PingContext(ctx); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("ping mysql: %w", err)
-	}
-	return db, nil
-}
+func openDatabase(config DatabaseConfig) (*gorm.DB, error) { return infrastructuremysql.Open(config) }
 
 func migrateDatabase(ctx context.Context, db *sql.DB) error {
 	statements := []string{

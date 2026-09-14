@@ -1,4 +1,4 @@
-package app
+package storage
 
 import (
 	"bytes"
@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	bootstrapconfig "github.com/singaurora/exec-graph/backend/internal/bootstrap/config"
+	sharedid "github.com/singaurora/exec-graph/backend/internal/shared/id"
 	cos "github.com/tencentyun/cos-go-sdk-v5"
 )
 
@@ -22,7 +24,7 @@ type COSStorage struct {
 	secretKey    string
 }
 
-func newCOSStorage(config COSConfig, credentials SESConfig) (*COSStorage, error) {
+func NewTencentCOS(config bootstrapconfig.COSConfig, credentials bootstrapconfig.SESConfig) (*COSStorage, error) {
 	if config.Region == "" || config.Bucket == "" || credentials.SecretID == "" || credentials.SecretKey == "" {
 		return nil, fmt.Errorf("incomplete Tencent COS configuration")
 	}
@@ -46,7 +48,7 @@ func newCOSStorage(config COSConfig, credentials SESConfig) (*COSStorage, error)
 	}, nil
 }
 
-func (storage *COSStorage) check(ctx context.Context) error {
+func (storage *COSStorage) Check(ctx context.Context) error {
 	response, err := storage.client.Bucket.Head(ctx)
 	if err != nil {
 		return err
@@ -57,12 +59,12 @@ func (storage *COSStorage) check(ctx context.Context) error {
 	return nil
 }
 
-func (storage *COSStorage) putAvatar(ctx context.Context, userID uint64, contentType string, contents []byte) (string, string, error) {
-	extension, ok := avatarExtension(contentType)
+func (storage *COSStorage) PutAvatar(ctx context.Context, userID uint64, contentType string, contents []byte) (string, string, error) {
+	extension, ok := AvatarExtension(contentType)
 	if !ok {
 		return "", "", fmt.Errorf("unsupported avatar content type: %s", contentType)
 	}
-	name, err := newOpaqueID("avatar")
+	name, err := sharedid.Opaque("avatar")
 	if err != nil {
 		return "", "", err
 	}
@@ -77,20 +79,20 @@ func (storage *COSStorage) putAvatar(ctx context.Context, userID uint64, content
 	if err != nil {
 		return "", "", fmt.Errorf("upload avatar to COS: %w", err)
 	}
-	avatarURL, err := storage.signedAvatarURL(ctx, objectKey)
+	avatarURL, err := storage.SignedAvatarURL(ctx, objectKey)
 	if err != nil {
-		_ = storage.deleteAvatar(ctx, objectKey)
+		_ = storage.DeleteAvatar(ctx, objectKey)
 		return "", "", err
 	}
 	return objectKey, avatarURL, nil
 }
 
-func (storage *COSStorage) putProfileBackground(ctx context.Context, userID uint64, contentType string, contents []byte) (string, string, error) {
-	extension, ok := avatarExtension(contentType)
+func (storage *COSStorage) PutProfileBackground(ctx context.Context, userID uint64, contentType string, contents []byte) (string, string, error) {
+	extension, ok := AvatarExtension(contentType)
 	if !ok {
 		return "", "", fmt.Errorf("unsupported profile background content type: %s", contentType)
 	}
-	name, err := newOpaqueID("background")
+	name, err := sharedid.Opaque("background")
 	if err != nil {
 		return "", "", err
 	}
@@ -105,16 +107,16 @@ func (storage *COSStorage) putProfileBackground(ctx context.Context, userID uint
 	if err != nil {
 		return "", "", fmt.Errorf("upload profile background to COS: %w", err)
 	}
-	backgroundURL, err := storage.signedProfileBackgroundURL(ctx, objectKey)
+	backgroundURL, err := storage.SignedProfileBackgroundURL(ctx, objectKey)
 	if err != nil {
-		_ = storage.deleteProfileBackground(ctx, objectKey)
+		_ = storage.DeleteProfileBackground(ctx, objectKey)
 		return "", "", err
 	}
 	return objectKey, backgroundURL, nil
 }
 
-func (storage *COSStorage) signedAvatarURL(ctx context.Context, objectKey string) (string, error) {
-	if !storage.isAvatarKey(objectKey) {
+func (storage *COSStorage) SignedAvatarURL(ctx context.Context, objectKey string) (string, error) {
+	if !storage.IsAvatarKey(objectKey) {
 		return "", fmt.Errorf("invalid avatar object key")
 	}
 	signedURL, err := storage.client.Object.GetPresignedURL(
@@ -132,8 +134,8 @@ func (storage *COSStorage) signedAvatarURL(ctx context.Context, objectKey string
 	return signedURL.String(), nil
 }
 
-func (storage *COSStorage) signedProfileBackgroundURL(ctx context.Context, objectKey string) (string, error) {
-	if !storage.isProfileBackgroundKey(objectKey) {
+func (storage *COSStorage) SignedProfileBackgroundURL(ctx context.Context, objectKey string) (string, error) {
+	if !storage.IsProfileBackgroundKey(objectKey) {
 		return "", fmt.Errorf("invalid profile background object key")
 	}
 	signedURL, err := storage.client.Object.GetPresignedURL(
@@ -151,8 +153,8 @@ func (storage *COSStorage) signedProfileBackgroundURL(ctx context.Context, objec
 	return signedURL.String(), nil
 }
 
-func (storage *COSStorage) deleteAvatar(ctx context.Context, objectKey string) error {
-	if !storage.isAvatarKey(objectKey) {
+func (storage *COSStorage) DeleteAvatar(ctx context.Context, objectKey string) error {
+	if !storage.IsAvatarKey(objectKey) {
 		return nil
 	}
 	if _, err := storage.client.Object.Delete(ctx, objectKey); err != nil {
@@ -161,8 +163,8 @@ func (storage *COSStorage) deleteAvatar(ctx context.Context, objectKey string) e
 	return nil
 }
 
-func (storage *COSStorage) deleteProfileBackground(ctx context.Context, objectKey string) error {
-	if !storage.isProfileBackgroundKey(objectKey) {
+func (storage *COSStorage) DeleteProfileBackground(ctx context.Context, objectKey string) error {
+	if !storage.IsProfileBackgroundKey(objectKey) {
 		return nil
 	}
 	if _, err := storage.client.Object.Delete(ctx, objectKey); err != nil {
@@ -171,15 +173,15 @@ func (storage *COSStorage) deleteProfileBackground(ctx context.Context, objectKe
 	return nil
 }
 
-func (storage *COSStorage) isAvatarKey(objectKey string) bool {
+func (storage *COSStorage) IsAvatarKey(objectKey string) bool {
 	return strings.HasPrefix(objectKey, storage.avatarPrefix) && !strings.Contains(objectKey, "..")
 }
 
-func (storage *COSStorage) isProfileBackgroundKey(objectKey string) bool {
+func (storage *COSStorage) IsProfileBackgroundKey(objectKey string) bool {
 	return strings.HasPrefix(objectKey, storage.avatarPrefix) && !strings.Contains(objectKey, "..")
 }
 
-func avatarExtension(contentType string) (string, bool) {
+func AvatarExtension(contentType string) (string, bool) {
 	switch contentType {
 	case "image/jpeg":
 		return ".jpg", true

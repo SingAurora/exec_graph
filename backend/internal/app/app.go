@@ -7,6 +7,10 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	infrastructuremail "github.com/singaurora/exec-graph/backend/internal/infrastructure/mail"
+	infrastructureredis "github.com/singaurora/exec-graph/backend/internal/infrastructure/redis"
+	infrastructurestorage "github.com/singaurora/exec-graph/backend/internal/infrastructure/storage"
 )
 
 // Run assembles the application dependencies and starts the HTTP server.
@@ -20,9 +24,13 @@ func Run() error {
 		return fmt.Errorf("load config: %w", err)
 	}
 
-	db, err := openDatabase(config.Database)
+	orm, err := openDatabase(config.Database)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
+	}
+	db, err := orm.DB()
+	if err != nil {
+		return fmt.Errorf("get database connection: %w", err)
 	}
 	defer db.Close()
 
@@ -38,15 +46,15 @@ func Run() error {
 		return fmt.Errorf("seed development test account: %w", err)
 	}
 
-	mailer, err := newMailer(config.Tencent.SES)
+	mailer, err := infrastructuremail.NewTencentSES(config.Tencent.SES)
 	if err != nil {
 		return fmt.Errorf("create mailer: %w", err)
 	}
-	storage, err := newCOSStorage(config.Tencent.COS, config.Tencent.SES)
+	storage, err := infrastructurestorage.NewTencentCOS(config.Tencent.COS, config.Tencent.SES)
 	if err != nil {
 		return fmt.Errorf("create object storage: %w", err)
 	}
-	redisStore, err := newRedisStore(config.Redis)
+	redisStore, err := infrastructureredis.NewSessionStore(config.Redis)
 	if err != nil {
 		log.Printf("Redis unavailable; using MySQL sessions only: %v", err)
 	} else if redisStore != nil {
@@ -54,11 +62,11 @@ func Run() error {
 	}
 	defer func() {
 		if redisStore != nil {
-			_ = redisStore.close()
+			_ = redisStore.Close()
 		}
 	}()
 
-	server := &server{db: db, mailer: mailer, storage: storage, redis: redisStore, config: config}
+	server := &server{db: db, orm: orm, mailer: mailer, storage: storage, redis: redisStore, config: config}
 	address := fmt.Sprintf("%s:%d", config.App.Host, config.App.Port)
 	log.Printf("exec_graph backend listening on %s", address)
 	return (&http.Server{

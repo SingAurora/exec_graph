@@ -1,4 +1,4 @@
-package app
+package mail
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 
+	bootstrapconfig "github.com/singaurora/exec-graph/backend/internal/bootstrap/config"
 	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common"
 	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common/profile"
 	ses "github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/ses/v20201002"
@@ -13,10 +14,10 @@ import (
 
 type Mailer struct {
 	client *ses.Client
-	config SESConfig
+	config bootstrapconfig.SESConfig
 }
 
-func newMailer(config SESConfig) (*Mailer, error) {
+func NewTencentSES(config bootstrapconfig.SESConfig) (*Mailer, error) {
 	if config.Region == "" || config.TemplateID == 0 || config.FromEmail == "" || config.SecretID == "" || config.SecretKey == "" {
 		return nil, fmt.Errorf("incomplete Tencent SES configuration")
 	}
@@ -27,7 +28,7 @@ func newMailer(config SESConfig) (*Mailer, error) {
 	return &Mailer{client: client, config: config}, nil
 }
 
-func (mailer *Mailer) sendVerificationCode(ctx context.Context, email, code string) error {
+func (mailer *Mailer) SendVerificationCode(ctx context.Context, email, code string) error {
 	templateData, err := json.Marshal(map[string]string{
 		"1": code,
 		"2": strconv.Itoa(mailer.config.CodeTTLMinutes),

@@ -21,9 +21,13 @@ func SeedDemoData() error {
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
-	db, err := openDatabase(config.Database)
+	orm, err := openDatabase(config.Database)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
+	}
+	db, err := orm.DB()
+	if err != nil {
+		return fmt.Errorf("get database connection: %w", err)
 	}
 	defer db.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
