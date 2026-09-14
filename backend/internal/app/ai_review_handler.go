@@ -49,18 +49,22 @@ type reviewExecutionNodeRequest struct {
 }
 
 type reviewClarificationRequest struct {
-	NodeID             string   `json:"nodeId"`
-	CriterionIDs       []string `json:"criterionIds"`
-	Explanation        string   `json:"explanation"`
-	EvidenceReferences string   `json:"evidenceReferences"`
+	NodeID                     string   `json:"nodeId"`
+	CriterionIDs               []string `json:"criterionIds"`
+	Explanation                string   `json:"explanation"`
+	EvidenceReferences         string   `json:"evidenceReferences"`
+	EvidenceAddition           string   `json:"evidenceAddition"`
+	EvidencePredatesSubmission bool     `json:"evidencePredatesSubmission"`
 }
 
 type reviewClarificationResponse struct {
-	ID                 string    `json:"id"`
-	CriterionIDs       []string  `json:"criterionIds"`
-	Explanation        string    `json:"explanation"`
-	EvidenceReferences string    `json:"evidenceReferences,omitempty"`
-	CreatedAt          time.Time `json:"createdAt"`
+	ID                         string    `json:"id"`
+	CriterionIDs               []string  `json:"criterionIds"`
+	Explanation                string    `json:"explanation"`
+	EvidenceReferences         string    `json:"evidenceReferences,omitempty"`
+	EvidenceAddition           string    `json:"evidenceAddition,omitempty"`
+	EvidencePredatesSubmission bool      `json:"evidencePredatesSubmission,omitempty"`
+	CreatedAt                  time.Time `json:"createdAt"`
 }
 
 type completionReviewRoundResponse struct {
@@ -189,7 +193,7 @@ func (s *server) reviewExecutionNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 70*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 110*time.Second)
 	defer cancel()
 	request, messagesJSON, err := s.loadNodeCompletionReviewRequest(ctx, user.ID, input)
 	if err != nil {
@@ -302,13 +306,18 @@ func (s *server) reviewExecutionNodeClarification(w http.ResponseWriter, r *http
 	input.NodeID = strings.TrimSpace(input.NodeID)
 	input.Explanation = strings.TrimSpace(input.Explanation)
 	input.EvidenceReferences = strings.TrimSpace(input.EvidenceReferences)
+	input.EvidenceAddition = strings.TrimSpace(input.EvidenceAddition)
 	input.CriterionIDs = uniqueTrimmedReviewCriterionIDs(input.CriterionIDs)
-	if input.NodeID == "" || len(input.CriterionIDs) == 0 || len([]rune(input.Explanation)) < 4 {
-		writeError(w, http.StatusBadRequest, "请选择争议验收标准，并说明 AI 可能误解的地方")
+	if input.NodeID == "" || len(input.CriterionIDs) == 0 || (len([]rune(input.Explanation)) < 4 && len([]rune(input.EvidenceAddition)) < 20) {
+		writeError(w, http.StatusBadRequest, "请选择需复审的验收标准，并补充说明或提交前已存在的证据")
+		return
+	}
+	if input.EvidenceAddition != "" && !input.EvidencePredatesSubmission {
+		writeError(w, http.StatusBadRequest, "请确认补交材料在首次提交前已经存在")
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 70*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 110*time.Second)
 	defer cancel()
 	request, messagesJSON, rounds, err := s.loadNodeClarificationReviewRequest(ctx, user.ID, input)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -361,9 +370,15 @@ func (s *server) reviewExecutionNodeClarification(w http.ResponseWriter, r *http
 	}
 	var messages []any
 	_ = json.Unmarshal([]byte(messagesJSON), &messages)
-	clarificationBody := fmt.Sprintf("审查澄清（%s）：%s", strings.Join(input.CriterionIDs, "、"), input.Explanation)
+	clarificationBody := fmt.Sprintf("审查补充（%s）", strings.Join(input.CriterionIDs, "、"))
+	if input.Explanation != "" {
+		clarificationBody += "：" + input.Explanation
+	}
 	if input.EvidenceReferences != "" {
 		clarificationBody += "\n证据位置：" + input.EvidenceReferences
+	}
+	if input.EvidenceAddition != "" {
+		clarificationBody += "\n\n补交的既有证据（用户声明：首次提交前已存在）：\n" + input.EvidenceAddition
 	}
 	userMessageID, err := newOpaqueID("message")
 	if err != nil {
@@ -524,7 +539,7 @@ func (s *server) loadNodeClarificationReviewRequest(ctx context.Context, userID 
 	}
 	request.Clarification = &reviewClarificationResponse{
 		ID: clarificationID, CriterionIDs: input.CriterionIDs, Explanation: input.Explanation,
-		EvidenceReferences: input.EvidenceReferences, CreatedAt: time.Now(),
+		EvidenceReferences: input.EvidenceReferences, EvidenceAddition: input.EvidenceAddition, EvidencePredatesSubmission: input.EvidencePredatesSubmission, CreatedAt: time.Now(),
 	}
 	if err := s.db.QueryRowContext(ctx, `SELECT name, description, body FROM smart_contracts WHERE id = ?`, request.SmartContract.ID).
 		Scan(&request.SmartContract.Name, &request.SmartContract.Description, &request.SmartContract.Body); err != nil {
@@ -767,7 +782,7 @@ func runNodeDraftReview(ctx context.Context, key aiStoredKey, request reviewNode
 }
 
 func requestAIReviewFromModel(ctx context.Context, key aiStoredKey, reviewRequest reviewExecutionNodeRequest) (aiReviewModelOutput, error) {
-	request, err := newAIReviewRequest(ctx, key, reviewRequest)
+	request, err := newAIReviewRequest(ctx, key, reviewRequest, 8192)
 	if err != nil {
 		return aiReviewModelOutput{}, fmt.Errorf("AI 审查请求生成失败")
 	}
@@ -785,11 +800,45 @@ func requestAIReviewFromModel(ctx context.Context, key aiStoredKey, reviewReques
 	}
 	content, err := extractAIMessageContent(key.Provider, body)
 	if err != nil {
+		var reasoningOnly reasoningOnlyResponseError
+		if errors.As(err, &reasoningOnly) {
+			return requestAIReviewFinalizationFromModel(ctx, key, reviewRequest, reasoningOnly.Reasoning)
+		}
 		return aiReviewModelOutput{}, err
 	}
 	var output aiReviewModelOutput
 	if err := json.Unmarshal([]byte(extractJSONObject(content)), &output); err != nil {
 		return aiReviewModelOutput{}, fmt.Errorf("AI 审查结果不是可解析的 JSON")
+	}
+	return output, nil
+}
+
+// Some reasoning models exhaust their first response on hidden analysis. Keep that analysis
+// auditable at the provider, then make one bounded request to turn it into the required verdict.
+func requestAIReviewFinalizationFromModel(ctx context.Context, key aiStoredKey, reviewRequest reviewExecutionNodeRequest, reasoning string) (aiReviewModelOutput, error) {
+	request, err := newAIReviewFinalizationRequest(ctx, key, reviewRequest, reasoning)
+	if err != nil {
+		return aiReviewModelOutput{}, fmt.Errorf("AI 审查结论恢复请求生成失败")
+	}
+	response, err := (&http.Client{Timeout: 40 * time.Second}).Do(request)
+	if err != nil {
+		return aiReviewModelOutput{}, fmt.Errorf("AI 未能补全最终审查结论，请重试")
+	}
+	defer response.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(response.Body, 2<<20))
+	if err != nil {
+		return aiReviewModelOutput{}, fmt.Errorf("读取 AI 审查结论失败")
+	}
+	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
+		return aiReviewModelOutput{}, fmt.Errorf("AI 未能补全最终审查结论：服务商返回 HTTP %d", response.StatusCode)
+	}
+	content, err := extractAIMessageContent(key.Provider, body)
+	if err != nil {
+		return aiReviewModelOutput{}, fmt.Errorf("AI 只返回了推理过程，未生成最终审查结论；已自动重试一次，请改用可直接输出结果的模型，例如 deepseek-chat")
+	}
+	var output aiReviewModelOutput
+	if err := json.Unmarshal([]byte(extractJSONObject(content)), &output); err != nil {
+		return aiReviewModelOutput{}, fmt.Errorf("AI 补全的审查结论不是可解析的 JSON")
 	}
 	return output, nil
 }
@@ -822,7 +871,7 @@ func requestNodeDraftReviewFromModel(ctx context.Context, key aiStoredKey, revie
 	return output, nil
 }
 
-func newAIReviewRequest(ctx context.Context, key aiStoredKey, reviewRequest reviewExecutionNodeRequest) (*http.Request, error) {
+func newAIReviewRequest(ctx context.Context, key aiStoredKey, reviewRequest reviewExecutionNodeRequest, maxTokens int) (*http.Request, error) {
 	definition, ok := aiProviderDefinitions[key.Provider]
 	if !ok {
 		return nil, fmt.Errorf("unsupported provider")
@@ -831,7 +880,7 @@ func newAIReviewRequest(ctx context.Context, key aiStoredKey, reviewRequest revi
 		"你是 Exec Graph 的智能合约审查器。",
 		"你的任务是根据项目规则、当前行动契约、验收标准、证据要求、用户完成说明和用户证据，判断这次推进是否足以锁定。",
 		"不要因为用户态度积极就放宽标准。不要引入冻结规则之外的新要求。",
-		"若附有审查澄清：原始完成说明和原始证据仍然是唯一可判定的提交；澄清只能帮助定位或解释其中已经存在的内容，不能视为新完成的工作或新增证据。",
+		"若附有审查补充：原始完成说明和原始证据保持不可改写。普通澄清只能定位或解释原提交；若有“补交的既有证据”，用户明确声明其在首次提交前已经存在，你可将其作为独立、可追溯的补充材料核验，但不能把它当作本次复审后新完成的工作。",
 		"只返回 JSON，不要 Markdown，不要额外解释。",
 	}, "\n")
 	userPromptBytes, err := json.MarshalIndent(map[string]any{
@@ -857,7 +906,7 @@ func newAIReviewRequest(ctx context.Context, key aiStoredKey, reviewRequest revi
 		endpoint = strings.TrimRight(key.BaseURL, "/") + "/messages"
 		payload = map[string]any{
 			"model":       key.Model,
-			"max_tokens":  4096,
+			"max_tokens":  maxTokens,
 			"temperature": 0,
 			"system":      systemPrompt,
 			"messages": []map[string]string{
@@ -868,7 +917,7 @@ func newAIReviewRequest(ctx context.Context, key aiStoredKey, reviewRequest revi
 		endpoint = strings.TrimRight(key.BaseURL, "/") + "/chat/completions"
 		payload = map[string]any{
 			"model":       key.Model,
-			"max_tokens":  4096,
+			"max_tokens":  maxTokens,
 			"temperature": 0,
 			"messages": []map[string]string{
 				{"role": "system", "content": systemPrompt},
@@ -893,6 +942,51 @@ func newAIReviewRequest(ctx context.Context, key aiStoredKey, reviewRequest revi
 	}
 	httpRequest.Header.Set("Authorization", "Bearer "+key.APIKey)
 	return httpRequest, nil
+}
+
+func newAIReviewFinalizationRequest(ctx context.Context, key aiStoredKey, reviewRequest reviewExecutionNodeRequest, reasoning string) (*http.Request, error) {
+	definition, ok := aiProviderDefinitions[key.Provider]
+	if !ok {
+		return nil, fmt.Errorf("unsupported provider")
+	}
+	systemPrompt := "你是 Exec Graph 的智能合约审查器。上一轮已完成分析但未输出结论。请依据提供的分析，直接返回最终审查 JSON，不要输出推理、Markdown 或额外文字。"
+	criteria := make([]string, 0, len(reviewRequest.AcceptanceCriteria))
+	for _, criterion := range reviewRequest.AcceptanceCriteria {
+		criteria = append(criteria, criterion.ID)
+	}
+	userContent, err := json.Marshal(map[string]any{
+		"analysisToFinalize":   reasoning,
+		"criterionIds":         criteria,
+		"requiredJSONResponse": map[string]any{"verdict": "pass|partial|fail", "summary": "中文审查摘要", "criterionReviews": []map[string]string{{"criterionId": "必须对应验收标准 id", "result": "met|unclear|unmet", "reason": "中文理由"}}, "suggestedSupplementTitle": "未完全通过时给出下一步补足节点标题；通过时为空字符串"},
+	})
+	if err != nil {
+		return nil, err
+	}
+	var endpoint string
+	var payload any
+	if definition.AuthStyle == "anthropic" {
+		endpoint = strings.TrimRight(key.BaseURL, "/") + "/messages"
+		payload = map[string]any{"model": key.Model, "max_tokens": 4096, "temperature": 0, "system": systemPrompt, "messages": []map[string]string{{"role": "user", "content": string(userContent)}}}
+	} else {
+		endpoint = strings.TrimRight(key.BaseURL, "/") + "/chat/completions"
+		payload = map[string]any{"model": key.Model, "max_tokens": 4096, "temperature": 0, "messages": []map[string]string{{"role": "system", "content": systemPrompt}, {"role": "user", "content": string(userContent)}}, "response_format": map[string]string{"type": "json_object"}}
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	request.Header.Set("Content-Type", "application/json")
+	if definition.AuthStyle == "anthropic" {
+		request.Header.Set("x-api-key", key.APIKey)
+		request.Header.Set("anthropic-version", "2023-06-01")
+	} else {
+		request.Header.Set("Authorization", "Bearer "+key.APIKey)
+	}
+	return request, nil
 }
 
 func newNodeDraftReviewRequest(ctx context.Context, key aiStoredKey, reviewRequest reviewNodeDraftRequest) (*http.Request, error) {
@@ -972,6 +1066,14 @@ func newNodeDraftReviewRequest(ctx context.Context, key aiStoredKey, reviewReque
 	return httpRequest, nil
 }
 
+type reasoningOnlyResponseError struct {
+	Reasoning string
+}
+
+func (err reasoningOnlyResponseError) Error() string {
+	return "AI 只返回了推理过程，未生成最终审查结论"
+}
+
 func extractAIMessageContent(provider string, body []byte) (string, error) {
 	definition, ok := aiProviderDefinitions[provider]
 	if !ok {
@@ -1018,7 +1120,7 @@ func extractAIMessageContent(provider string, body []byte) (string, error) {
 		return "", fmt.Errorf("AI 拒绝生成审查结论：%s", strings.TrimSpace(choice.Message.Refusal))
 	}
 	if strings.TrimSpace(choice.Message.ReasoningContent) != "" {
-		return "", fmt.Errorf("AI 只返回了推理过程，未生成最终审查结论。请重试；若持续发生，请在 AI 密钥设置中改用可直接输出结果的模型，例如 deepseek-chat")
+		return "", reasoningOnlyResponseError{Reasoning: strings.TrimSpace(choice.Message.ReasoningContent)}
 	}
 	if choice.FinishReason == "length" {
 		return "", fmt.Errorf("AI 在生成最终审查结论前达到输出上限，请重试或改用输出更直接的模型")

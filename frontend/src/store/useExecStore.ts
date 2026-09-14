@@ -27,6 +27,8 @@ type ReviewClarificationInput = {
   criterionIds: string[]
   explanation: string
   evidenceReferences?: string
+  evidenceAddition?: string
+  evidencePredatesSubmission?: boolean
 }
 
 type CreateContractInput = {
@@ -323,6 +325,8 @@ const requestReviewClarification = async (accessToken: string, contract: Executi
       criterionIds: input.criterionIds,
       explanation: input.explanation.trim(),
       evidenceReferences: input.evidenceReferences?.trim() ?? '',
+      evidenceAddition: input.evidenceAddition?.trim() ?? '',
+      evidencePredatesSubmission: input.evidencePredatesSubmission ?? false,
     }),
   })
   const data = (await response.json().catch(() => ({}))) as { error?: string; review?: AIReview }
@@ -1205,8 +1209,8 @@ export const useExecStore = create<ExecState>()(
         if (!contract || !project || project.archivedAt || !contract.aiReview || !canReview || !isCurrentContract(project, contract, state.contracts, state.branches)) {
           return { success: false, message: '当前节点不能补充审查说明。' }
         }
-        if (!input.criterionIds.length || input.explanation.trim().length < 4) {
-          return { success: false, message: '请选择争议验收标准，并说明 AI 可能误解的地方。' }
+        if (!input.criterionIds.length || (input.explanation.trim().length < 4 && (input.evidenceAddition?.trim().length ?? 0) < 20)) {
+          return { success: false, message: '请选择需复审的验收标准，并补充说明或提交前已存在的证据。' }
         }
         if (!state.accessToken) return { success: false, message: '请先登录，并为项目选择审查 AI。' }
 

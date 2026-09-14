@@ -1,38 +1,33 @@
 import cytoscape, { type Core } from 'cytoscape'
+import { ArrowRight, Network, UsersRound } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { type PublicNetwork, type PublicNetworkNode } from '../lib/collaboration'
 import { graphColor } from '../lib/theme'
 
-type NetworkItem = {
-  id: string
-  label: string
-  kind: 'person' | 'project'
-  detail: string
+export type PublicNetworkView = 'projects' | 'people'
+
+type PublicNetworkGraphProps = {
+  network: PublicNetwork
+  view: PublicNetworkView
 }
 
-const items: NetworkItem[] = [
-  { id: 'person-lin', label: '林舟', kind: 'person', detail: '其锁定的阅读索引成果已被其他项目申请采用。' },
-  { id: 'person-mori', label: '森', kind: 'person', detail: '维护 AI 产品审查研究图谱，并采纳外部案例成果。' },
-  { id: 'person-qiao', label: '乔野', kind: 'person', detail: '其校准记录为后续项目提供实践证据。' },
-  { id: 'project-reading', label: '可复查阅读系统', kind: 'project', detail: '一条完成记录正作为公开协作征集的来源材料。' },
-  { id: 'project-research', label: 'AI 审查研究图谱', kind: 'project', detail: '通过成果采用与阅读系统形成跨项目关系。' },
-  { id: 'project-lab', label: '一人家庭实验室', kind: 'project', detail: '锁定的校准方法已被其他项目引用为证据。' },
-]
+const nodeSize = (weight: number) => Math.min(82, 42 + Math.max(0, weight) * 9)
 
-const relations = [
-  { id: 'r1', source: 'person-lin', target: 'project-reading', label: '维护' },
-  { id: 'r2', source: 'person-mori', target: 'project-research', label: '维护' },
-  { id: 'r3', source: 'person-qiao', target: 'project-lab', label: '维护' },
-  { id: 'r4', source: 'project-reading', target: 'project-research', label: '成果采用' },
-  { id: 'r5', source: 'project-lab', target: 'project-reading', label: '路径接续' },
-  { id: 'r6', source: 'person-lin', target: 'person-mori', label: '共同收束' },
-]
-
-export function PublicNetworkGraph() {
+export function PublicNetworkGraph({ network, view }: PublicNetworkGraphProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const cyRef = useRef<Core | null>(null)
-  const [selectedID, setSelectedID] = useState('project-research')
+  const [selectedID, setSelectedID] = useState('')
   const [themeRevision, setThemeRevision] = useState(0)
-  const selected = useMemo(() => items.find((item) => item.id === selectedID) ?? items[0], [selectedID])
+  const kind = view === 'projects' ? 'project' : 'person'
+  const nodes = useMemo(() => network.nodes.filter((node) => node.kind === kind), [kind, network.nodes])
+  const nodeIDs = useMemo(() => new Set(nodes.map((node) => node.id)), [nodes])
+  const edges = useMemo(() => network.edges.filter((edge) => nodeIDs.has(edge.source) && nodeIDs.has(edge.target) && (view === 'people' || edge.type !== 'maintains')), [network.edges, nodeIDs, view])
+  const selected = useMemo(() => nodes.find((node) => node.id === selectedID) ?? nodes[0], [nodes, selectedID])
+
+  useEffect(() => {
+    if (!selectedID || !nodes.some((node) => node.id === selectedID)) setSelectedID(nodes[0]?.id ?? '')
+  }, [nodes, selectedID])
 
   useEffect(() => {
     const refreshGraph = () => setThemeRevision((value) => value + 1)
@@ -43,90 +38,61 @@ export function PublicNetworkGraph() {
   useEffect(() => {
     if (!containerRef.current) return
     cyRef.current?.destroy()
-    const colors = {
-      paper: graphColor('paper'),
-      surface: graphColor('surface'),
-      ink: graphColor('ink'),
-      graphite: graphColor('graphite'),
-      rail: graphColor('rail'),
-      signal: graphColor('signal'),
-      moss: graphColor('moss'),
-      amber: graphColor('amber'),
-      edge: graphColor('edge'),
-    }
-
+    const colors = { paper: graphColor('paper'), surface: graphColor('surface'), ink: graphColor('ink'), graphite: graphColor('graphite'), rail: graphColor('rail'), signal: graphColor('signal'), moss: graphColor('moss'), amber: graphColor('amber'), edge: graphColor('edge') }
     const cy = cytoscape({
       container: containerRef.current,
       elements: [
-        ...items.map((item) => ({ data: { id: item.id, label: item.label, kind: item.kind } })),
-        ...relations.map((relation) => ({ data: relation })),
+        ...nodes.map((node) => ({ data: { id: node.id, label: node.label, kind: node.kind, size: nodeSize(node.weight), open: node.hasOpenCall ? 'yes' : 'no', mine: node.isCurrentUser ? 'yes' : 'no' } })),
+        ...edges.map((edge) => ({ data: edge })),
       ],
       style: [
-        {
-          selector: 'node',
-          style: {
-            label: 'data(label)',
-            color: colors.ink,
-            'font-family': 'Inter, sans-serif',
-            'font-size': '11px',
-            'font-weight': 600,
-            'text-valign': 'bottom',
-            'text-margin-y': 8,
-            'background-color': colors.surface,
-            'border-width': 2,
-            'border-color': colors.rail,
-            width: 56,
-            height: 56,
-          },
-        },
-        { selector: 'node[kind = "person"]', style: { shape: 'ellipse', 'background-color': colors.signal, 'border-color': colors.signal, color: colors.ink } },
-        { selector: 'node[kind = "project"]', style: { shape: 'round-rectangle', width: '86px', height: '48px', 'text-max-width': '100px', 'text-wrap': 'ellipsis' } },
-        { selector: 'node:selected', style: { 'border-color': colors.ink, 'border-width': 4 } },
-        {
-          selector: 'edge',
-          style: {
-            width: 1.5,
-            'line-color': colors.edge,
-            'curve-style': 'bezier',
-            label: 'data(label)',
-            'font-family': 'JetBrains Mono, monospace',
-            'font-size': '9px',
-            color: colors.graphite,
-            'text-background-color': colors.paper,
-            'text-background-opacity': 1,
-            'text-background-padding': '2px',
-          },
-        },
-        { selector: 'edge[label = "成果采用"]', style: { width: 2.5, 'line-color': colors.moss, color: colors.moss } },
-        { selector: 'edge[label = "共同收束"]', style: { width: 2.5, 'line-color': colors.amber, color: colors.amber, 'line-style': 'dashed' } },
+        { selector: 'node', style: { label: 'data(label)', color: colors.ink, 'font-family': 'Inter, sans-serif', 'font-size': '11px', 'font-weight': 600, 'text-wrap': 'ellipsis', 'text-max-width': '118px', 'text-valign': 'bottom', 'text-margin-y': 9, 'background-color': colors.surface, 'border-width': 2, 'border-color': colors.rail, width: 'data(size)', height: 'data(size)' } },
+        { selector: 'node[kind = "person"]', style: { shape: 'ellipse', 'background-color': colors.signal, 'border-color': colors.signal } },
+        { selector: 'node[kind = "project"]', style: { shape: 'round-rectangle', width: 'data(size)', height: 48 } },
+        { selector: 'node[open = "yes"]', style: { 'border-width': 5, 'border-color': colors.amber } },
+        { selector: 'node[mine = "yes"]', style: { 'border-width': 5, 'border-color': colors.ink } },
+        { selector: '.is-focus', style: { opacity: 1, 'z-index': 9 } },
+        { selector: '.is-muted', style: { opacity: 0.16 } },
+        { selector: 'edge', style: { width: 1.5, 'curve-style': 'bezier', 'target-arrow-shape': 'triangle', 'target-arrow-color': colors.edge, 'line-color': colors.edge, label: 'data(label)', 'font-family': 'JetBrains Mono, monospace', 'font-size': '9px', color: colors.graphite, 'text-background-color': colors.paper, 'text-background-opacity': 1, 'text-background-padding': '2px' } },
+        { selector: 'edge[type = "adopted"]', style: { width: 3, 'line-color': colors.moss, 'target-arrow-color': colors.moss, color: colors.moss } },
+        { selector: 'edge[type = "contributing"]', style: { width: 2, 'line-style': 'dashed', 'line-color': colors.amber, 'target-arrow-color': colors.amber, color: colors.amber } },
+        { selector: 'edge[type = "workspace"]', style: { width: 2, 'line-style': 'dotted', 'line-color': colors.signal, 'target-arrow-color': colors.signal, color: colors.signal } },
       ],
-      layout: {
-        name: 'cose',
-        animate: false,
-        padding: 42,
-        nodeRepulsion: () => 7200,
-        idealEdgeLength: () => 120,
-      },
-      minZoom: 0.65,
-      maxZoom: 1.8,
+      layout: { name: 'cose', animate: false, randomize: false, padding: 58, nodeRepulsion: () => 8200, idealEdgeLength: () => 150 },
+      minZoom: 0.45,
+      maxZoom: 2.4,
     })
-
     cy.on('tap', 'node', (event) => setSelectedID(event.target.id()))
     cyRef.current = cy
     return () => cy.destroy()
-  }, [themeRevision])
+  }, [edges, nodes, themeRevision])
+
+  useEffect(() => {
+    const cy = cyRef.current
+    if (!cy || !selectedID) return
+    const active = cy.getElementById(selectedID)
+    cy.elements().removeClass('is-muted is-focus')
+    if (active.empty()) return
+    cy.elements().addClass('is-muted')
+    active.closedNeighborhood().removeClass('is-muted').addClass('is-focus')
+    active.removeClass('is-muted').addClass('is-focus')
+  }, [selectedID, nodes, edges])
+
+  const relatedEdges = selected ? edges.filter((edge) => edge.source === selected.id || edge.target === selected.id) : []
+  const adoptedCount = relatedEdges.filter((edge) => edge.type === 'adopted').length
+  const openContribution = relatedEdges.some((edge) => edge.type === 'contributing' || edge.type === 'workspace')
+
+  if (nodes.length === 0) return <div className="border-l-2 border-rail py-5 pl-4 text-sm leading-6 text-graphite">还没有足够的公开关系形成网络。</div>
 
   return (
-    <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
-      <div className="border border-rail bg-surface p-3">
-        <div ref={containerRef} className="h-[460px] w-full" aria-label="执行网络图谱" />
-      </div>
-      <aside className="border-l-2 border-ink bg-shell p-5">
-        <div className="font-mono text-xs font-semibold uppercase text-signal">当前聚焦</div>
-        <h3 className="mt-3 font-display text-2xl font-semibold text-ink">{selected.label}</h3>
-        <p className="mt-3 text-sm leading-6 text-graphite">{selected.detail}</p>
-        <div className="mt-6 border-t border-rail pt-4 text-xs leading-5 text-graphite">圆形为执行者，方形为公开项目。连线只表示由锁定记录或采纳申请产生的事实关系。</div>
-      </aside>
+    <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="border border-rail bg-surface p-3"><div ref={containerRef} className="h-[560px] min-h-[420px] w-full" aria-label={view === 'projects' ? '公开项目关系网络' : '公开执行者关系网络'} /></div>
+      {selected ? <NetworkDetail node={selected} relatedCount={relatedEdges.length} adoptedCount={adoptedCount} openContribution={openContribution} /> : null}
     </section>
   )
+}
+
+function NetworkDetail({ node, relatedCount, adoptedCount, openContribution }: { node: PublicNetworkNode; relatedCount: number; adoptedCount: number; openContribution: boolean }) {
+  const Icon = node.kind === 'project' ? Network : UsersRound
+  return <aside className="border-l-2 border-ink bg-shell p-5"><div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal"><Icon size={15} aria-hidden="true" />当前聚焦</div><h2 className="mt-3 font-display text-2xl font-semibold leading-tight text-ink">{node.label}</h2><p className="mt-3 text-sm leading-6 text-graphite">{node.detail}</p><div className="mt-5 grid grid-cols-2 border-y border-rail text-sm"><div className="py-3"><div className="text-xs text-graphite">直接关系</div><b className="mt-1 block text-ink">{relatedCount}</b></div><div className="border-l border-rail py-3 pl-4"><div className="text-xs text-graphite">正式采纳</div><b className="mt-1 block text-moss">{adoptedCount}</b></div></div>{node.hasOpenCall || openContribution ? <p className="mt-4 text-sm font-semibold text-signal">{node.hasOpenCall ? '有开放缺口可以参与' : '正在连接新的贡献'}</p> : null}{node.projectId ? <Link to={`/explore/projects/${node.projectId}`} className="mt-6 inline-flex h-10 items-center gap-2 border border-rail bg-surface px-3 text-sm font-semibold text-ink hover:border-signal">进入项目<ArrowRight size={16} aria-hidden="true" /></Link> : null}</aside>
 }
