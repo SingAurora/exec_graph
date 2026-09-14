@@ -64,6 +64,28 @@ export type ExploreProject = {
 
 export type ContributionSource = { id: string; title: string; summary: string; projectTitle: string }
 export type ContributionActivity = { submission: CollaborationSubmission; call: CollaborationCall }
+export type PublicNetworkNode = {
+  id: string
+  kind: 'person' | 'project'
+  label: string
+  detail: string
+  projectId?: string
+  userId?: string
+  weight: number
+  hasOpenCall: boolean
+  isCurrentUser: boolean
+}
+export type PublicNetworkEdge = {
+  id: string
+  source: string
+  target: string
+  type: 'maintains' | 'contributing' | 'adopted' | 'workspace'
+  label: string
+  recordId?: string
+  callId?: string
+  createdAt: string
+}
+export type PublicNetwork = { nodes: PublicNetworkNode[]; edges: PublicNetworkEdge[] }
 
 async function request<T>(token: string, path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -76,6 +98,7 @@ async function request<T>(token: string, path: string, init?: RequestInit): Prom
 }
 
 export const getExploreProjects = (token: string) => request<{ projects: ExploreProject[] }>(token, '/api/explore/projects')
+export const getExploreNetwork = (token: string) => request<PublicNetwork>(token, '/api/explore/network')
 export const getExploreProject = (token: string, projectId: string) => request<{ project: ExploreProject }>(token, `/api/explore/projects/${projectId}`)
 export const getCall = (token: string, callId: string) => request<{ call: CollaborationCall; submissions: CollaborationSubmission[] }>(token, `/api/collaboration-calls/${callId}`)
 export const getContributionSources = (token: string) => request<{ sources: ContributionSource[] }>(token, '/api/explore/contribution-sources')

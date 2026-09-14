@@ -14,4 +14,21 @@ export default defineConfig({
       '/api': 'http://127.0.0.1:8080',
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'graph-vendor': ['cytoscape'],
+          'editor-vendor': [
+            '@uiw/react-codemirror',
+            '@codemirror/lang-html',
+            '@codemirror/state',
+            '@codemirror/theme-one-dark',
+            '@codemirror/view',
+          ],
+        },
+      },
+    },
+  },
 })

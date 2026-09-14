@@ -140,6 +140,9 @@ export type ReviewClarification = {
   criterionIds: string[]
   explanation: string
   evidenceReferences?: string
+  /** Evidence omitted from the original form but declared to have existed before it was submitted. */
+  evidenceAddition?: string
+  evidencePredatesSubmission?: boolean
   createdAt: string
 }
 

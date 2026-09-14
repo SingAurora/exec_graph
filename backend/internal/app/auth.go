@@ -91,6 +91,7 @@ func (s *server) routes() http.Handler {
 
 	explore := api.Group("/explore")
 	explore.GET("/projects", gin.WrapF(s.handleExploreProjects))
+	explore.GET("/network", gin.WrapF(s.handleExploreNetwork))
 	explore.GET("/projects/:id", gin.WrapF(s.handleExploreProject))
 	explore.GET("/contribution-sources", gin.WrapF(s.handleContributionSources))
 	explore.GET("/my-contributions", gin.WrapF(s.handleMyContributions))

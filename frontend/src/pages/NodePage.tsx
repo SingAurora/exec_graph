@@ -8,6 +8,7 @@ import { RelayRail } from '../components/RelayRail'
 import { StatusBadge } from '../components/StatusBadge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../components/ui/dialog'
 import { completionRecordForContract, isAcceptedRecord, isReviewInProgress, needsReviewDecision } from '../lib/execution'
+import { showErrorToast, showSuccessToast } from '../lib/notifications'
 import { useExecStore } from '../store/useExecStore'
 import type { AIConfigSnapshot, CompletionRecord, CompletionReviewRound, ExecutionContract } from '../types'
 
@@ -42,7 +43,9 @@ export function NodePage() {
   const [clarificationCriterionIds, setClarificationCriterionIds] = useState<string[]>([])
   const [clarificationExplanation, setClarificationExplanation] = useState('')
   const [clarificationEvidenceReferences, setClarificationEvidenceReferences] = useState('')
-  const [clarificationMode, setClarificationMode] = useState<'existing' | 'new-work'>('existing')
+  const [clarificationEvidenceAddition, setClarificationEvidenceAddition] = useState('')
+  const [clarificationEvidencePredatesSubmission, setClarificationEvidencePredatesSubmission] = useState(false)
+  const [clarificationMode, setClarificationMode] = useState<'existing' | 'existing-evidence' | 'new-work'>('existing')
   const [clarificationMessage, setClarificationMessage] = useState('')
   const [isClarifying, setIsClarifying] = useState(false)
 
@@ -73,6 +76,8 @@ export function NodePage() {
       criterionIds: clarificationCriterionIds,
       explanation: clarificationExplanation,
       evidenceReferences: clarificationEvidenceReferences,
+      evidenceAddition: clarificationEvidenceAddition,
+      evidencePredatesSubmission: clarificationEvidencePredatesSubmission,
     })
     setIsClarifying(false)
     if (!result.success) {
@@ -83,6 +88,8 @@ export function NodePage() {
     setClarificationCriterionIds([])
     setClarificationExplanation('')
     setClarificationEvidenceReferences('')
+    setClarificationEvidenceAddition('')
+    setClarificationEvidencePredatesSubmission(false)
     navigate(`/contracts/${contract.id}?tab=completion`)
   }
 
@@ -280,9 +287,9 @@ export function NodePage() {
           <div className={`font-mono text-xs font-semibold uppercase ${aiReviewPassed ? 'text-moss' : 'text-clay'}`}>AI review</div>
           <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
             <h2 className="font-display text-2xl font-semibold">AI 审查：{verdictText[contract.aiReview.verdict]}</h2>
-            <span className={`rounded-full border bg-surface/70 px-3 py-1 font-mono text-xs font-semibold ${aiReviewPassed ? 'border-moss/30 text-moss' : 'border-clay/30 text-clay'}`}>
+            <div className="flex flex-wrap items-center gap-2"><CopyReviewStateButton contract={contract} projectTitle={project?.title ?? ''} /><span className={`rounded-full border bg-surface/70 px-3 py-1 font-mono text-xs font-semibold ${aiReviewPassed ? 'border-moss/30 text-moss' : 'border-clay/30 text-clay'}`}>
               AI 结论不可改写
-            </span>
+            </span></div>
           </div>
           <p className="mt-3 text-sm leading-6 text-graphite">{contract.aiReview.summary}</p>
           <ReviewAIIdentity config={contract.completionReviewAIConfig ?? contract.aiReview.aiConfig} />
@@ -408,6 +415,8 @@ export function NodePage() {
         criterionIds={clarificationCriterionIds}
         explanation={clarificationExplanation}
         evidenceReferences={clarificationEvidenceReferences}
+        evidenceAddition={clarificationEvidenceAddition}
+        evidencePredatesSubmission={clarificationEvidencePredatesSubmission}
         message={clarificationMessage}
         isSubmitting={isClarifying}
         onOpenChange={setIsClarificationOpen}
@@ -415,6 +424,8 @@ export function NodePage() {
         onToggleCriterion={(criterionId) => setClarificationCriterionIds((ids) => ids.includes(criterionId) ? ids.filter((id) => id !== criterionId) : [...ids, criterionId])}
         onExplanationChange={setClarificationExplanation}
         onEvidenceReferencesChange={setClarificationEvidenceReferences}
+        onEvidenceAdditionChange={setClarificationEvidenceAddition}
+        onEvidencePredatesSubmissionChange={setClarificationEvidencePredatesSubmission}
         onSubmit={onSubmitClarification}
       />
     </div>
@@ -490,7 +501,7 @@ function NodeEventLog({ contract, projectTitle }: { contract: ExecutionContract;
                 <div className="font-mono text-xs font-semibold text-signal">第 {index + 1} 轮{round.kind === 'initial' ? ' · 初次审查' : ' · 澄清复审'}</div>
                 <span className={round.review.verdict === 'pass' ? 'font-mono text-xs font-semibold text-moss' : 'font-mono text-xs font-semibold text-clay'}>{verdictText[round.review.verdict]}</span>
               </div>
-              {round.clarification ? <div className="mt-3 border-l-2 border-amber/50 pl-3 text-sm leading-6 text-graphite"><div className="font-semibold text-ink">用户审查澄清</div><div className="mt-1">涉及：{round.clarification.criterionIds.join('、')}</div><div className="mt-1 whitespace-pre-wrap">{round.clarification.explanation}</div>{round.clarification.evidenceReferences ? <div className="mt-1 whitespace-pre-wrap">证据位置：{round.clarification.evidenceReferences}</div> : null}</div> : null}
+              {round.clarification ? <div className="mt-3 border-l-2 border-amber/50 pl-3 text-sm leading-6 text-graphite"><div className="font-semibold text-ink">{round.clarification.evidenceAddition ? '用户补交的既有证据' : '用户审查澄清'}</div><div className="mt-1">涉及：{round.clarification.criterionIds.join('、')}</div>{round.clarification.explanation ? <div className="mt-1 whitespace-pre-wrap">{round.clarification.explanation}</div> : null}{round.clarification.evidenceReferences ? <div className="mt-1 whitespace-pre-wrap">证据位置：{round.clarification.evidenceReferences}</div> : null}{round.clarification.evidenceAddition ? <><div className="mt-1 text-xs font-semibold text-amber">用户已声明：材料在首次提交前已存在</div><div className="mt-3 whitespace-pre-wrap border-t border-amber/25 pt-3">{round.clarification.evidenceAddition}</div></> : null}</div> : null}
               <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-graphite">{round.review.summary}</p>
               <ReviewAIIdentity config={round.aiConfig ?? round.review.aiConfig} />
             </article>
@@ -514,28 +525,32 @@ type ReviewClarificationDialogProps = {
   contract: ExecutionContract
   branchId?: string
   isOpen: boolean
-  mode: 'existing' | 'new-work'
+  mode: 'existing' | 'existing-evidence' | 'new-work'
   criterionIds: string[]
   explanation: string
   evidenceReferences: string
+  evidenceAddition: string
+  evidencePredatesSubmission: boolean
   message: string
   isSubmitting: boolean
   onOpenChange: (open: boolean) => void
-  onModeChange: (mode: 'existing' | 'new-work') => void
+  onModeChange: (mode: 'existing' | 'existing-evidence' | 'new-work') => void
   onToggleCriterion: (criterionId: string) => void
   onExplanationChange: (value: string) => void
   onEvidenceReferencesChange: (value: string) => void
+  onEvidenceAdditionChange: (value: string) => void
+  onEvidencePredatesSubmissionChange: (value: boolean) => void
   onSubmit: () => void
 }
 
-function ReviewClarificationDialog({ contract, branchId, isOpen, mode, criterionIds, explanation, evidenceReferences, message, isSubmitting, onOpenChange, onModeChange, onToggleCriterion, onExplanationChange, onEvidenceReferencesChange, onSubmit }: ReviewClarificationDialogProps) {
+function ReviewClarificationDialog({ contract, branchId, isOpen, mode, criterionIds, explanation, evidenceReferences, evidenceAddition, evidencePredatesSubmission, message, isSubmitting, onOpenChange, onModeChange, onToggleCriterion, onExplanationChange, onEvidenceReferencesChange, onEvidenceAdditionChange, onEvidencePredatesSubmissionChange, onSubmit }: ReviewClarificationDialogProps) {
   const newWorkHref = `/projects/${contract.projectId}?supplement=${contract.id}${branchId ? `&branch=${branchId}` : ''}#new-node`
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl grid-rows-[auto_minmax(0,1fr)]">
         <DialogHeader>
-          <DialogTitle>补充审查说明</DialogTitle>
-          <DialogDescription>只针对 AI 对已有证据的理解提出澄清。冻结任务、原始完成说明和原始证据都不会被改写。</DialogDescription>
+          <DialogTitle>补充审查材料</DialogTitle>
+          <DialogDescription>冻结任务和原始提交不会被改写。可澄清原材料，或补交首次提交前已存在但遗漏附上的证据。</DialogDescription>
         </DialogHeader>
         <div className="min-h-0 overflow-y-auto px-6 py-5">
           <fieldset className="grid gap-3">
@@ -543,6 +558,10 @@ function ReviewClarificationDialog({ contract, branchId, isOpen, mode, criterion
             <label className={`flex cursor-pointer gap-3 border p-3 text-sm ${mode === 'existing' ? 'border-signal bg-signal/5' : 'border-rail bg-surface'}`}>
               <input type="radio" name="clarification-mode" checked={mode === 'existing'} onChange={() => onModeChange('existing')} className="mt-0.5 accent-signal" />
               <span><strong className="text-ink">只澄清已有证据</strong><span className="mt-1 block leading-6 text-graphite">AI 可能漏看、误读或没有定位到原始提交中的内容。</span></span>
+            </label>
+            <label className={`flex cursor-pointer gap-3 border p-3 text-sm ${mode === 'existing-evidence' ? 'border-amber bg-amber/5' : 'border-rail bg-surface'}`}>
+              <input type="radio" name="clarification-mode" checked={mode === 'existing-evidence'} onChange={() => onModeChange('existing-evidence')} className="mt-0.5 accent-amber" />
+              <span><strong className="text-ink">补交提交前已存在的证据</strong><span className="mt-1 block leading-6 text-graphite">适用于遗漏粘贴的原话、截图说明、导出记录或已有链接。它会作为独立材料留在审查记录中。</span></span>
             </label>
             <label className={`flex cursor-pointer gap-3 border p-3 text-sm ${mode === 'new-work' ? 'border-clay bg-clay/5' : 'border-rail bg-surface'}`}>
               <input type="radio" name="clarification-mode" checked={mode === 'new-work'} onChange={() => onModeChange('new-work')} className="mt-0.5 accent-clay" />
@@ -566,16 +585,29 @@ function ReviewClarificationDialog({ contract, branchId, isOpen, mode, criterion
                   </label>
                 ))}
               </fieldset>
-              <label className="grid gap-2">
-                <span className="text-sm font-semibold text-ink">澄清说明</span>
-                <textarea value={explanation} onChange={(event) => onExplanationChange(event.target.value)} placeholder="说明 AI 对已有内容的误解，以及原始提交中实际表达的内容。" className="min-h-32 rounded-md border border-rail bg-surface px-3 py-3 text-sm leading-6 outline-none transition placeholder:text-graphite/70 focus:border-signal focus:shadow-focusline" />
-              </label>
-              <label className="grid gap-2">
-                <span className="text-sm font-semibold text-ink">已有证据的位置</span>
-                <textarea value={evidenceReferences} onChange={(event) => onEvidenceReferencesChange(event.target.value)} placeholder="例如：完成说明第 2 段；C2 的链接第 3 项。" className="min-h-24 rounded-md border border-rail bg-surface px-3 py-3 text-sm leading-6 outline-none transition placeholder:text-graphite/70 focus:border-signal focus:shadow-focusline" />
-              </label>
+              {mode === 'existing-evidence' ? (
+                <>
+                  <div className="border-l-2 border-amber bg-amber/5 p-3 text-sm leading-6 text-graphite">仅补交首次提交与初次审查前已经存在的材料。若证据来自之后新完成的工作，请建立新的补足推进。</div>
+                  <label className="grid gap-2">
+                    <span className="text-sm font-semibold text-ink">补交的既有证据</span>
+                    <textarea value={evidenceAddition} onChange={(event) => onEvidenceAdditionChange(event.target.value)} placeholder="粘贴原始消息、时间戳、汇总表、截图说明或链接。请说明这些材料在首次提交前已经存在。" className="min-h-56 rounded-md border border-rail bg-surface px-3 py-3 text-sm leading-6 outline-none transition placeholder:text-graphite/70 focus:border-signal focus:shadow-focusline" />
+                  </label>
+                  <label className="flex cursor-pointer items-start gap-2 text-sm leading-6 text-graphite"><input type="checkbox" checked={evidencePredatesSubmission} onChange={(event) => onEvidencePredatesSubmissionChange(event.target.checked)} className="mt-1 accent-signal" />我确认以上材料在首次提交前已经存在，不是为本次复审新完成的工作。</label>
+                </>
+              ) : (
+                <>
+                  <label className="grid gap-2">
+                    <span className="text-sm font-semibold text-ink">澄清说明</span>
+                    <textarea value={explanation} onChange={(event) => onExplanationChange(event.target.value)} placeholder="说明 AI 对已有内容的误解，以及原始提交中实际表达的内容。" className="min-h-32 rounded-md border border-rail bg-surface px-3 py-3 text-sm leading-6 outline-none transition placeholder:text-graphite/70 focus:border-signal focus:shadow-focusline" />
+                  </label>
+                  <label className="grid gap-2">
+                    <span className="text-sm font-semibold text-ink">已有证据的位置</span>
+                    <textarea value={evidenceReferences} onChange={(event) => onEvidenceReferencesChange(event.target.value)} placeholder="例如：完成说明第 2 段；C2 的链接第 3 项。" className="min-h-24 rounded-md border border-rail bg-surface px-3 py-3 text-sm leading-6 outline-none transition placeholder:text-graphite/70 focus:border-signal focus:shadow-focusline" />
+                  </label>
+                </>
+              )}
               {message ? <p className="text-sm font-semibold text-clay">{message}</p> : null}
-              <button type="button" disabled={isSubmitting} onClick={onSubmit} className="inline-flex h-11 w-fit items-center justify-center gap-2 rounded-md bg-signal px-4 text-sm font-semibold text-white transition hover:bg-signalStrong disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus-visible:shadow-focusline"><Bot size={17} aria-hidden="true" />{isSubmitting ? '正在复审' : '提交澄清并复审'}</button>
+              <button type="button" disabled={isSubmitting || (mode === 'existing-evidence' && (evidenceAddition.trim().length < 20 || !evidencePredatesSubmission))} onClick={onSubmit} className="inline-flex h-11 w-fit items-center justify-center gap-2 rounded-md bg-signal px-4 text-sm font-semibold text-white transition hover:bg-signalStrong disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus-visible:shadow-focusline"><Bot size={17} aria-hidden="true" />{isSubmitting ? '正在复审' : '提交材料并复审'}</button>
             </div>
           )}
         </div>
@@ -594,6 +626,19 @@ function getReviewRounds(contract: ExecutionContract): CompletionReviewRound[] {
     aiConfig: contract.completionReviewAIConfig ?? contract.aiReview.aiConfig,
     createdAt: contract.aiReview.createdAt,
   }]
+}
+
+function CopyReviewStateButton({ contract, projectTitle }: { contract: ExecutionContract; projectTitle: string }) {
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(buildReviewTranscript(contract, projectTitle, getReviewRounds(contract)))
+      showSuccessToast('当前审查状态已复制')
+    } catch {
+      showErrorToast('复制失败，请检查浏览器权限。')
+    }
+  }
+
+  return <button type="button" onClick={copy} className="inline-flex h-8 items-center gap-1.5 border border-rail bg-surface px-2.5 text-xs font-semibold text-graphite transition hover:border-signal hover:text-ink focus:outline-none focus-visible:shadow-focusline"><Copy size={14} aria-hidden="true" />复制当前状态</button>
 }
 
 function buildReviewTranscript(contract: ExecutionContract, projectTitle: string, reviewRounds: CompletionReviewRound[]) {
@@ -618,7 +663,7 @@ function buildReviewTranscript(contract: ExecutionContract, projectTitle: string
       `### 第 ${index + 1} 轮${round.kind === 'initial' ? '：初次审查' : '：澄清复审'}`,
       `时间：${round.createdAt}`,
       `审查配置：${[round.aiConfig ?? round.review.aiConfig].filter(Boolean).map((config) => `${config?.label} / ${config?.provider} / ${config?.model}`).join('') || '未记录'}`,
-      ...(round.clarification ? [`澄清标准：${round.clarification.criterionIds.join('、')}`, `澄清说明：${round.clarification.explanation}`, ...(round.clarification.evidenceReferences ? [`证据位置：${round.clarification.evidenceReferences}`] : [])] : []),
+      ...(round.clarification ? [`澄清标准：${round.clarification.criterionIds.join('、')}`, ...(round.clarification.explanation ? [`澄清说明：${round.clarification.explanation}`] : []), ...(round.clarification.evidenceReferences ? [`证据位置：${round.clarification.evidenceReferences}`] : []), ...(round.clarification.evidenceAddition ? [`补交的既有证据（用户声明：${round.clarification.evidencePredatesSubmission ? '首次提交前已存在' : '未确认来源时间'}）：\n${round.clarification.evidenceAddition}`] : [])] : []),
       `结论：${verdictText[round.review.verdict]}`,
       `摘要：${round.review.summary}`,
       ...round.review.criterionReviews.flatMap((review) => [`- ${review.criterionId}：${criterionText[review.result]}。${review.reason}`]),

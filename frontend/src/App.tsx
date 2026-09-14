@@ -1,23 +1,26 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from './components/AppShell'
-import { DashboardPage } from './pages/DashboardPage'
-import { ExplorePage } from './pages/ExplorePage'
-import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
-import { LoginPage } from './pages/LoginPage'
-import { ProjectPage } from './pages/ProjectPage'
-import { PublicProfilePage } from './pages/PublicProfilePage'
-import { PublicProjectPage } from './pages/PublicProjectPage'
-import { NodePage } from './pages/NodePage'
-import { MePage } from './pages/MePage'
-import { NewProjectPage } from './pages/NewProjectPage'
-import { RegisterPage } from './pages/RegisterPage'
-import { SettingsPage } from './pages/SettingsPage'
-import { SmartContractsPage } from './pages/SmartContractsPage'
 import { useExecStore } from './store/useExecStore'
+
+const DashboardPage = lazy(async () => ({ default: (await import('./pages/DashboardPage')).DashboardPage }))
+const ExplorePage = lazy(async () => ({ default: (await import('./pages/ExplorePage')).ExplorePage }))
+const ForgotPasswordPage = lazy(async () => ({ default: (await import('./pages/ForgotPasswordPage')).ForgotPasswordPage }))
+const LoginPage = lazy(async () => ({ default: (await import('./pages/LoginPage')).LoginPage }))
+const ProjectPage = lazy(async () => ({ default: (await import('./pages/ProjectPage')).ProjectPage }))
+const PublicProfilePage = lazy(async () => ({ default: (await import('./pages/PublicProfilePage')).PublicProfilePage }))
+const PublicProjectPage = lazy(async () => ({ default: (await import('./pages/PublicProjectPage')).PublicProjectPage }))
+const NodePage = lazy(async () => ({ default: (await import('./pages/NodePage')).NodePage }))
+const MePage = lazy(async () => ({ default: (await import('./pages/MePage')).MePage }))
+const NewProjectPage = lazy(async () => ({ default: (await import('./pages/NewProjectPage')).NewProjectPage }))
+const RegisterPage = lazy(async () => ({ default: (await import('./pages/RegisterPage')).RegisterPage }))
+const SettingsPage = lazy(async () => ({ default: (await import('./pages/SettingsPage')).SettingsPage }))
+const SmartContractsPage = lazy(async () => ({ default: (await import('./pages/SmartContractsPage')).SmartContractsPage }))
 
 export function App() {
   return (
     <BrowserRouter>
+      <Suspense fallback={<RouteLoading />}>
       <Routes>
         <Route path="/login" element={<LoginRoute />} />
         <Route path="/forgot-password" element={<ForgotPasswordRoute />} />
@@ -40,8 +43,13 @@ export function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
+      </Suspense>
     </BrowserRouter>
   )
+}
+
+function RouteLoading() {
+  return <div className="min-h-screen bg-paper" aria-label="正在加载" />
 }
 
 function ProtectedApp() {

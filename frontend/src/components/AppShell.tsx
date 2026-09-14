@@ -392,15 +392,13 @@ export function AppShell() {
                 <NavLink to="/" className={({ isActive }) => `inline-flex h-9 items-center gap-2 rounded-md px-3 text-sm font-semibold transition focus:outline-none focus-visible:shadow-focusline ${isActive ? 'bg-shell text-ink' : 'text-graphite hover:bg-shell hover:text-ink'}`}><LayoutDashboard size={16} aria-hidden="true" />工作总览</NavLink>
                 <NavLink to="/explore" className={({ isActive }) => `inline-flex h-9 items-center gap-2 rounded-md px-3 text-sm font-semibold transition focus:outline-none focus-visible:shadow-focusline ${isActive ? 'bg-shell text-ink' : 'text-graphite hover:bg-shell hover:text-ink'}`}><Compass size={16} aria-hidden="true" />探索</NavLink>
                 <Link to="/projects/new" className="ml-2 inline-flex h-9 items-center gap-2 rounded-md bg-signal px-3 text-sm font-semibold text-white transition hover:bg-signalStrong focus:outline-none focus-visible:shadow-focusline"><Plus size={16} aria-hidden="true" />新建项目</Link>
-                <NavLink to={profileHref} aria-label="公开主页" title="公开主页" className="focus:outline-none focus-visible:shadow-focusline"><AvatarMark actor={currentActor} className="size-8" /></NavLink>
               </div>
             </div>
-            <div className="flex items-center justify-between gap-2 px-4 py-3 lg:hidden">
+            <div className="flex items-center gap-2 px-4 py-3 lg:hidden">
               <div className="flex min-w-0 items-center gap-1">
                 {back ? <Link to={back.to} aria-label={back.label} title={back.label} className="grid size-10 shrink-0 place-items-center rounded-md text-graphite transition hover:bg-shell/70 hover:text-ink focus:outline-none focus-visible:shadow-focusline"><ArrowLeft size={19} aria-hidden="true" /></Link> : <NavLink to="/" aria-label="ExecG" className="grid size-10 shrink-0 place-items-center rounded-md focus:outline-none focus-visible:shadow-focusline"><BrandLogo compact className="size-8" /></NavLink>}
                 <MobileProjectMenu projects={projects} activeProjectId={activeProjectId} contracts={contracts} branches={branches} profileHref={profileHref} />
               </div>
-              <NavLink to={profileHref} aria-label="公开主页" title="公开主页" className="shrink-0 focus:outline-none focus-visible:shadow-focusline"><AvatarMark actor={currentActor} className="size-9" /></NavLink>
             </div>
           </header>
           <main className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6 lg:px-10 lg:py-8">

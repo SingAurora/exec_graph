@@ -114,6 +114,9 @@ export function ProjectPage() {
   const activeBranchContracts = branches
     .map((branch) => ({ branch, contract: contracts.find((contract) => contract.id === branch.currentContractId) }))
     .filter((item): item is { branch: ExecutionBranch; contract: ExecutionContract } => Boolean(item.contract))
+	const publishableCollaborationNodes = [currentContract, ...activeBranchContracts.map((item) => item.contract)]
+		.filter((contract): contract is ExecutionContract => Boolean(contract && contract.stage === 'frozen'))
+		.filter((contract, index, list) => list.findIndex((item) => item.id === contract.id) === index)
   const mergeSources = branches
     .map((branch) => contracts.find((contract) => contract.id === branch.headContractId && contract.stage === 'completed' && contract.completionRecordId))
     .filter((contract): contract is ExecutionContract => Boolean(contract))
@@ -162,7 +165,7 @@ export function ProjectPage() {
         <>
           {isArchived ? <ArchivedProjectNotice /> : <ProjectWorkstation project={project} contracts={contracts} currentContract={currentContract} activeBranchContracts={activeBranchContracts} latestCompleted={latestCompleted} requestedParent={requestedParent} requestedClosure={requestedClosure} requestedSupplement={requestedSupplement} requestedRetry={requestedRetry} requestedBranch={requestedBranch} isFork={isFork} />}
 
-          {project.visibility === 'public' && currentContract?.stage === 'frozen' ? <ProjectCollaborationPublisher projectId={project.id} node={currentContract} accessToken={accessToken} /> : null}
+          {project.visibility === 'public' ? publishableCollaborationNodes.map((node) => <ProjectCollaborationPublisher key={node.id} projectId={project.id} node={node} accessToken={accessToken} />) : null}
 
           <ProjectQueues
             project={project}

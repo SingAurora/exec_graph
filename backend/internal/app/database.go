@@ -132,6 +132,7 @@ func migrateDatabase(ctx context.Context, db *sql.DB) error {
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
 		`ALTER TABLE projects ADD COLUMN default_ai_key_id VARCHAR(100) NULL AFTER visibility`,
 		`ALTER TABLE projects ADD COLUMN contribution_call_id VARCHAR(100) NULL AFTER default_ai_key_id`,
+		`ALTER TABLE projects ADD COLUMN contribution_origin_snapshot_json LONGTEXT NULL AFTER contribution_call_id`,
 		`ALTER TABLE projects ADD COLUMN project_type VARCHAR(20) NOT NULL DEFAULT 'guided' AFTER description`,
 		`ALTER TABLE projects ADD COLUMN project_rules LONGTEXT NULL AFTER project_type`,
 		`ALTER TABLE projects ADD INDEX idx_projects_contribution_call (contribution_call_id)`,

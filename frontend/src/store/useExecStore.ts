@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { actors, branches as seedBranches, completionRecords as seedCompletionRecords, contracts, currentActorId, defaultProjectId, edges, projects, smartContracts } from '../data/seed'
+import { requestJSON } from '../lib/api'
 import { isActionableStage, needsReviewDecision } from '../lib/execution'
 import type {
   AIReview,
@@ -27,6 +28,8 @@ type ReviewClarificationInput = {
   criterionIds: string[]
   explanation: string
   evidenceReferences?: string
+  evidenceAddition?: string
+  evidencePredatesSubmission?: boolean
 }
 
 type CreateContractInput = {
@@ -266,9 +269,9 @@ const buildDraftReview = (draft: string): { review: DraftReview; compiled: Compi
 }
 
 const requestNodeDraftReview = async (accessToken: string, project: Project, smartContract: SmartContractDefinition, draft: string, compiled: CompiledDraft) => {
-  const response = await fetch('/api/ai-reviews/node-draft', {
+  const data = await requestJSON<{ review?: DraftReview }>('/api/ai-reviews/node-draft', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+    accessToken,
     body: JSON.stringify({
       project: {
         id: project.id,
@@ -290,59 +293,47 @@ const requestNodeDraftReview = async (accessToken: string, project: Project, sma
       evidenceRequirement: compiled.evidenceRequirement,
     }),
   })
-  const data = (await response.json().catch(() => ({}))) as { error?: string; review?: DraftReview }
-  if (!response.ok || !data.review) {
-    throw new Error(data.error ?? `节点草案审核失败（HTTP ${response.status}）。`)
-  }
+  if (!data.review) throw new Error('节点草案审核没有返回结果。')
   return data.review
 }
 
 const requestRealAIReview = async (accessToken: string, contract: ExecutionContract, input: SubmitCompletionInput) => {
-  const response = await fetch('/api/ai-reviews/node', {
+  const data = await requestJSON<{ review?: AIReview }>('/api/ai-reviews/node', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+    accessToken,
     body: JSON.stringify({
       nodeId: contract.id,
       completionClaim: input.completionClaim.trim(),
       evidenceText: input.evidenceText.trim(),
     }),
   })
-  const data = (await response.json().catch(() => ({}))) as { error?: string; review?: AIReview }
-  if (!response.ok || !data.review) {
-    throw new Error(data.error ?? `AI 审查失败（HTTP ${response.status}）。`)
-  }
+  if (!data.review) throw new Error('AI 审查没有返回结果。')
   return data.review
 }
 
 const requestReviewClarification = async (accessToken: string, contract: ExecutionContract, input: ReviewClarificationInput) => {
-  const response = await fetch('/api/ai-reviews/node/clarification', {
+  const data = await requestJSON<{ review?: AIReview }>('/api/ai-reviews/node/clarification', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+    accessToken,
     body: JSON.stringify({
       nodeId: contract.id,
       criterionIds: input.criterionIds,
       explanation: input.explanation.trim(),
       evidenceReferences: input.evidenceReferences?.trim() ?? '',
+      evidenceAddition: input.evidenceAddition?.trim() ?? '',
+      evidencePredatesSubmission: input.evidencePredatesSubmission ?? false,
     }),
   })
-  const data = (await response.json().catch(() => ({}))) as { error?: string; review?: AIReview }
-  if (!response.ok || !data.review) {
-    throw new Error(data.error ?? `补充审查失败（HTTP ${response.status}）。`)
-  }
+  if (!data.review) throw new Error('补充审查没有返回结果。')
   return data.review
 }
 
 const requestProjectState = async (accessToken: string, path: string, init?: RequestInit) => {
-  const response = await fetch(path, {
+  const data = await requestJSON<ProjectStateResponse>(path, {
     ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`,
-      ...(init?.headers ?? {}),
-    },
+    accessToken,
   })
-  const data = (await response.json().catch(() => ({}))) as ProjectStateResponse & { error?: string }
-  if (!response.ok || !data.project) throw new Error(data.error ?? `项目操作失败（HTTP ${response.status}）。`)
+  if (!data.project) throw new Error('项目操作没有返回最新状态。')
   return data
 }
 
@@ -1205,8 +1196,8 @@ export const useExecStore = create<ExecState>()(
         if (!contract || !project || project.archivedAt || !contract.aiReview || !canReview || !isCurrentContract(project, contract, state.contracts, state.branches)) {
           return { success: false, message: '当前节点不能补充审查说明。' }
         }
-        if (!input.criterionIds.length || input.explanation.trim().length < 4) {
-          return { success: false, message: '请选择争议验收标准，并说明 AI 可能误解的地方。' }
+        if (!input.criterionIds.length || (input.explanation.trim().length < 4 && (input.evidenceAddition?.trim().length ?? 0) < 20)) {
+          return { success: false, message: '请选择需复审的验收标准，并补充说明或提交前已存在的证据。' }
         }
         if (!state.accessToken) return { success: false, message: '请先登录，并为项目选择审查 AI。' }
 

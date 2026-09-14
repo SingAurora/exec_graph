@@ -469,10 +469,23 @@ func (s *server) createProject(w http.ResponseWriter, r *http.Request, userID ui
 		projectType = "autonomous"
 		projectRules = ""
 	}
+	var contributionSnapshot string
+	if contributionCallID != "" {
+		origin, err := s.loadContributionOrigin(ctx, contributionCallID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "读取协作交接信息失败")
+			return
+		}
+		contributionSnapshot, err = jsonValue(origin)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "保存协作交接信息失败")
+			return
+		}
+	}
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO projects
-			(id, owner_id, title, description, project_type, project_rules, is_default, visibility, default_ai_key_id, contribution_call_id, active_contract_revision_id)
-		VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, NULLIF(?, ''), ?)`, projectID, userID, title, description, projectType, projectRules, visibility, aiKeyID, contributionCallID, revisionID); err != nil {
+			(id, owner_id, title, description, project_type, project_rules, is_default, visibility, default_ai_key_id, contribution_call_id, contribution_origin_snapshot_json, active_contract_revision_id)
+		VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, NULLIF(?, ''), NULLIF(?, ''), ?)`, projectID, userID, title, description, projectType, projectRules, visibility, aiKeyID, contributionCallID, contributionSnapshot, revisionID); err != nil {
 		writeError(w, http.StatusInternalServerError, "创建项目失败")
 		return
 	}
@@ -517,13 +530,13 @@ func (s *server) loadProject(ctx context.Context, userID uint64, projectID strin
 	var currentContractID sql.NullString
 	var activeRevisionID sql.NullString
 	var archivedAt sql.NullTime
-	var contributionCallID sql.NullString
+	var contributionCallID, contributionSnapshot sql.NullString
 	if err := s.db.QueryRowContext(ctx, `
-	SELECT id, title, description, project_type, COALESCE(project_rules, ''), is_default, visibility, default_ai_key_id, contribution_call_id, current_contract_id,
+	SELECT id, title, description, project_type, COALESCE(project_rules, ''), is_default, visibility, default_ai_key_id, contribution_call_id, contribution_origin_snapshot_json, current_contract_id,
 		       active_contract_revision_id, created_at, archived_at
 		FROM projects WHERE id = ? AND owner_id = ?`, projectID, userID).
 		Scan(&project.ID, &project.Title, &project.Description, &project.ProjectType, &project.ProjectRules, &isDefault, &project.Visibility,
-			&project.ReviewAIKeyID, &contributionCallID, &currentContractID, &activeRevisionID, &project.CreatedAt, &archivedAt); err != nil {
+			&project.ReviewAIKeyID, &contributionCallID, &contributionSnapshot, &currentContractID, &activeRevisionID, &project.CreatedAt, &archivedAt); err != nil {
 		return project, err
 	}
 	project.IsDefault = isDefault == 1
@@ -535,12 +548,19 @@ func (s *server) loadProject(ctx context.Context, userID uint64, projectID strin
 		value := archivedAt.Time
 		project.ArchivedAt = &value
 	}
-	if contributionCallID.Valid {
-		origin, err := s.loadContributionOrigin(ctx, contributionCallID.String)
-		if err != nil {
-			return project, err
+	if contributionSnapshot.Valid {
+		var origin contributionOriginResponse
+		if json.Unmarshal([]byte(contributionSnapshot.String), &origin) == nil {
+			project.ContributionOrigin = &origin
 		}
-		project.ContributionOrigin = &origin
+	}
+	if project.ContributionOrigin == nil && contributionCallID.Valid {
+		origin, err := s.loadContributionOrigin(ctx, contributionCallID.String)
+		if err == nil {
+			project.ContributionOrigin = &origin
+		} else {
+			project.ContributionOrigin = &contributionOriginResponse{CallID: contributionCallID.String, Status: "closed", ProjectTitle: "原始协作目标已不可用", CallTitle: "已关闭的协作交接"}
+		}
 	}
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT r.id, r.smart_contract_id, r.smart_contract_version, r.rule_hash, r.reason, r.activated_at,

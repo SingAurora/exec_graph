@@ -501,30 +501,63 @@ func requestCompletionConversation(ctx context.Context, key aiStoredKey, convers
 }
 
 func callConversationModel(ctx context.Context, key aiStoredKey, system string, payload any, target any) error {
-	definition, ok := aiProviderDefinitions[key.Provider]
-	if !ok {
-		return fmt.Errorf("AI 服务不支持")
-	}
 	contentBytes, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
 		return err
+	}
+	content, err := requestConversationModelContent(ctx, key, system, string(contentBytes))
+	if err != nil {
+		return err
+	}
+	if err := decodeConversationJSON(content, target); err == nil {
+		return nil
+	}
+
+	// Some compatible models ignore JSON mode occasionally. Give the same model
+	// one bounded chance to repair its own response before surfacing an error.
+	schema, err := json.Marshal(target)
+	if err != nil {
+		return fmt.Errorf("生成 AI 对话结果结构失败")
+	}
+	repairPayload, err := json.Marshal(map[string]any{
+		"invalidModelOutput": content,
+		"requiredJSONShape":  json.RawMessage(schema),
+	})
+	if err != nil {
+		return fmt.Errorf("生成 AI 对话修复请求失败")
+	}
+	repairSystem := "你是 JSON 输出修复器。将用户提供的模型输出转换为符合 requiredJSONShape 的 JSON 对象。保留原意；缺失字段使用空字符串、false 或空数组。只输出一个有效 JSON 对象，不要 Markdown、解释或代码围栏。"
+	repaired, err := requestConversationModelContent(ctx, key, repairSystem, string(repairPayload))
+	if err != nil {
+		return err
+	}
+	if err := decodeConversationJSON(repaired, target); err != nil {
+		return fmt.Errorf("AI 返回的对话结果不是可解析的 JSON；已尝试自动修复，请重试或更换模型")
+	}
+	return nil
+}
+
+func requestConversationModelContent(ctx context.Context, key aiStoredKey, system, userContent string) (string, error) {
+	definition, ok := aiProviderDefinitions[key.Provider]
+	if !ok {
+		return "", fmt.Errorf("AI 服务不支持")
 	}
 	var endpoint string
 	var requestBody any
 	if definition.AuthStyle == "anthropic" {
 		endpoint = strings.TrimRight(key.BaseURL, "/") + "/messages"
-		requestBody = map[string]any{"model": key.Model, "max_tokens": 8192, "temperature": 0, "system": system, "messages": []map[string]string{{"role": "user", "content": string(contentBytes)}}}
+		requestBody = map[string]any{"model": key.Model, "max_tokens": 8192, "temperature": 0, "system": system, "messages": []map[string]string{{"role": "user", "content": userContent}}}
 	} else {
 		endpoint = strings.TrimRight(key.BaseURL, "/") + "/chat/completions"
-		requestBody = map[string]any{"model": key.Model, "max_tokens": 8192, "temperature": 0, "messages": []map[string]string{{"role": "system", "content": system}, {"role": "user", "content": string(contentBytes)}}, "response_format": map[string]string{"type": "json_object"}}
+		requestBody = map[string]any{"model": key.Model, "max_tokens": 8192, "temperature": 0, "messages": []map[string]string{{"role": "system", "content": system}, {"role": "user", "content": userContent}}, "response_format": map[string]string{"type": "json_object"}}
 	}
 	body, err := json.Marshal(requestBody)
 	if err != nil {
-		return err
+		return "", err
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
-		return err
+		return "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if definition.AuthStyle == "anthropic" {
@@ -535,24 +568,35 @@ func callConversationModel(ctx context.Context, key aiStoredKey, system string, 
 	}
 	response, err := (&http.Client{Timeout: 80 * time.Second}).Do(req)
 	if err != nil {
-		return fmt.Errorf("无法连接 AI 服务，请检查项目 AI 配置")
+		return "", fmt.Errorf("无法连接 AI 服务，请检查项目 AI 配置")
 	}
 	defer response.Body.Close()
 	body, err = io.ReadAll(io.LimitReader(response.Body, 4<<20))
 	if err != nil {
-		return fmt.Errorf("读取 AI 回复失败")
+		return "", fmt.Errorf("读取 AI 回复失败")
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return fmt.Errorf("AI 审查失败：服务商返回 HTTP %d", response.StatusCode)
+		return "", fmt.Errorf("AI 审查失败：服务商返回 HTTP %d", response.StatusCode)
 	}
 	content, err := extractAIMessageContent(key.Provider, body)
 	if err != nil {
-		return err
+		return "", err
 	}
-	if err := json.Unmarshal([]byte(extractJSONObject(content)), target); err != nil {
-		return fmt.Errorf("AI 返回的对话结果不是可解析的 JSON")
+	return content, nil
+}
+
+func decodeConversationJSON(content string, target any) error {
+	var quoted string
+	if err := json.Unmarshal([]byte(strings.TrimSpace(content)), &quoted); err == nil {
+		if err := json.Unmarshal([]byte(extractJSONObject(quoted)), target); err == nil {
+			return nil
+		}
 	}
-	return nil
+	candidate := extractJSONObject(content)
+	if err := json.Unmarshal([]byte(candidate), target); err == nil {
+		return nil
+	}
+	return fmt.Errorf("invalid JSON")
 }
 
 func reviewRequestFromConversation(conversation conversationResponse) reviewExecutionNodeRequest {

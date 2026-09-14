@@ -1,8 +1,9 @@
-import { Bot, LoaderCircle, Send, ShieldCheck } from 'lucide-react'
+import { Bot, Copy, LoaderCircle, Send, ShieldCheck } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { showErrorToast, showSuccessToast } from '../lib/notifications'
 import { useExecStore } from '../store/useExecStore'
-import type { DraftReview, ExecutionContract } from '../types'
+import type { AIConfigSnapshot, DraftReview, ExecutionContract } from '../types'
 
 type ActionDraft = {
   title: string
@@ -17,7 +18,9 @@ type Conversation = {
   phase: 'planning' | 'completion'
   status: string
   currentDraft?: ActionDraft
+  aiConfig?: AIConfigSnapshot
   messages: ConversationMessage[]
+  updatedAt: string
 }
 
 const toDraftText = (draft: ActionDraft) => [
@@ -47,13 +50,19 @@ type PlanningConversationProps = {
   closureSourceIds?: string[]
   supplementOfContractId?: string
   retryOfContractId?: string
-  onCreate: (input: { draft: string; draftReview: DraftReview; planningConversationId: string }) => Promise<{ contractId?: string }>
+  onCreate: (input: { draft: string; draftReview: DraftReview; planningConversationId: string }) => Promise<{ contractId?: string; draftReview?: DraftReview }>
+}
+
+function conversationTranscript(messages: ConversationMessage[], draft?: ActionDraft) {
+  const entries = messages.map((message) => `## ${message.role === 'assistant' ? 'AI' : '你'}\n\n${message.body.trim()}`).join('\n\n')
+  const transcript = `# 节点目标对话\n\n${entries}`
+  if (!draft) return transcript
+  return `${transcript}\n\n# 当前行动契约草案\n\n## ${draft.title}\n\n**可验证目标**\n\n${draft.verifiableGoal}\n\n**验收标准**\n\n${draft.acceptanceCriteria.map((item) => `- ${item}`).join('\n')}\n\n**证据要求**\n\n${draft.evidenceRequirement}`
 }
 
 export function PlanningConversation({ projectId, parentContractId, sourceContractIds, branchId, fork, closureSourceIds, supplementOfContractId, retryOfContractId, onCreate }: PlanningConversationProps) {
   const navigate = useNavigate()
   const token = useExecStore((state) => state.accessToken)
-  const reviewNodeDraft = useExecStore((state) => state.reviewNodeDraft)
   const [conversation, setConversation] = useState<Conversation | null>(null)
   const [body, setBody] = useState('')
   const [error, setError] = useState('')
@@ -86,20 +95,42 @@ export function PlanningConversation({ projectId, parentContractId, sourceContra
     setBusy('freezing'); setError('')
     try {
       const draft = toDraftText(conversation.currentDraft)
-      const { draftReview } = await reviewNodeDraft({ projectId, draft })
-      if (draftReview.verdict !== 'pass') { setError(draftReview.missingRequirements.join(' ') || draftReview.summary); return }
+      if (!conversation.aiConfig) {
+        setError('冻结审核缺少 AI 配置记录。请重新提交冻结审核。')
+        return
+      }
+      // The conversation's ready state is produced by the freeze review itself.
+      // Calling the standalone draft-review endpoint again could contradict or block
+      // this already approved conversation.
+      const draftReview: DraftReview = {
+        id: `conversation-freeze-${conversation.id}`,
+        verdict: 'pass',
+        summary: '目标对话已完成，节点草案通过冻结审核。',
+        missingRequirements: [],
+        createdAt: conversation.updatedAt ?? new Date().toISOString(),
+        aiConfig: conversation.aiConfig,
+      }
       const result = await onCreate({ draft, draftReview, planningConversationId: conversation.id })
-      if (!result.contractId) { setError('节点没有创建成功，请检查冻结审核。'); return }
+      if (!result.contractId) { setError(result.draftReview?.summary ?? '节点没有创建成功，请检查冻结审核。'); return }
       navigate(`/contracts/${result.contractId}`)
     } catch (reason) { setError(reason instanceof Error ? reason.message : '冻结节点失败') }
     finally { setBusy(null) }
   }
 
   const draft = conversation?.currentDraft
+  const copyTranscript = async () => {
+    if (!conversation?.messages.length) return
+    try {
+      await navigator.clipboard.writeText(conversationTranscript(conversation.messages, draft))
+      showSuccessToast('对话已复制')
+    } catch {
+      showErrorToast('复制失败，请检查浏览器权限。')
+    }
+  }
   return (
     <section className="space-y-5">
       <div className="rounded-md border border-rail bg-surface/72 p-5">
-        <div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal"><Bot size={15} />目标对话</div>
+        <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal"><Bot size={15} />目标对话</div><button type="button" onClick={copyTranscript} disabled={!conversation?.messages.length} className="inline-flex h-8 items-center gap-1.5 border border-rail bg-surface px-2.5 text-xs font-semibold text-graphite transition hover:border-signal hover:text-ink disabled:cursor-not-allowed disabled:opacity-50"><Copy size={14} aria-hidden="true" />复制对话</button></div>
         <h2 className="mt-2 font-display text-2xl font-semibold">和 AI 定义这次推进</h2>
         <div className="mt-5 max-h-[520px] space-y-4 overflow-y-auto border-y border-rail py-4">
           {conversation?.messages.length ? conversation.messages.map((message) => (
