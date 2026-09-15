@@ -20,6 +20,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	infrastructuremail "github.com/singaurora/exec-graph/backend/internal/infrastructure/mail"
+	infrastructuremysql "github.com/singaurora/exec-graph/backend/internal/infrastructure/mysql"
 	infrastructureredis "github.com/singaurora/exec-graph/backend/internal/infrastructure/redis"
 	infrastructurestorage "github.com/singaurora/exec-graph/backend/internal/infrastructure/storage"
 	"gorm.io/gorm"
@@ -124,6 +125,10 @@ func (s *server) routes() http.Handler {
 	aiReviews.POST("/node/clarification", gin.WrapF(s.reviewExecutionNodeClarification))
 	aiReviews.POST("/node-draft", gin.WrapF(s.reviewNodeDraft))
 
+	workOverview := api.Group("/work-overview")
+	workOverview.GET("", gin.WrapF(s.handleWorkOverview))
+	workOverview.POST("/days/:date/review", gin.WrapF(s.handleDailyWorkReview))
+
 	conversations := api.Group("/conversations")
 	conversations.GET("/*path", gin.WrapF(s.handleConversations))
 	conversations.POST("/*path", gin.WrapF(s.handleConversations))
@@ -178,8 +183,9 @@ func (s *server) sendCode(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 	defer cancel()
-	var exists bool
-	if err := s.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM users WHERE email = ?)`, email).Scan(&exists); err != nil {
+	identityRepository := infrastructuremysql.NewIdentityRepository(s.orm)
+	exists, err := identityRepository.EmailExists(ctx, email)
+	if err != nil {
 		writeError(w, http.StatusInternalServerError, "检查邮箱失败")
 		return
 	}
@@ -208,15 +214,13 @@ func (s *server) sendCode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	codeHash := hashValue(code)
-	_, err = s.db.ExecContext(ctx, `
-		UPDATE email_verification_codes
-		SET used_at = NOW()
-		WHERE email = ? AND purpose = ? AND used_at IS NULL`, email, purpose)
-	if err == nil {
-		_, err = s.db.ExecContext(ctx, `
-			INSERT INTO email_verification_codes (email, purpose, code_hash, expires_at, send_ip)
-			VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL ? MINUTE), ?)`, email, purpose, codeHash, s.config.Tencent.SES.CodeTTLMinutes, clientIP(r))
-	}
+	err = identityRepository.Transaction(ctx, func(tx infrastructuremysql.IdentityRepository) error {
+		if err := tx.InvalidateCodes(ctx, email, purpose); err != nil {
+			return err
+		}
+		sendIP := clientIP(r)
+		return tx.CreateCode(ctx, &infrastructuremysql.EmailVerificationCode{Email: email, Purpose: purpose, CodeHash: codeHash, ExpiresAt: time.Now().Add(time.Duration(s.config.Tencent.SES.CodeTTLMinutes) * time.Minute), SendIP: &sendIP})
+	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "保存验证码失败")
 		return
@@ -256,71 +260,59 @@ func (s *server) register(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
 	defer cancel()
-	var verificationID uint64
-	var expectedHash string
-	err := s.db.QueryRowContext(ctx, `
-		SELECT id, code_hash
-		FROM email_verification_codes
-		WHERE email = ? AND purpose = ? AND used_at IS NULL AND expires_at > NOW()
-		ORDER BY id DESC LIMIT 1`, email, verificationPurposeRegister).Scan(&verificationID, &expectedHash)
-	if errors.Is(err, sql.ErrNoRows) || !equalHash(expectedHash, request.Code) {
-		writeError(w, http.StatusBadRequest, "验证码错误或已过期")
-		return
-	}
-
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "创建账号失败")
-		return
-	}
-	defer tx.Rollback()
-	if _, err := tx.ExecContext(ctx, `UPDATE email_verification_codes SET used_at = NOW() WHERE id = ? AND used_at IS NULL`, verificationID); err != nil {
-		writeError(w, http.StatusInternalServerError, "确认验证码失败")
-		return
-	}
-	var databaseUserID int64
+	identityRepository := infrastructuremysql.NewIdentityRepository(s.orm)
+	var databaseUserID uint64
 	var userHandle string
-	for attempt := 0; attempt < 3; attempt++ {
-		userHandle, err = newUserID()
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "生成用户 ID 失败")
-			return
+	token, err := newSessionToken()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "创建登录会话失败")
+		return
+	}
+	sessionExpiry := time.Now().Add(time.Duration(s.config.App.SessionTTLHours) * time.Hour)
+	err = identityRepository.Transaction(ctx, func(tx infrastructuremysql.IdentityRepository) error {
+		if err := consumeVerificationCode(ctx, tx, email, verificationPurposeRegister, request.Code); err != nil {
+			return err
 		}
-		result, insertErr := tx.ExecContext(ctx, `
-			INSERT INTO users (username, user_id, email, password_hash, email_verified_at)
-			VALUES (?, ?, ?, ?, NOW())`, username, userHandle, email, request.Password)
-		if insertErr == nil {
-			databaseUserID, err = result.LastInsertId()
+		for attempt := 0; attempt < 3; attempt++ {
+			handle, err := newUserID()
+			if err != nil {
+				return err
+			}
+			userHandle = handle
+			now := time.Now()
+			user := infrastructuremysql.User{Username: username, UserID: userHandle, Email: email, PasswordHash: request.Password, EmailVerifiedAt: &now}
+			if err := tx.CreateUser(ctx, &user); err != nil {
+				if strings.Contains(strings.ToLower(err.Error()), "uq_users_user_id") {
+					continue
+				}
+				return err
+			}
+			databaseUserID = user.ID
 			break
 		}
-		if strings.Contains(strings.ToLower(insertErr.Error()), "uq_users_user_id") {
-			continue
+		if databaseUserID == 0 {
+			return errors.New("could not allocate user handle")
 		}
-		if strings.Contains(insertErr.Error(), "Duplicate entry") {
+		contract, err := infrastructuremysql.NewSmartContractRepository(s.orm).FindByID(ctx, generalSmartContractID)
+		if err != nil {
+			return err
+		}
+		if err := tx.ProjectRepository().EnsureInitialProject(ctx, infrastructuremysql.InitialProjectSpec{ProjectID: fmt.Sprintf("project-initial-%d", databaseUserID), RevisionID: fmt.Sprintf("project-initial-revision-%d", databaseUserID), OwnerID: databaseUserID, SmartContractID: generalSmartContractID, SmartContractVersion: contract.Version, RuleHash: hashValue(generalSmartContractBody)}); err != nil {
+			return err
+		}
+		return tx.CreateSession(ctx, &infrastructuremysql.AuthSession{UserID: databaseUserID, TokenHash: hashValue(token), ExpiresAt: sessionExpiry})
+	})
+	if err != nil {
+		if errors.Is(err, errInvalidVerificationCode) {
+			writeError(w, http.StatusBadRequest, "验证码错误或已过期")
+		} else if strings.Contains(err.Error(), "Duplicate entry") {
 			writeError(w, http.StatusConflict, "该邮箱已经注册")
 		} else {
 			writeError(w, http.StatusInternalServerError, "创建账号失败")
 		}
 		return
 	}
-	if databaseUserID == 0 || err != nil {
-		writeError(w, http.StatusInternalServerError, "读取账号信息失败")
-		return
-	}
-	if err := ensureDefaultProjectTx(ctx, tx, uint64(databaseUserID)); err != nil {
-		writeError(w, http.StatusInternalServerError, "创建默认项目失败")
-		return
-	}
-	token, err := s.createSessionTx(ctx, tx, uint64(databaseUserID))
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "创建登录会话失败")
-		return
-	}
-	if err := tx.Commit(); err != nil {
-		writeError(w, http.StatusInternalServerError, "保存账号失败")
-		return
-	}
-	s.cacheSession(r.Context(), token, authenticatedUser{ID: uint64(databaseUserID), Username: username, UserID: userHandle, Email: email})
+	s.cacheSession(r.Context(), token, authenticatedUser{ID: databaseUserID, Username: username, UserID: userHandle, Email: email})
 	writeJSON(w, http.StatusCreated, map[string]any{
 		"accessToken": token,
 		"user":        map[string]any{"id": databaseUserID, "email": email, "username": username, "userId": userHandle},

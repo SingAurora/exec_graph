@@ -27,8 +27,8 @@ export function ChainPage() {
   const allContracts = useExecStore((state) => state.contracts)
   const allBranches = useExecStore((state) => state.branches)
   const allEdges = useExecStore((state) => state.edges)
-  const defaultProject = projects.find((project) => project.isDefault) ?? projects[0]
-  const project = projects.find((item) => item.id === searchParams.get('project')) ?? defaultProject
+  const initialProject = projects.find((project) => !project.archivedAt) ?? projects[0]
+  const project = projects.find((item) => item.id === searchParams.get('project')) ?? initialProject
   const contracts = useMemo(() => allContracts.filter((contract) => contract.projectId === project?.id), [allContracts, project?.id])
   const isPublic = project?.visibility === 'public'
   const branches = useMemo(() => allBranches.filter((branch) => branch.projectId === project?.id), [allBranches, project?.id])

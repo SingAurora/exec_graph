@@ -111,6 +111,7 @@ func migrateDatabase(ctx context.Context, db *sql.DB) error {
 		`ALTER TABLE projects ADD COLUMN contribution_origin_snapshot_json LONGTEXT NULL AFTER contribution_call_id`,
 		`ALTER TABLE projects ADD COLUMN project_type VARCHAR(20) NOT NULL DEFAULT 'guided' AFTER description`,
 		`ALTER TABLE projects ADD COLUMN project_rules LONGTEXT NULL AFTER project_type`,
+		`UPDATE projects SET is_default = 0 WHERE is_default = 1`,
 		`ALTER TABLE projects ADD INDEX idx_projects_contribution_call (contribution_call_id)`,
 		`UPDATE projects SET project_type = 'guided' WHERE project_type IS NULL OR project_type NOT IN ('guided', 'autonomous')`,
 		`CREATE TABLE IF NOT EXISTS project_contract_revisions (
@@ -214,6 +215,17 @@ func migrateDatabase(ctx context.Context, db *sql.DB) error {
 			body LONGTEXT NOT NULL,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			INDEX idx_work_logs_contract (contract_id, created_at)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+		`CREATE TABLE IF NOT EXISTS daily_work_reviews (
+			id VARCHAR(100) NOT NULL PRIMARY KEY,
+			user_id BIGINT UNSIGNED NOT NULL,
+			review_date DATE NOT NULL,
+			review_json LONGTEXT NOT NULL,
+			ai_config_json LONGTEXT NOT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			UNIQUE KEY uq_daily_work_review (user_id, review_date),
+			INDEX idx_daily_work_reviews_user_month (user_id, review_date)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
 		`CREATE TABLE IF NOT EXISTS execution_edges (
 			id VARCHAR(100) NOT NULL PRIMARY KEY,

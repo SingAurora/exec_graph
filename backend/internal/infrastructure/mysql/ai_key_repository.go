@@ -34,6 +34,35 @@ func NewAIKeyRepository(db *gorm.DB) AIKeyRepository {
 	return AIKeyRepository{db: db}
 }
 
+func (repository AIKeyRepository) Create(ctx context.Context, key *AIKey) error {
+	return repository.db.WithContext(ctx).Create(key).Error
+}
+
+func (repository AIKeyRepository) MarkVerified(ctx context.Context, userID uint64, keyID string, verifiedAt time.Time) error {
+	return repository.db.WithContext(ctx).Model(&AIKey{}).
+		Where("id = ? AND user_id = ?", keyID, userID).
+		Update("last_verified_at", verifiedAt).Error
+}
+
+func (repository AIKeyRepository) DeleteUnusedForUser(ctx context.Context, userID uint64, keyID string) error {
+	return repository.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var key AIKey
+		if err := tx.Clauses(clauseForUpdate).Where("id = ? AND user_id = ?", keyID, userID).First(&key).Error; errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrNotFound
+		} else if err != nil {
+			return err
+		}
+		var projectCount int64
+		if err := tx.Model(&Project{}).Where("owner_id = ? AND default_ai_key_id = ?", userID, keyID).Count(&projectCount).Error; err != nil {
+			return err
+		}
+		if projectCount > 0 {
+			return ErrInUse
+		}
+		return tx.Delete(&key).Error
+	})
+}
+
 func (repository AIKeyRepository) ListForUser(ctx context.Context, userID uint64) ([]AIKey, error) {
 	var keys []AIKey
 	err := repository.db.WithContext(ctx).

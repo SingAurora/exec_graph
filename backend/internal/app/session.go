@@ -2,11 +2,12 @@ package app
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"net/http"
 	"strings"
 	"time"
+
+	infrastructuremysql "github.com/singaurora/exec-graph/backend/internal/infrastructure/mysql"
 )
 
 type loginRequest struct {
@@ -39,31 +40,21 @@ func (s *server) login(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
 	defer cancel()
-	var user authenticatedUser
-	var passwordHash string
-	err = s.db.QueryRowContext(ctx, `
-		SELECT id, username, user_id, email, password_hash
-		FROM users WHERE email = ?`, email).Scan(&user.ID, &user.Username, &user.UserID, &user.Email, &passwordHash)
-	if errors.Is(err, sql.ErrNoRows) || passwordHash != request.Password {
+	stored, err := infrastructuremysql.NewIdentityRepository(s.orm).FindUserByEmail(ctx, email, false)
+	if errors.Is(err, infrastructuremysql.ErrNotFound) || stored.PasswordHash != request.Password {
 		writeError(w, http.StatusUnauthorized, "邮箱或密码不正确")
 		return
 	}
-
-	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "登录失败")
 		return
 	}
-	defer tx.Rollback()
-	token, err := s.createSessionTx(ctx, tx, user.ID)
+	token, err := s.createSession(ctx, stored.ID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "创建登录会话失败")
 		return
 	}
-	if err := tx.Commit(); err != nil {
-		writeError(w, http.StatusInternalServerError, "保存登录会话失败")
-		return
-	}
+	user := authenticatedUser{ID: stored.ID, Username: stored.Username, UserID: stored.UserID, Email: stored.Email}
 	s.cacheSession(r.Context(), token, user)
 	writeJSON(w, http.StatusOK, map[string]any{"accessToken": token, "user": user})
 }
@@ -77,7 +68,7 @@ func (s *server) logout(w http.ResponseWriter, r *http.Request) {
 	if token != "" {
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 		defer cancel()
-		if _, err := s.db.ExecContext(ctx, `DELETE FROM auth_sessions WHERE token_hash = ?`, hashValue(token)); err != nil {
+		if err := infrastructuremysql.NewIdentityRepository(s.orm).DeleteSessionByToken(ctx, hashValue(token)); err != nil {
 			writeError(w, http.StatusInternalServerError, "退出登录失败")
 			return
 		}
@@ -107,6 +98,20 @@ func (s *server) requireUser(w http.ResponseWriter, r *http.Request) (authentica
 	return user, true
 }
 
+// optionalUser preserves anonymous access to public read endpoints. Invalid or
+// expired tokens are treated as anonymous because the requested resource is
+// already public; callers still cannot use this for a protected operation.
+func (s *server) optionalUser(r *http.Request) (authenticatedUser, bool) {
+	if bearerToken(r) == "" {
+		return authenticatedUser{}, false
+	}
+	user, err := s.authenticate(r)
+	if err != nil {
+		return authenticatedUser{}, false
+	}
+	return user, true
+}
+
 func (s *server) authenticate(r *http.Request) (authenticatedUser, error) {
 	token := bearerToken(r)
 	if token == "" {
@@ -117,28 +122,22 @@ func (s *server) authenticate(r *http.Request) (authenticatedUser, error) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
-	var user authenticatedUser
-	err := s.db.QueryRowContext(ctx, `
-		SELECT u.id, u.username, u.user_id, u.email
-		FROM auth_sessions session
-		JOIN users u ON u.id = session.user_id
-		WHERE session.token_hash = ? AND session.expires_at > NOW()`, hashValue(token)).Scan(&user.ID, &user.Username, &user.UserID, &user.Email)
+	stored, err := infrastructuremysql.NewIdentityRepository(s.orm).FindActiveSessionUser(ctx, hashValue(token))
 	if err != nil {
 		return authenticatedUser{}, err
 	}
+	user := authenticatedUser{ID: stored.ID, Username: stored.Username, UserID: stored.UserID, Email: stored.Email}
 	s.cacheSession(r.Context(), token, user)
 	return user, nil
 }
 
-func (s *server) createSessionTx(ctx context.Context, tx *sql.Tx, userID uint64) (string, error) {
+func (s *server) createSession(ctx context.Context, userID uint64) (string, error) {
 	token, err := newSessionToken()
 	if err != nil {
 		return "", err
 	}
 	expiresAt := time.Now().Add(time.Duration(s.config.App.SessionTTLHours) * time.Hour)
-	_, err = tx.ExecContext(ctx, `
-		INSERT INTO auth_sessions (user_id, token_hash, expires_at)
-		VALUES (?, ?, ?)`, userID, hashValue(token), expiresAt)
+	err = infrastructuremysql.NewIdentityRepository(s.orm).CreateSession(ctx, &infrastructuremysql.AuthSession{UserID: userID, TokenHash: hashValue(token), ExpiresAt: expiresAt})
 	if err != nil {
 		return "", err
 	}

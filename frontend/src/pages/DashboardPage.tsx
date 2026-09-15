@@ -2,6 +2,7 @@ import { Archive, ArrowRight, Bot, CheckCircle2, Eye, FileCheck2, FolderKanban, 
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { SectionHeader } from '../components/SectionHeader'
 import { StatusBadge } from '../components/StatusBadge'
+import { WorkMonthView } from '../components/WorkMonthView'
 import { currentContractIDs, isAcceptedRecord, isReadyToProgress, isReviewInProgress, needsReviewDecision, nextActionLabel } from '../lib/execution'
 import { useExecStore } from '../store/useExecStore'
 import type { ExecutionContract, Project } from '../types'
@@ -29,6 +30,7 @@ export function DashboardPage() {
   const contracts = useExecStore((state) => state.contracts)
   const branches = useExecStore((state) => state.branches)
   const completionRecords = useExecStore((state) => state.completionRecords)
+  const accessToken = useExecStore((state) => state.accessToken)
 
   if (searchParams.get('new') === 'project') return <Navigate to="/projects/new" replace />
 
@@ -70,6 +72,8 @@ export function DashboardPage() {
           </> : <p className="px-5 py-4 text-sm text-graphite">暂时没有待处理行动。新建项目后，从第一项推进开始。</p>}
         </div>
       </section>
+
+      <WorkMonthView accessToken={accessToken} />
 
       <section className="space-y-4 border-t border-rail pt-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -144,7 +148,7 @@ function ProjectCard({ project }: { project: Project }) {
     <Link to={`/projects/${project.id}`} className="group grid min-w-0 gap-4 border-b border-rail px-5 py-5 last:border-b-0 transition hover:bg-shell/45 focus:outline-none focus-visible:shadow-focusline lg:grid-cols-[minmax(0,1fr)_220px_220px_auto] lg:items-center">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2 font-mono text-xs font-semibold text-signal">{project.isDefault ? '默认项目' : '项目'}{project.visibility === 'public' ? <span className="inline-flex items-center gap-1"><Eye size={12} aria-hidden="true" />公开</span> : null}{isArchived ? <span className="inline-flex items-center gap-1 text-graphite"><Archive size={12} aria-hidden="true" />已归档</span> : null}</div>
+          <div className="flex flex-wrap items-center gap-2 font-mono text-xs font-semibold text-signal">项目{project.visibility === 'public' ? <span className="inline-flex items-center gap-1"><Eye size={12} aria-hidden="true" />公开</span> : null}{isArchived ? <span className="inline-flex items-center gap-1 text-graphite"><Archive size={12} aria-hidden="true" />已归档</span> : null}</div>
           <h2 className="mt-2 text-lg font-semibold leading-6 text-ink">{project.title}</h2>
         </div>
         <FolderKanban size={18} className="shrink-0 text-signal" aria-hidden="true" />

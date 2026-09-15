@@ -43,7 +43,7 @@ function resolveActiveProjectId(pathname: string, projects: Project[], contracts
   const contract = contracts.find((item) => item.id === contractId)
   if (contract) return contract.projectId
 
-  return pathname === '/' ? projects.find((project) => project.isDefault)?.id : undefined
+  return undefined
 }
 
 type ProjectStatus = {
@@ -110,7 +110,7 @@ function ProjectRailItem({ project, active, contracts, branches }: { project: Pr
           <span className="truncate text-sm font-semibold">{project.title}</span>
           <span className="shrink-0 opacity-70">{visibilityIcon}</span>
         </span>
-        <span className={`mt-0.5 block truncate text-[11px] leading-4 ${active ? 'text-signal/70' : 'text-graphite/75'}`}>{project.isDefault ? '默认项目 · ' : ''}{status.label}</span>
+        <span className={`mt-0.5 block truncate text-[11px] leading-4 ${active ? 'text-signal/70' : 'text-graphite/75'}`}>{status.label}</span>
       </span>
       <ChevronRight size={15} className={`shrink-0 transition-transform group-hover:translate-x-0.5 ${active ? 'text-signal/70' : 'text-graphite/55'}`} aria-hidden="true" />
     </Link>

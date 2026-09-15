@@ -10,5 +10,5 @@ func main() {
 	if err := app.SeedDemoData(); err != nil {
 		log.Fatal(err)
 	}
-	log.Println("ExecG demo collaboration data is ready")
+	log.Println("ExecG demo collaboration data is ready (test accounts are marked in the database)")
 }

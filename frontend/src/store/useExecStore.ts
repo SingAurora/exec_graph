@@ -463,7 +463,7 @@ const reconcileBranchCurrentNodes = (branchList: ExecutionBranch[], allContracts
 
 const normalizeProject = (project: Project): Project => {
   const seededProject = projects.find((item) => item.id === project.id)
-  const visibility = project.isDefault ? 'private' : project.visibility ?? seededProject?.visibility ?? 'private'
+  const visibility = project.visibility ?? seededProject?.visibility ?? 'private'
   const projectType = project.projectType ?? seededProject?.projectType ?? 'guided'
   const projectRules = project.projectRules ?? seededProject?.projectRules ?? ''
   return {
@@ -808,7 +808,7 @@ export const useExecStore = create<ExecState>()(
       },
       deleteProject: async (projectId) => {
         const project = get().projects.find((item) => item.id === projectId)
-        if (!project || project.isDefault) return { success: false, message: '默认项目不能删除。' }
+        if (!project) return { success: false, message: '项目不存在。' }
         const accessToken = get().accessToken
         if (!accessToken) return { success: false, message: '请先登录后再删除项目。' }
         try {
@@ -827,7 +827,7 @@ export const useExecStore = create<ExecState>()(
         } catch (error) { return { success: false, message: error instanceof Error ? error.message : '删除项目失败。' } }
       },
       reviewNodeDraft: async (input) => {
-        const project = get().projects.find((item) => item.id === input.projectId) ?? get().projects.find((item) => item.id === defaultProjectId)
+        const project = get().projects.find((item) => item.id === input.projectId)
         if (!project) {
           return {
             draftReview: {
@@ -892,7 +892,7 @@ export const useExecStore = create<ExecState>()(
         }
       },
       createContract: async (input) => {
-        const project = get().projects.find((item) => item.id === input.projectId) ?? get().projects.find((item) => item.id === defaultProjectId)
+        const project = get().projects.find((item) => item.id === input.projectId)
         if (!project) {
           return {
             draftReview: {

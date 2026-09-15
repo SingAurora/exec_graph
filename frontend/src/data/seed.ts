@@ -171,8 +171,8 @@ export const projects: Project[] = [
   {
     id: defaultProjectId,
     title: '我的执行',
-    description: '默认项目。任何还不需要单独归档的行动，都可以直接在这里开始。',
-    isDefault: true,
+    description: '用于开始和整理你的行动。',
+    isDefault: false,
     visibility: 'private',
     projectType: 'guided',
     projectRules: '每次只推进一个明确行动；所有完成结果必须有可核验的证据。',

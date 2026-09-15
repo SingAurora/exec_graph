@@ -311,7 +311,7 @@ func (s *server) updateProject(w http.ResponseWriter, r *http.Request, userID ui
 			return
 		}
 	}
-	result, err := s.db.ExecContext(ctx, `UPDATE projects SET title = ?, description = ?, visibility = CASE WHEN is_default = 1 THEN 'private' ELSE ? END WHERE id = ? AND owner_id = ? AND archived_at IS NULL`, title, description, request.Visibility, projectID, userID)
+	result, err := s.db.ExecContext(ctx, `UPDATE projects SET title = ?, description = ?, visibility = ? WHERE id = ? AND owner_id = ? AND archived_at IS NULL`, title, description, request.Visibility, projectID, userID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "保存项目资料失败")
 		return
@@ -651,14 +651,14 @@ func (s *server) archiveProject(w http.ResponseWriter, r *http.Request, userID u
 	defer cancel()
 	result, err := s.db.ExecContext(ctx, `
 		UPDATE projects SET archived_at = NOW()
-		WHERE id = ? AND owner_id = ? AND is_default = 0 AND archived_at IS NULL`, projectID, userID)
+		WHERE id = ? AND owner_id = ? AND archived_at IS NULL`, projectID, userID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "归档项目失败")
 		return
 	}
 	count, _ := result.RowsAffected()
 	if count == 0 {
-		writeError(w, http.StatusBadRequest, "默认项目不能归档，或项目已经归档")
+		writeError(w, http.StatusBadRequest, "项目不存在或已经归档")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"message": "项目已归档"})
@@ -669,14 +669,14 @@ func (s *server) unarchiveProject(w http.ResponseWriter, r *http.Request, userID
 	defer cancel()
 	result, err := s.db.ExecContext(ctx, `
 		UPDATE projects SET archived_at = NULL
-		WHERE id = ? AND owner_id = ? AND is_default = 0 AND archived_at IS NOT NULL`, projectID, userID)
+		WHERE id = ? AND owner_id = ? AND archived_at IS NOT NULL`, projectID, userID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "恢复项目失败")
 		return
 	}
 	count, _ := result.RowsAffected()
 	if count == 0 {
-		writeError(w, http.StatusBadRequest, "默认项目不能恢复，或项目未归档")
+		writeError(w, http.StatusBadRequest, "项目不存在或未归档")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"message": "项目已恢复"})
@@ -692,18 +692,14 @@ func (s *server) deleteProject(w http.ResponseWriter, r *http.Request, userID ui
 	}
 	defer tx.Rollback()
 
-	var isDefault int
+	var existingProjectID string
 	if err := tx.QueryRowContext(ctx, `
-		SELECT is_default FROM projects
-		WHERE id = ? AND owner_id = ?`, projectID, userID).Scan(&isDefault); err == sql.ErrNoRows {
+		SELECT id FROM projects
+		WHERE id = ? AND owner_id = ?`, projectID, userID).Scan(&existingProjectID); err == sql.ErrNoRows {
 		writeError(w, http.StatusNotFound, "项目不存在")
 		return
 	} else if err != nil {
 		writeError(w, http.StatusInternalServerError, "读取项目失败")
-		return
-	}
-	if isDefault == 1 {
-		writeError(w, http.StatusBadRequest, "默认项目不能删除")
 		return
 	}
 	var adoptedCount int

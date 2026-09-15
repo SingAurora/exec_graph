@@ -784,7 +784,7 @@ function ProjectProfileSettings({
       ) : (
         <ProjectDetailsSettings key={project.id} project={project} onSave={onUpdateProject} />
       )}
-      {!project.isDefault ? <ProjectDangerZone isArchived={isArchived} projectTitle={project.title} onArchive={onArchive} onRestore={onRestore} onDelete={onDelete} /> : null}
+      <ProjectDangerZone isArchived={isArchived} projectTitle={project.title} onArchive={onArchive} onRestore={onRestore} onDelete={onDelete} />
     </div>
   )
 }
@@ -815,7 +815,7 @@ function ProjectDetailsSettings({ project, onSave }: { project: Project; onSave:
       <form className="mt-5 grid gap-4" onSubmit={save}>
         <label className="grid gap-2"><span className="text-sm font-semibold text-ink">项目名称</span><input value={title} onChange={(event) => { setTitle(event.target.value); setMessage('') }} className="h-11 rounded-md border border-rail bg-paper px-3 text-sm outline-none focus:border-signal focus:shadow-focusline" /></label>
         <label className="grid gap-2"><span className="text-sm font-semibold text-ink">项目描述</span><textarea value={description} onChange={(event) => { setDescription(event.target.value); setMessage('') }} className="min-h-24 rounded-md border border-rail bg-paper px-3 py-3 text-sm leading-6 outline-none focus:border-signal focus:shadow-focusline" /></label>
-        <label className="grid gap-2"><span className="text-sm font-semibold text-ink">项目可见性</span><select value={project.isDefault ? 'private' : visibility} disabled={project.isDefault} onChange={(event) => setVisibility(event.target.value as Project['visibility'])} className="h-11 rounded-md border border-rail bg-paper px-3 text-sm outline-none focus:border-signal focus:shadow-focusline"><option value="private">私人项目</option><option value="public">公开项目</option></select></label>
+        <label className="grid gap-2"><span className="text-sm font-semibold text-ink">项目可见性</span><select value={visibility} onChange={(event) => setVisibility(event.target.value as Project['visibility'])} className="h-11 rounded-md border border-rail bg-paper px-3 text-sm outline-none focus:border-signal focus:shadow-focusline"><option value="private">私人项目</option><option value="public">公开项目</option></select></label>
         <div className="flex flex-wrap items-center gap-3"><button type="submit" className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-signal px-3 text-sm font-semibold text-white transition hover:bg-signalStrong focus:outline-none focus-visible:shadow-focusline"><Settings2 size={16} aria-hidden="true" />保存项目资料</button>{message ? <span className="text-sm font-semibold text-signal">{message}</span> : null}</div>
       </form>
     </section>

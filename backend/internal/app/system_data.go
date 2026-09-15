@@ -36,7 +36,7 @@ func seedSystemData(ctx context.Context, db *sql.DB) error {
 }
 
 // seedDevelopmentTestAccount makes local browser testing use the same
-// authenticated path as a registered user, including a real default project.
+// authenticated path as a registered user, including a real initial project.
 func seedDevelopmentTestAccount(ctx context.Context, db *sql.DB, account TestAccountConfig) error {
 	if !account.Enabled {
 		return nil
@@ -72,7 +72,7 @@ func seedDevelopmentTestAccount(ctx context.Context, db *sql.DB, account TestAcc
 	if err := tx.QueryRowContext(ctx, `SELECT id FROM users WHERE email = ?`, email).Scan(&userID); err != nil {
 		return fmt.Errorf("load test account: %w", err)
 	}
-	if err := ensureDefaultProjectTx(ctx, tx, userID); err != nil {
+	if err := ensureInitialProjectTx(ctx, tx, userID); err != nil {
 		return err
 	}
 	if err := tx.Commit(); err != nil {
@@ -81,13 +81,13 @@ func seedDevelopmentTestAccount(ctx context.Context, db *sql.DB, account TestAcc
 	return nil
 }
 
-func ensureDefaultProjectTx(ctx context.Context, tx *sql.Tx, userID uint64) error {
+func ensureInitialProjectTx(ctx context.Context, tx *sql.Tx, userID uint64) error {
 	var exists bool
 	if err := tx.QueryRowContext(ctx, `
 		SELECT EXISTS(
-			SELECT 1 FROM projects WHERE owner_id = ? AND is_default = 1
+			SELECT 1 FROM projects WHERE owner_id = ?
 		)`, userID).Scan(&exists); err != nil {
-		return fmt.Errorf("check default project: %w", err)
+		return fmt.Errorf("check initial project: %w", err)
 	}
 	if exists {
 		return nil
@@ -97,22 +97,22 @@ func ensureDefaultProjectTx(ctx context.Context, tx *sql.Tx, userID uint64) erro
 	if err := tx.QueryRowContext(ctx, `SELECT version FROM smart_contracts WHERE id = ?`, generalSmartContractID).Scan(&smartContractVersion); err != nil {
 		return fmt.Errorf("load default smart contract: %w", err)
 	}
-	projectID := fmt.Sprintf("project-default-%d", userID)
-	revisionID := fmt.Sprintf("project-default-revision-%d", userID)
+	projectID := fmt.Sprintf("project-initial-%d", userID)
+	revisionID := fmt.Sprintf("project-initial-revision-%d", userID)
 	ruleHash := hashValue(generalSmartContractBody)
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO projects
 			(id, owner_id, title, description, project_type, project_rules, is_default, visibility, active_contract_revision_id)
-		VALUES (?, ?, '我的执行', '默认项目。任何还不需要单独归档的行动，都可以直接在这里开始。', 'guided', '每次只推进一个明确行动；所有完成结果必须有可核验的证据。', 1, 'private', ?)`,
+		VALUES (?, ?, '我的执行', '用于开始和整理你的行动。', 'guided', '每次只推进一个明确行动；所有完成结果必须有可核验的证据。', 0, 'private', ?)`,
 		projectID, userID, revisionID); err != nil {
-		return fmt.Errorf("create default project: %w", err)
+		return fmt.Errorf("create initial project: %w", err)
 	}
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO project_contract_revisions
 			(id, project_id, smart_contract_id, smart_contract_version, rule_hash, reason)
-		VALUES (?, ?, ?, ?, ?, '平台默认智能合约')`,
+		VALUES (?, ?, ?, ?, ?, '项目创建时的基础审查规则')`,
 		revisionID, projectID, generalSmartContractID, smartContractVersion, ruleHash); err != nil {
-		return fmt.Errorf("create default project contract revision: %w", err)
+		return fmt.Errorf("create initial project contract revision: %w", err)
 	}
 	return nil
 }

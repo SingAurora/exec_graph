@@ -8,7 +8,10 @@ import (
 	"gorm.io/gorm"
 )
 
-var ErrNotFound = errors.New("record not found")
+var (
+	ErrNotFound = errors.New("record not found")
+	ErrInUse    = errors.New("record is in use")
+)
 
 type SmartContract struct {
 	ID          string    `gorm:"column:id"`
@@ -28,6 +31,15 @@ type SmartContractRepository struct {
 
 func NewSmartContractRepository(db *gorm.DB) SmartContractRepository {
 	return SmartContractRepository{db: db}
+}
+
+func (repository SmartContractRepository) FindByID(ctx context.Context, contractID string) (SmartContract, error) {
+	var contract SmartContract
+	err := repository.db.WithContext(ctx).First(&contract, "id = ?", contractID).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return SmartContract{}, ErrNotFound
+	}
+	return contract, err
 }
 
 func (repository SmartContractRepository) ListVisible(ctx context.Context, userID uint64) ([]SmartContract, error) {

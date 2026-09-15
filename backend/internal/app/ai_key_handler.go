@@ -141,20 +141,7 @@ func (s *server) createAIKey(w http.ResponseWriter, r *http.Request, userID uint
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
 	defer cancel()
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "保存 AI 密钥失败")
-		return
-	}
-	defer tx.Rollback()
-	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO ai_api_keys (id, user_id, provider, label, key_ciphertext, key_hint, base_url, model)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		keyID, userID, provider, label, apiKey, maskAPIKey(apiKey), baseURL, model); err != nil {
-		writeError(w, http.StatusInternalServerError, "保存 AI 密钥失败")
-		return
-	}
-	if err := tx.Commit(); err != nil {
+	if err := infrastructuremysql.NewAIKeyRepository(s.orm).Create(ctx, &infrastructuremysql.AIKey{ID: keyID, UserID: userID, Provider: provider, Label: label, KeyCiphertext: apiKey, KeyHint: maskAPIKey(apiKey), BaseURL: baseURL, Model: model}); err != nil {
 		writeError(w, http.StatusInternalServerError, "保存 AI 密钥失败")
 		return
 	}
@@ -181,7 +168,7 @@ func (s *server) verifyAIKey(w http.ResponseWriter, r *http.Request, userID uint
 		return
 	}
 	verifiedAt := time.Now()
-	if _, err := s.db.ExecContext(ctx, `UPDATE ai_api_keys SET last_verified_at = ? WHERE id = ? AND user_id = ?`, verifiedAt, keyID, userID); err != nil {
+	if err := infrastructuremysql.NewAIKeyRepository(s.orm).MarkVerified(ctx, userID, keyID, verifiedAt); err != nil {
 		writeError(w, http.StatusInternalServerError, "保存验证结果失败")
 		return
 	}
@@ -211,36 +198,16 @@ func (s *server) testAIKeyDraft(w http.ResponseWriter, r *http.Request) {
 func (s *server) deleteAIKey(w http.ResponseWriter, r *http.Request, userID uint64, keyID string) {
 	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
 	defer cancel()
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "删除 AI 密钥失败")
-		return
-	}
-	defer tx.Rollback()
-	var projectCount int
-	err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM projects WHERE owner_id = ? AND default_ai_key_id = ?`, userID, keyID).Scan(&projectCount)
-	if err == sql.ErrNoRows {
+	err := infrastructuremysql.NewAIKeyRepository(s.orm).DeleteUnusedForUser(ctx, userID, keyID)
+	if errors.Is(err, infrastructuremysql.ErrNotFound) {
 		writeError(w, http.StatusNotFound, "AI 密钥不存在")
 		return
 	}
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "删除 AI 密钥失败")
-		return
-	}
-	if projectCount > 0 {
+	if errors.Is(err, infrastructuremysql.ErrInUse) {
 		writeError(w, http.StatusBadRequest, "该 AI 密钥正在被项目使用，请先修改项目审查 AI")
 		return
 	}
-	var exists bool
-	if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM ai_api_keys WHERE id = ? AND user_id = ?)`, keyID, userID).Scan(&exists); err != nil || !exists {
-		writeError(w, http.StatusNotFound, "AI 密钥不存在")
-		return
-	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM ai_api_keys WHERE id = ? AND user_id = ?`, keyID, userID); err != nil {
-		writeError(w, http.StatusInternalServerError, "删除 AI 密钥失败")
-		return
-	}
-	if err := tx.Commit(); err != nil {
+	if err != nil {
 		writeError(w, http.StatusInternalServerError, "删除 AI 密钥失败")
 		return
 	}

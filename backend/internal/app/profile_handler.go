@@ -3,7 +3,6 @@ package app
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"fmt"
 	"image"
 	"image/color"
@@ -16,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	infrastructuremysql "github.com/singaurora/exec-graph/backend/internal/infrastructure/mysql"
 	infrastructurestorage "github.com/singaurora/exec-graph/backend/internal/infrastructure/storage"
 
 	xdraw "golang.org/x/image/draw"
@@ -111,7 +111,7 @@ func (s *server) updateCurrentUser(w http.ResponseWriter, r *http.Request, user 
 
 	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
 	defer cancel()
-	_, err = s.db.ExecContext(ctx, `UPDATE users SET username = ?, user_id = ?, bio = ?, gender = ?, custom_profile_enabled = ?, custom_profile_markdown = ? WHERE id = ?`, username, userID, bio, request.Gender, request.CustomProfileEnabled, customProfileMarkdown, user.ID)
+	err = infrastructuremysql.NewIdentityRepository(s.orm).UpdateUser(ctx, user.ID, map[string]any{"username": username, "user_id": userID, "bio": bio, "gender": request.Gender, "custom_profile_enabled": request.CustomProfileEnabled, "custom_profile_markdown": customProfileMarkdown})
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "duplicate") {
 			writeError(w, http.StatusConflict, "该用户 ID 已被使用")
@@ -204,7 +204,7 @@ func (s *server) uploadAvatar(w http.ResponseWriter, r *http.Request, user authe
 		writeError(w, http.StatusBadGateway, "头像上传失败，请稍后重试")
 		return
 	}
-	if _, err := s.db.ExecContext(ctx, `UPDATE users SET avatar_url = ? WHERE id = ?`, newObjectKey, user.ID); err != nil {
+	if err := infrastructuremysql.NewIdentityRepository(s.orm).UpdateUser(ctx, user.ID, map[string]any{"avatar_url": newObjectKey}); err != nil {
 		_ = s.storage.DeleteAvatar(ctx, newObjectKey)
 		writeError(w, http.StatusInternalServerError, "保存头像失败")
 		return
@@ -266,7 +266,7 @@ func (s *server) uploadProfileBackground(w http.ResponseWriter, r *http.Request,
 		writeError(w, http.StatusBadGateway, "背景图片上传失败，请稍后重试")
 		return
 	}
-	if _, err := s.db.ExecContext(ctx, `UPDATE users SET profile_background_url = ? WHERE id = ?`, newObjectKey, user.ID); err != nil {
+	if err := infrastructuremysql.NewIdentityRepository(s.orm).UpdateUser(ctx, user.ID, map[string]any{"profile_background_url": newObjectKey}); err != nil {
 		_ = s.storage.DeleteProfileBackground(ctx, newObjectKey)
 		writeError(w, http.StatusInternalServerError, "保存背景图片失败")
 		return
@@ -358,33 +358,29 @@ func resizeProfileBackgroundDimensions(width, height, maxWidth, maxHeight int) (
 func (s *server) loadUserProfile(requestContext context.Context, userID uint64) (userProfileResponse, error) {
 	ctx, cancel := context.WithTimeout(requestContext, 8*time.Second)
 	defer cancel()
-	var profile userProfileResponse
-	var bio, gender, avatarObjectKey, profileBackgroundObjectKey, customProfileMarkdown sql.NullString
-	err := s.db.QueryRowContext(ctx, `
-		SELECT id, username, user_id, email, bio, gender, avatar_url, profile_background_url, custom_profile_enabled, custom_profile_markdown
-		FROM users WHERE id = ?`, userID).
-		Scan(&profile.ID, &profile.Username, &profile.UserID, &profile.Email, &bio, &gender, &avatarObjectKey, &profileBackgroundObjectKey, &profile.CustomProfileEnabled, &customProfileMarkdown)
+	stored, err := infrastructuremysql.NewIdentityRepository(s.orm).FindUserByID(ctx, userID)
 	if err != nil {
-		return profile, err
+		return userProfileResponse{}, err
 	}
-	if bio.Valid {
-		profile.Bio = bio.String
+	profile := userProfileResponse{ID: stored.ID, Username: stored.Username, UserID: stored.UserID, Email: stored.Email, CustomProfileEnabled: stored.CustomProfileEnabled}
+	if stored.Bio != nil {
+		profile.Bio = *stored.Bio
 	}
-	if gender.Valid {
-		profile.Gender = gender.String
+	if stored.Gender != nil {
+		profile.Gender = *stored.Gender
 	}
-	if customProfileMarkdown.Valid {
-		profile.CustomProfileMarkdown = customProfileMarkdown.String
+	if stored.CustomProfileMarkdown != nil {
+		profile.CustomProfileMarkdown = *stored.CustomProfileMarkdown
 	}
-	if avatarObjectKey.Valid && avatarObjectKey.String != "" && s.storage != nil && s.storage.IsAvatarKey(avatarObjectKey.String) {
-		avatarURL, err := s.storage.SignedAvatarURL(ctx, avatarObjectKey.String)
+	if stored.AvatarURL != nil && *stored.AvatarURL != "" && s.storage != nil && s.storage.IsAvatarKey(*stored.AvatarURL) {
+		avatarURL, err := s.storage.SignedAvatarURL(ctx, *stored.AvatarURL)
 		if err != nil {
 			return profile, fmt.Errorf("sign avatar URL: %w", err)
 		}
 		profile.AvatarURL = &avatarURL
 	}
-	if profileBackgroundObjectKey.Valid && profileBackgroundObjectKey.String != "" && s.storage != nil && s.storage.IsProfileBackgroundKey(profileBackgroundObjectKey.String) {
-		backgroundURL, err := s.storage.SignedProfileBackgroundURL(ctx, profileBackgroundObjectKey.String)
+	if stored.ProfileBackgroundURL != nil && *stored.ProfileBackgroundURL != "" && s.storage != nil && s.storage.IsProfileBackgroundKey(*stored.ProfileBackgroundURL) {
+		backgroundURL, err := s.storage.SignedProfileBackgroundURL(ctx, *stored.ProfileBackgroundURL)
 		if err != nil {
 			return profile, fmt.Errorf("sign profile background URL: %w", err)
 		}
@@ -394,25 +390,25 @@ func (s *server) loadUserProfile(requestContext context.Context, userID uint64) 
 }
 
 func (s *server) loadAvatarObjectKey(ctx context.Context, userID uint64) (string, error) {
-	var objectKey sql.NullString
-	if err := s.db.QueryRowContext(ctx, `SELECT avatar_url FROM users WHERE id = ?`, userID).Scan(&objectKey); err != nil {
+	stored, err := infrastructuremysql.NewIdentityRepository(s.orm).FindUserByID(ctx, userID)
+	if err != nil {
 		return "", err
 	}
-	if !objectKey.Valid || !s.storage.IsAvatarKey(objectKey.String) {
+	if stored.AvatarURL == nil || !s.storage.IsAvatarKey(*stored.AvatarURL) {
 		return "", nil
 	}
-	return objectKey.String, nil
+	return *stored.AvatarURL, nil
 }
 
 func (s *server) loadProfileBackgroundObjectKey(ctx context.Context, userID uint64) (string, error) {
-	var objectKey sql.NullString
-	if err := s.db.QueryRowContext(ctx, `SELECT profile_background_url FROM users WHERE id = ?`, userID).Scan(&objectKey); err != nil {
+	stored, err := infrastructuremysql.NewIdentityRepository(s.orm).FindUserByID(ctx, userID)
+	if err != nil {
 		return "", err
 	}
-	if !objectKey.Valid || !s.storage.IsProfileBackgroundKey(objectKey.String) {
+	if stored.ProfileBackgroundURL == nil || !s.storage.IsProfileBackgroundKey(*stored.ProfileBackgroundURL) {
 		return "", nil
 	}
-	return objectKey.String, nil
+	return *stored.ProfileBackgroundURL, nil
 }
 
 func avatarExtension(contentType string) (string, bool) {

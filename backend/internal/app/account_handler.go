@@ -2,11 +2,12 @@ package app
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"net/http"
 	"strings"
 	"time"
+
+	infrastructuremysql "github.com/singaurora/exec-graph/backend/internal/infrastructure/mysql"
 )
 
 type changeEmailRequest struct {
@@ -53,35 +54,31 @@ func (s *server) changeEmail(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
 	defer cancel()
-	tx, err := s.db.BeginTx(ctx, nil)
+	repository := infrastructuremysql.NewIdentityRepository(s.orm)
+	err = repository.Transaction(ctx, func(tx infrastructuremysql.IdentityRepository) error {
+		stored, err := tx.FindUserByID(ctx, user.ID)
+		if err != nil {
+			return err
+		}
+		if stored.PasswordHash != request.CurrentPassword {
+			return errCurrentPasswordIncorrect
+		}
+		if err := consumeVerificationCode(ctx, tx, email, verificationPurposeChangeEmail, request.Code); err != nil {
+			return err
+		}
+		now := time.Now()
+		return tx.UpdateUser(ctx, user.ID, map[string]any{"email": email, "email_verified_at": now})
+	})
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "修改邮箱失败")
-		return
-	}
-	defer tx.Rollback()
-	var passwordHash string
-	if err := tx.QueryRowContext(ctx, `SELECT password_hash FROM users WHERE id = ?`, user.ID).Scan(&passwordHash); err != nil {
-		writeError(w, http.StatusInternalServerError, "读取账号信息失败")
-		return
-	}
-	if passwordHash != request.CurrentPassword {
-		writeError(w, http.StatusUnauthorized, "当前密码不正确")
-		return
-	}
-	if err := consumeVerificationCodeTx(ctx, tx, email, verificationPurposeChangeEmail, request.Code); err != nil {
-		writeError(w, http.StatusBadRequest, "验证码错误或已过期")
-		return
-	}
-	if _, err := tx.ExecContext(ctx, `UPDATE users SET email = ?, email_verified_at = NOW() WHERE id = ?`, email, user.ID); err != nil {
-		if strings.Contains(err.Error(), "Duplicate entry") {
+		if errors.Is(err, errCurrentPasswordIncorrect) {
+			writeError(w, http.StatusUnauthorized, "当前密码不正确")
+		} else if errors.Is(err, errInvalidVerificationCode) {
+			writeError(w, http.StatusBadRequest, "验证码错误或已过期")
+		} else if strings.Contains(err.Error(), "Duplicate entry") {
 			writeError(w, http.StatusConflict, "该邮箱已经注册")
 		} else {
 			writeError(w, http.StatusInternalServerError, "保存新邮箱失败")
 		}
-		return
-	}
-	if err := tx.Commit(); err != nil {
-		writeError(w, http.StatusInternalServerError, "保存新邮箱失败")
 		return
 	}
 	s.cacheSession(r.Context(), bearerToken(r), authenticatedUser{ID: user.ID, Username: user.Username, UserID: user.UserID, Email: email})
@@ -113,31 +110,28 @@ func (s *server) changePassword(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
 	defer cancel()
-	tx, err := s.db.BeginTx(ctx, nil)
+	repository := infrastructuremysql.NewIdentityRepository(s.orm)
+	err := repository.Transaction(ctx, func(tx infrastructuremysql.IdentityRepository) error {
+		stored, err := tx.FindUserByID(ctx, user.ID)
+		if err != nil {
+			return err
+		}
+		if stored.PasswordHash != request.CurrentPassword {
+			return errCurrentPasswordIncorrect
+		}
+		if err := consumeVerificationCode(ctx, tx, user.Email, verificationPurposeChangePassword, request.Code); err != nil {
+			return err
+		}
+		return tx.UpdateUser(ctx, user.ID, map[string]any{"password_hash": request.NextPassword})
+	})
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "修改密码失败")
-		return
-	}
-	defer tx.Rollback()
-	var passwordHash string
-	if err := tx.QueryRowContext(ctx, `SELECT password_hash FROM users WHERE id = ?`, user.ID).Scan(&passwordHash); err != nil {
-		writeError(w, http.StatusInternalServerError, "读取账号信息失败")
-		return
-	}
-	if passwordHash != request.CurrentPassword {
-		writeError(w, http.StatusUnauthorized, "当前密码不正确")
-		return
-	}
-	if err := consumeVerificationCodeTx(ctx, tx, user.Email, verificationPurposeChangePassword, request.Code); err != nil {
-		writeError(w, http.StatusBadRequest, "验证码错误或已过期")
-		return
-	}
-	if _, err := tx.ExecContext(ctx, `UPDATE users SET password_hash = ? WHERE id = ?`, request.NextPassword, user.ID); err != nil {
-		writeError(w, http.StatusInternalServerError, "保存新密码失败")
-		return
-	}
-	if err := tx.Commit(); err != nil {
-		writeError(w, http.StatusInternalServerError, "保存新密码失败")
+		if errors.Is(err, errCurrentPasswordIncorrect) {
+			writeError(w, http.StatusUnauthorized, "当前密码不正确")
+		} else if errors.Is(err, errInvalidVerificationCode) {
+			writeError(w, http.StatusBadRequest, "验证码错误或已过期")
+		} else {
+			writeError(w, http.StatusInternalServerError, "保存新密码失败")
+		}
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"message": "密码已更新"})
@@ -165,60 +159,55 @@ func (s *server) resetPassword(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
 	defer cancel()
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "重设密码失败")
-		return
-	}
-	defer tx.Rollback()
 	var userID uint64
-	if err := tx.QueryRowContext(ctx, `SELECT id FROM users WHERE email = ? FOR UPDATE`, email).Scan(&userID); err == sql.ErrNoRows {
-		writeError(w, http.StatusNotFound, "该邮箱尚未注册")
-		return
-	} else if err != nil {
-		writeError(w, http.StatusInternalServerError, "读取账号信息失败")
-		return
-	}
-	if err := consumeVerificationCodeTx(ctx, tx, email, verificationPurposeResetPassword, request.Code); err != nil {
-		writeError(w, http.StatusBadRequest, "验证码错误或已过期")
-		return
-	}
-	if _, err := tx.ExecContext(ctx, `UPDATE users SET password_hash = ? WHERE id = ?`, request.NextPassword, userID); err != nil {
-		writeError(w, http.StatusInternalServerError, "保存新密码失败")
-		return
-	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM auth_sessions WHERE user_id = ?`, userID); err != nil {
-		writeError(w, http.StatusInternalServerError, "重设登录会话失败")
-		return
-	}
-	if err := tx.Commit(); err != nil {
-		writeError(w, http.StatusInternalServerError, "保存新密码失败")
+	repository := infrastructuremysql.NewIdentityRepository(s.orm)
+	err = repository.Transaction(ctx, func(tx infrastructuremysql.IdentityRepository) error {
+		stored, err := tx.FindUserByEmail(ctx, email, true)
+		if err != nil {
+			return err
+		}
+		userID = stored.ID
+		if err := consumeVerificationCode(ctx, tx, email, verificationPurposeResetPassword, request.Code); err != nil {
+			return err
+		}
+		if err := tx.UpdateUser(ctx, userID, map[string]any{"password_hash": request.NextPassword}); err != nil {
+			return err
+		}
+		return tx.DeleteSessionsForUser(ctx, userID)
+	})
+	if err != nil {
+		if errors.Is(err, infrastructuremysql.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "该邮箱尚未注册")
+		} else if errors.Is(err, errInvalidVerificationCode) {
+			writeError(w, http.StatusBadRequest, "验证码错误或已过期")
+		} else {
+			writeError(w, http.StatusInternalServerError, "保存新密码失败")
+		}
 		return
 	}
 	s.deleteCachedUserSessions(r.Context(), userID)
 	writeJSON(w, http.StatusOK, map[string]string{"message": "密码已重设，请使用新密码登录"})
 }
 
-func consumeVerificationCodeTx(ctx context.Context, tx *sql.Tx, email, purpose, code string) error {
-	var verificationID uint64
-	var expectedHash string
-	err := tx.QueryRowContext(ctx, `
-		SELECT id, code_hash
-		FROM email_verification_codes
-		WHERE email = ? AND purpose = ? AND used_at IS NULL AND expires_at > NOW()
-		ORDER BY id DESC LIMIT 1 FOR UPDATE`, email, purpose).Scan(&verificationID, &expectedHash)
-	if errors.Is(err, sql.ErrNoRows) || !equalHash(expectedHash, code) {
-		return errors.New("invalid verification code")
+var (
+	errInvalidVerificationCode  = errors.New("invalid verification code")
+	errCurrentPasswordIncorrect = errors.New("current password incorrect")
+)
+
+func consumeVerificationCode(ctx context.Context, repository infrastructuremysql.IdentityRepository, email, purpose, code string) error {
+	verification, err := repository.LatestActiveCode(ctx, email, purpose, true)
+	if errors.Is(err, infrastructuremysql.ErrNotFound) || !equalHash(verification.CodeHash, code) {
+		return errInvalidVerificationCode
 	}
-	result, err := tx.ExecContext(ctx, `
-		UPDATE email_verification_codes SET used_at = NOW()
-		WHERE id = ? AND used_at IS NULL`, verificationID)
 	if err != nil {
 		return err
 	}
-	count, err := result.RowsAffected()
-	if err != nil || count != 1 {
-		return errors.New("verification code already used")
+	used, err := repository.MarkCodeUsed(ctx, verification.ID)
+	if err != nil {
+		return err
+	}
+	if !used {
+		return errInvalidVerificationCode
 	}
 	return nil
 }

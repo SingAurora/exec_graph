@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Link, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { AppShell } from './components/AppShell'
 import { useExecStore } from './store/useExecStore'
 
@@ -25,12 +25,14 @@ export function App() {
         <Route path="/login" element={<LoginRoute />} />
         <Route path="/forgot-password" element={<ForgotPasswordRoute />} />
         <Route path="/register" element={<RegisterRoute />} />
-        <Route element={<ProtectedApp />}>
-          <Route index element={<DashboardPage />} />
+        <Route element={<PublicExploreApp />}>
           <Route path="/explore" element={<ExplorePage />} />
           <Route path="/explore/projects/:projectId" element={<PublicProjectPage />} />
+        </Route>
+        <Route element={<ProtectedApp />}>
+          <Route index element={<DashboardPage />} />
           <Route path="/u/:handle" element={<PublicProfilePage />} />
-          <Route path="/chains" element={<Navigate to="/projects/project-default" replace />} />
+          <Route path="/chains" element={<Navigate to="/" replace />} />
           <Route path="/projects/new" element={<NewProjectPage />} />
           <Route path="/projects/:projectId" element={<ProjectPage />} />
           <Route path="/goals/goal-product" element={<Navigate to="/projects/project-exec-graph" replace />} />
@@ -55,6 +57,11 @@ function RouteLoading() {
 function ProtectedApp() {
   const isAuthenticated = useExecStore((state) => state.isAuthenticated)
   return isAuthenticated ? <AppShell /> : <Navigate to="/login" replace />
+}
+
+function PublicExploreApp() {
+  const isAuthenticated = useExecStore((state) => state.isAuthenticated)
+  return <div className="min-h-screen bg-paper text-ink"><header className="border-b border-rail bg-surface/90"><div className="mx-auto flex h-14 max-w-[1440px] items-center justify-between gap-4 px-5"><Link to="/explore" className="font-display text-lg font-semibold text-ink">执行图谱</Link><div className="flex items-center gap-4 text-sm font-semibold"><span className="hidden text-graphite sm:inline">公开协作网络</span><Link to={isAuthenticated ? '/' : '/login'} className="text-signal hover:text-ink">{isAuthenticated ? '进入工作区' : '登录参与'}</Link></div></div></header><main className="mx-auto max-w-[1440px] px-5 py-8 lg:px-8"><Outlet /></main></div>
 }
 
 function LoginRoute() {

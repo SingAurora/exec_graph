@@ -30,6 +30,7 @@ func (Project) TableName() string { return "projects" }
 
 type ProjectContractRevision struct {
 	ID                       string    `gorm:"column:id"`
+	ProjectID                string    `gorm:"column:project_id"`
 	SmartContractID          string    `gorm:"column:smart_contract_id"`
 	SmartContractVersion     string    `gorm:"column:smart_contract_version"`
 	RuleHash                 string    `gorm:"column:rule_hash"`
@@ -42,6 +43,17 @@ type ProjectContractRevision struct {
 	SmartContractCreatedAt   time.Time `gorm:"column:smart_contract_created_at"`
 }
 
+func (ProjectContractRevision) TableName() string { return "project_contract_revisions" }
+
+type InitialProjectSpec struct {
+	ProjectID            string
+	RevisionID           string
+	OwnerID              uint64
+	SmartContractID      string
+	SmartContractVersion string
+	RuleHash             string
+}
+
 type ProjectRepository struct {
 	db *gorm.DB
 }
@@ -50,12 +62,31 @@ func NewProjectRepository(db *gorm.DB) ProjectRepository {
 	return ProjectRepository{db: db}
 }
 
+func (repository ProjectRepository) EnsureInitialProject(ctx context.Context, spec InitialProjectSpec) error {
+	var count int64
+	if err := repository.db.WithContext(ctx).Model(&Project{}).
+		Where("owner_id = ?", spec.OwnerID).
+		Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil
+	}
+	projectRules := "每次只推进一个明确行动；所有完成结果必须有可核验的证据。"
+	project := Project{ID: spec.ProjectID, OwnerID: spec.OwnerID, Title: "我的执行", Description: "用于开始和整理你的行动。", ProjectType: "guided", ProjectRules: &projectRules, IsDefault: false, Visibility: "private", ActiveContractRevisionID: &spec.RevisionID}
+	if err := repository.db.WithContext(ctx).Create(&project).Error; err != nil {
+		return err
+	}
+	revision := ProjectContractRevision{ID: spec.RevisionID, ProjectID: spec.ProjectID, SmartContractID: spec.SmartContractID, SmartContractVersion: spec.SmartContractVersion, RuleHash: spec.RuleHash, Reason: "项目创建时的基础审查规则"}
+	return repository.db.WithContext(ctx).Create(&revision).Error
+}
+
 func (repository ProjectRepository) ListIDsForOwner(ctx context.Context, userID uint64) ([]string, error) {
 	var ids []string
 	err := repository.db.WithContext(ctx).
 		Model(&Project{}).
 		Where("owner_id = ?", userID).
-		Order("is_default DESC, created_at DESC").
+		Order("created_at DESC").
 		Pluck("id", &ids).Error
 	return ids, err
 }

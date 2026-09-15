@@ -66,10 +66,11 @@ export type ContributionSource = { id: string; title: string; summary: string; p
 export type ContributionActivity = { submission: CollaborationSubmission; call: CollaborationCall }
 export type PublicNetworkNode = {
   id: string
-  kind: 'person' | 'project'
+  kind: 'person' | 'project' | 'record'
   label: string
   detail: string
   projectId?: string
+  recordId?: string
   userId?: string
   weight: number
   hasOpenCall: boolean
@@ -79,27 +80,34 @@ export type PublicNetworkEdge = {
   id: string
   source: string
   target: string
-  type: 'maintains' | 'contributing' | 'adopted' | 'workspace'
+  type: 'maintains' | 'authored' | 'result' | 'contributing' | 'adopted' | 'workspace'
   label: string
+  detail?: string
   recordId?: string
   callId?: string
+  sourceProjectId?: string
+  targetProjectId?: string
+  sourceProjectTitle?: string
+  targetProjectTitle?: string
   createdAt: string
 }
 export type PublicNetwork = { nodes: PublicNetworkNode[]; edges: PublicNetworkEdge[] }
 
-async function request<T>(token: string, path: string, init?: RequestInit): Promise<T> {
+async function request<T>(token: string | undefined, path: string, init?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', ...(init?.headers as Record<string, string> ?? {}) }
+  if (token) headers.Authorization = `Bearer ${token}`
   const response = await fetch(path, {
     ...init,
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+    headers,
   })
   const data = await response.json().catch(() => ({})) as T & { error?: string }
   if (!response.ok) throw new Error(data.error ?? `请求失败（HTTP ${response.status}）`)
   return data
 }
 
-export const getExploreProjects = (token: string) => request<{ projects: ExploreProject[] }>(token, '/api/explore/projects')
-export const getExploreNetwork = (token: string) => request<PublicNetwork>(token, '/api/explore/network')
-export const getExploreProject = (token: string, projectId: string) => request<{ project: ExploreProject }>(token, `/api/explore/projects/${projectId}`)
+export const getExploreProjects = (token?: string) => request<{ projects: ExploreProject[] }>(token, '/api/explore/projects')
+export const getExploreNetwork = (token?: string) => request<PublicNetwork>(token, '/api/explore/network')
+export const getExploreProject = (token: string | undefined, projectId: string) => request<{ project: ExploreProject }>(token, `/api/explore/projects/${projectId}`)
 export const getCall = (token: string, callId: string) => request<{ call: CollaborationCall; submissions: CollaborationSubmission[] }>(token, `/api/collaboration-calls/${callId}`)
 export const getContributionSources = (token: string) => request<{ sources: ContributionSource[] }>(token, '/api/explore/contribution-sources')
 export const getMyContributions = (token: string) => request<{ contributions: ContributionActivity[] }>(token, '/api/explore/my-contributions')

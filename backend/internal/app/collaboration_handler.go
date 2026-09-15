@@ -167,9 +167,6 @@ func (s *server) handleProjectCollaborationCalls(w http.ResponseWriter, r *http.
 }
 
 func (s *server) handleExploreProjects(w http.ResponseWriter, r *http.Request) {
-	if _, ok := s.requireUser(w, r); !ok {
-		return
-	}
 	if r.Method != http.MethodGet {
 		writeError(w, http.StatusMethodNotAllowed, "不支持的请求方法")
 		return
@@ -208,9 +205,6 @@ func (s *server) handleExploreProjects(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) handleExploreProject(w http.ResponseWriter, r *http.Request) {
-	if _, ok := s.requireUser(w, r); !ok {
-		return
-	}
 	if r.Method != http.MethodGet {
 		writeError(w, http.StatusMethodNotAllowed, "不支持的请求方法")
 		return

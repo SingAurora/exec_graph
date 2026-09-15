@@ -22,9 +22,8 @@ export function ContractComposer({ projectId, lockProject = false, parentContrac
   const smartContracts = useExecStore((state) => state.smartContracts)
   const contracts = useExecStore((state) => state.contracts)
   const createContract = useExecStore((state) => state.createContract)
-  const defaultProject = projects.find((project) => project.isDefault) ?? projects[0]
-  const [selectedProjectID, setSelectedProjectID] = useState(projectId ?? defaultProject?.id ?? '')
-  const selectedProject = projects.find((project) => project.id === selectedProjectID) ?? defaultProject
+  const [selectedProjectID, setSelectedProjectID] = useState(projectId ?? '')
+  const selectedProject = projects.find((project) => project.id === selectedProjectID)
   const isFirstNode = Boolean(selectedProject) && contracts.every((contract) => contract.projectId !== selectedProject?.id) && !parentContractId && !(sourceContractIds && sourceContractIds.length > 0)
   const activeRevision = selectedProject?.contractRevisions.find(
     (revision) => revision.id === selectedProject.activeContractRevisionId,
@@ -57,20 +56,21 @@ export function ContractComposer({ projectId, lockProject = false, parentContrac
               value={selectedProjectID}
               onChange={(event) => setSelectedProjectID(event.target.value)}
             >
+              <option value="">选择一个项目</option>
               {projects.filter((project) => !project.archivedAt).map((project) => (
                 <option key={project.id} value={project.id}>
-                  {project.isDefault ? '默认项目 · ' : ''}
                   {project.title}
                 </option>
               ))}
             </select>
+            {!selectedProject ? <span className="text-xs font-semibold text-clay">请选择项目后再开始行动。</span> : null}
           </label>
         )}
 
         {selectedProject && selectedContract && activeRevision ? (
           <div className="rounded-md border border-rail bg-paper p-4">
             <div className="font-mono text-xs font-semibold text-signal">
-              {selectedProject.isDefault ? '默认项目合约' : '当前项目合约'}
+              当前项目合约
             </div>
             <div className="mt-2 text-sm font-semibold text-ink">{selectedContract.name}</div>
             <p className="mt-2 text-sm leading-6 text-graphite">{selectedContract.description}</p>

@@ -13,6 +13,9 @@ import (
 // It is intentionally a separate command so normal service startup never adds
 // demo users or public projects to a real workspace.
 func SeedDemoData() error {
+	if os.Getenv("EXEC_GRAPH_ALLOW_DEMO_SEED") != "1" {
+		return fmt.Errorf("demo seed is disabled; set EXEC_GRAPH_ALLOW_DEMO_SEED=1 to confirm this write")
+	}
 	configPath := os.Getenv("EXEC_GRAPH_CONFIG")
 	if configPath == "" {
 		configPath = "config.local.yaml"
