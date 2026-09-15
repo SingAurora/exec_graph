@@ -1,5 +1,5 @@
 import { Bot, Copy, LoaderCircle, Send, ShieldCheck } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type TextareaHTMLAttributes } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { showErrorToast, showSuccessToast } from '../lib/notifications'
 import { useExecStore } from '../store/useExecStore'
@@ -21,6 +21,68 @@ type Conversation = {
   aiConfig?: AIConfigSnapshot
   messages: ConversationMessage[]
   updatedAt: string
+}
+
+type CompletionDraft = {
+  claim: string
+  evidence: string
+  startedAt: string
+  endedAt: string
+}
+
+function completionDraftStorageKey(contractID: string) {
+  return `exec-graph:completion-draft:${contractID}`
+}
+
+function loadCompletionDraft(contractID: string): CompletionDraft | null {
+  try {
+    const value = window.localStorage.getItem(completionDraftStorageKey(contractID))
+    if (!value) return null
+    const parsed = JSON.parse(value) as Partial<CompletionDraft>
+    return {
+      claim: typeof parsed.claim === 'string' ? parsed.claim : '',
+      evidence: typeof parsed.evidence === 'string' ? parsed.evidence : '',
+      startedAt: typeof parsed.startedAt === 'string' ? parsed.startedAt : '',
+      endedAt: typeof parsed.endedAt === 'string' ? parsed.endedAt : '',
+    }
+  } catch {
+    return null
+  }
+}
+
+function saveCompletionDraft(contractID: string, draft: CompletionDraft) {
+  try {
+    const key = completionDraftStorageKey(contractID)
+    if (!draft.claim && !draft.evidence && !draft.startedAt && !draft.endedAt) {
+      window.localStorage.removeItem(key)
+      return
+    }
+    window.localStorage.setItem(key, JSON.stringify(draft))
+  } catch {
+    // A private browsing context may deny storage. The form still works in memory.
+  }
+}
+
+function clearCompletionDraft(contractID: string) {
+  try {
+    window.localStorage.removeItem(completionDraftStorageKey(contractID))
+  } catch {
+    // Storage cleanup is best-effort.
+  }
+}
+
+function AutoGrowingTextarea({ className = '', onInput, value, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const resize = (element: HTMLTextAreaElement) => {
+    element.style.height = 'auto'
+    element.style.height = `${element.scrollHeight}px`
+  }
+
+  useLayoutEffect(() => {
+    if (textareaRef.current) resize(textareaRef.current)
+  }, [value])
+
+  return <textarea ref={textareaRef} value={value} onInput={(event) => { resize(event.currentTarget); onInput?.(event) }} className={`resize-none overflow-hidden ${className}`} {...props} />
 }
 
 const toDraftText = (draft: ActionDraft) => [
@@ -142,7 +204,7 @@ export function PlanningConversation({ projectId, parentContractId, sourceContra
           {busy ? <div className="flex items-center gap-2 text-sm text-graphite"><LoaderCircle size={16} className="animate-spin text-signal" />AI 正在整理本轮对话</div> : null}
         </div>
         <div className="mt-4 flex gap-3">
-          <textarea value={body} onChange={(event) => setBody(event.target.value)} disabled={Boolean(busy)} className="min-h-24 flex-1 rounded-md border border-rail bg-paper px-3 py-2 text-sm leading-6 outline-none focus:border-signal" placeholder="例如：我想研究一道番茄牛腩，今晚做给四个人吃。" />
+          <AutoGrowingTextarea value={body} onChange={(event) => setBody(event.target.value)} disabled={Boolean(busy)} className="min-h-24 flex-1 rounded-md border border-rail bg-paper px-3 py-2 text-sm leading-6 outline-none focus:border-signal" placeholder="例如：我想研究一道番茄牛腩，今晚做给四个人吃。" />
           <button type="button" onClick={() => send()} disabled={Boolean(busy) || !body.trim()} className="grid size-11 shrink-0 place-items-center self-end rounded-md bg-signal text-white disabled:opacity-50" title="发送给 AI"><Send size={17} /></button>
         </div>
         {error ? <p className="mt-3 text-sm font-semibold text-clay">{error}</p> : null}
@@ -156,33 +218,76 @@ export function PlanningConversation({ projectId, parentContractId, sourceContra
   )
 }
 
-export function CompletionConversation({ projectId, contract }: { projectId: string; contract: ExecutionContract }) {
-  const token = useExecStore((state) => state.accessToken)
-  const refreshWorkspace = useExecStore((state) => state.refreshWorkspace)
+export function CompletionConversation({ contract }: { contract: ExecutionContract }) {
   const submitCompletion = useExecStore((state) => state.submitCompletion)
-  const [progress, setProgress] = useState('')
   const [claim, setClaim] = useState('')
   const [evidence, setEvidence] = useState('')
-  const [busy, setBusy] = useState<'progress' | 'review' | null>(null)
+  const [startedAt, setStartedAt] = useState('')
+  const [endedAt, setEndedAt] = useState('')
+  const [hydratedContractID, setHydratedContractID] = useState('')
+  const [busy, setBusy] = useState<'review' | null>(null)
   const [error, setError] = useState('')
+  const isSubmitted = Boolean(contract.completionClaim)
 
-  const saveProgress = async () => {
-    if (!progress.trim()) return
-    setBusy('progress'); setError('')
-    try {
-      await requestConversation(token, `/api/projects/${projectId}/nodes/${contract.id}/work-logs`, { method: 'POST', body: JSON.stringify({ body: progress }) })
-      setProgress(''); await refreshWorkspace()
-    } catch (reason) { setError(reason instanceof Error ? reason.message : '保存进展失败') }
-    finally { setBusy(null) }
-  }
+  useEffect(() => {
+    if (isSubmitted) {
+      clearCompletionDraft(contract.id)
+      setClaim('')
+      setEvidence('')
+      setStartedAt('')
+      setEndedAt('')
+      setHydratedContractID(contract.id)
+      return
+    }
+    const draft = loadCompletionDraft(contract.id)
+    setClaim(draft?.claim ?? '')
+    setEvidence(draft?.evidence ?? '')
+    setStartedAt(draft?.startedAt ?? '')
+    setEndedAt(draft?.endedAt ?? '')
+    setHydratedContractID(contract.id)
+  }, [contract.id, isSubmitted])
+
+  useEffect(() => {
+    if (isSubmitted || hydratedContractID !== contract.id) return
+    saveCompletionDraft(contract.id, { claim, evidence, startedAt, endedAt })
+  }, [claim, contract.id, endedAt, evidence, hydratedContractID, isSubmitted, startedAt])
+
   const submit = async () => {
     if (!claim.trim() || !evidence.trim()) return
+    if (startedAt && endedAt && new Date(endedAt) < new Date(startedAt)) {
+      setError('结束时间不能早于开始时间')
+      return
+    }
     setBusy('review'); setError('')
-    const result = await submitCompletion(contract.id, { completionClaim: claim, evidenceText: evidence })
+    const result = await submitCompletion(contract.id, {
+      completionClaim: claim,
+      evidenceText: evidence,
+      startedAt: startedAt ? new Date(startedAt).toISOString() : undefined,
+      endedAt: endedAt ? new Date(endedAt).toISOString() : undefined,
+    })
     if (!result.success) setError(result.message ?? '提交验收失败')
-    else { setClaim(''); setEvidence('') }
+    else {
+      clearCompletionDraft(contract.id)
+      setClaim('')
+      setEvidence('')
+      setStartedAt('')
+      setEndedAt('')
+    }
     setBusy(null)
   }
-  const isSubmitted = Boolean(contract.completionClaim)
-  return <section className="rounded-md border border-rail bg-surface/72 p-5"><div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal"><Bot size={15} />工作与验收</div><h2 className="mt-2 font-display text-2xl font-semibold">先记录推进，再明确提交验收</h2><div className="mt-5 grid gap-5 border-y border-rail py-5 lg:grid-cols-2"><div><div className="text-sm font-semibold text-ink">保存进展</div><p className="mt-1 text-sm leading-6 text-graphite">研究发现、材料位置、遇到的阻碍和下一步都会保留，但不会调用 AI 审查。</p><textarea value={progress} onChange={(event) => setProgress(event.target.value)} disabled={Boolean(busy)} className="mt-3 min-h-28 w-full rounded-md border border-rail bg-paper px-3 py-2 text-sm leading-6 outline-none focus:border-signal" placeholder="例如：对比完两份食谱，发现炖煮时长差异很大；下一步查锅具对口感的影响。" /><button type="button" onClick={saveProgress} disabled={Boolean(busy) || !progress.trim()} className="mt-3 inline-flex h-10 items-center gap-2 border border-rail bg-surface px-3 text-sm font-semibold text-ink disabled:opacity-50"><Send size={16} />{busy === 'progress' ? '正在保存' : '保存进展'}</button></div><div className="border-t border-rail pt-5 lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0"><div className="text-sm font-semibold text-ink">提交验收</div><p className="mt-1 text-sm leading-6 text-graphite">只有这一步会固定本轮说明和证据，并交给项目审查 AI。</p>{isSubmitted ? <div className="mt-4 border-l-2 border-signal py-2 pl-3 text-sm leading-6 text-graphite">本轮提交已固定。AI 结论与后续澄清会显示在下方；新增工作请建立补足行动。</div> : <><textarea value={claim} onChange={(event) => setClaim(event.target.value)} disabled={Boolean(busy)} className="mt-3 min-h-24 w-full rounded-md border border-rail bg-paper px-3 py-2 text-sm leading-6 outline-none focus:border-signal" placeholder="完成说明：这次实际产出了什么。" /><textarea value={evidence} onChange={(event) => setEvidence(event.target.value)} disabled={Boolean(busy)} className="mt-3 min-h-24 w-full rounded-md border border-rail bg-paper px-3 py-2 text-sm leading-6 outline-none focus:border-signal" placeholder="逐条证据：C1 ...；C2 ...；材料链接、片段或观察记录。" /><button type="button" onClick={submit} disabled={Boolean(busy) || !claim.trim() || !evidence.trim()} className="mt-3 inline-flex h-10 items-center gap-2 bg-signal px-3 text-sm font-semibold text-white disabled:opacity-50"><Bot size={16} />{busy === 'review' ? 'AI 正在审查' : '提交给 AI 验收'}</button></>}</div></div>{contract.workLogs?.length ? <div className="mt-5 border-l border-rail pl-4">{contract.workLogs.map((log) => <div key={log.id} className="mb-4"><div className="font-mono text-xs font-semibold text-signal">进展记录 · {new Intl.DateTimeFormat('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(log.createdAt))}</div><p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-graphite">{log.body}</p></div>)}</div> : null}{error ? <p className="mt-3 text-sm font-semibold text-clay">{error}</p> : null}</section>
+  return (
+    <section className="rounded-md border border-rail bg-surface/72 p-5">
+      <div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal"><Bot size={15} />提交与验收</div>
+      <h2 className="mt-2 font-display text-2xl font-semibold">提交这次行动的结果</h2>
+      <p className="mt-3 text-sm leading-6 text-graphite">完成后填写事实和证据。开始、结束时间是可选的，填入后会出现在工作总览的日时间轴。</p>
+      <div className="mt-5 grid gap-5 border-y border-rail py-5">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="grid gap-2"><span className="text-sm font-semibold text-ink">开始时间（可选）</span><input type="datetime-local" value={startedAt} onChange={(event) => setStartedAt(event.target.value)} disabled={Boolean(busy) || isSubmitted} className="h-11 rounded-md border border-rail bg-paper px-3 text-sm outline-none focus:border-signal" /></label>
+          <label className="grid gap-2"><span className="text-sm font-semibold text-ink">结束时间（可选）</span><input type="datetime-local" value={endedAt} onChange={(event) => setEndedAt(event.target.value)} disabled={Boolean(busy) || isSubmitted} className="h-11 rounded-md border border-rail bg-paper px-3 text-sm outline-none focus:border-signal" /></label>
+        </div>
+        {isSubmitted ? <div className="border-l-2 border-signal py-2 pl-3 text-sm leading-6 text-graphite">本轮提交已固定。AI 结论与后续澄清会显示在下方；新增工作请建立补足行动。</div> : <div className="grid gap-3"><label className="grid gap-2"><span className="text-sm font-semibold text-ink">完成说明</span><AutoGrowingTextarea value={claim} onChange={(event) => setClaim(event.target.value)} disabled={Boolean(busy)} className="min-h-24 w-full rounded-md border border-rail bg-paper px-3 py-2 text-sm leading-6 outline-none focus:border-signal" placeholder="这次实际完成了什么？" /></label><label className="grid gap-2"><span className="text-sm font-semibold text-ink">证据或补充说明</span><AutoGrowingTextarea value={evidence} onChange={(event) => setEvidence(event.target.value)} disabled={Boolean(busy)} className="min-h-24 w-full rounded-md border border-rail bg-paper px-3 py-2 text-sm leading-6 outline-none focus:border-signal" placeholder="逐条说明验收标准对应的事实；简单行动可以直接写完成情况。" /></label><button type="button" onClick={submit} disabled={Boolean(busy) || !claim.trim() || !evidence.trim()} className="inline-flex h-10 w-fit items-center gap-2 bg-signal px-3 text-sm font-semibold text-white disabled:opacity-50"><Bot size={16} />{busy === 'review' ? 'AI 正在审查' : '提交给 AI 验收'}</button></div>}
+      </div>
+      {error ? <p className="mt-3 text-sm font-semibold text-clay">{error}</p> : null}
+    </section>
+  )
 }

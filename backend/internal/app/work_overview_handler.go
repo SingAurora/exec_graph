@@ -13,14 +13,16 @@ import (
 )
 
 type dailyWorkActivityResponse struct {
-	ID           string    `json:"id"`
-	Kind         string    `json:"kind"`
-	ProjectID    string    `json:"projectId"`
-	ProjectTitle string    `json:"projectTitle"`
-	NodeID       string    `json:"nodeId,omitempty"`
-	Title        string    `json:"title"`
-	Detail       string    `json:"detail,omitempty"`
-	CreatedAt    time.Time `json:"createdAt"`
+	ID           string     `json:"id"`
+	Kind         string     `json:"kind"`
+	ProjectID    string     `json:"projectId"`
+	ProjectTitle string     `json:"projectTitle"`
+	NodeID       string     `json:"nodeId,omitempty"`
+	Title        string     `json:"title"`
+	Detail       string     `json:"detail,omitempty"`
+	CreatedAt    time.Time  `json:"createdAt"`
+	StartedAt    *time.Time `json:"startedAt,omitempty"`
+	EndedAt      *time.Time `json:"endedAt,omitempty"`
 }
 
 type dailyWorkReviewResponse struct {
@@ -157,48 +159,31 @@ func (s *server) loadDailyWorkDays(ctx context.Context, userID uint64, start, en
 		day.Activities = append(day.Activities, activity)
 	}
 
-	workLogs, err := s.db.QueryContext(ctx, `
-		SELECT l.id, n.project_id, p.title, n.id, n.title, l.body, l.created_at
-		FROM execution_work_logs l
-		JOIN execution_contracts n ON n.id = l.contract_id
-		JOIN projects p ON p.id = n.project_id
-		WHERE l.owner_id = ? AND p.owner_id = ? AND l.created_at >= ? AND l.created_at < ?
-		ORDER BY l.created_at ASC`, userID, userID, start, end)
-	if err != nil {
-		return nil, err
-	}
-	for workLogs.Next() {
-		var activity dailyWorkActivityResponse
-		if err := workLogs.Scan(&activity.ID, &activity.ProjectID, &activity.ProjectTitle, &activity.NodeID, &activity.Title, &activity.Detail, &activity.CreatedAt); err != nil {
-			workLogs.Close()
-			return nil, err
-		}
-		activity.Kind = "progress"
-		add(activity)
-	}
-	if err := workLogs.Err(); err != nil {
-		workLogs.Close()
-		return nil, err
-	}
-	workLogs.Close()
-
 	nodes, err := s.db.QueryContext(ctx, `
-		SELECT n.id, n.project_id, p.title, n.title, n.verifiable_goal, n.created_at
+		SELECT n.id, n.project_id, p.title, n.title, n.verifiable_goal, n.created_at, n.started_at, n.ended_at
 		FROM execution_contracts n
 		JOIN projects p ON p.id = n.project_id
-		WHERE n.actor_id = ? AND p.owner_id = ? AND n.created_at >= ? AND n.created_at < ?
+		WHERE n.actor_id = ? AND p.owner_id = ? AND COALESCE(n.started_at, n.created_at) >= ? AND COALESCE(n.started_at, n.created_at) < ?
 		ORDER BY n.created_at ASC`, userID, userID, start, end)
 	if err != nil {
 		return nil, err
 	}
 	for nodes.Next() {
 		var activity dailyWorkActivityResponse
-		if err := nodes.Scan(&activity.ID, &activity.ProjectID, &activity.ProjectTitle, &activity.Title, &activity.Detail, &activity.CreatedAt); err != nil {
+		var startedAt, endedAt sql.NullTime
+		if err := nodes.Scan(&activity.ID, &activity.ProjectID, &activity.ProjectTitle, &activity.Title, &activity.Detail, &activity.CreatedAt, &startedAt, &endedAt); err != nil {
 			nodes.Close()
 			return nil, err
 		}
 		activity.Kind = "started"
 		activity.NodeID = activity.ID
+		if startedAt.Valid {
+			activity.StartedAt = &startedAt.Time
+			activity.CreatedAt = startedAt.Time
+		}
+		if endedAt.Valid {
+			activity.EndedAt = &endedAt.Time
+		}
 		activity.ID = "node:" + activity.ID
 		add(activity)
 	}

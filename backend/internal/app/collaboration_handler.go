@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
 )
 
 type collaborationTargetResponse struct {
@@ -117,7 +119,7 @@ func (s *server) handleProjectCollaborationCalls(w http.ResponseWriter, r *http.
 		writeError(w, http.StatusBadRequest, "单个开放缺口最多接收 30 份贡献")
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	var targetTitle, stage, visibility string
 	err := s.db.QueryRowContext(ctx, `SELECT n.title, n.stage, p.visibility FROM execution_contracts n JOIN projects p ON p.id = n.project_id WHERE n.id = ? AND n.project_id = ? AND p.owner_id = ? AND p.archived_at IS NULL`, input.TargetContractID, projectID, userID).Scan(&targetTitle, &stage, &visibility)
@@ -171,7 +173,7 @@ func (s *server) handleExploreProjects(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusMethodNotAllowed, "不支持的请求方法")
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT p.id, p.title, p.description, u.username, u.user_id,
@@ -210,7 +212,7 @@ func (s *server) handleExploreProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	projectID := strings.TrimSpace(strings.TrimPrefix(r.URL.Path, "/api/explore/projects/"))
-	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	var project exploreProjectResponse
 	err := s.db.QueryRowContext(ctx, `
@@ -303,7 +305,7 @@ func (s *server) handleCollaborationCall(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *server) getCollaborationCall(w http.ResponseWriter, r *http.Request, callID string) {
-	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	call, err := s.loadCollaborationCall(ctx, callID)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -359,7 +361,7 @@ func (s *server) createCollaborationSubmission(w http.ResponseWriter, r *http.Re
 		writeError(w, http.StatusBadRequest, "请选择自己的公开成果，并说明它对应目标标准的哪一部分")
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	call, err := s.loadCollaborationCall(ctx, callID)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -572,7 +574,7 @@ func (s *server) handleCollaborationReview(w http.ResponseWriter, r *http.Reques
 }
 
 func (s *server) adoptCollaborationReview(w http.ResponseWriter, r *http.Request, userID uint64, batchID string) {
-	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -655,7 +657,7 @@ func (s *server) handleContributionSources(w http.ResponseWriter, r *http.Reques
 		writeError(w, http.StatusMethodNotAllowed, "不支持的请求方法")
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT r.id, r.title, r.summary, p.title
@@ -696,7 +698,7 @@ func (s *server) handleMyContributions(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusMethodNotAllowed, "不支持的请求方法")
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	rows, err := s.db.QueryContext(ctx, `SELECT id, call_id FROM collaboration_submissions WHERE contributor_id = ? AND status <> 'withdrawn' ORDER BY updated_at DESC`, user.ID)
 	if err != nil {

@@ -145,15 +145,15 @@ function ProjectCard({ project }: { project: Project }) {
   const branchStatus = activeBranches.length > 0 ? `${activeBranches.length} 条路径推进中` : '可以开始下一项推进'
 
   return (
-    <Link to={`/projects/${project.id}`} className="group grid min-w-0 gap-4 border-b border-rail px-5 py-5 last:border-b-0 transition hover:bg-shell/45 focus:outline-none focus-visible:shadow-focusline lg:grid-cols-[minmax(0,1fr)_220px_220px_auto] lg:items-center">
+    <Link to={`/projects/${project.id}`} className="group grid min-w-0 gap-4 border-b border-rail px-5 py-5 last:border-b-0 transition hover:bg-shell/45 focus:outline-none focus-visible:shadow-focusline lg:grid-cols-[minmax(0,1fr)_220px_auto] lg:items-center">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2 font-mono text-xs font-semibold text-signal">项目{project.visibility === 'public' ? <span className="inline-flex items-center gap-1"><Eye size={12} aria-hidden="true" />公开</span> : null}{isArchived ? <span className="inline-flex items-center gap-1 text-graphite"><Archive size={12} aria-hidden="true" />已归档</span> : null}</div>
           <h2 className="mt-2 text-lg font-semibold leading-6 text-ink">{project.title}</h2>
+          {project.description ? <p className="mt-2 line-clamp-2 text-sm leading-6 text-graphite">{project.description}</p> : null}
         </div>
         <FolderKanban size={18} className="shrink-0 text-signal" aria-hidden="true" />
       </div>
-      <p className="line-clamp-2 text-sm leading-6 text-graphite">{project.description}</p>
       <div className="text-xs leading-5 text-graphite">
         <div className="font-semibold text-ink">{project.projectType === 'guided' ? '规则引导 · AI 动态出具行动合约' : '自主推进 · 平台基础规则'}</div>
         <div className="mt-1">{projectRecords.length} 条验收成果 · {pendingContracts} 个当前待处理节点</div>

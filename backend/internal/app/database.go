@@ -119,7 +119,6 @@ func migrateDatabase(ctx context.Context, db *sql.DB) error {
 			project_id VARCHAR(100) NOT NULL,
 			smart_contract_id VARCHAR(100) NOT NULL,
 			smart_contract_version VARCHAR(32) NOT NULL,
-			rule_hash VARCHAR(128) NOT NULL,
 			reason VARCHAR(255) NOT NULL,
 			smart_contract_name VARCHAR(120) NULL,
 			smart_contract_description TEXT NULL,
@@ -155,7 +154,6 @@ func migrateDatabase(ctx context.Context, db *sql.DB) error {
 			original_intent TEXT NOT NULL,
 			smart_contract_id VARCHAR(100) NOT NULL,
 			smart_contract_version VARCHAR(32) NOT NULL,
-			rule_hash VARCHAR(128) NOT NULL,
 			verifiable_goal TEXT NOT NULL,
 			acceptance_criteria_json LONGTEXT NOT NULL,
 			evidence_requirement TEXT NOT NULL,
@@ -182,6 +180,8 @@ func migrateDatabase(ctx context.Context, db *sql.DB) error {
 		`ALTER TABLE execution_contracts ADD COLUMN completion_review_rounds_json LONGTEXT NULL AFTER completion_review_ai_config_json`,
 		`ALTER TABLE execution_contracts ADD COLUMN planning_conversation_id VARCHAR(100) NULL AFTER completion_review_rounds_json`,
 		`ALTER TABLE execution_contracts ADD COLUMN completion_conversation_id VARCHAR(100) NULL AFTER planning_conversation_id`,
+		`ALTER TABLE execution_contracts ADD COLUMN started_at DATETIME NULL AFTER evidence_text`,
+		`ALTER TABLE execution_contracts ADD COLUMN ended_at DATETIME NULL AFTER started_at`,
 		`CREATE TABLE IF NOT EXISTS node_conversations (
 			id VARCHAR(100) NOT NULL PRIMARY KEY,
 			project_id VARCHAR(100) NOT NULL,
@@ -245,7 +245,6 @@ func migrateDatabase(ctx context.Context, db *sql.DB) error {
 			summary TEXT NOT NULL,
 			smart_contract_id VARCHAR(100) NOT NULL,
 			smart_contract_version VARCHAR(32) NOT NULL,
-			rule_hash VARCHAR(128) NOT NULL,
 			review_id VARCHAR(100) NOT NULL,
 			ai_review_verdict VARCHAR(20) NOT NULL,
 			record_kind VARCHAR(20) NOT NULL DEFAULT 'accepted',
@@ -314,12 +313,17 @@ func migrateDatabase(ctx context.Context, db *sql.DB) error {
 			adopted_at DATETIME NULL,
 			INDEX idx_collaboration_batches_call (call_id, created_at)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
+		// The rule hash was a blockchain-style integrity marker. Rules are now
+		// represented by the frozen contract revision and acceptance material.
+		`ALTER TABLE project_contract_revisions DROP COLUMN rule_hash`,
+		`ALTER TABLE execution_contracts DROP COLUMN rule_hash`,
+		`ALTER TABLE completion_records DROP COLUMN rule_hash`,
 	}
 
 	for _, statement := range statements {
 		if _, err := db.ExecContext(ctx, statement); err != nil {
 			message := strings.ToLower(err.Error())
-			if strings.HasPrefix(statement, "ALTER TABLE") && (strings.Contains(message, "duplicate column") || strings.Contains(message, "duplicate key name")) {
+			if strings.HasPrefix(statement, "ALTER TABLE") && (strings.Contains(message, "duplicate column") || strings.Contains(message, "duplicate key name") || (strings.Contains(statement, "DROP COLUMN") && (strings.Contains(message, "can't drop") || strings.Contains(message, "unknown column")))) {
 				continue
 			}
 			return fmt.Errorf("migrate database: %w", err)

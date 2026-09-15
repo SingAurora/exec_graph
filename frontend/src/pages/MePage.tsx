@@ -197,7 +197,7 @@ function PublicProjectCard({ project, records }: { project: Project; records: nu
         <h2 className="min-w-0 truncate text-lg font-semibold text-ink group-hover:text-signal">{project.title}</h2>
         <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-signal/25 bg-signal/10 px-2 py-1 text-xs font-semibold text-signal"><Eye size={13} aria-hidden="true" />公开</span>
       </div>
-      <p className="mt-2 line-clamp-2 text-sm leading-6 text-graphite">{project.description}</p>
+      {project.description ? <p className="mt-2 line-clamp-2 text-sm leading-6 text-graphite">{project.description}</p> : null}
       <div className="mt-4 flex items-center justify-between border-t border-rail pt-3 text-xs font-semibold text-graphite">
         <span>{records} 条锁定记录</span>
         <span className="inline-flex items-center gap-1 text-signal">查看项目<ArrowRight size={14} aria-hidden="true" /></span>

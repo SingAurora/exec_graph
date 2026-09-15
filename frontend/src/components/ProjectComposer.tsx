@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowUpRight, Compass, FolderPlus, ListChecks, Network } from 'lucide-react'
+import { ArrowUpRight, Bath, Compass, FolderPlus, ListChecks, Network, Repeat2, ShieldCheck, Zap } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
@@ -7,16 +7,23 @@ import { z } from 'zod'
 import { getCall, type CollaborationCall } from '../lib/collaboration'
 import { useExecStore } from '../store/useExecStore'
 
+const formalContractIDs = new Set(['smart-contract-general', 'skill-general-contract'])
+const lightweightContractIDs = new Set(['smart-contract-quick-action', 'smart-contract-daily-routine'])
+
 const projectSchema = z.object({
   title: z.string().trim().min(3, '项目名称至少需要 3 个字符'),
-  description: z.string().trim().min(12, '项目描述至少需要 12 个字符'),
+  description: z.string().trim().max(2000, '项目描述最多 2000 个字符'),
   projectType: z.enum(['guided', 'autonomous']),
   projectRules: z.string().trim().optional(),
+  smartContractId: z.string().trim().optional(),
   aiKeyId: z.string().trim().min(1, '请选择项目审查 AI'),
   visibility: z.enum(['private', 'public']),
 }).superRefine((values, context) => {
   if (values.projectType === 'guided' && (!values.projectRules || values.projectRules.length < 12)) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ['projectRules'], message: '请填写项目规则，至少 12 个字符' })
+  }
+  if (values.projectType === 'autonomous' && !values.smartContractId) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['smartContractId'], message: '请选择一套行动规则' })
   }
 })
 
@@ -29,10 +36,19 @@ type AIKeyOption = {
   model: string
 }
 
+const contractVisuals = {
+  quick: { icon: Zap, eyebrow: '现在就做', examples: '洗澡、刷牙、铺床', accent: 'text-signal' },
+  daily: { icon: Repeat2, eyebrow: '持续做', examples: '每天洗澡、每周整理', accent: 'text-moss' },
+  formal: { icon: ShieldCheck, eyebrow: '完整推进', examples: '长期目标、复杂协作', accent: 'text-clay' },
+} as const
+
+const contractKind = (id: string) => lightweightContractIDs.has(id) ? (id.endsWith('daily-routine') ? 'daily' : 'quick') : 'formal'
+
 export function ProjectComposer() {
   const navigate = useNavigate()
 	const [searchParams] = useSearchParams()
   const createProject = useExecStore((state) => state.createProject)
+  const smartContracts = useExecStore((state) => state.smartContracts)
   const accessToken = useExecStore((state) => state.accessToken)
   const [aiKeys, setAIKeys] = useState<AIKeyOption[]>([])
   const [contributionCall, setContributionCall] = useState<CollaborationCall | null>(null)
@@ -47,10 +63,20 @@ export function ProjectComposer() {
     formState: { errors },
   } = useForm<ProjectForm>({
     resolver: zodResolver(projectSchema),
-    defaultValues: { title: '', description: '', projectType: 'guided', projectRules: '', aiKeyId: '', visibility: 'private' },
+    defaultValues: { title: '', description: '', projectType: 'guided', projectRules: '', smartContractId: '', aiKeyId: '', visibility: 'private' },
   })
   const projectType = watch('projectType')
+	const selectedSmartContractID = watch('smartContractId')
+	const selectedSmartContract = smartContracts.find((contract) => contract.id === selectedSmartContractID)
+	const needsProjectRules = projectType === 'guided'
 	const contributionCallID = searchParams.get('fromCall')
+
+	useEffect(() => {
+		if (!selectedSmartContractID && smartContracts.length > 0) {
+			const formal = smartContracts.find((contract) => formalContractIDs.has(contract.id) && contract.source === 'official')
+			setValue('smartContractId', formal?.id ?? smartContracts[0].id)
+		}
+	}, [selectedSmartContractID, setValue, smartContracts])
 
   useEffect(() => {
     if (!accessToken) {
@@ -94,6 +120,7 @@ export function ProjectComposer() {
 			...values,
 			projectType: contributionCall ? 'autonomous' : values.projectType,
 			projectRules: contributionCall ? '' : values.projectRules ?? '',
+			smartContractId: contributionCall || values.projectType === 'guided' ? 'smart-contract-general' : values.smartContractId ?? 'smart-contract-general',
 			visibility: contributionCall ? 'public' : values.visibility,
 			contributionCallId: contributionCall?.id,
 		})
@@ -124,16 +151,42 @@ export function ProjectComposer() {
           {errors.title?.message ? <span className="text-sm font-medium text-clay">{errors.title.message}</span> : null}
         </label>
         <label className="grid gap-2">
-          <span className="text-sm font-semibold text-ink">项目描述</span>
+          <span className="text-sm font-semibold text-ink">项目描述（可选）</span>
           <textarea
             className="min-h-24 rounded-md border border-rail bg-paper px-3 py-3 text-sm leading-6 outline-none focus:border-signal focus:shadow-focusline"
-            placeholder="这个项目准备把哪些行动聚拢到同一个结果？"
+            placeholder="用一句话说明这个项目准备推进什么（可不填）"
             aria-invalid={errors.description ? 'true' : 'false'}
             {...register('description')}
           />
           {errors.description?.message ? <span className="text-sm font-medium text-clay">{errors.description.message}</span> : null}
         </label>
-        {!contributionCall ? <fieldset className="grid gap-2">
+		{!contributionCall && projectType === 'autonomous' ? <fieldset className="grid gap-2">
+		  <legend className="text-sm font-semibold text-ink">行动规则</legend>
+		  <div className="grid gap-3 lg:grid-cols-3">
+			{smartContracts.filter((contract) => contract.source === 'official' && (formalContractIDs.has(contract.id) || lightweightContractIDs.has(contract.id))).map((contract) => {
+			  const kind = contractKind(contract.id)
+			  const visual = contractVisuals[kind]
+			  const Icon = visual.icon
+			  return <label key={contract.id} className="cursor-pointer rounded-md border border-rail bg-paper p-4 transition has-[:checked]:border-signal has-[:checked]:bg-surface">
+				<input className="sr-only" type="radio" value={contract.id} {...register('smartContractId')} />
+				<span className={`flex items-center gap-2 text-sm font-semibold ${visual.accent}`}><Icon size={17} aria-hidden="true" />{contract.name}</span>
+				<span className="mt-2 block text-xs font-semibold text-ink">{visual.eyebrow}</span>
+				<span className="mt-1 block text-sm leading-6 text-graphite">{contract.description}</span>
+				<span className="mt-2 flex items-center gap-1 text-xs text-graphite"><Bath size={13} aria-hidden="true" />{visual.examples}</span>
+			  </label>
+			})}
+		  </div>
+		  {smartContracts.some((contract) => contract.source === 'custom') ? <label className="grid gap-2 sm:max-w-md">
+			<span className="text-xs font-semibold text-graphite">或选择自定义规则</span>
+			<select className="h-10 rounded-md border border-rail bg-paper px-3 text-sm outline-none focus:border-signal focus:shadow-focusline" value={selectedSmartContract?.source === 'custom' ? selectedSmartContractID : ''} onChange={(event) => { setValue('smartContractId', event.target.value || [...formalContractIDs][0]) }}>
+			  <option value="">使用上面的平台规则</option>
+			  {smartContracts.filter((contract) => contract.source === 'custom').map((contract) => <option key={contract.id} value={contract.id}>{contract.name}</option>)}
+			</select>
+		  </label> : null}
+		  {selectedSmartContract ? <p className="text-xs leading-5 text-graphite">当前选择：<span className="font-semibold text-ink">{selectedSmartContract.name}</span>。它会作为这个项目后续行动的审查基础。</p> : null}
+		  {errors.smartContractId?.message ? <span className="text-sm font-medium text-clay">{errors.smartContractId.message}</span> : null}
+		</fieldset> : null}
+		{!contributionCall ? <fieldset className="grid gap-2">
           <legend className="text-sm font-semibold text-ink">项目类型</legend>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="cursor-pointer rounded-md border border-rail bg-paper p-4 transition has-[:checked]:border-signal has-[:checked]:bg-surface">
@@ -163,7 +216,7 @@ export function ProjectComposer() {
             </label>
           </div>
         </fieldset> : null}
-        {!contributionCall && projectType === 'guided' ? <label className="grid gap-2">
+		{!contributionCall && needsProjectRules ? <label className="grid gap-2">
           <span className="text-sm font-semibold text-ink">项目规则</span>
           <textarea
             className="min-h-28 rounded-md border border-rail bg-paper px-3 py-3 text-sm leading-6 outline-none focus:border-signal focus:shadow-focusline"

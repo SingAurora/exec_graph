@@ -33,7 +33,6 @@ type ProjectContractRevision struct {
 	ProjectID                string    `gorm:"column:project_id"`
 	SmartContractID          string    `gorm:"column:smart_contract_id"`
 	SmartContractVersion     string    `gorm:"column:smart_contract_version"`
-	RuleHash                 string    `gorm:"column:rule_hash"`
 	Reason                   string    `gorm:"column:reason"`
 	ActivatedAt              time.Time `gorm:"column:activated_at"`
 	SmartContractName        string    `gorm:"column:smart_contract_name"`
@@ -51,7 +50,6 @@ type InitialProjectSpec struct {
 	OwnerID              uint64
 	SmartContractID      string
 	SmartContractVersion string
-	RuleHash             string
 }
 
 type ProjectRepository struct {
@@ -77,7 +75,7 @@ func (repository ProjectRepository) EnsureInitialProject(ctx context.Context, sp
 	if err := repository.db.WithContext(ctx).Create(&project).Error; err != nil {
 		return err
 	}
-	revision := ProjectContractRevision{ID: spec.RevisionID, ProjectID: spec.ProjectID, SmartContractID: spec.SmartContractID, SmartContractVersion: spec.SmartContractVersion, RuleHash: spec.RuleHash, Reason: "项目创建时的基础审查规则"}
+	revision := ProjectContractRevision{ID: spec.RevisionID, ProjectID: spec.ProjectID, SmartContractID: spec.SmartContractID, SmartContractVersion: spec.SmartContractVersion, Reason: "项目创建时的基础审查规则"}
 	return repository.db.WithContext(ctx).Create(&revision).Error
 }
 
@@ -106,7 +104,7 @@ func (repository ProjectRepository) ListContractRevisions(ctx context.Context, p
 	var revisions []ProjectContractRevision
 	err := repository.db.WithContext(ctx).
 		Table("project_contract_revisions AS r").
-		Select(`r.id, r.smart_contract_id, r.smart_contract_version, r.rule_hash, r.reason, r.activated_at,
+		Select(`r.id, r.smart_contract_id, r.smart_contract_version, r.reason, r.activated_at,
 			COALESCE(r.smart_contract_name, c.name, '') AS smart_contract_name,
 			COALESCE(r.smart_contract_description, c.description, '') AS smart_contract_description,
 			COALESCE(r.smart_contract_body, c.body, '') AS smart_contract_body,

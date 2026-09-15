@@ -13,6 +13,7 @@ import (
 	"time"
 
 	infrastructuremysql "github.com/singaurora/exec-graph/backend/internal/infrastructure/mysql"
+	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
 )
 
 const (
@@ -106,7 +107,7 @@ func (s *server) handleAIKeys(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) listAIKeys(w http.ResponseWriter, r *http.Request, userID uint64) {
-	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	items, err := infrastructuremysql.NewAIKeyRepository(s.orm).ListForUser(ctx, userID)
 	if err != nil {
@@ -139,7 +140,7 @@ func (s *server) createAIKey(w http.ResponseWriter, r *http.Request, userID uint
 		writeError(w, http.StatusInternalServerError, "生成 AI 密钥编号失败")
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	if err := infrastructuremysql.NewAIKeyRepository(s.orm).Create(ctx, &infrastructuremysql.AIKey{ID: keyID, UserID: userID, Provider: provider, Label: label, KeyCiphertext: apiKey, KeyHint: maskAPIKey(apiKey), BaseURL: baseURL, Model: model}); err != nil {
 		writeError(w, http.StatusInternalServerError, "保存 AI 密钥失败")
@@ -196,7 +197,7 @@ func (s *server) testAIKeyDraft(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) deleteAIKey(w http.ResponseWriter, r *http.Request, userID uint64, keyID string) {
-	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	err := infrastructuremysql.NewAIKeyRepository(s.orm).DeleteUnusedForUser(ctx, userID, keyID)
 	if errors.Is(err, infrastructuremysql.ErrNotFound) {

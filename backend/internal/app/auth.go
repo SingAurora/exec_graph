@@ -23,6 +23,7 @@ import (
 	infrastructuremysql "github.com/singaurora/exec-graph/backend/internal/infrastructure/mysql"
 	infrastructureredis "github.com/singaurora/exec-graph/backend/internal/infrastructure/redis"
 	infrastructurestorage "github.com/singaurora/exec-graph/backend/internal/infrastructure/storage"
+	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
 	"gorm.io/gorm"
 )
 
@@ -258,7 +259,7 @@ func (s *server) register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	identityRepository := infrastructuremysql.NewIdentityRepository(s.orm)
 	var databaseUserID uint64
@@ -297,7 +298,7 @@ func (s *server) register(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
-		if err := tx.ProjectRepository().EnsureInitialProject(ctx, infrastructuremysql.InitialProjectSpec{ProjectID: fmt.Sprintf("project-initial-%d", databaseUserID), RevisionID: fmt.Sprintf("project-initial-revision-%d", databaseUserID), OwnerID: databaseUserID, SmartContractID: generalSmartContractID, SmartContractVersion: contract.Version, RuleHash: hashValue(generalSmartContractBody)}); err != nil {
+		if err := tx.ProjectRepository().EnsureInitialProject(ctx, infrastructuremysql.InitialProjectSpec{ProjectID: fmt.Sprintf("project-initial-%d", databaseUserID), RevisionID: fmt.Sprintf("project-initial-revision-%d", databaseUserID), OwnerID: databaseUserID, SmartContractID: generalSmartContractID, SmartContractVersion: contract.Version}); err != nil {
 			return err
 		}
 		return tx.CreateSession(ctx, &infrastructuremysql.AuthSession{UserID: databaseUserID, TokenHash: hashValue(token), ExpiresAt: sessionExpiry})

@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 	"time"
+
+	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
 )
 
 type publicNetworkNodeResponse struct {
@@ -48,7 +50,7 @@ func (s *server) handleExploreNetwork(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	user, authenticated := s.optionalUser(r)
-	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 
 	network := publicNetworkResponse{Nodes: make([]publicNetworkNodeResponse, 0), Edges: make([]publicNetworkEdgeResponse, 0)}

@@ -46,6 +46,8 @@ type reviewExecutionNodeRequest struct {
 	EvidenceRequirement string                       `json:"evidenceRequirement"`
 	CompletionClaim     string                       `json:"completionClaim"`
 	EvidenceText        string                       `json:"evidenceText"`
+	StartedAt           *time.Time                   `json:"startedAt,omitempty"`
+	EndedAt             *time.Time                   `json:"endedAt,omitempty"`
 	PriorReview         *aiReviewResponse            `json:"priorReview,omitempty"`
 	Clarification       *reviewClarificationResponse `json:"clarification,omitempty"`
 }
@@ -194,6 +196,10 @@ func (s *server) reviewExecutionNode(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "请提交节点编号、推进结果和逐条证据")
 		return
 	}
+	if input.StartedAt != nil && input.EndedAt != nil && input.EndedAt.Before(*input.StartedAt) {
+		writeError(w, http.StatusBadRequest, "结束时间不能早于开始时间")
+		return
+	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 110*time.Second)
 	defer cancel()
@@ -271,9 +277,9 @@ func (s *server) reviewExecutionNode(w http.ResponseWriter, r *http.Request) {
 	}
 	result, err := s.db.ExecContext(ctx, `
 		UPDATE execution_contracts
-		SET actor_id = ?, completion_claim = ?, evidence_text = ?, stage = ?, ai_review_json = ?, completion_review_ai_config_json = ?, completion_review_rounds_json = ?, review_messages_json = ?
+		SET actor_id = ?, completion_claim = ?, evidence_text = ?, started_at = ?, ended_at = ?, stage = ?, ai_review_json = ?, completion_review_ai_config_json = ?, completion_review_rounds_json = ?, review_messages_json = ?
 		WHERE id = ? AND stage = 'frozen'`,
-		user.ID, input.CompletionClaim, input.EvidenceText, stage, reviewJSON, aiConfigJSON, roundsJSON, updatedMessagesJSON, input.NodeID)
+		user.ID, input.CompletionClaim, input.EvidenceText, input.StartedAt, input.EndedAt, stage, reviewJSON, aiConfigJSON, roundsJSON, updatedMessagesJSON, input.NodeID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "保存 AI 审查结果失败")
 		return
@@ -475,6 +481,8 @@ func (s *server) loadNodeCompletionReviewRequest(ctx context.Context, userID uin
 	}
 	request.CompletionClaim = input.CompletionClaim
 	request.EvidenceText = input.EvidenceText
+	request.StartedAt = input.StartedAt
+	request.EndedAt = input.EndedAt
 	return request, messagesJSON, nil
 }
 

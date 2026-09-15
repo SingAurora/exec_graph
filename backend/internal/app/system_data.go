@@ -8,6 +8,8 @@ import (
 )
 
 const generalSmartContractID = "smart-contract-general"
+const quickActionSmartContractID = "smart-contract-quick-action"
+const dailyRoutineSmartContractID = "smart-contract-daily-routine"
 
 const generalSmartContractBody = `## 部署规则
 
@@ -19,18 +21,60 @@ const generalSmartContractBody = `## 部署规则
 
 只判断用户提交的完成说明和证据是否满足冻结的验收标准，不临时提高标准。`
 
+const quickActionSmartContractBody = `## 适用范围
+
+适合洗澡、刷牙、铺床等一次性的小行动。
+
+## 部署规则
+
+- 只定义一个当下可以完成的具体动作
+- 用 2 到 5 个可观察的检查项说明做到什么算完成
+- 允许完成、部分完成和未完成，不要求照片或复杂材料
+
+## AI 审查原则
+
+检查用户是否说明了各项实际完成情况。只指出缺少的事实，不把部分完成写成全部完成，也不因一次未完成评价用户的人格。`
+
+const dailyRoutineSmartContractBody = `## 适用范围
+
+适合每天或每周重复的生活行动，例如每天洗澡、刷牙或整理床铺。
+
+## 部署规则
+
+- 明确行动频率和本次要完成的具体实例
+- 每次记录实际完成情况，可标记完成、部分完成、未完成或受阻
+- 记录足以说明当次完成状态的简短事实，不要求复杂证据
+
+## AI 审查原则
+
+关注频率、连续性和实际阻碍，帮助用户决定下一次最小行动。周期性总结执行状态，但不把中断归因于人格，也不替用户补写未发生的事实。`
+
+type officialSmartContract struct {
+	id          string
+	name        string
+	description string
+	body        string
+}
+
+var officialSmartContracts = []officialSmartContract{
+	{generalSmartContractID, "正式项目规则", "适合长期目标、复杂工作和多人协作；要求冻结目标、验收标准与可核验证据。", generalSmartContractBody},
+	{quickActionSmartContractID, "快速行动规则", "适合洗澡、刷牙、铺床等一次性小事，用少量可观察检查项确认当下是否做到。", quickActionSmartContractBody},
+	{dailyRoutineSmartContractID, "日常习惯规则", "适合每天或每周重复的行动，记录每次实例、连续性与真实阻碍。", dailyRoutineSmartContractBody},
+}
+
 func seedSystemData(ctx context.Context, db *sql.DB) error {
-	_, err := db.ExecContext(ctx, `
-		INSERT IGNORE INTO smart_contracts
-			(id, name, source, version, description, body, created_by)
-		VALUES (?, ?, 'official', '1.0.0', ?, ?, NULL)`,
-		generalSmartContractID,
-		"通用执行智能合约",
-		"定义可部署目标的最低规则，并验证结果是否满足已冻结要求。",
-		generalSmartContractBody,
-	)
-	if err != nil {
-		return fmt.Errorf("seed system smart contract: %w", err)
+	for _, contract := range officialSmartContracts {
+		if _, err := db.ExecContext(ctx, `
+			INSERT INTO smart_contracts
+				(id, name, source, version, description, body, created_by, deleted_at, deleted_by)
+			VALUES (?, ?, 'official', '1.0.0', ?, ?, NULL, NULL, NULL)
+			ON DUPLICATE KEY UPDATE
+				name = VALUES(name), source = 'official', version = VALUES(version),
+				description = VALUES(description), body = VALUES(body),
+				created_by = NULL, deleted_at = NULL, deleted_by = NULL`,
+			contract.id, contract.name, contract.description, contract.body); err != nil {
+			return fmt.Errorf("seed system smart contract %s: %w", contract.id, err)
+		}
 	}
 	return nil
 }
@@ -99,7 +143,6 @@ func ensureInitialProjectTx(ctx context.Context, tx *sql.Tx, userID uint64) erro
 	}
 	projectID := fmt.Sprintf("project-initial-%d", userID)
 	revisionID := fmt.Sprintf("project-initial-revision-%d", userID)
-	ruleHash := hashValue(generalSmartContractBody)
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO projects
 			(id, owner_id, title, description, project_type, project_rules, is_default, visibility, active_contract_revision_id)
@@ -109,9 +152,9 @@ func ensureInitialProjectTx(ctx context.Context, tx *sql.Tx, userID uint64) erro
 	}
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO project_contract_revisions
-			(id, project_id, smart_contract_id, smart_contract_version, rule_hash, reason)
-		VALUES (?, ?, ?, ?, ?, '项目创建时的基础审查规则')`,
-		revisionID, projectID, generalSmartContractID, smartContractVersion, ruleHash); err != nil {
+			(id, project_id, smart_contract_id, smart_contract_version, reason)
+		VALUES (?, ?, ?, ?, '项目创建时的基础审查规则')`,
+		revisionID, projectID, generalSmartContractID, smartContractVersion); err != nil {
 		return fmt.Errorf("create initial project contract revision: %w", err)
 	}
 	return nil

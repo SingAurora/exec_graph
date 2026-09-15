@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Bot, CheckCircle2, ChevronLeft, ChevronRight, CircleDotDashed, FilePenLine, Flag, LoaderCircle, LockKeyhole } from 'lucide-react'
+import { Bot, CheckCircle2, ChevronLeft, ChevronRight, CircleDotDashed, Flag, LoaderCircle, LockKeyhole } from 'lucide-react'
 import { requestJSON } from '../lib/api'
 
 type DailyActivity = {
   id: string
-  kind: 'progress' | 'started' | 'completed' | 'sealed'
+  kind: 'started' | 'completed' | 'sealed'
   projectId: string
   projectTitle: string
   nodeId?: string
   title: string
   detail?: string
   createdAt: string
+  startedAt?: string
+  endedAt?: string
 }
 
 type DailyReview = {
@@ -39,8 +41,7 @@ type WorkOverview = {
 
 const weekdayLabels = ['一', '二', '三', '四', '五', '六', '日']
 
-const activityCopy: Record<DailyActivity['kind'], { label: string; icon: typeof FilePenLine; className: string }> = {
-  progress: { label: '记录推进', icon: FilePenLine, className: 'text-signal' },
+const activityCopy: Record<DailyActivity['kind'], { label: string; icon: typeof CircleDotDashed; className: string }> = {
   started: { label: '开始行动', icon: CircleDotDashed, className: 'text-amber' },
   completed: { label: '验收完成', icon: CheckCircle2, className: 'text-moss' },
   sealed: { label: '封存记录', icon: LockKeyhole, className: 'text-graphite' },
@@ -74,7 +75,6 @@ function calendarDays(month: Date) {
 
 function activityTone(activities: DailyActivity[]) {
   if (activities.some((activity) => activity.kind === 'completed')) return 'bg-moss'
-  if (activities.some((activity) => activity.kind === 'progress')) return 'bg-signal'
   if (activities.some((activity) => activity.kind === 'started')) return 'bg-amber'
   return 'bg-graphite'
 }
@@ -179,19 +179,34 @@ function DailyDetail({ day, reviewing, onReview }: { day: WorkDay; reviewing: bo
   return <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.72fr)]">
     <div>
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div><div className="font-mono text-xs font-semibold uppercase text-signal">{day.date}</div><h3 className="mt-1 text-lg font-semibold text-ink">当天完成与推进</h3></div>
+        <div><div className="font-mono text-xs font-semibold uppercase text-signal">{day.date}</div><h3 className="mt-1 text-lg font-semibold text-ink">当天行动</h3></div>
         {day.activities.length > 0 ? <button type="button" onClick={onReview} disabled={reviewing} className="inline-flex h-9 items-center gap-2 bg-signal px-3 text-sm font-semibold text-white transition hover:bg-signalStrong disabled:opacity-50"><Bot size={15} aria-hidden="true" />{reviewing ? '正在分析' : day.review ? '重新分析' : 'AI 分析当日状态'}</button> : null}
       </div>
-      {day.activities.length > 0 ? <div className="mt-4 divide-y divide-rail border-y border-rail">{day.activities.map((activity) => <ActivityRow key={activity.id} activity={activity} />)}</div> : <p className="mt-4 text-sm leading-6 text-graphite">当天没有已保存的工作记录。</p>}
+      {day.activities.length > 0 ? <>
+        <DayTimeline activities={day.activities.filter((activity) => activity.startedAt || activity.endedAt)} />
+        <div className="mt-5 divide-y divide-rail border-y border-rail">{day.activities.map((activity) => <ActivityRow key={activity.id} activity={activity} />)}</div>
+      </> : <p className="mt-4 text-sm leading-6 text-graphite">当天没有行动记录。</p>}
     </div>
-    {day.review ? <DailyReviewDetail review={day.review} /> : <div className="border-l border-rail pl-5 text-sm leading-6 text-graphite">AI 日结会基于左侧已保存的记录生成，不会改变任何验收结论。</div>}
+    {day.review ? <DailyReviewDetail review={day.review} /> : <div className="border-l border-rail pl-5 text-sm leading-6 text-graphite">AI 日结会基于当天行动记录生成，不会改变任何验收结论。</div>}
   </div>
 }
 
 function ActivityRow({ activity }: { activity: DailyActivity }) {
   const copy = activityCopy[activity.kind]
   const Icon = copy.icon
-  return <div className="flex gap-3 py-3 first:pt-3 last:pb-3"><Icon size={16} className={`mt-0.5 shrink-0 ${copy.className}`} aria-hidden="true" /><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1"><span className="text-xs font-semibold text-graphite">{copy.label} · {activity.projectTitle}</span><time className="font-mono text-xs text-graphite">{formatTime(activity.createdAt)}</time></div><h4 className="mt-1 text-sm font-semibold text-ink">{activity.title}</h4>{activity.detail ? <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-graphite">{activity.detail}</p> : null}</div></div>
+  return <div className="flex gap-3 py-3 first:pt-3 last:pb-3"><Icon size={16} className={`mt-0.5 shrink-0 ${copy.className}`} aria-hidden="true" /><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1"><span className="text-xs font-semibold text-graphite">{copy.label} · {activity.projectTitle}</span><time className="font-mono text-xs text-graphite">{activity.startedAt ? `${formatTime(activity.startedAt)}${activity.endedAt ? `–${formatTime(activity.endedAt)}` : ''}` : formatTime(activity.createdAt)}</time></div><h4 className="mt-1 text-sm font-semibold text-ink">{activity.title}</h4>{activity.detail ? <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-graphite">{activity.detail}</p> : null}</div></div>
+}
+
+function DayTimeline({ activities }: { activities: DailyActivity[] }) {
+  if (activities.length === 0) return null
+  const positioned = activities.map((activity) => {
+    const start = new Date(activity.startedAt ?? activity.createdAt)
+    const end = new Date(activity.endedAt ?? start.getTime() + 30 * 60 * 1000)
+    const startMinutes = start.getHours() * 60 + start.getMinutes()
+    const duration = Math.max(30, Math.round((end.getTime() - start.getTime()) / 60000))
+    return { activity, top: Math.max(0, Math.min(1439, startMinutes)) / 1440 * 100, height: Math.min(100 - Math.max(0, Math.min(1439, startMinutes)) / 1440 * 100, Math.max(3.5, duration / 1440 * 100)) }
+  })
+  return <div className="mt-5 border-y border-rail py-4" aria-label="当天时间轴"><div className="flex items-center justify-between"><div className="text-sm font-semibold text-ink">当天时间轴</div><div className="text-xs text-graphite">已填写时间的行动</div></div><div className="mt-4 grid grid-cols-[44px_minmax(0,1fr)] gap-3"><div className="relative h-[360px] text-[10px] font-mono text-graphite">{[0, 6, 12, 18, 24].map((hour) => <span key={hour} className="absolute right-0" style={{ top: `${hour / 24 * 100}%`, transform: hour === 24 ? 'translateY(-100%)' : 'none' }}>{String(hour).padStart(2, '0')}:00</span>)}</div><div className="relative h-[360px] overflow-hidden border-l border-rail bg-shell/35">{[0, 6, 12, 18, 24].map((hour) => <span key={hour} className="absolute inset-x-0 border-t border-rail/70" style={{ top: `${hour / 24 * 100}%` }} />)}{positioned.map(({ activity, top, height }) => <a key={activity.id} href={activity.nodeId ? `/contracts/${activity.nodeId}?tab=completion` : undefined} className="absolute inset-x-2 overflow-hidden border-l-2 border-signal bg-signal/15 px-2 py-1 text-left transition hover:bg-signal/25" style={{ top: `${top}%`, height: `${height}%`, minHeight: '32px' }}><span className="block truncate text-xs font-semibold text-ink">{activity.title}</span><span className="block truncate text-[10px] text-graphite">{activity.projectTitle} · {formatTime(activity.startedAt ?? activity.createdAt)}{activity.endedAt ? `–${formatTime(activity.endedAt)}` : ''}</span></a>)}</div></div></div>
 }
 
 function DailyReviewDetail({ review }: { review: DailyReview }) {

@@ -46,7 +46,12 @@ export type ContributionOrigin = {
   verifiableGoal: string
   acceptanceCriteria: AcceptanceCriterion[]
   evidenceRequirement: string
-	availableSources: Array<{ title: string; projectTitle: string; mappingText: string; status: 'submitted' | 'adopted' }>
+  availableSources: Array<{
+    title: string
+    projectTitle: string
+    mappingText: string
+    status: 'submitted' | 'adopted'
+  }>
 }
 
 export type Project = {
@@ -60,7 +65,7 @@ export type Project = {
   /** User-authored project rules consumed by guided action-contract generation. */
   projectRules: string
   reviewAIKeyId?: string
-	/** The public collaboration gap this project was created to address. */
+  /** The public collaboration gap this project was created to address. */
   contributionOrigin?: ContributionOrigin
   /** The sole behavior commitment this project is currently asking its owner to close. */
   currentContractId?: string | null
@@ -115,12 +120,6 @@ export type CriterionReview = {
 export type ReviewMessage = {
   id: string
   speaker: 'user' | 'ai'
-  body: string
-  createdAt: string
-}
-
-export type WorkLog = {
-  id: string
   body: string
   createdAt: string
 }
@@ -181,7 +180,6 @@ export type CompletionRecord = {
   summary: string
   smartContractId: string
   smartContractVersion: string
-  ruleHash: string
   reviewId: string
   aiReviewVerdict: ReviewVerdict
   recordKind: CompletionRecordKind
@@ -207,12 +205,13 @@ export type ExecutionContract = {
   originalIntent: string
   smartContractId: string
   smartContractVersion: string
-  ruleHash: string
   verifiableGoal: string
   acceptanceCriteria: AcceptanceCriterion[]
   evidenceRequirement: string
   completionClaim?: string
   evidenceText?: string
+  startedAt?: string
+  endedAt?: string
   /** The immutable completion record that covers this action, if any. */
   completionRecordId?: string
   draftReview?: DraftReview
@@ -225,7 +224,6 @@ export type ExecutionContract = {
   completionConversationId?: string
   userVerdict?: UserVerdict
   nextContractTitle?: string
-  workLogs?: WorkLog[]
   createdAt: string
   updatedAt: string
 }

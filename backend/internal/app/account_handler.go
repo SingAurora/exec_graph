@@ -8,6 +8,7 @@ import (
 	"time"
 
 	infrastructuremysql "github.com/singaurora/exec-graph/backend/internal/infrastructure/mysql"
+	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
 )
 
 type changeEmailRequest struct {
@@ -52,7 +53,7 @@ func (s *server) changeEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	repository := infrastructuremysql.NewIdentityRepository(s.orm)
 	err = repository.Transaction(ctx, func(tx infrastructuremysql.IdentityRepository) error {
@@ -108,7 +109,7 @@ func (s *server) changePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	repository := infrastructuremysql.NewIdentityRepository(s.orm)
 	err := repository.Transaction(ctx, func(tx infrastructuremysql.IdentityRepository) error {
@@ -157,7 +158,7 @@ func (s *server) resetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	var userID uint64
 	repository := infrastructuremysql.NewIdentityRepository(s.orm)

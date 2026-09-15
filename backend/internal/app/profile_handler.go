@@ -17,6 +17,7 @@ import (
 
 	infrastructuremysql "github.com/singaurora/exec-graph/backend/internal/infrastructure/mysql"
 	infrastructurestorage "github.com/singaurora/exec-graph/backend/internal/infrastructure/storage"
+	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
 
 	xdraw "golang.org/x/image/draw"
 	_ "golang.org/x/image/webp"
@@ -109,7 +110,7 @@ func (s *server) updateCurrentUser(w http.ResponseWriter, r *http.Request, user 
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	err = infrastructuremysql.NewIdentityRepository(s.orm).UpdateUser(ctx, user.ID, map[string]any{"username": username, "user_id": userID, "bio": bio, "gender": request.Gender, "custom_profile_enabled": request.CustomProfileEnabled, "custom_profile_markdown": customProfileMarkdown})
 	if err != nil {
@@ -356,7 +357,7 @@ func resizeProfileBackgroundDimensions(width, height, maxWidth, maxHeight int) (
 }
 
 func (s *server) loadUserProfile(requestContext context.Context, userID uint64) (userProfileResponse, error) {
-	ctx, cancel := context.WithTimeout(requestContext, 8*time.Second)
+	ctx, cancel := context.WithTimeout(requestContext, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	stored, err := infrastructuremysql.NewIdentityRepository(s.orm).FindUserByID(ctx, userID)
 	if err != nil {

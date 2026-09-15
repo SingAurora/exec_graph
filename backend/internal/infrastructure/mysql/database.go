@@ -3,9 +3,9 @@ package mysql
 import (
 	"context"
 	"fmt"
-	"time"
 
 	bootstrapconfig "github.com/singaurora/exec-graph/backend/internal/bootstrap/config"
+	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
 	drivermysql "gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -21,7 +21,7 @@ func Open(config bootstrapconfig.DatabaseConfig) (*gorm.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get gorm sql database: %w", err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), sharedconstants.DatabasePingTimeout)
 	defer cancel()
 	if err := sqlDB.PingContext(ctx); err != nil {
 		_ = sqlDB.Close()

@@ -110,7 +110,6 @@ func seedDemoCollaborationData(ctx context.Context, db *sql.DB) error {
 	if err := tx.QueryRowContext(ctx, `SELECT version FROM smart_contracts WHERE id = ?`, generalSmartContractID).Scan(&version); err != nil {
 		return fmt.Errorf("load system contract: %w", err)
 	}
-	ruleHash := hashValue(generalSmartContractBody)
 	projects := []demoProject{
 		{
 			ID: "demo-project-elder-appointments", OwnerHandle: "demo-lan", Title: "让社区老人能独立预约活动",
@@ -196,10 +195,10 @@ func seedDemoCollaborationData(ctx context.Context, db *sql.DB) error {
 			return fmt.Errorf("upsert demo project %s: %w", project.ID, err)
 		}
 		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO project_contract_revisions (id, project_id, smart_contract_id, smart_contract_version, rule_hash, reason, smart_contract_name, smart_contract_description, smart_contract_body)
-			VALUES (?, ?, ?, ?, ?, '演示项目基础规则', '通用执行智能合约', '演示项目使用的基础审查规则。', ?)
-			ON DUPLICATE KEY UPDATE smart_contract_version = VALUES(smart_contract_version), rule_hash = VALUES(rule_hash), smart_contract_body = VALUES(smart_contract_body)`,
-			revisionID, project.ID, generalSmartContractID, version, ruleHash, generalSmartContractBody); err != nil {
+			INSERT INTO project_contract_revisions (id, project_id, smart_contract_id, smart_contract_version, reason, smart_contract_name, smart_contract_description, smart_contract_body)
+			VALUES (?, ?, ?, ?, '演示项目基础规则', '通用执行智能合约', '演示项目使用的基础审查规则。', ?)
+			ON DUPLICATE KEY UPDATE smart_contract_version = VALUES(smart_contract_version), smart_contract_body = VALUES(smart_contract_body)`,
+			revisionID, project.ID, generalSmartContractID, version, generalSmartContractBody); err != nil {
 			return fmt.Errorf("upsert demo revision %s: %w", project.ID, err)
 		}
 	}
@@ -223,7 +222,7 @@ func seedDemoCollaborationData(ctx context.Context, db *sql.DB) error {
 		{ID: "demo-node-community-handoff", ProjectID: "demo-project-community-handoff", OwnerHandle: "demo-chen", Title: "收束社区服务交接清单", Goal: "组合预约与食物领取的来源成果，形成包含交接责任、时间窗口和求助入口的社区服务清单。", Criteria: []string{"每一项清单都链接到一个已验收来源成果。", "区分预约服务与食物领取场景的适用边界。", "说明工作人员如何核对交接是否完成。"}, Evidence: "提交清单、来源映射与一次工作人员走读记录。", Stage: "frozen"},
 	}
 	for _, node := range nodes {
-		if err := seedDemoNode(ctx, tx, node, userIDs[node.OwnerHandle], version, ruleHash); err != nil {
+		if err := seedDemoNode(ctx, tx, node, userIDs[node.OwnerHandle], version); err != nil {
 			return err
 		}
 	}
@@ -242,7 +241,7 @@ func seedDemoCollaborationData(ctx context.Context, db *sql.DB) error {
 	return tx.Commit()
 }
 
-func seedDemoNode(ctx context.Context, tx *sql.Tx, node demoNode, ownerID uint64, version, ruleHash string) error {
+func seedDemoNode(ctx context.Context, tx *sql.Tx, node demoNode, ownerID uint64, version string) error {
 	criteria, _ := json.Marshal(demoCriteria(node.Criteria))
 	draftReview, _ := json.Marshal(map[string]any{"id": "demo-draft-review-" + node.ID, "verdict": "pass", "summary": "演示节点草案已通过审核。", "missingRequirements": []string{}, "createdAt": time.Now()})
 	messages, _ := json.Marshal([]map[string]any{{"id": "demo-message-" + node.ID, "speaker": "ai", "body": "演示数据：节点目标、验收标准和证据要求已冻结。", "createdAt": time.Now()}})
@@ -258,10 +257,10 @@ func seedDemoNode(ctx context.Context, tx *sql.Tx, node demoNode, ownerID uint64
 	}
 	revisionID := "demo-revision-" + node.ProjectID
 	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO execution_contracts (id, project_id, project_contract_revision_id, parent_contract_id, source_contract_ids_json, actor_id, title, stage, original_intent, smart_contract_id, smart_contract_version, rule_hash, verifiable_goal, acceptance_criteria_json, evidence_requirement, completion_claim, evidence_text, completion_record_id, draft_review_json, review_messages_json, ai_review_json)
-		VALUES (?, ?, ?, NULLIF(?, ''), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), ?, ?, ?, ?)
+		INSERT INTO execution_contracts (id, project_id, project_contract_revision_id, parent_contract_id, source_contract_ids_json, actor_id, title, stage, original_intent, smart_contract_id, smart_contract_version, verifiable_goal, acceptance_criteria_json, evidence_requirement, completion_claim, evidence_text, completion_record_id, draft_review_json, review_messages_json, ai_review_json)
+		VALUES (?, ?, ?, NULLIF(?, ''), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), ?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE title = VALUES(title), stage = VALUES(stage), verifiable_goal = VALUES(verifiable_goal), acceptance_criteria_json = VALUES(acceptance_criteria_json), evidence_requirement = VALUES(evidence_requirement), completion_claim = VALUES(completion_claim), evidence_text = VALUES(evidence_text), completion_record_id = VALUES(completion_record_id), ai_review_json = VALUES(ai_review_json)`,
-		node.ID, node.ProjectID, revisionID, node.ParentID, string(sourceIDs), ownerID, node.Title, node.Stage, "演示协作项目中的行动记录。", generalSmartContractID, version, ruleHash, node.Goal, string(criteria), node.Evidence, node.Claim, node.Evidence, completionID, string(draftReview), string(messages), reviewJSON); err != nil {
+		node.ID, node.ProjectID, revisionID, node.ParentID, string(sourceIDs), ownerID, node.Title, node.Stage, "演示协作项目中的行动记录。", generalSmartContractID, version, node.Goal, string(criteria), node.Evidence, node.Claim, node.Evidence, completionID, string(draftReview), string(messages), reviewJSON); err != nil {
 		return fmt.Errorf("upsert demo node %s: %w", node.ID, err)
 	}
 	if node.RecordID == "" {
@@ -270,10 +269,10 @@ func seedDemoNode(ctx context.Context, tx *sql.Tx, node demoNode, ownerID uint64
 	verdict, _ := json.Marshal(map[string]any{"result": "confirmed_complete", "note": "演示数据：维护者确认该成果可被继续使用。", "createdAt": time.Now()})
 	covered, _ := json.Marshal([]string{node.ID})
 	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO completion_records (id, project_id, closing_contract_id, covered_contract_ids_json, title, summary, smart_contract_id, smart_contract_version, rule_hash, review_id, ai_review_verdict, record_kind, user_verdict_json)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pass', 'accepted', ?)
+		INSERT INTO completion_records (id, project_id, closing_contract_id, covered_contract_ids_json, title, summary, smart_contract_id, smart_contract_version, review_id, ai_review_verdict, record_kind, user_verdict_json)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pass', 'accepted', ?)
 		ON DUPLICATE KEY UPDATE title = VALUES(title), summary = VALUES(summary), user_verdict_json = VALUES(user_verdict_json)`,
-		node.RecordID, node.ProjectID, node.ID, string(covered), node.Title, "演示数据：这项成果已通过 AI 审查并由创建者确认，可作为其他行动的来源。", generalSmartContractID, version, ruleHash, "demo-review-"+node.ID, string(verdict)); err != nil {
+		node.RecordID, node.ProjectID, node.ID, string(covered), node.Title, "演示数据：这项成果已通过 AI 审查并由创建者确认，可作为其他行动的来源。", generalSmartContractID, version, "demo-review-"+node.ID, string(verdict)); err != nil {
 		return fmt.Errorf("upsert demo record %s: %w", node.RecordID, err)
 	}
 	return nil

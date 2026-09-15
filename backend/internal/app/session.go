@@ -8,6 +8,7 @@ import (
 	"time"
 
 	infrastructuremysql "github.com/singaurora/exec-graph/backend/internal/infrastructure/mysql"
+	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
 )
 
 type loginRequest struct {
@@ -38,7 +39,7 @@ func (s *server) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	stored, err := infrastructuremysql.NewIdentityRepository(s.orm).FindUserByEmail(ctx, email, false)
 	if errors.Is(err, infrastructuremysql.ErrNotFound) || stored.PasswordHash != request.Password {

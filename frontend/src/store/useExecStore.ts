@@ -1,6 +1,16 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { actors, branches as seedBranches, completionRecords as seedCompletionRecords, contracts, currentActorId, defaultProjectId, edges, projects, smartContracts } from '../data/seed'
+import {
+  actors,
+  branches as seedBranches,
+  completionRecords as seedCompletionRecords,
+  contracts,
+  currentActorId,
+  defaultProjectId,
+  edges,
+  projects,
+  smartContracts,
+} from '../data/seed'
 import { requestJSON } from '../lib/api'
 import { isActionableStage, needsReviewDecision } from '../lib/execution'
 import type {
@@ -22,6 +32,8 @@ import type {
 type SubmitCompletionInput = {
   completionClaim: string
   evidenceText: string
+  startedAt?: string
+  endedAt?: string
 }
 
 type ReviewClarificationInput = {
@@ -56,9 +68,10 @@ type CreateProjectInput = {
   description: string
   projectType: ProjectType
   projectRules: string
+  smartContractId: string
   visibility: 'private' | 'public'
   aiKeyId: string
-	contributionCallId?: string
+  contributionCallId?: string
 }
 
 type UpdateProjectInput = {
@@ -92,8 +105,8 @@ type AuthResult = {
 }
 
 type ProfileInput = {
-	username: string
-	userId: string
+  username: string
+  userId: string
   bio: string
   gender: Gender
   avatarUrl?: string
@@ -137,7 +150,7 @@ type ExecState = {
   confirmCompletion: (contractId: string) => Promise<AuthResult>
   createSupplementContract: (contractId: string) => Promise<AuthResult>
   signIn: (email: string, password: string) => AuthResult
-	registerAccount: (username: string, userId: string, email: string, password: string) => AuthResult
+  registerAccount: (username: string, userId: string, email: string, password: string) => AuthResult
   setAccessToken: (token: string) => void
   refreshWorkspace: () => Promise<AuthResult>
   signOut: () => void
@@ -185,15 +198,6 @@ const sectionLabels = {
   evidence: /^(?:证据要求|证明要求|证据)\s*(?:[:：]\s*(.*))?$/,
 } as const
 
-const makeRuleHash = (value: string) => {
-  let hash = 2166136261
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index)
-    hash = Math.imul(hash, 16777619)
-  }
-  return `0x${(hash >>> 0).toString(16).padStart(8, '0')}`
-}
-
 const stripListMarker = (line: string) => line.replace(/^\s*(?:[-*]|\d+[.)、])\s*/, '').trim()
 
 const compileDraft = (draft: string): CompiledDraft => {
@@ -209,9 +213,7 @@ const compileDraft = (draft: string): CompiledDraft => {
     const line = rawLine.replace(/^\s*#{1,6}\s*/, '').trim()
     if (!line) continue
 
-    const matchingSection = (Object.keys(sectionLabels) as Array<keyof typeof sectionLabels>).find((key) =>
-      sectionLabels[key].test(line),
-    )
+    const matchingSection = (Object.keys(sectionLabels) as Array<keyof typeof sectionLabels>).find((key) => sectionLabels[key].test(line))
     if (matchingSection) {
       const match = line.match(sectionLabels[matchingSection])
       activeSection = matchingSection
@@ -222,11 +224,11 @@ const compileDraft = (draft: string): CompiledDraft => {
     if (activeSection) sections[activeSection].push(stripListMarker(line))
   }
 
-  const firstMeaningfulLine = draft
-    .split('\n')
-    .map(stripListMarker)
-    .find((line) => line && !Object.values(sectionLabels).some((pattern) => pattern.test(line)))
-    ?? ''
+  const firstMeaningfulLine =
+    draft
+      .split('\n')
+      .map(stripListMarker)
+      .find((line) => line && !Object.values(sectionLabels).some((pattern) => pattern.test(line))) ?? ''
 
   return {
     title: (sections.title[0] ?? firstMeaningfulLine).trim(),
@@ -268,7 +270,13 @@ const buildDraftReview = (draft: string): { review: DraftReview; compiled: Compi
   }
 }
 
-const requestNodeDraftReview = async (accessToken: string, project: Project, smartContract: SmartContractDefinition, draft: string, compiled: CompiledDraft) => {
+const requestNodeDraftReview = async (
+  accessToken: string,
+  project: Project,
+  smartContract: SmartContractDefinition,
+  draft: string,
+  compiled: CompiledDraft,
+) => {
   const data = await requestJSON<{ review?: DraftReview }>('/api/ai-reviews/node-draft', {
     method: 'POST',
     accessToken,
@@ -305,6 +313,8 @@ const requestRealAIReview = async (accessToken: string, contract: ExecutionContr
       nodeId: contract.id,
       completionClaim: input.completionClaim.trim(),
       evidenceText: input.evidenceText.trim(),
+      startedAt: input.startedAt,
+      endedAt: input.endedAt,
     }),
   })
   if (!data.review) throw new Error('AI 审查没有返回结果。')
@@ -348,12 +358,21 @@ const mergeProjectState = (state: Pick<ExecState, 'projects' | 'contracts' | 'br
   branches: [...state.branches.filter((branch) => branch.projectId !== snapshot.project.id), ...snapshot.branches],
   completionRecords: [...state.completionRecords.filter((record) => record.projectId !== snapshot.project.id), ...snapshot.completionRecords],
   edges: [
-    ...state.edges.filter((edge) => !state.contracts.some((contract) => contract.projectId === snapshot.project.id && (contract.id === edge.sourceContractId || contract.id === edge.targetContractId))),
+    ...state.edges.filter(
+      (edge) =>
+        !state.contracts.some(
+          (contract) => contract.projectId === snapshot.project.id && (contract.id === edge.sourceContractId || contract.id === edge.targetContractId),
+        ),
+    ),
     ...snapshot.edges,
   ],
 })
 
-const cloneSeedProjects = () => projects.map((project) => ({ ...project, contractRevisions: [...project.contractRevisions] }))
+const cloneSeedProjects = () =>
+  projects.map((project) => ({
+    ...project,
+    contractRevisions: [...project.contractRevisions],
+  }))
 const cloneSeedBranches = () => seedBranches.map((branch) => ({ ...branch }))
 
 const legacySmartContractBody = (smartContract: LegacySmartContract) => {
@@ -361,10 +380,11 @@ const legacySmartContractBody = (smartContract: LegacySmartContract) => {
 
   const rules = smartContract.deploymentRules?.map((rule) => rule.trim()).filter(Boolean) ?? []
   const reviewPrinciple = smartContract.reviewPrinciple?.trim() ?? ''
-  return [
-    rules.length > 0 ? `## 部署规则\n\n${rules.map((rule) => `- ${rule}`).join('\n')}` : '',
-    reviewPrinciple ? `## AI 审查原则\n\n${reviewPrinciple}` : '',
-  ].filter(Boolean).join('\n\n') || '## 合约正文\n\n这份合约暂未填写正文。'
+  return (
+    [rules.length > 0 ? `## 部署规则\n\n${rules.map((rule) => `- ${rule}`).join('\n')}` : '', reviewPrinciple ? `## AI 审查原则\n\n${reviewPrinciple}` : '']
+      .filter(Boolean)
+      .join('\n\n') || '## 合约正文\n\n这份合约暂未填写正文。'
+  )
 }
 
 const normalizeSmartContract = (smartContract: LegacySmartContract): SmartContractDefinition => ({
@@ -391,12 +411,7 @@ const currentContractForBranch = (branch: ExecutionBranch, allContracts: Executi
   return contract && isActionableStage(contract.stage) ? contract : undefined
 }
 
-const isCurrentContract = (
-  project: Project,
-  contract: ExecutionContract,
-  allContracts: ExecutionContract[],
-  allBranches: ExecutionBranch[],
-) => {
+const isCurrentContract = (project: Project, contract: ExecutionContract, allContracts: ExecutionContract[], allBranches: ExecutionBranch[]) => {
   if (currentContractForProject(project, allContracts)?.id === contract.id) return true
   const branch = allBranches.find((item) => item.id === contract.branchId && item.projectId === project.id)
   return branch ? currentContractForBranch(branch, allContracts)?.id === contract.id : false
@@ -405,7 +420,11 @@ const isCurrentContract = (
 const deriveCurrentContractId = (project: Project, allContracts: ExecutionContract[]) => {
   const projectContracts = allContracts.filter((contract) => contract.projectId === project.id)
   const declaredCurrent = currentContractForProject(project, allContracts)
-  if (declaredCurrent && !(project.visibility === 'private' && declaredCurrent.branchId) && !(declaredCurrent.stage === 'needs_supplement' && projectContracts.some((item) => item.supplementOfContractId === declaredCurrent.id))) {
+  if (
+    declaredCurrent &&
+    !(project.visibility === 'private' && declaredCurrent.branchId) &&
+    !(declaredCurrent.stage === 'needs_supplement' && projectContracts.some((item) => item.supplementOfContractId === declaredCurrent.id))
+  ) {
     return declaredCurrent.id
   }
 
@@ -415,20 +434,20 @@ const deriveCurrentContractId = (project: Project, allContracts: ExecutionContra
 
   return (
     projectContracts
-    .filter((contract) => !contract.branchId)
-    .filter((contract) => isActionableStage(contract.stage))
-    .filter(
-      (contract) =>
-        contract.stage !== 'needs_supplement' || !projectContracts.some((item) => item.supplementOfContractId === contract.id),
-    )
-    .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))[0]?.id ?? null
+      .filter((contract) => !contract.branchId)
+      .filter((contract) => isActionableStage(contract.stage))
+      .filter((contract) => contract.stage !== 'needs_supplement' || !projectContracts.some((item) => item.supplementOfContractId === contract.id))
+      .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))[0]?.id ?? null
   )
 }
 
 const deriveBranchCurrentContractId = (branch: ExecutionBranch, allContracts: ExecutionContract[]) => {
   const branchContracts = allContracts.filter((contract) => contract.branchId === branch.id)
   const declaredCurrent = currentContractForBranch(branch, allContracts)
-  if (declaredCurrent && !(declaredCurrent.stage === 'needs_supplement' && branchContracts.some((item) => item.supplementOfContractId === declaredCurrent.id))) {
+  if (
+    declaredCurrent &&
+    !(declaredCurrent.stage === 'needs_supplement' && branchContracts.some((item) => item.supplementOfContractId === declaredCurrent.id))
+  ) {
     return declaredCurrent.id
   }
 
@@ -437,10 +456,7 @@ const deriveBranchCurrentContractId = (branch: ExecutionBranch, allContracts: Ex
   return (
     branchContracts
       .filter((contract) => isActionableStage(contract.stage))
-      .filter(
-        (contract) =>
-          contract.stage !== 'needs_supplement' || !branchContracts.some((item) => item.supplementOfContractId === contract.id),
-      )
+      .filter((contract) => contract.stage !== 'needs_supplement' || !branchContracts.some((item) => item.supplementOfContractId === contract.id))
       .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))[0]?.id ?? null
   )
 }
@@ -478,44 +494,47 @@ const normalizeProject = (project: Project): Project => {
 const ensureCompletionRecords = (allContracts: ExecutionContract[], existingRecords: CompletionRecord[] = []) => {
   const records = existingRecords.map((record) => ({
     ...record,
-    aiReviewVerdict:
-      record.aiReviewVerdict ?? allContracts.find((contract) => contract.aiReview?.id === record.reviewId)?.aiReview?.verdict ?? 'pass',
+    aiReviewVerdict: record.aiReviewVerdict ?? allContracts.find((contract) => contract.aiReview?.id === record.reviewId)?.aiReview?.verdict ?? 'pass',
     recordKind: record.recordKind ?? (record.aiReviewVerdict === 'pass' ? 'accepted' : 'sealed'),
   }))
   const recordById = new Map(records.map((record) => [record.id, record]))
   const updatedContracts = allContracts.map((contract) => {
     const record = records.find((item) => item.coveredContractIds.includes(contract.id))
-    return record ? { ...contract, stage: record.recordKind === 'sealed' ? ('sealed' as const) : ('completed' as const), completionRecordId: record.id } : contract
+    return record
+      ? {
+          ...contract,
+          stage: record.recordKind === 'sealed' ? ('sealed' as const) : ('completed' as const),
+          completionRecordId: record.id,
+        }
+      : contract
   })
 
-  updatedContracts
-    .forEach((contract) => {
-      if ((contract.stage !== 'completed' && contract.stage !== 'sealed') || !contract.aiReview || !contract.userVerdict) return
-      if (contract.completionRecordId && recordById.has(contract.completionRecordId)) return
-      const recordId = `record-${contract.id}`
-      if (recordById.has(recordId)) return
-      const record: CompletionRecord = {
-        id: recordId,
-        projectId: contract.projectId,
-        closingContractId: contract.id,
-        coveredContractIds: [contract.id],
-        title: contract.title,
-        summary:
-          contract.aiReview.verdict === 'pass'
-            ? '智能合约审查通过，并由本人确认写入完成记录。'
-            : 'AI 审查仍有缺口，本人决定封存这次推进；审查结论和行动证据均已保留。',
-        smartContractId: contract.smartContractId,
-        smartContractVersion: contract.smartContractVersion,
-        ruleHash: contract.ruleHash,
-        reviewId: contract.aiReview.id,
-        aiReviewVerdict: contract.aiReview.verdict,
-        recordKind: contract.aiReview.verdict === 'pass' ? 'accepted' : 'sealed',
-        userVerdict: contract.userVerdict,
-        createdAt: contract.userVerdict.createdAt,
-      }
-      records.push(record)
-      recordById.set(record.id, record)
-    })
+  updatedContracts.forEach((contract) => {
+    if ((contract.stage !== 'completed' && contract.stage !== 'sealed') || !contract.aiReview || !contract.userVerdict) return
+    if (contract.completionRecordId && recordById.has(contract.completionRecordId)) return
+    const recordId = `record-${contract.id}`
+    if (recordById.has(recordId)) return
+    const record: CompletionRecord = {
+      id: recordId,
+      projectId: contract.projectId,
+      closingContractId: contract.id,
+      coveredContractIds: [contract.id],
+      title: contract.title,
+      summary:
+        contract.aiReview.verdict === 'pass'
+          ? '智能合约审查通过，并由本人确认写入完成记录。'
+          : 'AI 审查仍有缺口，本人决定封存这次推进；审查结论和行动证据均已保留。',
+      smartContractId: contract.smartContractId,
+      smartContractVersion: contract.smartContractVersion,
+      reviewId: contract.aiReview.id,
+      aiReviewVerdict: contract.aiReview.verdict,
+      recordKind: contract.aiReview.verdict === 'pass' ? 'accepted' : 'sealed',
+      userVerdict: contract.userVerdict,
+      createdAt: contract.userVerdict.createdAt,
+    }
+    records.push(record)
+    recordById.set(record.id, record)
+  })
 
   const completedByRecord = new Map<string, CompletionRecord>()
   records.forEach((record) => completedByRecord.set(record.id, record))
@@ -524,7 +543,13 @@ const ensureCompletionRecords = (allContracts: ExecutionContract[], existingReco
       const record = contract.completionRecordId
         ? completedByRecord.get(contract.completionRecordId)
         : records.find((item) => item.coveredContractIds.includes(contract.id))
-      return record ? { ...contract, stage: record.recordKind === 'sealed' ? ('sealed' as const) : ('completed' as const), completionRecordId: record.id } : contract
+      return record
+        ? {
+            ...contract,
+            stage: record.recordKind === 'sealed' ? ('sealed' as const) : ('completed' as const),
+            completionRecordId: record.id,
+          }
+        : contract
     }),
     completionRecords: records,
   }
@@ -600,34 +625,30 @@ const migrateContract = (contract: LegacyContract, migratedProjects: Project[]):
     task: 'frozen',
   }
   const stage = stageMap[contract.stage ?? 'frozen'] ?? 'frozen'
-  const acceptanceCriteria =
-    contract.acceptanceCriteria?.length
-      ? contract.acceptanceCriteria
-      : wasTaskNode
-        ? [
-            {
-              id: 'c1',
-              text: '完成这个节点草案中描述的第一项推进，并提交可检查的结果说明。',
-              requiredEvidence: '提交本次推进留下的产出、链接、截图说明或前后对比。',
-            },
-          ]
-        : []
+  const acceptanceCriteria = contract.acceptanceCriteria?.length
+    ? contract.acceptanceCriteria
+    : wasTaskNode
+      ? [
+          {
+            id: 'c1',
+            text: '完成这个节点草案中描述的第一项推进，并提交可检查的结果说明。',
+            requiredEvidence: '提交本次推进留下的产出、链接、截图说明或前后对比。',
+          },
+        ]
+      : []
   const evidenceRequirement = wasTaskNode
     ? '提交本次推进留下的产出、链接、截图说明或前后对比。'
-    : contract.evidenceRequirement ?? '提交完成结果，并逐条说明每项验收标准对应的证据。'
+    : (contract.evidenceRequirement ?? '提交完成结果，并逐条说明每项验收标准对应的证据。')
 
   return {
     ...(contract as ExecutionContract),
     projectId,
     projectContractRevisionId: contract.projectContractRevisionId ?? projectRevision.id,
     stage,
-    nodeKind: contract.nodeKind === 'task' ? 'progress' : contract.nodeKind ?? 'progress',
+    nodeKind: contract.nodeKind === 'task' ? 'progress' : (contract.nodeKind ?? 'progress'),
     sourceContractIds: contract.sourceContractIds ?? (contract.parentContractId ? [contract.parentContractId] : undefined),
     smartContractId,
     smartContractVersion,
-    ruleHash:
-      contract.ruleHash ??
-      makeRuleHash(`${projectId}|${projectRevision.id}|${smartContractId}@${smartContractVersion}|${contract.verifiableGoal ?? ''}|${acceptanceCriteria.map((item) => item.text).join('|')}|${evidenceRequirement}`),
     acceptanceCriteria,
     evidenceRequirement,
     userVerdict: stage === 'completed' || stage === 'sealed' ? contract.userVerdict : undefined,
@@ -643,7 +664,10 @@ const mergeSeedData = (state: LegacyState) => {
   const seededBranchByContractId = new Map(contracts.map((contract) => [contract.id, contract.branchId]))
   const migratedContracts = state.contracts
     .map((contract) => migrateContract(contract, migratedProjects))
-    .map((contract) => ({ ...contract, branchId: contract.branchId ?? seededBranchByContractId.get(contract.id) }))
+    .map((contract) => ({
+      ...contract,
+      branchId: contract.branchId ?? seededBranchByContractId.get(contract.id),
+    }))
   const knownContractIds = new Set(migratedContracts.map((contract) => contract.id))
   const mergedContracts = [...migratedContracts, ...contracts.filter((contract) => !knownContractIds.has(contract.id))]
   const existingEdges = state.edges ?? []
@@ -685,12 +709,17 @@ export const useExecStore = create<ExecState>()(
         try {
           const response = await fetch('/api/smart-contracts', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${accessToken}`,
+            },
             body: JSON.stringify(input),
           })
           const contract = (await response.json().catch(() => ({}))) as SmartContractDefinition & { error?: string }
           if (!response.ok || !contract.id) return null
-          set((state) => ({ smartContracts: [...state.smartContracts.filter((item) => item.id !== contract.id), contract] }))
+          set((state) => ({
+            smartContracts: [...state.smartContracts.filter((item) => item.id !== contract.id), contract],
+          }))
           return contract.id
         } catch {
           return null
@@ -700,13 +729,27 @@ export const useExecStore = create<ExecState>()(
         const accessToken = get().accessToken
         if (!accessToken) return { success: false, message: '请先登录后再删除智能合约。' }
         try {
-          const response = await fetch(`/api/smart-contracts/${contractId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${accessToken}` } })
-          const data = (await response.json().catch(() => ({}))) as { error?: string }
-          if (!response.ok) return { success: false, message: data.error ?? '删除智能合约失败。' }
-          set((state) => ({ smartContracts: state.smartContracts.filter((contract) => contract.id !== contractId) }))
+          const response = await fetch(`/api/smart-contracts/${contractId}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${accessToken}` },
+          })
+          const data = (await response.json().catch(() => ({}))) as {
+            error?: string
+          }
+          if (!response.ok)
+            return {
+              success: false,
+              message: data.error ?? '删除智能合约失败。',
+            }
+          set((state) => ({
+            smartContracts: state.smartContracts.filter((contract) => contract.id !== contractId),
+          }))
           return { success: true }
         } catch {
-          return { success: false, message: '无法连接服务，请确认后端已启动。' }
+          return {
+            success: false,
+            message: '无法连接服务，请确认后端已启动。',
+          }
         }
       },
       createProject: async (input) => {
@@ -714,18 +757,26 @@ export const useExecStore = create<ExecState>()(
           try {
             const response = await fetch('/api/projects', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${get().accessToken}` },
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${get().accessToken}`,
+              },
               body: JSON.stringify(input),
             })
             const project = (await response.json().catch(() => ({}))) as Project & { error?: string }
             if (!response.ok || !project.id) throw new Error(project.error ?? `项目创建失败（HTTP ${response.status}）。`)
-            set((state) => ({ projects: [...state.projects.filter((item) => item.id !== project.id), project] }))
+            set((state) => ({
+              projects: [...state.projects.filter((item) => item.id !== project.id), project],
+            }))
             return project.id
           } catch (error) {
             throw error instanceof Error ? error : new Error('无法连接服务，请确认后端已启动。')
           }
         }
-        const smartContract = get().smartContracts.find((item) => item.id === 'skill-general-contract') ?? get().smartContracts[0]
+        const smartContract =
+          get().smartContracts.find((item) => item.id === input.smartContractId) ??
+          get().smartContracts.find((item) => item.id === 'skill-general-contract') ??
+          get().smartContracts[0]
         if (!smartContract) return null
         const projectId = `project-${crypto.randomUUID()}`
         const revision: ProjectContractRevision = {
@@ -754,57 +805,115 @@ export const useExecStore = create<ExecState>()(
       updateProject: async (projectId, input) => {
         const title = input.title.trim()
         const description = input.description.trim()
-        if (!title || !description) return { success: false, message: '项目名称和描述不能为空。' }
+        if (!title) return { success: false, message: '项目名称不能为空。' }
         const accessToken = get().accessToken
         if (!accessToken) return { success: false, message: '请先登录后再修改项目。' }
         try {
-          const snapshot = await requestProjectState(accessToken, `/api/projects/${projectId}`, { method: 'PATCH', body: JSON.stringify({ title, description, visibility: input.visibility }) })
+          const snapshot = await requestProjectState(accessToken, `/api/projects/${projectId}`, {
+            method: 'PATCH',
+            body: JSON.stringify({
+              title,
+              description,
+              visibility: input.visibility,
+            }),
+          })
           set((state) => mergeProjectState(state, snapshot))
           return { success: true }
         } catch (error) {
-          return { success: false, message: error instanceof Error ? error.message : '保存项目资料失败。' }
+          return {
+            success: false,
+            message: error instanceof Error ? error.message : '保存项目资料失败。',
+          }
         }
       },
       upgradeProjectContract: async (projectId, smartContractId) => {
-		const smartContract = get().smartContracts.find((item) => item.id === smartContractId)
-		const project = get().projects.find((item) => item.id === projectId)
-		if (!project || project.archivedAt || !smartContract) return { success: false, message: '当前项目不能修改智能合约。' }
-		const active = currentRevision(project)
-		if (active.smartContractId === smartContract.id && active.smartContractVersion === smartContract.version) return { success: false, message: '该合约已经是项目当前配置。' }
-		const accessToken = get().accessToken
-		if (!accessToken) return { success: false, message: '请先登录后再修改项目智能合约。' }
-		try {
-			const snapshot = await requestProjectState(accessToken, `/api/projects/${projectId}/smart-contract`, {
-				method: 'POST',
-				body: JSON.stringify({ smartContractId }),
-			})
-			set((state) => mergeProjectState(state, snapshot))
-			return { success: true }
-		} catch (error) {
-			return { success: false, message: error instanceof Error ? error.message : '更新项目智能合约失败。' }
-		}
+        const smartContract = get().smartContracts.find((item) => item.id === smartContractId)
+        const project = get().projects.find((item) => item.id === projectId)
+        if (!project || project.archivedAt || project.projectType !== 'autonomous' || !smartContract)
+          return {
+            success: false,
+            message: '只有未归档的自主推进型项目可以修改智能合约。',
+          }
+        const active = currentRevision(project)
+        if (active.smartContractId === smartContract.id && active.smartContractVersion === smartContract.version)
+          return { success: false, message: '该合约已经是项目当前配置。' }
+        const accessToken = get().accessToken
+        if (!accessToken) {
+          const revision: ProjectContractRevision = {
+            id: `project-revision-${crypto.randomUUID()}`,
+            smartContractId: smartContract.id,
+            smartContractVersion: smartContract.version,
+            reason: '项目设置更换智能合约',
+            activatedAt: now(),
+          }
+          set((state) => ({
+            projects: state.projects.map((item) =>
+              item.id !== projectId
+                ? item
+                : {
+                    ...item,
+                    activeContractRevisionId: revision.id,
+                    contractRevisions: [...item.contractRevisions, revision],
+                  },
+            ),
+          }))
+          return { success: true }
+        }
+        try {
+          const snapshot = await requestProjectState(accessToken, `/api/projects/${projectId}/smart-contract`, {
+            method: 'POST',
+            body: JSON.stringify({ smartContractId }),
+          })
+          set((state) => mergeProjectState(state, snapshot))
+          return { success: true }
+        } catch (error) {
+          return {
+            success: false,
+            message: error instanceof Error ? error.message : '更新项目智能合约失败。',
+          }
+        }
       },
       archiveProject: async (projectId) => {
         const accessToken = get().accessToken
         if (!accessToken) return { success: false, message: '请先登录后再归档项目。' }
         try {
-          const response = await fetch(`/api/projects/${projectId}/archive`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` } })
-          const data = await response.json().catch(() => ({})) as { error?: string }
+          const response = await fetch(`/api/projects/${projectId}/archive`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${accessToken}` },
+          })
+          const data = (await response.json().catch(() => ({}))) as {
+            error?: string
+          }
           if (!response.ok) return { success: false, message: data.error ?? '归档项目失败。' }
           await get().refreshWorkspace()
           return { success: true }
-        } catch (error) { return { success: false, message: error instanceof Error ? error.message : '归档项目失败。' } }
+        } catch (error) {
+          return {
+            success: false,
+            message: error instanceof Error ? error.message : '归档项目失败。',
+          }
+        }
       },
       restoreProject: async (projectId) => {
         const accessToken = get().accessToken
         if (!accessToken) return { success: false, message: '请先登录后再恢复项目。' }
         try {
-          const response = await fetch(`/api/projects/${projectId}/unarchive`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` } })
-          const data = await response.json().catch(() => ({})) as { error?: string }
+          const response = await fetch(`/api/projects/${projectId}/unarchive`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${accessToken}` },
+          })
+          const data = (await response.json().catch(() => ({}))) as {
+            error?: string
+          }
           if (!response.ok) return { success: false, message: data.error ?? '恢复项目失败。' }
           await get().refreshWorkspace()
           return { success: true }
-        } catch (error) { return { success: false, message: error instanceof Error ? error.message : '恢复项目失败。' } }
+        } catch (error) {
+          return {
+            success: false,
+            message: error instanceof Error ? error.message : '恢复项目失败。',
+          }
+        }
       },
       deleteProject: async (projectId) => {
         const project = get().projects.find((item) => item.id === projectId)
@@ -812,19 +921,33 @@ export const useExecStore = create<ExecState>()(
         const accessToken = get().accessToken
         if (!accessToken) return { success: false, message: '请先登录后再删除项目。' }
         try {
-          const response = await fetch(`/api/projects/${projectId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${accessToken}` } })
-          const data = await response.json().catch(() => ({})) as { error?: string }
+          const response = await fetch(`/api/projects/${projectId}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${accessToken}` },
+          })
+          const data = (await response.json().catch(() => ({}))) as {
+            error?: string
+          }
           if (!response.ok) return { success: false, message: data.error ?? '删除项目失败。' }
-        const contractIds = new Set(get().contracts.filter((contract) => contract.projectId === projectId).map((contract) => contract.id))
-        set((state) => ({
-          projects: state.projects.filter((item) => item.id !== projectId),
-          contracts: state.contracts.filter((contract) => contract.projectId !== projectId),
-          branches: state.branches.filter((branch) => branch.projectId !== projectId),
-          completionRecords: state.completionRecords.filter((record) => record.projectId !== projectId),
-          edges: state.edges.filter((edge) => !contractIds.has(edge.sourceContractId) && !contractIds.has(edge.targetContractId)),
-        }))
-		  return { success: true }
-        } catch (error) { return { success: false, message: error instanceof Error ? error.message : '删除项目失败。' } }
+          const contractIds = new Set(
+            get()
+              .contracts.filter((contract) => contract.projectId === projectId)
+              .map((contract) => contract.id),
+          )
+          set((state) => ({
+            projects: state.projects.filter((item) => item.id !== projectId),
+            contracts: state.contracts.filter((contract) => contract.projectId !== projectId),
+            branches: state.branches.filter((branch) => branch.projectId !== projectId),
+            completionRecords: state.completionRecords.filter((record) => record.projectId !== projectId),
+            edges: state.edges.filter((edge) => !contractIds.has(edge.sourceContractId) && !contractIds.has(edge.targetContractId)),
+          }))
+          return { success: true }
+        } catch (error) {
+          return {
+            success: false,
+            message: error instanceof Error ? error.message : '删除项目失败。',
+          }
+        }
       },
       reviewNodeDraft: async (input) => {
         const project = get().projects.find((item) => item.id === input.projectId)
@@ -925,13 +1048,20 @@ export const useExecStore = create<ExecState>()(
         const parentContract = sourceContracts[0]
         const isConvergence = sourceIds.length > 1
         const isClosure = input.closureSourceIds?.length === 1 && input.closureSourceIds[0] === sourceIds[0] && sourceIds.length === 1
-        const isClosureSource = isClosure && Boolean(parentContract) && parentContract?.stage === 'frozen' && isCurrentContract(project, parentContract, allContracts, get().branches)
+        const isClosureSource =
+          isClosure && Boolean(parentContract) && parentContract?.stage === 'frozen' && isCurrentContract(project, parentContract, allContracts, get().branches)
         const isSupplement = Boolean(input.supplementOfContractId) && input.supplementOfContractId === sourceIds[0] && sourceIds.length === 1
-        const isSupplementSource = isSupplement && Boolean(parentContract) && parentContract?.stage === 'needs_supplement' && isCurrentContract(project, parentContract, allContracts, get().branches)
+        const isSupplementSource =
+          isSupplement &&
+          Boolean(parentContract) &&
+          parentContract?.stage === 'needs_supplement' &&
+          isCurrentContract(project, parentContract, allContracts, get().branches)
         const isReplacementSource = isClosureSource || isSupplementSource
         const invalidSources =
           sourceContracts.length !== sourceIds.length ||
-          sourceContracts.some((contract) => contract.projectId !== project.id || (!isReplacementSource && (contract.stage !== 'completed' || !contract.completionRecordId)))
+          sourceContracts.some(
+            (contract) => contract.projectId !== project.id || (!isReplacementSource && (contract.stage !== 'completed' || !contract.completionRecordId)),
+          )
         if (invalidSources) {
           return {
             draftReview: {
@@ -940,9 +1070,7 @@ export const useExecStore = create<ExecState>()(
               summary: isConvergence
                 ? '不能开始汇合行动。只有同一项目中已经被完成记录锁定的节点，才能作为多个来源。'
                 : '接续来源不可用。行为承诺只能从同一项目已签名完成的记录开始。',
-              missingRequirements: isConvergence
-                ? ['请至少选择两条已纳入完成记录的节点，再开始一项普通行动。']
-                : ['请从已完成记录选择“继续”或“拆分新路径”。'],
+              missingRequirements: isConvergence ? ['请至少选择两条已纳入完成记录的节点，再开始一项普通行动。'] : ['请从已完成记录选择“继续”或“拆分新路径”。'],
               createdAt: now(),
             },
           }
@@ -952,9 +1080,7 @@ export const useExecStore = create<ExecState>()(
         let shouldCreateBranch = false
         if (isConvergence) {
           const hasCurrentProjectContract = currentContractForProject(project, allContracts)
-          const hasCurrentBranchContract = get().branches.some(
-            (branch) => branch.projectId === project.id && currentContractForBranch(branch, allContracts),
-          )
+          const hasCurrentBranchContract = get().branches.some((branch) => branch.projectId === project.id && currentContractForBranch(branch, allContracts))
           if (hasCurrentProjectContract || hasCurrentBranchContract) {
             return {
               draftReview: {
@@ -1172,7 +1298,13 @@ export const useExecStore = create<ExecState>()(
         const state = get()
         const contract = state.contracts.find((item) => item.id === contractId)
         const project = state.projects.find((item) => item.id === contract?.projectId)
-        if (!contract || !project || project.archivedAt || contract.stage !== 'frozen' || !isCurrentContract(project, contract, state.contracts, state.branches)) {
+        if (
+          !contract ||
+          !project ||
+          project.archivedAt ||
+          contract.stage !== 'frozen' ||
+          !isCurrentContract(project, contract, state.contracts, state.branches)
+        ) {
           return { success: false, message: '当前节点不能提交审查。' }
         }
         if (!state.accessToken) {
@@ -1185,7 +1317,10 @@ export const useExecStore = create<ExecState>()(
           set((latestState) => mergeProjectState(latestState, snapshot))
           return { success: true }
         } catch (error) {
-          return { success: false, message: error instanceof Error ? error.message : 'AI 审查失败，请稍后重试。' }
+          return {
+            success: false,
+            message: error instanceof Error ? error.message : 'AI 审查失败，请稍后重试。',
+          }
         }
       },
       submitReviewClarification: async (contractId, input) => {
@@ -1193,11 +1328,21 @@ export const useExecStore = create<ExecState>()(
         const contract = state.contracts.find((item) => item.id === contractId)
         const project = state.projects.find((item) => item.id === contract?.projectId)
         const canReview = Boolean(contract && needsReviewDecision(contract))
-        if (!contract || !project || project.archivedAt || !contract.aiReview || !canReview || !isCurrentContract(project, contract, state.contracts, state.branches)) {
+        if (
+          !contract ||
+          !project ||
+          project.archivedAt ||
+          !contract.aiReview ||
+          !canReview ||
+          !isCurrentContract(project, contract, state.contracts, state.branches)
+        ) {
           return { success: false, message: '当前节点不能补充审查说明。' }
         }
         if (!input.criterionIds.length || (input.explanation.trim().length < 4 && (input.evidenceAddition?.trim().length ?? 0) < 20)) {
-          return { success: false, message: '请选择需复审的验收标准，并补充说明或提交前已存在的证据。' }
+          return {
+            success: false,
+            message: '请选择需复审的验收标准，并补充说明或提交前已存在的证据。',
+          }
         }
         if (!state.accessToken) return { success: false, message: '请先登录，并为项目选择审查 AI。' }
 
@@ -1207,14 +1352,24 @@ export const useExecStore = create<ExecState>()(
           set((latestState) => mergeProjectState(latestState, snapshot))
           return { success: true }
         } catch (error) {
-          return { success: false, message: error instanceof Error ? error.message : '补充审查失败，请稍后重试。' }
+          return {
+            success: false,
+            message: error instanceof Error ? error.message : '补充审查失败，请稍后重试。',
+          }
         }
       },
       confirmCompletion: async (contractId) => {
         const source = get().contracts.find((contract) => contract.id === contractId)
         const project = get().projects.find((item) => item.id === source?.projectId)
         const canLockStage = Boolean(source && needsReviewDecision(source))
-        if (!source || !project || project.archivedAt || !isCurrentContract(project, source, get().contracts, get().branches) || !canLockStage || !source.aiReview) {
+        if (
+          !source ||
+          !project ||
+          project.archivedAt ||
+          !isCurrentContract(project, source, get().contracts, get().branches) ||
+          !canLockStage ||
+          !source.aiReview
+        ) {
           return { success: false, message: '当前节点不能锁定。' }
         }
         if (!get().accessToken) return { success: false, message: '请先登录后再锁定节点。' }
@@ -1223,7 +1378,10 @@ export const useExecStore = create<ExecState>()(
           set((state) => mergeProjectState(state, snapshot))
           return { success: true }
         } catch (error) {
-          return { success: false, message: error instanceof Error ? error.message : '锁定节点失败，请稍后重试。' }
+          return {
+            success: false,
+            message: error instanceof Error ? error.message : '锁定节点失败，请稍后重试。',
+          }
         }
       },
       createSupplementContract: async (contractId) => {
@@ -1236,15 +1394,14 @@ export const useExecStore = create<ExecState>()(
           !isCurrentContract(project, source, get().contracts, get().branches) ||
           source.stage !== 'needs_supplement' ||
           !source.aiReview?.suggestedSupplementTitle
-        ) return { success: false, message: '当前节点不能生成补足推进。' }
+        )
+          return { success: false, message: '当前节点不能生成补足推进。' }
         const existing = get().contracts.find((contract) => contract.supplementOfContractId === source.id)
         if (existing) return { success: false, message: '这项节点已经有补足推进。' }
         if (!get().accessToken) return { success: false, message: '请先登录后再生成补足推进。' }
 
         const unmetCriteria = source.acceptanceCriteria.filter((criterion) =>
-          source.aiReview?.criterionReviews.some(
-            (review) => review.criterionId === criterion.id && review.result !== 'met',
-          ),
+          source.aiReview?.criterionReviews.some((review) => review.criterionId === criterion.id && review.result !== 'met'),
         )
         const criteria = unmetCriteria.length > 0 ? unmetCriteria : source.acceptanceCriteria
         const title = source.aiReview.suggestedSupplementTitle
@@ -1281,7 +1438,10 @@ export const useExecStore = create<ExecState>()(
           set((state) => mergeProjectState(state, snapshot))
           return { success: true }
         } catch (error) {
-          return { success: false, message: error instanceof Error ? error.message : '生成补足推进失败。' }
+          return {
+            success: false,
+            message: error instanceof Error ? error.message : '生成补足推进失败。',
+          }
         }
       },
       signIn: (email, password) => {
@@ -1293,15 +1453,22 @@ export const useExecStore = create<ExecState>()(
         if (!isDemoAccount && password !== get().accountPassword) {
           return { success: false, message: '邮箱或密码不正确。' }
         }
-        set({ isAuthenticated: true, accountEmail: normalizedEmail, accountPassword: isDemoAccount ? 'execgraph' : get().accountPassword })
+        set({
+          isAuthenticated: true,
+          accountEmail: normalizedEmail,
+          accountPassword: isDemoAccount ? 'execgraph' : get().accountPassword,
+        })
         return { success: true }
       },
-		registerAccount: (username, userId, email, password) => {
-			if (!username.trim() || !userId.trim() || !email.trim() || !password.trim()) {
-				return { success: false, message: '请完整填写用户名、用户 ID、邮箱和密码。' }
-			}
-			const normalizedEmail = email.trim().toLowerCase()
-			const normalizedUserID = userId.trim().replace(/^@+/, '')
+      registerAccount: (username, userId, email, password) => {
+        if (!username.trim() || !userId.trim() || !email.trim() || !password.trim()) {
+          return {
+            success: false,
+            message: '请完整填写用户名、用户 ID、邮箱和密码。',
+          }
+        }
+        const normalizedEmail = email.trim().toLowerCase()
+        const normalizedUserID = userId.trim().replace(/^@+/, '')
         set((state) => ({
           isAuthenticated: true,
           accountEmail: normalizedEmail,
@@ -1310,8 +1477,8 @@ export const useExecStore = create<ExecState>()(
             actor.id === state.currentActorId
               ? {
                   ...actor,
-					name: username.trim(),
-					handle: `@${normalizedUserID}`,
+                  name: username.trim(),
+                  handle: `@${normalizedUserID}`,
                 }
               : actor,
           ),
@@ -1329,15 +1496,34 @@ export const useExecStore = create<ExecState>()(
             fetch('/api/projects', { headers }),
             fetch('/api/smart-contracts', { headers }),
           ])
-          const profileData = (await profileResponse.json().catch(() => ({}))) as { user?: { id?: number; username?: string; userId?: string; bio?: string; gender?: Gender; avatarUrl?: string; profileBackgroundUrl?: string; customProfileEnabled?: boolean; customProfileMarkdown?: string } }
+          const profileData = (await profileResponse.json().catch(() => ({}))) as {
+            user?: {
+              id?: number
+              username?: string
+              userId?: string
+              bio?: string
+              gender?: Gender
+              avatarUrl?: string
+              profileBackgroundUrl?: string
+              customProfileEnabled?: boolean
+              customProfileMarkdown?: string
+            }
+          }
           const projectData = (await projectResponse.json().catch(() => ({}))) as { projects?: Project[] }
-          const smartContractData = (await smartContractResponse.json().catch(() => ({}))) as { smartContracts?: SmartContractDefinition[] }
-          if (!profileResponse.ok || !projectResponse.ok || !smartContractResponse.ok || !profileData.user?.id || !projectData.projects || !smartContractData.smartContracts) {
+          const smartContractData = (await smartContractResponse.json().catch(() => ({}))) as {
+            smartContracts?: SmartContractDefinition[]
+          }
+          if (
+            !profileResponse.ok ||
+            !projectResponse.ok ||
+            !smartContractResponse.ok ||
+            !profileData.user?.id ||
+            !projectData.projects ||
+            !smartContractData.smartContracts
+          ) {
             throw new Error('读取账户工作区失败。')
           }
-          const snapshots = await Promise.all(
-            projectData.projects.map((project) => requestProjectState(accessToken, `/api/projects/${project.id}/graph`)),
-          )
+          const snapshots = await Promise.all(projectData.projects.map((project) => requestProjectState(accessToken, `/api/projects/${project.id}/graph`)))
           const profileUser = profileData.user
           const actorId = String(profileUser.id)
           const actor: Actor = {
@@ -1364,20 +1550,46 @@ export const useExecStore = create<ExecState>()(
           })
           return { success: true }
         } catch (error) {
-          set({ actors: [], currentActorId: '', projects: [], smartContracts: [], branches: [], contracts: [], completionRecords: [], edges: [] })
-          return { success: false, message: error instanceof Error ? error.message : '读取账户工作区失败。' }
+          set({
+            actors: [],
+            currentActorId: '',
+            projects: [],
+            smartContracts: [],
+            branches: [],
+            contracts: [],
+            completionRecords: [],
+            edges: [],
+          })
+          return {
+            success: false,
+            message: error instanceof Error ? error.message : '读取账户工作区失败。',
+          }
         }
       },
-      signOut: () => set({ isAuthenticated: false, accessToken: '', accountEmail: '', accountPassword: '', actors: [], currentActorId: '', projects: [], smartContracts: [], branches: [], contracts: [], completionRecords: [], edges: [] }),
+      signOut: () =>
+        set({
+          isAuthenticated: false,
+          accessToken: '',
+          accountEmail: '',
+          accountPassword: '',
+          actors: [],
+          currentActorId: '',
+          projects: [],
+          smartContracts: [],
+          branches: [],
+          contracts: [],
+          completionRecords: [],
+          edges: [],
+        }),
       updateProfile: (input) => {
-		const normalizedUserID = input.userId.trim().replace(/^@+/, '')
+        const normalizedUserID = input.userId.trim().replace(/^@+/, '')
         set((state) => ({
           actors: state.actors.map((actor) =>
             actor.id === state.currentActorId
               ? {
                   ...actor,
-					name: input.username.trim(),
-					handle: `@${normalizedUserID}`,
+                  name: input.username.trim(),
+                  handle: `@${normalizedUserID}`,
                   bio: input.bio.trim(),
                   gender: input.gender,
                   avatarUrl: input.avatarUrl ?? actor.avatarUrl,

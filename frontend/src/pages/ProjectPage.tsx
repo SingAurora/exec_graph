@@ -1,4 +1,4 @@
-import { Archive, ArchiveRestore, ArrowRight, Bot, CheckCircle2, Compass, Eye, FileCheck2, GitBranchPlus, GitFork, GitMerge, ListChecks, LockKeyhole, Network, Send, Settings2, Trash2, UsersRound, type LucideIcon } from 'lucide-react'
+import { Archive, ArchiveRestore, ArrowRight, Bot, CheckCircle2, Compass, Eye, FileCheck2, GitBranchPlus, GitFork, GitMerge, ListChecks, LockKeyhole, Network, Send, Settings2, ShieldCheck, Trash2, UsersRound, type LucideIcon } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ContractComposer } from '../components/ContractComposer'
@@ -82,6 +82,7 @@ export function ProjectPage() {
   const archiveProject = useExecStore((state) => state.archiveProject)
   const restoreProject = useExecStore((state) => state.restoreProject)
   const deleteProject = useExecStore((state) => state.deleteProject)
+  const upgradeProjectContract = useExecStore((state) => state.upgradeProjectContract)
   const accessToken = useExecStore((state) => state.accessToken)
   const refreshWorkspace = useExecStore((state) => state.refreshWorkspace)
   const contracts = useMemo(() => allContracts.filter((contract) => contract.projectId === projectId), [allContracts, projectId])
@@ -137,7 +138,7 @@ export function ProjectPage() {
             {isArchived ? <ProjectArchiveBadge /> : null}
           </div>
           <h1 className="mt-3 font-display text-4xl font-semibold leading-tight text-ink">{project.title}</h1>
-          <p className="mt-3 max-w-3xl text-base leading-7 text-graphite">{project.description}</p>
+          {project.description ? <p className="mt-3 max-w-3xl text-base leading-7 text-graphite">{project.description}</p> : null}
           <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold text-graphite">
             <span>{completionRecords.filter(isAcceptedRecord).length} 条已验收成果</span>
             <span>{unlockedContracts.length} 个未闭合行动</span>
@@ -191,6 +192,7 @@ export function ProjectPage() {
           project={project}
           isArchived={isArchived}
           onUpdateProject={(input) => updateProject(project.id, input)}
+          onUpgradeContract={(smartContractId) => upgradeProjectContract(project.id, smartContractId)}
           onArchive={() => archiveProject(project.id)}
           onRestore={() => restoreProject(project.id)}
           onDelete={async () => {
@@ -766,6 +768,7 @@ function ProjectProfileSettings({
   project,
   isArchived,
   onUpdateProject,
+  onUpgradeContract,
   onArchive,
   onRestore,
   onDelete,
@@ -773,6 +776,7 @@ function ProjectProfileSettings({
   project: Project
   isArchived: boolean
   onUpdateProject: (input: { title: string; description: string; visibility: Project['visibility'] }) => Promise<{ success: boolean; message?: string }>
+  onUpgradeContract: (smartContractId: string) => Promise<{ success: boolean; message?: string }>
   onArchive: () => Promise<{ success: boolean; message?: string }>
   onRestore: () => Promise<{ success: boolean; message?: string }>
   onDelete: () => Promise<void>
@@ -784,8 +788,57 @@ function ProjectProfileSettings({
       ) : (
         <ProjectDetailsSettings key={project.id} project={project} onSave={onUpdateProject} />
       )}
+      {!isArchived && project.projectType === 'autonomous' ? <ProjectContractSettings project={project} onUpgrade={onUpgradeContract} /> : null}
       <ProjectDangerZone isArchived={isArchived} projectTitle={project.title} onArchive={onArchive} onRestore={onRestore} onDelete={onDelete} />
     </div>
+  )
+}
+
+function ProjectContractSettings({ project, onUpgrade }: { project: Project; onUpgrade: (smartContractId: string) => Promise<{ success: boolean; message?: string }> }) {
+  const smartContracts = useExecStore((state) => state.smartContracts)
+  const activeRevision = project.contractRevisions.find((revision) => revision.id === project.activeContractRevisionId) ?? project.contractRevisions[0]
+  const [selectedID, setSelectedID] = useState(activeRevision?.smartContractId ?? '')
+  const [isSaving, setIsSaving] = useState(false)
+  const [message, setMessage] = useState('')
+  const officialContracts = smartContracts.filter((contract) => contract.source === 'official')
+  const customContracts = smartContracts.filter((contract) => contract.source === 'custom')
+  const selected = smartContracts.find((contract) => contract.id === selectedID)
+
+  useEffect(() => {
+    setSelectedID(activeRevision?.smartContractId ?? '')
+  }, [activeRevision?.smartContractId])
+
+  const save = async () => {
+    if (!selectedID || selectedID === activeRevision?.smartContractId) return
+    setIsSaving(true)
+    setMessage('')
+    const result = await onUpgrade(selectedID)
+    setMessage(result.success ? '项目智能合约已更新，新行动会使用这套规则。' : (result.message ?? '项目智能合约更新失败。'))
+    setIsSaving(false)
+  }
+
+  return (
+    <section className="rounded-md border border-rail bg-surface/72 p-5">
+      <div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal"><ShieldCheck size={17} aria-hidden="true" />Project contract</div>
+      <h2 className="mt-2 font-display text-2xl font-semibold">项目智能合约</h2>
+      <p className="mt-3 text-sm leading-6 text-graphite">自主推进型项目可以更换后续行动的审查规则。已经创建的行动保留创建时的合约版本。</p>
+      <div className="mt-5 grid gap-4">
+        <label className="grid gap-2">
+          <span className="text-sm font-semibold text-ink">当前使用的规则</span>
+          <select value={selectedID} onChange={(event) => { setSelectedID(event.target.value); setMessage('') }} className="h-11 rounded-md border border-rail bg-paper px-3 text-sm outline-none focus:border-signal focus:shadow-focusline">
+            <optgroup label="平台规则">
+              {officialContracts.map((contract) => <option key={contract.id} value={contract.id}>{contract.name} · {contract.description}</option>)}
+            </optgroup>
+            {customContracts.length > 0 ? <optgroup label="我的自定义规则">{customContracts.map((contract) => <option key={contract.id} value={contract.id}>{contract.name}</option>)}</optgroup> : null}
+          </select>
+        </label>
+        {selected ? <p className="border-l-2 border-signal py-2 pl-3 text-sm leading-6 text-graphite"><span className="font-semibold text-ink">{selected.name}</span>：{selected.description}</p> : null}
+        <div className="flex flex-wrap items-center gap-3">
+          <button type="button" disabled={isSaving || !selectedID || selectedID === activeRevision?.smartContractId} onClick={() => void save()} className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-signal px-3 text-sm font-semibold text-white transition hover:bg-signalStrong disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:shadow-focusline"><ShieldCheck size={16} aria-hidden="true" />{isSaving ? '正在保存' : '保存智能合约'}</button>
+          {message ? <span className={`text-sm font-semibold ${message.includes('失败') || message.includes('不能') ? 'text-clay' : 'text-signal'}`}>{message}</span> : null}
+        </div>
+      </div>
+    </section>
   )
 }
 
@@ -797,8 +850,8 @@ function ProjectDetailsSettings({ project, onSave }: { project: Project; onSave:
 
   const save = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!title.trim() || !description.trim()) {
-      setMessage('项目名称和描述不能为空。')
+    if (!title.trim()) {
+      setMessage('项目名称不能为空。')
       return
     }
     const result = await onSave({ title, description, visibility })
@@ -814,7 +867,7 @@ function ProjectDetailsSettings({ project, onSave }: { project: Project; onSave:
       <h2 className="mt-2 font-display text-2xl font-semibold">编辑项目资料</h2>
       <form className="mt-5 grid gap-4" onSubmit={save}>
         <label className="grid gap-2"><span className="text-sm font-semibold text-ink">项目名称</span><input value={title} onChange={(event) => { setTitle(event.target.value); setMessage('') }} className="h-11 rounded-md border border-rail bg-paper px-3 text-sm outline-none focus:border-signal focus:shadow-focusline" /></label>
-        <label className="grid gap-2"><span className="text-sm font-semibold text-ink">项目描述</span><textarea value={description} onChange={(event) => { setDescription(event.target.value); setMessage('') }} className="min-h-24 rounded-md border border-rail bg-paper px-3 py-3 text-sm leading-6 outline-none focus:border-signal focus:shadow-focusline" /></label>
+        <label className="grid gap-2"><span className="text-sm font-semibold text-ink">项目描述（可选）</span><textarea value={description} onChange={(event) => { setDescription(event.target.value); setMessage('') }} className="min-h-24 rounded-md border border-rail bg-paper px-3 py-3 text-sm leading-6 outline-none focus:border-signal focus:shadow-focusline" /></label>
         <label className="grid gap-2"><span className="text-sm font-semibold text-ink">项目可见性</span><select value={visibility} onChange={(event) => setVisibility(event.target.value as Project['visibility'])} className="h-11 rounded-md border border-rail bg-paper px-3 text-sm outline-none focus:border-signal focus:shadow-focusline"><option value="private">私人项目</option><option value="public">公开项目</option></select></label>
         <div className="flex flex-wrap items-center gap-3"><button type="submit" className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-signal px-3 text-sm font-semibold text-white transition hover:bg-signalStrong focus:outline-none focus-visible:shadow-focusline"><Settings2 size={16} aria-hidden="true" />保存项目资料</button>{message ? <span className="text-sm font-semibold text-signal">{message}</span> : null}</div>
       </form>
