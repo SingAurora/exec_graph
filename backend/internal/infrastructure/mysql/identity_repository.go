@@ -31,16 +31,6 @@ type User struct {
 
 func (User) TableName() string { return "users" }
 
-type AuthSession struct {
-	ID        uint64    `gorm:"column:id;primaryKey"`
-	UserID    uint64    `gorm:"column:user_id"`
-	TokenHash string    `gorm:"column:token_hash"`
-	ExpiresAt time.Time `gorm:"column:expires_at"`
-	CreatedAt time.Time `gorm:"column:created_at"`
-}
-
-func (AuthSession) TableName() string { return "auth_sessions" }
-
 type EmailVerificationCode struct {
 	ID        uint64     `gorm:"column:id;primaryKey"`
 	Email     string     `gorm:"column:email"`
@@ -138,28 +128,4 @@ func (repository IdentityRepository) MarkCodeUsed(ctx context.Context, codeID ui
 		Where("id = ? AND used_at IS NULL", codeID).
 		Update("used_at", time.Now())
 	return result.RowsAffected == 1, result.Error
-}
-
-func (repository IdentityRepository) CreateSession(ctx context.Context, session *AuthSession) error {
-	return repository.db.WithContext(ctx).Create(session).Error
-}
-
-func (repository IdentityRepository) FindActiveSessionUser(ctx context.Context, tokenHash string) (User, error) {
-	var user User
-	err := repository.db.WithContext(ctx).Model(&User{}).
-		Joins("JOIN auth_sessions AS session ON session.user_id = users.id").
-		Where("session.token_hash = ? AND session.expires_at > ?", tokenHash, time.Now()).
-		First(&user).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return User{}, ErrNotFound
-	}
-	return user, err
-}
-
-func (repository IdentityRepository) DeleteSessionByToken(ctx context.Context, tokenHash string) error {
-	return repository.db.WithContext(ctx).Where("token_hash = ?", tokenHash).Delete(&AuthSession{}).Error
-}
-
-func (repository IdentityRepository) DeleteSessionsForUser(ctx context.Context, userID uint64) error {
-	return repository.db.WithContext(ctx).Where("user_id = ?", userID).Delete(&AuthSession{}).Error
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"time"
 
@@ -19,7 +20,7 @@ type SessionStore struct {
 
 func NewSessionStore(config bootstrapconfig.RedisConfig) (*SessionStore, error) {
 	if config.Host == "" {
-		return nil, nil
+		return nil, errors.New("Redis host is required")
 	}
 	client := redis.NewClient(&redis.Options{
 		Addr:         fmt.Sprintf("%s:%d", config.Host, config.Port),
@@ -42,52 +43,60 @@ func (store *SessionStore) Close() error {
 	return store.client.Close()
 }
 
-func (store *SessionStore) Store(ctx context.Context, token string, userID uint64, contents []byte, ttl time.Duration) {
+func (store *SessionStore) Store(ctx context.Context, token string, userID uint64, contents []byte, ttl time.Duration) error {
 	if token == "" || userID == 0 || ttl <= 0 {
-		return
+		return errors.New("invalid Redis session")
 	}
 	pipe := store.client.TxPipeline()
 	pipe.Set(ctx, store.sessionKey(token), contents, ttl)
 	pipe.SAdd(ctx, store.userSessionsKey(userID), tokenHash(token))
 	pipe.Expire(ctx, store.userSessionsKey(userID), ttl)
-	_, _ = pipe.Exec(ctx)
+	_, err := pipe.Exec(ctx)
+	return err
 }
 
-func (store *SessionStore) Load(ctx context.Context, token string) ([]byte, bool) {
+func (store *SessionStore) Load(ctx context.Context, token string) ([]byte, bool, error) {
 	if token == "" {
-		return nil, false
+		return nil, false, nil
 	}
 	contents, err := store.client.Get(ctx, store.sessionKey(token)).Bytes()
-	return contents, err == nil
+	if errors.Is(err, redis.Nil) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, err
+	}
+	return contents, true, nil
 }
 
-func (store *SessionStore) Delete(ctx context.Context, token string, userID uint64) {
+func (store *SessionStore) Delete(ctx context.Context, token string, userID uint64) error {
 	if token == "" {
-		return
+		return nil
 	}
 	pipe := store.client.TxPipeline()
 	pipe.Del(ctx, store.sessionKey(token))
 	if userID != 0 {
 		pipe.SRem(ctx, store.userSessionsKey(userID), tokenHash(token))
 	}
-	_, _ = pipe.Exec(ctx)
+	_, err := pipe.Exec(ctx)
+	return err
 }
 
-func (store *SessionStore) DeleteUserSessions(ctx context.Context, userID uint64) {
+func (store *SessionStore) DeleteUserSessions(ctx context.Context, userID uint64) error {
 	if userID == 0 {
-		return
+		return nil
 	}
 	userSessionsKey := store.userSessionsKey(userID)
 	tokenHashes, err := store.client.SMembers(ctx, userSessionsKey).Result()
 	if err != nil {
-		return
+		return err
 	}
 	keys := make([]string, 0, len(tokenHashes)+1)
 	for _, hash := range tokenHashes {
 		keys = append(keys, keyPrefix+"session:"+hash)
 	}
 	keys = append(keys, userSessionsKey)
-	_ = store.client.Del(ctx, keys...).Err()
+	return store.client.Del(ctx, keys...).Err()
 }
 
 func (store *SessionStore) sessionKey(token string) string {

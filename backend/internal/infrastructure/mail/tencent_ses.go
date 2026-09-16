@@ -14,14 +14,14 @@ import (
 
 type Mailer struct {
 	client *ses.Client
-	config bootstrapconfig.SESConfig
+	config bootstrapconfig.MailConfig
 }
 
-func NewTencentSES(config bootstrapconfig.SESConfig) (*Mailer, error) {
-	if config.Region == "" || config.TemplateID == 0 || config.FromEmail == "" || config.SecretID == "" || config.SecretKey == "" {
+func NewTencentSES(config bootstrapconfig.MailConfig, credentials bootstrapconfig.CredentialsConfig) (*Mailer, error) {
+	if config.Region == "" || config.TemplateID == 0 || config.FromEmail == "" || credentials.AccessKeyID == "" || credentials.AccessKeySecret == "" {
 		return nil, fmt.Errorf("incomplete Tencent SES configuration")
 	}
-	client, err := ses.NewClient(common.NewCredential(config.SecretID, config.SecretKey), config.Region, profile.NewClientProfile())
+	client, err := ses.NewClient(common.NewCredential(credentials.AccessKeyID, credentials.AccessKeySecret), config.Region, profile.NewClientProfile())
 	if err != nil {
 		return nil, fmt.Errorf("create Tencent SES client: %w", err)
 	}

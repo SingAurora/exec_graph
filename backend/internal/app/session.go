@@ -23,6 +23,8 @@ type authenticatedUser struct {
 	Email    string `json:"email"`
 }
 
+var errUnauthenticated = errors.New("unauthenticated")
+
 func (s *server) login(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeError(w, http.StatusMethodNotAllowed, "不支持的请求方法")
@@ -50,13 +52,12 @@ func (s *server) login(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "登录失败")
 		return
 	}
-	token, err := s.createSession(ctx, stored.ID)
+	user := authenticatedUser{ID: stored.ID, Username: stored.Username, UserID: stored.UserID, Email: stored.Email}
+	token, err := s.createSession(ctx, user)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "创建登录会话失败")
+		writeError(w, http.StatusServiceUnavailable, "创建 Redis 登录会话失败，请稍后重试")
 		return
 	}
-	user := authenticatedUser{ID: stored.ID, Username: stored.Username, UserID: stored.UserID, Email: stored.Email}
-	s.cacheSession(r.Context(), token, user)
 	writeJSON(w, http.StatusOK, map[string]any{"accessToken": token, "user": user})
 }
 
@@ -69,11 +70,10 @@ func (s *server) logout(w http.ResponseWriter, r *http.Request) {
 	if token != "" {
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 		defer cancel()
-		if err := infrastructuremysql.NewIdentityRepository(s.orm).DeleteSessionByToken(ctx, hashValue(token)); err != nil {
-			writeError(w, http.StatusInternalServerError, "退出登录失败")
+		if err := s.deleteCachedSession(ctx, token); err != nil {
+			writeError(w, http.StatusServiceUnavailable, "退出 Redis 登录会话失败，请稍后重试")
 			return
 		}
-		s.deleteCachedSession(ctx, token)
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -93,7 +93,11 @@ func (s *server) me(w http.ResponseWriter, r *http.Request) {
 func (s *server) requireUser(w http.ResponseWriter, r *http.Request) (authenticatedUser, bool) {
 	user, err := s.authenticate(r)
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "请先登录")
+		if errors.Is(err, errUnauthenticated) {
+			writeError(w, http.StatusUnauthorized, "请先登录")
+		} else {
+			writeError(w, http.StatusServiceUnavailable, "Redis 登录会话暂时不可用，请稍后重试")
+		}
 		return authenticatedUser{}, false
 	}
 	return user, true
@@ -116,30 +120,24 @@ func (s *server) optionalUser(r *http.Request) (authenticatedUser, bool) {
 func (s *server) authenticate(r *http.Request) (authenticatedUser, error) {
 	token := bearerToken(r)
 	if token == "" {
-		return authenticatedUser{}, errors.New("missing access token")
+		return authenticatedUser{}, errUnauthenticated
 	}
-	if user, ok := s.loadCachedSession(r.Context(), token); ok {
-		return user, nil
-	}
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-	stored, err := infrastructuremysql.NewIdentityRepository(s.orm).FindActiveSessionUser(ctx, hashValue(token))
+	user, ok, err := s.loadCachedSession(r.Context(), token)
 	if err != nil {
 		return authenticatedUser{}, err
 	}
-	user := authenticatedUser{ID: stored.ID, Username: stored.Username, UserID: stored.UserID, Email: stored.Email}
-	s.cacheSession(r.Context(), token, user)
-	return user, nil
+	if ok {
+		return user, nil
+	}
+	return authenticatedUser{}, errUnauthenticated
 }
 
-func (s *server) createSession(ctx context.Context, userID uint64) (string, error) {
+func (s *server) createSession(ctx context.Context, user authenticatedUser) (string, error) {
 	token, err := newSessionToken()
 	if err != nil {
 		return "", err
 	}
-	expiresAt := time.Now().Add(time.Duration(s.config.App.SessionTTLHours) * time.Hour)
-	err = infrastructuremysql.NewIdentityRepository(s.orm).CreateSession(ctx, &infrastructuremysql.AuthSession{UserID: userID, TokenHash: hashValue(token), ExpiresAt: expiresAt})
-	if err != nil {
+	if err := s.cacheSession(ctx, token, user); err != nil {
 		return "", err
 	}
 	return token, nil

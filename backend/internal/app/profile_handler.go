@@ -126,7 +126,10 @@ func (s *server) updateCurrentUser(w http.ResponseWriter, r *http.Request, user 
 		writeError(w, http.StatusInternalServerError, "读取个人资料失败")
 		return
 	}
-	s.cacheSession(r.Context(), bearerToken(r), authenticatedUser{ID: user.ID, Username: profile.Username, UserID: profile.UserID, Email: user.Email})
+	if err := s.cacheSession(r.Context(), bearerToken(r), authenticatedUser{ID: user.ID, Username: profile.Username, UserID: profile.UserID, Email: user.Email}); err != nil {
+		writeError(w, http.StatusServiceUnavailable, "个人资料已保存，但 Redis 登录会话暂时不可用，请稍后重试")
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"user": profile})
 }
 

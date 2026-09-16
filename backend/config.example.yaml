@@ -18,24 +18,24 @@ redis:
   password: replace-with-local-redis-password
   database: 0
 
-tencent:
-  ses:
-    region: ap-guangzhou
-    template_id: 29256
-    template_body: 'Paperfly, 验证码是{{1}}，有效期是{{2}}分钟'
-    template_variables:
-      code: '1'
-      expires_minutes: '2'
-    code_ttl_minutes: 10
-    from_email: replace-with-verified-sender
-    secret_id: replace-with-local-secret-id
-    secret_key: replace-with-local-secret-key
+credentials:
+  access_key_id: replace-with-local-access-key-id
+  access_key_secret: replace-with-local-access-key-secret
 
-  # COS 复用 SES 的 secret_id 和 secret_key。
-  cos:
-    region: ap-guangzhou
-    bucket: exec-graph-1253847355
-    avatar_prefix: avatars/
+mail:
+  region: ap-guangzhou
+  template_id: 29256
+  template_body: 'Paperfly, 验证码是{{1}}，有效期是{{2}}分钟'
+  template_variables:
+    code: '1'
+    expires_minutes: '2'
+  code_ttl_minutes: 10
+  from_email: replace-with-verified-sender
+
+storage:
+  region: ap-guangzhou
+  bucket: exec-graph-1253847355
+  avatar_prefix: avatars/
 
 # Only enable this in a local config. The backend creates or refreshes this
 # account at startup, so browser debugging always uses a real backend session.

@@ -8,9 +8,9 @@ type Config = bootstrapconfig.Config
 type AppConfig = bootstrapconfig.AppConfig
 type DatabaseConfig = bootstrapconfig.DatabaseConfig
 type RedisConfig = bootstrapconfig.RedisConfig
-type TencentConfig = bootstrapconfig.TencentConfig
-type SESConfig = bootstrapconfig.SESConfig
-type COSConfig = bootstrapconfig.COSConfig
+type CredentialsConfig = bootstrapconfig.CredentialsConfig
+type MailConfig = bootstrapconfig.MailConfig
+type ObjectStorageConfig = bootstrapconfig.ObjectStorageConfig
 type DevelopmentConfig = bootstrapconfig.DevelopmentConfig
 type TestAccountConfig = bootstrapconfig.TestAccountConfig
 

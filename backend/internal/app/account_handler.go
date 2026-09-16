@@ -82,7 +82,10 @@ func (s *server) changeEmail(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	s.cacheSession(r.Context(), bearerToken(r), authenticatedUser{ID: user.ID, Username: user.Username, UserID: user.UserID, Email: email})
+	if err := s.cacheSession(r.Context(), bearerToken(r), authenticatedUser{ID: user.ID, Username: user.Username, UserID: user.UserID, Email: email}); err != nil {
+		writeError(w, http.StatusServiceUnavailable, "邮箱已更新，但 Redis 登录会话暂时不可用，请稍后重试")
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"user": map[string]any{"id": user.ID, "username": user.Username, "userId": user.UserID, "email": email}})
 }
 
@@ -135,6 +138,10 @@ func (s *server) changePassword(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	if err := s.deleteCachedUserSessions(r.Context(), user.ID); err != nil {
+		writeError(w, http.StatusServiceUnavailable, "密码已更新，但 Redis 会话撤销失败，请稍后重试")
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]string{"message": "密码已更新"})
 }
 
@@ -174,7 +181,7 @@ func (s *server) resetPassword(w http.ResponseWriter, r *http.Request) {
 		if err := tx.UpdateUser(ctx, userID, map[string]any{"password_hash": request.NextPassword}); err != nil {
 			return err
 		}
-		return tx.DeleteSessionsForUser(ctx, userID)
+		return nil
 	})
 	if err != nil {
 		if errors.Is(err, infrastructuremysql.ErrNotFound) {
@@ -186,7 +193,10 @@ func (s *server) resetPassword(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	s.deleteCachedUserSessions(r.Context(), userID)
+	if err := s.deleteCachedUserSessions(r.Context(), userID); err != nil {
+		writeError(w, http.StatusServiceUnavailable, "密码已重设，但 Redis 会话撤销失败，请稍后重试")
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]string{"message": "密码已重设，请使用新密码登录"})
 }
 

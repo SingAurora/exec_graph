@@ -52,15 +52,6 @@ func migrateDatabase(ctx context.Context, db *sql.DB) error {
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			INDEX idx_verification_lookup (email, purpose, used_at, expires_at)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
-		`CREATE TABLE IF NOT EXISTS auth_sessions (
-			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-			user_id BIGINT UNSIGNED NOT NULL,
-			token_hash CHAR(64) NOT NULL UNIQUE,
-			expires_at DATETIME NOT NULL,
-			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			INDEX idx_sessions_user (user_id),
-			INDEX idx_sessions_expiry (expires_at)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`,
 		`CREATE TABLE IF NOT EXISTS smart_contracts (
 			id VARCHAR(100) NOT NULL PRIMARY KEY,
 			name VARCHAR(120) NOT NULL,

@@ -220,7 +220,7 @@ func (s *server) sendCode(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		sendIP := clientIP(r)
-		return tx.CreateCode(ctx, &infrastructuremysql.EmailVerificationCode{Email: email, Purpose: purpose, CodeHash: codeHash, ExpiresAt: time.Now().Add(time.Duration(s.config.Tencent.SES.CodeTTLMinutes) * time.Minute), SendIP: &sendIP})
+		return tx.CreateCode(ctx, &infrastructuremysql.EmailVerificationCode{Email: email, Purpose: purpose, CodeHash: codeHash, ExpiresAt: time.Now().Add(time.Duration(s.config.Mail.CodeTTLMinutes) * time.Minute), SendIP: &sendIP})
 	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "保存验证码失败")
@@ -264,13 +264,7 @@ func (s *server) register(w http.ResponseWriter, r *http.Request) {
 	identityRepository := infrastructuremysql.NewIdentityRepository(s.orm)
 	var databaseUserID uint64
 	var userHandle string
-	token, err := newSessionToken()
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "创建登录会话失败")
-		return
-	}
-	sessionExpiry := time.Now().Add(time.Duration(s.config.App.SessionTTLHours) * time.Hour)
-	err = identityRepository.Transaction(ctx, func(tx infrastructuremysql.IdentityRepository) error {
+	err := identityRepository.Transaction(ctx, func(tx infrastructuremysql.IdentityRepository) error {
 		if err := consumeVerificationCode(ctx, tx, email, verificationPurposeRegister, request.Code); err != nil {
 			return err
 		}
@@ -301,7 +295,7 @@ func (s *server) register(w http.ResponseWriter, r *http.Request) {
 		if err := tx.ProjectRepository().EnsureInitialProject(ctx, infrastructuremysql.InitialProjectSpec{ProjectID: fmt.Sprintf("project-initial-%d", databaseUserID), RevisionID: fmt.Sprintf("project-initial-revision-%d", databaseUserID), OwnerID: databaseUserID, SmartContractID: generalSmartContractID, SmartContractVersion: contract.Version}); err != nil {
 			return err
 		}
-		return tx.CreateSession(ctx, &infrastructuremysql.AuthSession{UserID: databaseUserID, TokenHash: hashValue(token), ExpiresAt: sessionExpiry})
+		return nil
 	})
 	if err != nil {
 		if errors.Is(err, errInvalidVerificationCode) {
@@ -313,10 +307,15 @@ func (s *server) register(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	s.cacheSession(r.Context(), token, authenticatedUser{ID: databaseUserID, Username: username, UserID: userHandle, Email: email})
+	user := authenticatedUser{ID: databaseUserID, Username: username, UserID: userHandle, Email: email}
+	token, err := s.createSession(ctx, user)
+	if err != nil {
+		writeError(w, http.StatusServiceUnavailable, "账号已创建，但 Redis 登录会话暂时不可用，请稍后登录")
+		return
+	}
 	writeJSON(w, http.StatusCreated, map[string]any{
 		"accessToken": token,
-		"user":        map[string]any{"id": databaseUserID, "email": email, "username": username, "userId": userHandle},
+		"user":        user,
 	})
 }
 

@@ -6,11 +6,11 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"time"
 
 	infrastructuremail "github.com/singaurora/exec-graph/backend/internal/infrastructure/mail"
 	infrastructureredis "github.com/singaurora/exec-graph/backend/internal/infrastructure/redis"
 	infrastructurestorage "github.com/singaurora/exec-graph/backend/internal/infrastructure/storage"
+	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
 )
 
 // Run assembles the application dependencies and starts the HTTP server.
@@ -34,7 +34,7 @@ func Run() error {
 	}
 	defer db.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), sharedconstants.StartupInitializationTimeout)
 	defer cancel()
 	if err := migrateDatabase(ctx, db); err != nil {
 		return fmt.Errorf("migrate database: %w", err)
@@ -46,24 +46,21 @@ func Run() error {
 		return fmt.Errorf("seed development test account: %w", err)
 	}
 
-	mailer, err := infrastructuremail.NewTencentSES(config.Tencent.SES)
+	mailer, err := infrastructuremail.NewTencentSES(config.Mail, config.Credentials)
 	if err != nil {
 		return fmt.Errorf("create mailer: %w", err)
 	}
-	storage, err := infrastructurestorage.NewTencentCOS(config.Tencent.COS, config.Tencent.SES)
+	storage, err := infrastructurestorage.NewTencentCOS(config.Storage, config.Credentials)
 	if err != nil {
 		return fmt.Errorf("create object storage: %w", err)
 	}
 	redisStore, err := infrastructureredis.NewSessionStore(config.Redis)
 	if err != nil {
-		log.Printf("Redis unavailable; using MySQL sessions only: %v", err)
-	} else if redisStore != nil {
-		log.Printf("Redis session cache connected to %s:%d", config.Redis.Host, config.Redis.Port)
+		return fmt.Errorf("connect Redis session store: %w", err)
 	}
+	log.Printf("Redis session store connected to %s:%d", config.Redis.Host, config.Redis.Port)
 	defer func() {
-		if redisStore != nil {
-			_ = redisStore.Close()
-		}
+		_ = redisStore.Close()
 	}()
 
 	server := &server{db: db, orm: orm, mailer: mailer, storage: storage, redis: redisStore, config: config}
@@ -72,6 +69,6 @@ func Run() error {
 	return (&http.Server{
 		Addr:              address,
 		Handler:           server.routes(),
-		ReadHeaderTimeout: 10 * time.Second,
+		ReadHeaderTimeout: sharedconstants.HTTPReadHeaderTimeout,
 	}).ListenAndServe()
 }

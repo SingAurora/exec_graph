@@ -24,8 +24,8 @@ type COSStorage struct {
 	secretKey    string
 }
 
-func NewTencentCOS(config bootstrapconfig.COSConfig, credentials bootstrapconfig.SESConfig) (*COSStorage, error) {
-	if config.Region == "" || config.Bucket == "" || credentials.SecretID == "" || credentials.SecretKey == "" {
+func NewTencentCOS(config bootstrapconfig.ObjectStorageConfig, credentials bootstrapconfig.CredentialsConfig) (*COSStorage, error) {
+	if config.Region == "" || config.Bucket == "" || credentials.AccessKeyID == "" || credentials.AccessKeySecret == "" {
 		return nil, fmt.Errorf("incomplete Tencent COS configuration")
 	}
 	bucketURL, err := url.Parse(fmt.Sprintf("https://%s.cos.%s.myqcloud.com", config.Bucket, config.Region))
@@ -35,16 +35,16 @@ func NewTencentCOS(config bootstrapconfig.COSConfig, credentials bootstrapconfig
 	baseURL := &cos.BaseURL{BucketURL: bucketURL}
 	client := cos.NewClient(baseURL, &http.Client{
 		Transport: &cos.AuthorizationTransport{
-			SecretID:  credentials.SecretID,
-			SecretKey: credentials.SecretKey,
+			SecretID:  credentials.AccessKeyID,
+			SecretKey: credentials.AccessKeySecret,
 		},
 	})
 	return &COSStorage{
 		client:       client,
 		bucketURL:    bucketURL,
 		avatarPrefix: strings.Trim(strings.TrimSpace(config.AvatarPrefix), "/") + "/",
-		secretID:     credentials.SecretID,
-		secretKey:    credentials.SecretKey,
+		secretID:     credentials.AccessKeyID,
+		secretKey:    credentials.AccessKeySecret,
 	}, nil
 }
 

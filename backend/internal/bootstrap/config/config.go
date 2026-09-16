@@ -8,11 +8,13 @@ import (
 )
 
 type Config struct {
-	App         AppConfig         `yaml:"app"`
-	Database    DatabaseConfig    `yaml:"database"`
-	Redis       RedisConfig       `yaml:"redis"`
-	Tencent     TencentConfig     `yaml:"tencent"`
-	Development DevelopmentConfig `yaml:"development"`
+	App         AppConfig           `yaml:"app"`
+	Database    DatabaseConfig      `yaml:"database"`
+	Redis       RedisConfig         `yaml:"redis"`
+	Credentials CredentialsConfig   `yaml:"credentials"`
+	Mail        MailConfig          `yaml:"mail"`
+	Storage     ObjectStorageConfig `yaml:"storage"`
+	Development DevelopmentConfig   `yaml:"development"`
 }
 
 type AppConfig struct {
@@ -38,24 +40,22 @@ type RedisConfig struct {
 	Database int    `yaml:"database"`
 }
 
-type TencentConfig struct {
-	SES SESConfig `yaml:"ses"`
-	COS COSConfig `yaml:"cos"`
+type CredentialsConfig struct {
+	AccessKeyID     string `yaml:"access_key_id"`
+	AccessKeySecret string `yaml:"access_key_secret"`
 }
 
-type SESConfig struct {
+type MailConfig struct {
 	Region            string            `yaml:"region"`
 	TemplateID        uint64            `yaml:"template_id"`
 	TemplateBody      string            `yaml:"template_body"`
 	TemplateVariables map[string]string `yaml:"template_variables"`
 	FromEmail         string            `yaml:"from_email"`
 	FromDomain        string            `yaml:"from_domain"`
-	SecretID          string            `yaml:"secret_id"`
-	SecretKey         string            `yaml:"secret_key"`
 	CodeTTLMinutes    int               `yaml:"code_ttl_minutes"`
 }
 
-type COSConfig struct {
+type ObjectStorageConfig struct {
 	Region       string `yaml:"region"`
 	Bucket       string `yaml:"bucket"`
 	AvatarPrefix string `yaml:"avatar_prefix"`
@@ -94,11 +94,11 @@ func Load(path string) (Config, error) {
 	if config.Redis.Port == 0 {
 		config.Redis.Port = 6379
 	}
-	if config.Tencent.SES.CodeTTLMinutes == 0 {
-		config.Tencent.SES.CodeTTLMinutes = 10
+	if config.Mail.CodeTTLMinutes == 0 {
+		config.Mail.CodeTTLMinutes = 10
 	}
-	if config.Tencent.COS.AvatarPrefix == "" {
-		config.Tencent.COS.AvatarPrefix = "avatars/"
+	if config.Storage.AvatarPrefix == "" {
+		config.Storage.AvatarPrefix = "avatars/"
 	}
 	return config, nil
 }
