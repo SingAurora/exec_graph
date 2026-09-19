@@ -3,11 +3,11 @@ package main
 import (
 	"log"
 
-	"github.com/singaurora/exec-graph/backend/internal/app"
+	application "github.com/singaurora/exec-graph/backend/internal/bootstrap/application"
 )
 
 func main() {
-	if err := app.Run(); err != nil {
+	if err := application.Run(); err != nil {
 		log.Fatal(err)
 	}
 }

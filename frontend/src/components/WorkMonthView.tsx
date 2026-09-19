@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Bot, CheckCircle2, ChevronLeft, ChevronRight, CircleDotDashed, Flag, LoaderCircle, LockKeyhole } from 'lucide-react'
-import { requestJSON } from '../lib/api'
+import { requestJSON, withQuery } from '../lib/api'
 
 type DailyActivity = {
   id: string
@@ -91,7 +91,7 @@ export function WorkMonthView({ accessToken }: { accessToken: string }) {
     let cancelled = false
     setLoading(true)
     setError('')
-    void requestJSON<WorkOverview>(`/api/work-overview?month=${monthValue(month)}`, { accessToken })
+	void requestJSON<WorkOverview>(withQuery('/api/commands/work-overview/get', { month: monthValue(month) }), { method: 'GET', accessToken })
       .then((data) => {
         if (cancelled) return
         setOverview(data)
@@ -119,7 +119,7 @@ export function WorkMonthView({ accessToken }: { accessToken: string }) {
     setReviewing(true)
     setError('')
     try {
-      const data = await requestJSON<{ review: DailyReview }>(`/api/work-overview/days/${selectedDate}/review`, { method: 'POST', accessToken })
+		const data = await requestJSON<{ review: DailyReview }>('/api/commands/work-overview/review-day', { accessToken, body: JSON.stringify({ date: selectedDate }) })
       setOverview((current) => current ? {
         ...current,
         days: current.days.map((day) => day.date === selectedDate ? { ...day, review: data.review } : day),

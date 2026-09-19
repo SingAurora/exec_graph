@@ -97,6 +97,7 @@ async function request<T>(token: string | undefined, path: string, init?: Reques
   const headers: Record<string, string> = { 'Content-Type': 'application/json', ...(init?.headers as Record<string, string> ?? {}) }
   if (token) headers.Authorization = `Bearer ${token}`
   const response = await fetch(path, {
+	method: 'POST',
     ...init,
     headers,
   })
@@ -105,12 +106,12 @@ async function request<T>(token: string | undefined, path: string, init?: Reques
   return data
 }
 
-export const getExploreProjects = (token?: string) => request<{ projects: ExploreProject[] }>(token, '/api/explore/projects')
-export const getExploreNetwork = (token?: string) => request<PublicNetwork>(token, '/api/explore/network')
-export const getExploreProject = (token: string | undefined, projectId: string) => request<{ project: ExploreProject }>(token, `/api/explore/projects/${projectId}`)
-export const getCall = (token: string, callId: string) => request<{ call: CollaborationCall; submissions: CollaborationSubmission[] }>(token, `/api/collaboration-calls/${callId}`)
-export const getContributionSources = (token: string) => request<{ sources: ContributionSource[] }>(token, '/api/explore/contribution-sources')
-export const getMyContributions = (token: string) => request<{ contributions: ContributionActivity[] }>(token, '/api/explore/my-contributions')
-export const submitContribution = (token: string, callId: string, sourceRecordId: string, mappingText: string, note: string) => request<{ submissions: CollaborationSubmission[] }>(token, `/api/collaboration-calls/${callId}/submissions`, { method: 'POST', body: JSON.stringify({ sourceRecordId, mappingText, note }) })
-export const reviewContributions = (token: string, callId: string, submissionIds: string[]) => request<{ batch: CollaborationReviewBatch }>(token, `/api/collaboration-calls/${callId}/reviews`, { method: 'POST', body: JSON.stringify({ submissionIds }) })
-export const adoptContributionReview = (token: string, reviewId: string) => request<{ message: string }>(token, `/api/collaboration-calls/reviews/${reviewId}/adopt`, { method: 'POST' })
+export const getExploreProjects = (token?: string) => request<{ projects: ExploreProject[] }>(token, '/api/commands/explore/projects/list', { method: 'GET' })
+export const getExploreNetwork = (token?: string) => request<PublicNetwork>(token, '/api/commands/explore/network/get', { method: 'GET' })
+export const getExploreProject = (token: string | undefined, projectId: string) => request<{ project: ExploreProject }>(token, `/api/commands/explore/projects/get?projectId=${encodeURIComponent(projectId)}`, { method: 'GET' })
+export const getCall = (token: string, callId: string) => request<{ call: CollaborationCall; submissions: CollaborationSubmission[] }>(token, `/api/commands/collaboration/get?callId=${encodeURIComponent(callId)}`, { method: 'GET' })
+export const getContributionSources = (token: string) => request<{ sources: ContributionSource[] }>(token, '/api/commands/explore/contribution-sources/list', { method: 'GET' })
+export const getMyContributions = (token: string) => request<{ contributions: ContributionActivity[] }>(token, '/api/commands/explore/my-contributions/list', { method: 'GET' })
+export const submitContribution = (token: string, callId: string, sourceRecordId: string, mappingText: string, note: string) => request<{ submissions: CollaborationSubmission[] }>(token, '/api/commands/collaboration/submit', { body: JSON.stringify({ callId, sourceRecordId, mappingText, note }) })
+export const reviewContributions = (token: string, callId: string, submissionIds: string[]) => request<{ batch: CollaborationReviewBatch }>(token, '/api/commands/collaboration/review', { body: JSON.stringify({ callId, submissionIds }) })
+export const adoptContributionReview = (token: string, reviewId: string) => request<{ message: string }>(token, '/api/commands/collaboration/adopt', { body: JSON.stringify({ batchId: reviewId }) })

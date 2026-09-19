@@ -38,7 +38,7 @@ export function LoginPage() {
   const onSubmit = async (values: LoginForm) => {
     setAuthError('')
     try {
-      const response = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) })
+      const response = await fetch('/api/commands/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) })
       const data = (await response.json().catch(() => ({}))) as { accessToken?: string; error?: string; user?: { username?: string; userId?: string } }
       if (!response.ok || !data.accessToken) {
         setAuthError(data.error ?? '邮箱或密码不正确。')

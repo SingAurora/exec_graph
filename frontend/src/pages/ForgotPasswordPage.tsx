@@ -38,7 +38,7 @@ export function ForgotPasswordPage() {
     if (!(await trigger('email'))) return
     setIsSendingCode(true)
     try {
-      const response = await fetch('/api/auth/send-code', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: getValues('email'), purpose: 'reset_password' }) })
+      const response = await fetch('/api/commands/auth/send-code', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: getValues('email'), purpose: 'reset_password' }) })
       const data = (await response.json().catch(() => ({}))) as { error?: string; message?: string }
       if (!response.ok) throw new Error(data.error ?? '验证码发送失败，请稍后重试。')
       setCountdown(60)
@@ -54,7 +54,7 @@ export function ForgotPasswordPage() {
     setMessage('')
     setErrorMessage('')
     try {
-      const response = await fetch('/api/auth/reset-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: values.email, code: values.code, nextPassword: values.password }) })
+      const response = await fetch('/api/commands/auth/reset-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: values.email, code: values.code, nextPassword: values.password }) })
       const data = (await response.json().catch(() => ({}))) as { error?: string; message?: string }
       if (!response.ok) {
         setErrorMessage(data.error ?? '重设密码失败，请稍后重试。')

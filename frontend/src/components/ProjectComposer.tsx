@@ -88,7 +88,7 @@ export function ProjectComposer() {
     const loadAIKeys = async () => {
       setIsLoadingAIKeys(true)
       try {
-        const response = await fetch('/api/ai-keys', { headers: { Authorization: `Bearer ${accessToken}` } })
+		const response = await fetch('/api/commands/ai-keys/list', { method: 'GET', headers: { Authorization: `Bearer ${accessToken}` } })
         const data = (await response.json().catch(() => ({}))) as { keys?: AIKeyOption[] }
         if (response.ok && !cancelled) setAIKeys(data.keys ?? [])
       } finally {

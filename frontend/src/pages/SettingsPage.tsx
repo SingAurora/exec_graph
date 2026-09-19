@@ -494,7 +494,7 @@ export function SettingsPage() {
     try {
       const formData = new FormData()
       formData.append('avatar', file)
-      const response = await fetch('/api/users/me/avatar', {
+      const response = await fetch('/api/commands/users/me/upload-avatar', {
         method: 'POST',
         headers: { Authorization: `Bearer ${accessToken}` },
         body: formData,
@@ -533,7 +533,7 @@ export function SettingsPage() {
     try {
       const formData = new FormData()
       formData.append('background', file)
-      const response = await fetch('/api/users/me/background', {
+      const response = await fetch('/api/commands/users/me/upload-background', {
         method: 'POST',
         headers: { Authorization: `Bearer ${accessToken}` },
         body: formData,
@@ -573,8 +573,8 @@ export function SettingsPage() {
     setAvatarError('')
     setProfileSaved(false)
     try {
-      const response = await fetch('/api/users/me', {
-        method: 'PATCH',
+      const response = await fetch('/api/commands/users/me/update', {
+		method: 'POST',
         headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(values),
       })
@@ -620,7 +620,7 @@ export function SettingsPage() {
     }
     setIsLoadingAIKeys(true)
     try {
-      const response = await fetch('/api/ai-keys', { headers: { Authorization: `Bearer ${accessToken}` } })
+		const response = await fetch('/api/commands/ai-keys/list', { method: 'GET', headers: { Authorization: `Bearer ${accessToken}` } })
       const data = (await response.json().catch(() => ({}))) as { keys?: AIKey[]; error?: string }
       if (!response.ok) {
         setAIKeyMessage(data.error ?? '读取 AI 密钥失败。')
@@ -676,7 +676,7 @@ export function SettingsPage() {
     if (!validateAIKeyDraft('保存')) return
     setIsSavingAIKey(true)
     try {
-      const response = await fetch('/api/ai-keys', {
+      const response = await fetch('/api/commands/ai-keys/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify(getAIKeyDraft()),
@@ -708,7 +708,7 @@ export function SettingsPage() {
     if (!validateAIKeyDraft('测试')) return
     setIsTestingAIKey(true)
     try {
-      const response = await fetch('/api/ai-keys/test', {
+      const response = await fetch('/api/commands/ai-keys/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify(getAIKeyDraft()),
@@ -737,9 +737,10 @@ export function SettingsPage() {
     setAIKeyMessage('')
     setBusyAIKeyID(key.id)
     try {
-      const response = await fetch(`/api/ai-keys/${key.id}${action === 'delete' ? '' : `/${action}`}`, {
-        method: action === 'delete' ? 'DELETE' : 'POST',
-        headers: { Authorization: `Bearer ${accessToken}` },
+      const response = await fetch(action === 'delete' ? '/api/commands/ai-keys/delete' : '/api/commands/ai-keys/verify', {
+		method: 'POST',
+		headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+		body: JSON.stringify({ keyId: key.id }),
       })
       const data = (await response.json().catch(() => ({}))) as { error?: string; message?: string; lastVerifiedAt?: string }
       if (!response.ok) {
@@ -766,7 +767,7 @@ export function SettingsPage() {
   }
 
   const sendVerificationCode = async (purpose: 'change_email' | 'change_password', email?: string) => {
-    const response = await fetch('/api/auth/send-code', {
+    const response = await fetch('/api/commands/auth/send-code', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify({ purpose, ...(email ? { email } : {}) }),
@@ -820,7 +821,7 @@ export function SettingsPage() {
       return
     }
     try {
-      const response = await fetch('/api/auth/change-email', {
+      const response = await fetch('/api/commands/auth/change-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify(values),
@@ -845,7 +846,7 @@ export function SettingsPage() {
       return
     }
     try {
-      const response = await fetch('/api/auth/change-password', {
+      const response = await fetch('/api/commands/auth/change-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify(values),

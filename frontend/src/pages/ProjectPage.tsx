@@ -230,7 +230,7 @@ function ProjectAISettings({ project, accessToken, isArchived, onUpdated }: { pr
     const load = async () => {
       setIsLoading(true)
       try {
-        const response = await fetch('/api/ai-keys', { headers: { Authorization: `Bearer ${accessToken}` } })
+		const response = await fetch('/api/commands/ai-keys/list', { method: 'GET', headers: { Authorization: `Bearer ${accessToken}` } })
         const data = (await response.json().catch(() => ({}))) as { keys?: ProjectAIKey[]; error?: string }
         if (!response.ok) throw new Error(data.error ?? '读取 AI 密钥失败。')
         if (!cancelled) setKeys(data.keys ?? [])
@@ -249,10 +249,10 @@ function ProjectAISettings({ project, accessToken, isArchived, onUpdated }: { pr
     setIsSaving(true)
     setMessage('')
     try {
-      const response = await fetch(`/api/projects/${project.id}/ai-key`, {
+      const response = await fetch('/api/commands/projects/set-ai-key', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ aiKeyId: selectedKeyID }),
+		body: JSON.stringify({ projectId: project.id, aiKeyId: selectedKeyID }),
       })
       const data = (await response.json().catch(() => ({}))) as { error?: string }
       if (!response.ok) throw new Error(data.error ?? '更新项目审查 AI 失败。')
@@ -690,7 +690,7 @@ function ProjectCollaborationPublisher({ projectId, node, accessToken }: { proje
   const publish = async () => {
     setIsPublishing(true); setMessage('')
     try {
-      const response = await fetch(`/api/projects/${projectId}/collaboration-calls`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ targetContractId: node.id, title: node.title }) })
+		const response = await fetch('/api/commands/projects/create-collaboration-call', { method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, targetContractId: node.id, title: node.title }) })
       const data = await response.json().catch(() => ({})) as { error?: string }
       if (!response.ok) throw new Error(data.error ?? '发布开放缺口失败。')
 		setPublished(true)

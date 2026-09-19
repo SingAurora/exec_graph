@@ -1,0 +1,222 @@
+// Package project contains project lifecycle use cases.
+package project
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+
+	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
+	sharedid "github.com/singaurora/exec-graph/backend/internal/shared/id"
+	"gorm.io/gorm"
+)
+
+var (
+	ErrNotFound         = errors.New("project not found")
+	ErrAlreadyArchived  = errors.New("project already archived")
+	ErrNotArchived      = errors.New("project is not archived")
+	ErrAdoptedContent   = errors.New("project has adopted content")
+	ErrAIKeyUnavailable = errors.New("AI key unavailable")
+	ErrInvalidContract  = errors.New("invalid project contract")
+)
+
+type Service struct {
+	db       *sql.DB
+	database *gorm.DB
+}
+
+func New(db *sql.DB, database *gorm.DB) *Service { return &Service{db: db, database: database} }
+
+func (s *Service) Update(ctx context.Context, userID uint64, projectID, title, description, visibility string) error {
+	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
+	defer cancel()
+	if visibility == "private" {
+		var adopted int
+		if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM collaboration_submissions s JOIN completion_records r ON r.id = s.source_record_id JOIN projects p ON p.id = r.project_id WHERE p.uuid = ? AND s.status = 'adopted'`, projectID).Scan(&adopted); err != nil {
+			return err
+		}
+		if adopted > 0 {
+			return ErrAdoptedContent
+		}
+	}
+	result, err := s.db.ExecContext(ctx, `UPDATE projects SET title = ?, description = ?, visibility = ? WHERE uuid = ? AND owner_id = ? AND archived_at IS NULL`, title, description, visibility, projectID, userID)
+	if err != nil {
+		return err
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (s *Service) Archive(ctx context.Context, userID uint64, projectID string) error {
+	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
+	defer cancel()
+	result, err := s.db.ExecContext(ctx, `UPDATE projects SET archived_at = NOW() WHERE uuid = ? AND owner_id = ? AND archived_at IS NULL`, projectID, userID)
+	if err != nil {
+		return err
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		return ErrAlreadyArchived
+	}
+	return nil
+}
+
+func (s *Service) Unarchive(ctx context.Context, userID uint64, projectID string) error {
+	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
+	defer cancel()
+	result, err := s.db.ExecContext(ctx, `UPDATE projects SET archived_at = NULL WHERE uuid = ? AND owner_id = ? AND archived_at IS NOT NULL`, projectID, userID)
+	if err != nil {
+		return err
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		return ErrNotArchived
+	}
+	return nil
+}
+
+func (s *Service) SetAIKey(ctx context.Context, userID uint64, projectID, keyID string) error {
+	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
+	defer cancel()
+	result, err := s.db.ExecContext(ctx, `UPDATE projects p JOIN ai_api_keys k ON k.uuid = ? AND k.user_id = p.owner_id SET p.default_ai_key_id = k.id WHERE p.uuid = ? AND p.owner_id = ? AND p.archived_at IS NULL`, keyID, projectID, userID)
+	if err != nil {
+		return err
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		return ErrAIKeyUnavailable
+	}
+	return nil
+}
+
+// SetContract 为自主项目创建一条新的项目合约修订。
+func (s *Service) SetContract(ctx context.Context, userID uint64, projectID, contractID string) (ProjectView, error) {
+	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
+	defer cancel()
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return ProjectView{}, err
+	}
+	defer tx.Rollback()
+
+	var projectInternalID uint64
+	var projectType string
+	var contributionCallID sql.NullInt64
+	err = tx.QueryRowContext(ctx, `
+		SELECT id, project_type, contribution_call_id
+		FROM projects WHERE uuid = ? AND owner_id = ? AND archived_at IS NULL FOR UPDATE`, projectID, userID).
+		Scan(&projectInternalID, &projectType, &contributionCallID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ProjectView{}, ErrNotFound
+	}
+	if err != nil {
+		return ProjectView{}, err
+	}
+	if projectType != "autonomous" || contributionCallID.Valid {
+		return ProjectView{}, ErrInvalidContract
+	}
+
+	var contractInternalID uint64
+	var name, description, version, body string
+	err = tx.QueryRowContext(ctx, `
+		SELECT id, name, description, version, body
+		FROM smart_contracts
+		WHERE uuid = ? AND deleted_at IS NULL AND (source = 'official' OR (source = 'custom' AND created_by = ?))`, contractID, userID).
+		Scan(&contractInternalID, &name, &description, &version, &body)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ProjectView{}, ErrContractUnavailable
+	}
+	if err != nil {
+		return ProjectView{}, err
+	}
+	revisionID, err := sharedid.Opaque("project-revision")
+	if err != nil {
+		return ProjectView{}, err
+	}
+	result, err := tx.ExecContext(ctx, `
+		INSERT INTO project_contract_revisions
+			(uuid, project_id, smart_contract_id, smart_contract_version, reason, smart_contract_name, smart_contract_description, smart_contract_body)
+		VALUES (?, ?, ?, ?, '项目设置更换智能合约', ?, ?, ?)`, revisionID, projectInternalID, contractInternalID, version, name, description, body)
+	if err != nil {
+		return ProjectView{}, err
+	}
+	revisionInternalID, err := result.LastInsertId()
+	if err != nil {
+		return ProjectView{}, err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE projects SET active_contract_revision_id = ? WHERE id = ? AND owner_id = ?`, revisionInternalID, projectInternalID, userID); err != nil {
+		return ProjectView{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return ProjectView{}, err
+	}
+	return s.Get(ctx, userID, projectID)
+}
+
+func (s *Service) Delete(ctx context.Context, userID uint64, projectID string) error {
+	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
+	defer cancel()
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var internalID uint64
+	if err := tx.QueryRowContext(ctx, `SELECT id FROM projects WHERE uuid = ? AND owner_id = ?`, projectID, userID).Scan(&internalID); errors.Is(err, sql.ErrNoRows) {
+		return ErrNotFound
+	} else if err != nil {
+		return err
+	}
+	var adopted int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM collaboration_submissions s JOIN completion_records r ON r.id = s.source_record_id WHERE r.project_id = ? AND s.status = 'adopted'`, internalID).Scan(&adopted); err != nil {
+		return err
+	}
+	if adopted > 0 {
+		return ErrAdoptedContent
+	}
+	statements := []string{
+		`DELETE FROM execution_edges WHERE source_contract_id IN (SELECT id FROM execution_contracts WHERE project_id = ?) OR target_contract_id IN (SELECT id FROM execution_contracts WHERE project_id = ?)`,
+		`DELETE m FROM node_conversation_messages m JOIN node_conversations c ON c.id = m.conversation_id WHERE c.project_id = ?`,
+		`DELETE FROM node_conversations WHERE project_id = ?`,
+		`DELETE FROM completion_records WHERE project_id = ?`,
+		`DELETE FROM execution_branches WHERE project_id = ?`,
+		`DELETE FROM execution_contracts WHERE project_id = ?`,
+		`DELETE FROM project_contract_revisions WHERE project_id = ?`,
+	}
+	for i, statement := range statements {
+		args := []any{internalID}
+		if i == 0 {
+			args = []any{internalID, internalID}
+		}
+		if _, err := tx.ExecContext(ctx, statement, args...); err != nil {
+			return err
+		}
+	}
+	result, err := tx.ExecContext(ctx, `DELETE FROM projects WHERE uuid = ? AND owner_id = ?`, projectID, userID)
+	if err != nil {
+		return err
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		return ErrNotFound
+	}
+	return tx.Commit()
+}

@@ -63,7 +63,7 @@ export function SmartContractsPage({ compact = false }: { compact?: boolean }) {
     let cancelled = false
     const loadEvents = async () => {
       try {
-        const response = await fetch('/api/smart-contracts/history', { headers: { Authorization: `Bearer ${accessToken}` } })
+		const response = await fetch('/api/commands/contracts/history', { method: 'GET', headers: { Authorization: `Bearer ${accessToken}` } })
         const data = (await response.json().catch(() => ({}))) as { events?: SmartContractEvent[] }
         if (response.ok && !cancelled) setEvents(data.events ?? [])
       } catch {

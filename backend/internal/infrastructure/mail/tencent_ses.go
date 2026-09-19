@@ -13,11 +13,13 @@ import (
 )
 
 type Mailer struct {
+	// client 在进程生命周期内复用，处理所有发往腾讯云 SES 的请求。
 	client *ses.Client
 	config bootstrapconfig.MailConfig
 }
 
 func NewTencentSES(config bootstrapconfig.MailConfig, credentials bootstrapconfig.CredentialsConfig) (*Mailer, error) {
+	// 启动时就校验发件人、模板和凭据，避免用户请求验证码时才发现配置缺失。
 	if config.Region == "" || config.TemplateID == 0 || config.FromEmail == "" || credentials.AccessKeyID == "" || credentials.AccessKeySecret == "" {
 		return nil, fmt.Errorf("incomplete Tencent SES configuration")
 	}
@@ -29,6 +31,7 @@ func NewTencentSES(config bootstrapconfig.MailConfig, credentials bootstrapconfi
 }
 
 func (mailer *Mailer) SendVerificationCode(ctx context.Context, email, code string) error {
+	// SES 模板变量以序号占位：{{1}} 对应验证码，{{2}} 对应有效分钟数。
 	templateData, err := json.Marshal(map[string]string{
 		"1": code,
 		"2": strconv.Itoa(mailer.config.CodeTTLMinutes),
@@ -45,6 +48,7 @@ func (mailer *Mailer) SendVerificationCode(ctx context.Context, email, code stri
 		TemplateID:   common.Uint64Ptr(mailer.config.TemplateID),
 		TemplateData: common.StringPtr(string(templateData)),
 	}
+	// 触发类型 1 表示事务邮件，适合发送验证码。
 	request.TriggerType = common.Uint64Ptr(1)
 	if _, err := mailer.client.SendEmailWithContext(ctx, request); err != nil {
 		return fmt.Errorf("send Tencent SES email: %w", err)

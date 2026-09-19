@@ -11,7 +11,7 @@ import {
   projects,
   smartContracts,
 } from '../data/seed'
-import { requestJSON } from '../lib/api'
+import { requestJSON, withQuery } from '../lib/api'
 import { isActionableStage, needsReviewDecision } from '../lib/execution'
 import type {
   AIReview,
@@ -277,7 +277,7 @@ const requestNodeDraftReview = async (
   draft: string,
   compiled: CompiledDraft,
 ) => {
-  const data = await requestJSON<{ review?: DraftReview }>('/api/ai-reviews/node-draft', {
+  const data = await requestJSON<{ review?: DraftReview }>('/api/commands/reviews/node-draft', {
     method: 'POST',
     accessToken,
     body: JSON.stringify({
@@ -306,7 +306,7 @@ const requestNodeDraftReview = async (
 }
 
 const requestRealAIReview = async (accessToken: string, contract: ExecutionContract, input: SubmitCompletionInput) => {
-  const data = await requestJSON<{ review?: AIReview }>('/api/ai-reviews/node', {
+  const data = await requestJSON<{ review?: AIReview }>('/api/commands/reviews/node', {
     method: 'POST',
     accessToken,
     body: JSON.stringify({
@@ -322,7 +322,7 @@ const requestRealAIReview = async (accessToken: string, contract: ExecutionContr
 }
 
 const requestReviewClarification = async (accessToken: string, contract: ExecutionContract, input: ReviewClarificationInput) => {
-  const data = await requestJSON<{ review?: AIReview }>('/api/ai-reviews/node/clarification', {
+  const data = await requestJSON<{ review?: AIReview }>('/api/commands/reviews/node/clarification', {
     method: 'POST',
     accessToken,
     body: JSON.stringify({
@@ -707,16 +707,11 @@ export const useExecStore = create<ExecState>()(
         const accessToken = get().accessToken
         if (!accessToken) return null
         try {
-          const response = await fetch('/api/smart-contracts', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${accessToken}`,
-            },
+          const contract = await requestJSON<SmartContractDefinition>('/api/commands/contracts/create', {
+            accessToken,
             body: JSON.stringify(input),
           })
-          const contract = (await response.json().catch(() => ({}))) as SmartContractDefinition & { error?: string }
-          if (!response.ok || !contract.id) return null
+          if (!contract.id) return null
           set((state) => ({
             smartContracts: [...state.smartContracts.filter((item) => item.id !== contract.id), contract],
           }))
@@ -729,18 +724,7 @@ export const useExecStore = create<ExecState>()(
         const accessToken = get().accessToken
         if (!accessToken) return { success: false, message: '请先登录后再删除智能合约。' }
         try {
-          const response = await fetch(`/api/smart-contracts/${contractId}`, {
-            method: 'DELETE',
-            headers: { Authorization: `Bearer ${accessToken}` },
-          })
-          const data = (await response.json().catch(() => ({}))) as {
-            error?: string
-          }
-          if (!response.ok)
-            return {
-              success: false,
-              message: data.error ?? '删除智能合约失败。',
-            }
+          await requestJSON('/api/commands/contracts/delete', { accessToken, body: JSON.stringify({ contractId }) })
           set((state) => ({
             smartContracts: state.smartContracts.filter((contract) => contract.id !== contractId),
           }))
@@ -755,16 +739,11 @@ export const useExecStore = create<ExecState>()(
       createProject: async (input) => {
         if (get().accessToken) {
           try {
-            const response = await fetch('/api/projects', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${get().accessToken}`,
-              },
+            const project = await requestJSON<Project>('/api/commands/projects/create', {
+              accessToken: get().accessToken,
               body: JSON.stringify(input),
             })
-            const project = (await response.json().catch(() => ({}))) as Project & { error?: string }
-            if (!response.ok || !project.id) throw new Error(project.error ?? `项目创建失败（HTTP ${response.status}）。`)
+            if (!project.id) throw new Error('项目创建失败。')
             set((state) => ({
               projects: [...state.projects.filter((item) => item.id !== project.id), project],
             }))
@@ -809,9 +788,9 @@ export const useExecStore = create<ExecState>()(
         const accessToken = get().accessToken
         if (!accessToken) return { success: false, message: '请先登录后再修改项目。' }
         try {
-          const snapshot = await requestProjectState(accessToken, `/api/projects/${projectId}`, {
-            method: 'PATCH',
+          const snapshot = await requestProjectState(accessToken, '/api/commands/projects/update', {
             body: JSON.stringify({
+              projectId,
               title,
               description,
               visibility: input.visibility,
@@ -860,9 +839,8 @@ export const useExecStore = create<ExecState>()(
           return { success: true }
         }
         try {
-          const snapshot = await requestProjectState(accessToken, `/api/projects/${projectId}/smart-contract`, {
-            method: 'POST',
-            body: JSON.stringify({ smartContractId }),
+          const snapshot = await requestProjectState(accessToken, '/api/commands/projects/set-contract', {
+            body: JSON.stringify({ projectId, smartContractId }),
           })
           set((state) => mergeProjectState(state, snapshot))
           return { success: true }
@@ -877,14 +855,7 @@ export const useExecStore = create<ExecState>()(
         const accessToken = get().accessToken
         if (!accessToken) return { success: false, message: '请先登录后再归档项目。' }
         try {
-          const response = await fetch(`/api/projects/${projectId}/archive`, {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${accessToken}` },
-          })
-          const data = (await response.json().catch(() => ({}))) as {
-            error?: string
-          }
-          if (!response.ok) return { success: false, message: data.error ?? '归档项目失败。' }
+          await requestJSON('/api/commands/projects/archive', { accessToken, body: JSON.stringify({ projectId }) })
           await get().refreshWorkspace()
           return { success: true }
         } catch (error) {
@@ -898,14 +869,7 @@ export const useExecStore = create<ExecState>()(
         const accessToken = get().accessToken
         if (!accessToken) return { success: false, message: '请先登录后再恢复项目。' }
         try {
-          const response = await fetch(`/api/projects/${projectId}/unarchive`, {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${accessToken}` },
-          })
-          const data = (await response.json().catch(() => ({}))) as {
-            error?: string
-          }
-          if (!response.ok) return { success: false, message: data.error ?? '恢复项目失败。' }
+          await requestJSON('/api/commands/projects/unarchive', { accessToken, body: JSON.stringify({ projectId }) })
           await get().refreshWorkspace()
           return { success: true }
         } catch (error) {
@@ -921,14 +885,7 @@ export const useExecStore = create<ExecState>()(
         const accessToken = get().accessToken
         if (!accessToken) return { success: false, message: '请先登录后再删除项目。' }
         try {
-          const response = await fetch(`/api/projects/${projectId}`, {
-            method: 'DELETE',
-            headers: { Authorization: `Bearer ${accessToken}` },
-          })
-          const data = (await response.json().catch(() => ({}))) as {
-            error?: string
-          }
-          if (!response.ok) return { success: false, message: data.error ?? '删除项目失败。' }
+          await requestJSON('/api/commands/projects/delete', { accessToken, body: JSON.stringify({ projectId }) })
           const contractIds = new Set(
             get()
               .contracts.filter((contract) => contract.projectId === projectId)
@@ -1255,9 +1212,9 @@ export const useExecStore = create<ExecState>()(
           }
         }
         try {
-          const snapshot = await requestProjectState(get().accessToken, `/api/projects/${project.id}/nodes`, {
-            method: 'POST',
+          const snapshot = await requestProjectState(get().accessToken, '/api/commands/projects/create-node', {
             body: JSON.stringify({
+              projectId: project.id,
               draft: input.draft.trim(),
               draftReview,
               title: compiled.title,
@@ -1313,7 +1270,7 @@ export const useExecStore = create<ExecState>()(
 
         try {
           await requestRealAIReview(state.accessToken, contract, input)
-          const snapshot = await requestProjectState(state.accessToken, `/api/projects/${project.id}/graph`)
+          const snapshot = await requestProjectState(state.accessToken, withQuery('/api/commands/projects/graph', { projectId: project.id }), { method: 'GET' })
           set((latestState) => mergeProjectState(latestState, snapshot))
           return { success: true }
         } catch (error) {
@@ -1348,7 +1305,7 @@ export const useExecStore = create<ExecState>()(
 
         try {
           await requestReviewClarification(state.accessToken, contract, input)
-          const snapshot = await requestProjectState(state.accessToken, `/api/projects/${project.id}/graph`)
+          const snapshot = await requestProjectState(state.accessToken, withQuery('/api/commands/projects/graph', { projectId: project.id }), { method: 'GET' })
           set((latestState) => mergeProjectState(latestState, snapshot))
           return { success: true }
         } catch (error) {
@@ -1374,7 +1331,7 @@ export const useExecStore = create<ExecState>()(
         }
         if (!get().accessToken) return { success: false, message: '请先登录后再锁定节点。' }
         try {
-          const snapshot = await requestProjectState(get().accessToken, `/api/projects/${project.id}/nodes/${source.id}/lock`, { method: 'POST' })
+          const snapshot = await requestProjectState(get().accessToken, '/api/commands/projects/lock-node', { body: JSON.stringify({ projectId: project.id, nodeId: source.id }) })
           set((state) => mergeProjectState(state, snapshot))
           return { success: true }
         } catch (error) {
@@ -1415,9 +1372,9 @@ export const useExecStore = create<ExecState>()(
         }
         const originalIntent = `智能合约对原行为「${source.title}」的审查未通过。本补足行为只处理被标记的缺口。`
         try {
-          const snapshot = await requestProjectState(get().accessToken, `/api/projects/${source.projectId}/nodes`, {
-            method: 'POST',
+          const snapshot = await requestProjectState(get().accessToken, '/api/commands/projects/create-node', {
             body: JSON.stringify({
+              projectId: source.projectId,
               draft: originalIntent,
               draftReview,
               title,
@@ -1492,9 +1449,9 @@ export const useExecStore = create<ExecState>()(
         const headers = { Authorization: `Bearer ${accessToken}` }
         try {
           const [profileResponse, projectResponse, smartContractResponse] = await Promise.all([
-            fetch('/api/users/me', { headers }),
-            fetch('/api/projects', { headers }),
-            fetch('/api/smart-contracts', { headers }),
+            fetch('/api/commands/users/me', { method: 'GET', headers }),
+            fetch('/api/commands/projects/list', { method: 'GET', headers }),
+            fetch('/api/commands/contracts/list', { method: 'GET', headers }),
           ])
           const profileData = (await profileResponse.json().catch(() => ({}))) as {
             user?: {
@@ -1523,7 +1480,7 @@ export const useExecStore = create<ExecState>()(
           ) {
             throw new Error('读取账户工作区失败。')
           }
-          const snapshots = await Promise.all(projectData.projects.map((project) => requestProjectState(accessToken, `/api/projects/${project.id}/graph`)))
+          const snapshots = await Promise.all(projectData.projects.map((project) => requestProjectState(accessToken, withQuery('/api/commands/projects/graph', { projectId: project.id }), { method: 'GET' })))
           const profileUser = profileData.user
           const actorId = String(profileUser.id)
           const actor: Actor = {

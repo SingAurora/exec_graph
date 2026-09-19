@@ -49,7 +49,7 @@ export function RegisterPage() {
 
     setIsSendingCode(true)
     try {
-      const response = await fetch('/api/auth/send-code', {
+      const response = await fetch('/api/commands/auth/send-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: getValues('email') }),
@@ -69,7 +69,7 @@ export function RegisterPage() {
     setAuthError('')
     setNotice('')
     try {
-      const response = await fetch('/api/auth/register', {
+      const response = await fetch('/api/commands/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(values),

@@ -1,8 +1,11 @@
 package config
 
 import (
+	"bytes"
 	"fmt"
+	"net/mail"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -14,7 +17,6 @@ type Config struct {
 	Credentials CredentialsConfig   `yaml:"credentials"`
 	Mail        MailConfig          `yaml:"mail"`
 	Storage     ObjectStorageConfig `yaml:"storage"`
-	Development DevelopmentConfig   `yaml:"development"`
 }
 
 type AppConfig struct {
@@ -24,7 +26,6 @@ type AppConfig struct {
 }
 
 type DatabaseConfig struct {
-	Driver   string `yaml:"driver"`
 	Host     string `yaml:"host"`
 	Port     int    `yaml:"port"`
 	Name     string `yaml:"name"`
@@ -46,30 +47,16 @@ type CredentialsConfig struct {
 }
 
 type MailConfig struct {
-	Region            string            `yaml:"region"`
-	TemplateID        uint64            `yaml:"template_id"`
-	TemplateBody      string            `yaml:"template_body"`
-	TemplateVariables map[string]string `yaml:"template_variables"`
-	FromEmail         string            `yaml:"from_email"`
-	FromDomain        string            `yaml:"from_domain"`
-	CodeTTLMinutes    int               `yaml:"code_ttl_minutes"`
+	Region         string `yaml:"region"`
+	TemplateID     uint64 `yaml:"template_id"`
+	FromEmail      string `yaml:"from_email"`
+	CodeTTLMinutes int    `yaml:"code_ttl_minutes"`
 }
 
 type ObjectStorageConfig struct {
 	Region       string `yaml:"region"`
 	Bucket       string `yaml:"bucket"`
 	AvatarPrefix string `yaml:"avatar_prefix"`
-}
-
-type DevelopmentConfig struct {
-	TestAccount TestAccountConfig `yaml:"test_account"`
-}
-
-type TestAccountConfig struct {
-	Enabled  bool   `yaml:"enabled"`
-	Username string `yaml:"username"`
-	Email    string `yaml:"email"`
-	Password string `yaml:"password"`
 }
 
 func Load(path string) (Config, error) {
@@ -79,26 +66,72 @@ func Load(path string) (Config, error) {
 	}
 
 	var config Config
-	if err := yaml.Unmarshal(content, &config); err != nil {
+	decoder := yaml.NewDecoder(bytes.NewReader(content))
+	decoder.KnownFields(true)
+	if err := decoder.Decode(&config); err != nil {
 		return Config{}, fmt.Errorf("parse config: %w", err)
 	}
-	if config.App.Port == 0 {
-		config.App.Port = 8080
-	}
-	if config.App.SessionTTLHours == 0 {
-		config.App.SessionTTLHours = 168
-	}
-	if config.Database.Charset == "" {
-		config.Database.Charset = "utf8mb4"
-	}
-	if config.Redis.Port == 0 {
-		config.Redis.Port = 6379
-	}
-	if config.Mail.CodeTTLMinutes == 0 {
-		config.Mail.CodeTTLMinutes = 10
-	}
-	if config.Storage.AvatarPrefix == "" {
-		config.Storage.AvatarPrefix = "avatars/"
+	if err := validate(config); err != nil {
+		return Config{}, fmt.Errorf("validate config: %w", err)
 	}
 	return config, nil
+}
+
+func validate(config Config) error {
+	invalid := make([]string, 0)
+	requireText := func(path, value string) {
+		if strings.TrimSpace(value) == "" {
+			invalid = append(invalid, path)
+		}
+	}
+	requirePort := func(path string, value int) {
+		if value < 1 || value > 65535 {
+			invalid = append(invalid, path)
+		}
+	}
+
+	requireText("app.host", config.App.Host)
+	requirePort("app.port", config.App.Port)
+	if config.App.SessionTTLHours <= 0 {
+		invalid = append(invalid, "app.session_ttl_hours")
+	}
+
+	requireText("database.host", config.Database.Host)
+	requirePort("database.port", config.Database.Port)
+	requireText("database.name", config.Database.Name)
+	requireText("database.user", config.Database.User)
+	requireText("database.password", config.Database.Password)
+	requireText("database.charset", config.Database.Charset)
+
+	requireText("redis.host", config.Redis.Host)
+	requirePort("redis.port", config.Redis.Port)
+	requireText("redis.password", config.Redis.Password)
+	if config.Redis.Database < 0 {
+		invalid = append(invalid, "redis.database")
+	}
+
+	requireText("credentials.access_key_id", config.Credentials.AccessKeyID)
+	requireText("credentials.access_key_secret", config.Credentials.AccessKeySecret)
+
+	requireText("mail.region", config.Mail.Region)
+	if config.Mail.TemplateID == 0 {
+		invalid = append(invalid, "mail.template_id")
+	}
+	if strings.TrimSpace(config.Mail.FromEmail) == "" {
+		invalid = append(invalid, "mail.from_email")
+	} else if _, err := mail.ParseAddress(config.Mail.FromEmail); err != nil {
+		invalid = append(invalid, "mail.from_email")
+	}
+	if config.Mail.CodeTTLMinutes <= 0 {
+		invalid = append(invalid, "mail.code_ttl_minutes")
+	}
+
+	requireText("storage.region", config.Storage.Region)
+	requireText("storage.bucket", config.Storage.Bucket)
+	requireText("storage.avatar_prefix", config.Storage.AvatarPrefix)
+
+	if len(invalid) > 0 {
+		return fmt.Errorf("required fields are missing or invalid: %s", strings.Join(invalid, ", "))
+	}
+	return nil
 }

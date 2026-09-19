@@ -1,0 +1,39 @@
+app:
+  host: 127.0.0.1
+  # HTTP 监听端口。
+  port: 8080
+  # 登录会话的有效期，单位为小时；168 表示 7 天。
+  session_ttl_hours: 168
+
+database:
+  host: 127.0.0.1
+  port: 3306
+  name: exec_graph
+  user: root
+  password: replace-with-local-password
+  # MySQL 连接字符集；建议保持 utf8mb4，以支持完整 Unicode。
+  charset: utf8mb4
+
+redis:
+  host: 127.0.0.1
+  # Redis 服务端口。
+  port: 6379
+  password: replace-with-local-redis-password
+  database: 0
+
+credentials:
+  access_key_id: replace-with-local-access-key-id
+  access_key_secret: replace-with-local-access-key-secret
+
+mail:
+  region: ap-guangzhou
+  template_id: 29256
+  # 邮件验证码的有效期，单位为分钟。
+  code_ttl_minutes: 10
+  from_email: replace-with-verified-sender
+
+storage:
+  region: ap-guangzhou
+  bucket: exec-graph-1253847355
+  # COS 中存放个人资料媒体的对象键前缀，末尾保留 /。
+  avatar_prefix: avatars/

@@ -10,6 +10,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	bootstrapconfig "github.com/singaurora/exec-graph/backend/internal/bootstrap/config"
+	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
 )
 
 const keyPrefix = "exec_graph:"
@@ -26,11 +27,11 @@ func NewSessionStore(config bootstrapconfig.RedisConfig) (*SessionStore, error) 
 		Addr:         fmt.Sprintf("%s:%d", config.Host, config.Port),
 		Password:     config.Password,
 		DB:           config.Database,
-		DialTimeout:  2 * time.Second,
-		ReadTimeout:  2 * time.Second,
-		WriteTimeout: 2 * time.Second,
+		DialTimeout:  sharedconstants.RedisDialTimeout,
+		ReadTimeout:  sharedconstants.RedisDialTimeout,
+		WriteTimeout: sharedconstants.RedisDialTimeout,
 	})
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), sharedconstants.RedisPingTimeout)
 	defer cancel()
 	if err := client.Ping(ctx).Err(); err != nil {
 		_ = client.Close()

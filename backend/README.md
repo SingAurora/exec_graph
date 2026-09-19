@@ -1,18 +1,26 @@
 # exec_graph backend
 
-当前后端使用 Gin、MySQL、Redis 和腾讯云 SES/COS。前端可逐步从模拟数据迁移到 API。
+当前后端使用 Gin、MySQL、Redis、邮件和对象存储基础设施。
 
 ## 目录职责
 
-- `cmd/api/main.go`：唯一启动入口
-- `internal/app/app.go`：应用依赖组装、迁移和 HTTP 服务启动
-- `internal/app/auth.go`：Gin 路由、中间件、邮箱验证码注册
-- `internal/app/*_handler.go`：认证、用户、头像、项目、智能合约和 AI Key API
-- `internal/app/database.go`、`redis_store.go`：MySQL 与 Redis 会话缓存
-- `internal/app/mailer.go`、`storage.go`：腾讯云 SES 与 COS
-- `config.local.yaml`：仅本地使用的配置，已被 Git 忽略
+- `cmd/api/main.go`：HTTP 服务启动入口
+- `internal/bootstrap/application`：应用依赖组装和 HTTP 服务启动
+- `internal/application/identity`：账户、验证码、登录会话和凭据变更用例
+- `internal/application/project`：项目生命周期、规则模板、推进节点和完成记录用例
+- `internal/application/collaboration`：开放缺口、公开探索项目和成果投稿用例
+- `internal/application/aikey`：AI 服务配置、验证和删除用例
+- `internal/http/router`：HTTP 路径和方法映射
+- `internal/http/endpoint`：按领域拆分的请求绑定、当前用户提取、用例调用和 HTTP 响应映射；不承载数据库事务
+- `internal/http/request`：公共请求解析与请求级基础校验
+- `internal/http/response`：统一 JSON 成功与错误响应
+- `internal/http/middleware`：HTTP 中间件
+- `internal/infrastructure/mysql`、`internal/infrastructure/redis`：MySQL 与 Redis 基础设施
+- `internal/infrastructure/mail`、`internal/infrastructure/storage`：邮件与对象存储基础设施
+- `etc/config.example.yaml`：配置字段说明与示例
+- `etc/config.local.yaml`：仅本地使用的实际配置，已被 Git 忽略
 
-从 `backend` 目录启动：
+从 `backend` 目录启动。先根据 `etc/config.example.yaml` 创建 `etc/config.local.yaml`。数据库结构与必要系统数据由外部部署流程管理，API 不会修改它们：
 
 ```bash
 go run ./cmd/api
@@ -26,34 +34,22 @@ go run ./cmd/api
 Authorization: Bearer <accessToken>
 ```
 
-当前已提供：
+接口使用明确的 `/api/commands/<领域>/<操作>` 命名，但 HTTP 方法遵循操作性质：不改变状态的读取使用 `GET`，参数放在 query；创建、更新、审查和其它状态变更使用 `POST`，参数放在 JSON 请求体。接口不使用路径参数、`PATCH` 或 `DELETE`。例如：
 
 - `GET /api/health`
-- `POST /api/auth/send-code`，`purpose` 支持 `register`、`change_email`、`change_password`、`reset_password`，共用当前腾讯云 SES 模板
-- `POST /api/auth/register`
-- `POST /api/auth/change-email`
-- `POST /api/auth/change-password`
-- `POST /api/auth/reset-password`
-- `POST /api/auth/login`
-- `POST /api/auth/logout`
-- `GET /api/auth/me`
-- `GET /api/users/me`
-- `PATCH /api/users/me`，修改用户名、唯一用户 ID、性别和个人说明
-- `POST|DELETE /api/users/me/avatar`
-- `GET|POST /api/ai-keys`
-- `POST /api/ai-keys/:id/default`
-- `POST /api/ai-keys/:id/verify`
-- `DELETE /api/ai-keys/:id`
-- `POST /api/ai-reviews/node-draft`
-- `POST /api/ai-reviews/node`
-- `GET|POST /api/projects`
-- `GET /api/projects/:id`
-- `GET /api/projects/:id/graph`
-- `POST /api/projects/:id/nodes`
-- `POST /api/projects/:id/nodes/:nodeId/lock`
-- `POST /api/projects/:id/archive`
-- `GET|POST /api/smart-contracts`
-- `GET /api/smart-contracts/:id`
+- `POST /api/commands/auth/login`
+- `GET /api/commands/users/me`
+- `POST /api/commands/users/me/update`
+- `GET /api/commands/projects/list`
+- `GET /api/commands/projects/get?projectId=...`
+- `GET /api/commands/projects/graph?projectId=...`
+- `POST /api/commands/projects/create-node`，请求体包含 `projectId` 和节点草案
+- `POST /api/commands/projects/lock-node`，请求体：`{"projectId":"...","nodeId":"..."}`
+- `GET /api/commands/contracts/list`
+- `POST /api/commands/ai-keys/verify`，请求体：`{"keyId":"..."}`
+- `POST /api/commands/conversations/send-message`，请求体：`{"conversationId":"...","body":"..."}`
+
+上传头像和背景图仍使用命令路径与 `POST`，但请求体为 `multipart/form-data`，不是 JSON。
 
 节点草案审核、创建节点、提交完成审查、用户确认锁定和完成记录均会写入 MySQL。节点图接口会返回项目、路径、节点关系和完成记录，用于恢复同一条推进链。
 
@@ -61,4 +57,4 @@ Authorization: Bearer <accessToken>
 
 开发期的账号密码和 AI 密钥按用户隔离，以明文保存在数据库中；AI 密钥接口可直接返回原始密钥，方便本地调试。
 
-Redis 连接配置在 `redis` 段。MySQL 仍保存会话真值；Redis 缓存登录用户信息，用于减少每次鉴权的数据库查询。Redis 不可用时，后端会记录日志并继续使用 MySQL。
+Redis 连接配置在 `redis` 段。Redis 是唯一登录会话来源：Redis 未配置、无法连接或运行中不可用时，API 不会回退到 MySQL 会话。

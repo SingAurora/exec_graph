@@ -11,7 +11,8 @@ import (
 // AIKey is the internal representation of an AI provider credential. Its
 // ciphertext must never be serialized into an API response.
 type AIKey struct {
-	ID             string     `gorm:"column:id"`
+	ID             uint64     `gorm:"column:id;primaryKey"`
+	UUID           string     `gorm:"column:uuid"`
 	UserID         uint64     `gorm:"column:user_id"`
 	Provider       string     `gorm:"column:provider"`
 	Label          string     `gorm:"column:label"`
@@ -40,20 +41,20 @@ func (repository AIKeyRepository) Create(ctx context.Context, key *AIKey) error 
 
 func (repository AIKeyRepository) MarkVerified(ctx context.Context, userID uint64, keyID string, verifiedAt time.Time) error {
 	return repository.db.WithContext(ctx).Model(&AIKey{}).
-		Where("id = ? AND user_id = ?", keyID, userID).
+		Where("uuid = ? AND user_id = ?", keyID, userID).
 		Update("last_verified_at", verifiedAt).Error
 }
 
 func (repository AIKeyRepository) DeleteUnusedForUser(ctx context.Context, userID uint64, keyID string) error {
 	return repository.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var key AIKey
-		if err := tx.Clauses(clauseForUpdate).Where("id = ? AND user_id = ?", keyID, userID).First(&key).Error; errors.Is(err, gorm.ErrRecordNotFound) {
+		if err := tx.Clauses(clauseForUpdate).Where("uuid = ? AND user_id = ?", keyID, userID).First(&key).Error; errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrNotFound
 		} else if err != nil {
 			return err
 		}
 		var projectCount int64
-		if err := tx.Model(&Project{}).Where("owner_id = ? AND default_ai_key_id = ?", userID, keyID).Count(&projectCount).Error; err != nil {
+		if err := tx.Model(&Project{}).Where("owner_id = ? AND default_ai_key_id = ?", userID, key.ID).Count(&projectCount).Error; err != nil {
 			return err
 		}
 		if projectCount > 0 {
@@ -75,7 +76,7 @@ func (repository AIKeyRepository) ListForUser(ctx context.Context, userID uint64
 func (repository AIKeyRepository) FindForUser(ctx context.Context, userID uint64, keyID string) (AIKey, error) {
 	var key AIKey
 	err := repository.db.WithContext(ctx).
-		Where("id = ? AND user_id = ?", keyID, userID).
+		Where("uuid = ? AND user_id = ?", keyID, userID).
 		First(&key).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return AIKey{}, ErrNotFound
@@ -87,14 +88,14 @@ func (repository AIKeyRepository) FindProjectReviewKey(ctx context.Context, user
 	var key AIKey
 	err := repository.db.WithContext(ctx).
 		Table("projects AS p").
-		Select("k.id, k.user_id, k.provider, k.label, k.key_ciphertext, k.key_hint, k.base_url, k.model, k.last_verified_at, k.last_used_at, k.created_at").
+		Select("k.id, k.uuid, k.user_id, k.provider, k.label, k.key_ciphertext, k.key_hint, k.base_url, k.model, k.last_verified_at, k.last_used_at, k.created_at").
 		Joins("JOIN ai_api_keys AS k ON k.id = p.default_ai_key_id").
-		Where("p.id = ? AND p.owner_id = ?", projectID, userID).
+		Where("p.uuid = ? AND p.owner_id = ?", projectID, userID).
 		Scan(&key).Error
 	if err != nil {
 		return AIKey{}, err
 	}
-	if key.ID == "" {
+	if key.ID == 0 {
 		return AIKey{}, ErrNotFound
 	}
 	return key, nil

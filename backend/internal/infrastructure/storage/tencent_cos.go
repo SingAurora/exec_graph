@@ -7,19 +7,25 @@ import (
 	"net/http"
 	"net/url"
 	"path"
-	"strconv"
 	"strings"
 	"time"
 
 	bootstrapconfig "github.com/singaurora/exec-graph/backend/internal/bootstrap/config"
-	sharedid "github.com/singaurora/exec-graph/backend/internal/shared/id"
 	cos "github.com/tencentyun/cos-go-sdk-v5"
 )
+
+type ObjectStorage interface {
+	NewObjectKey(parts ...string) (string, error)
+	PutObject(ctx context.Context, objectKey, contentType string, contents []byte, cacheControl string) error
+	SignedObjectURL(ctx context.Context, objectKey string, expires time.Duration) (string, error)
+	DeleteObject(ctx context.Context, objectKey string) error
+	IsManagedObjectKey(objectKey string) bool
+}
 
 type COSStorage struct {
 	client       *cos.Client
 	bucketURL    *url.URL
-	avatarPrefix string
+	objectPrefix string
 	secretID     string
 	secretKey    string
 }
@@ -42,10 +48,18 @@ func NewTencentCOS(config bootstrapconfig.ObjectStorageConfig, credentials boots
 	return &COSStorage{
 		client:       client,
 		bucketURL:    bucketURL,
-		avatarPrefix: strings.Trim(strings.TrimSpace(config.AvatarPrefix), "/") + "/",
+		objectPrefix: normalizeObjectPrefix(config.AvatarPrefix),
 		secretID:     credentials.AccessKeyID,
 		secretKey:    credentials.AccessKeySecret,
 	}, nil
+}
+
+func normalizeObjectPrefix(prefix string) string {
+	prefix = strings.Trim(strings.TrimSpace(prefix), "/")
+	if prefix == "" {
+		return ""
+	}
+	return prefix + "/"
 }
 
 func (storage *COSStorage) Check(ctx context.Context) error {
@@ -59,65 +73,52 @@ func (storage *COSStorage) Check(ctx context.Context) error {
 	return nil
 }
 
-func (storage *COSStorage) PutAvatar(ctx context.Context, userID uint64, contentType string, contents []byte) (string, string, error) {
-	extension, ok := AvatarExtension(contentType)
-	if !ok {
-		return "", "", fmt.Errorf("unsupported avatar content type: %s", contentType)
+// NewObjectKey creates an object key below the configured application prefix.
+// The caller owns the meaning of each path part, while storage owns the boundary.
+func (storage *COSStorage) NewObjectKey(parts ...string) (string, error) {
+	if len(parts) == 0 {
+		return "", fmt.Errorf("object key requires at least one path part")
 	}
-	name, err := sharedid.Opaque("avatar")
-	if err != nil {
-		return "", "", err
+	for _, part := range parts {
+		if strings.TrimSpace(part) == "" || path.IsAbs(part) || strings.Contains(part, "\\") || strings.Contains(part, "..") {
+			return "", fmt.Errorf("invalid object key path part")
+		}
 	}
-	objectKey := path.Join(storage.avatarPrefix, strconv.FormatUint(userID, 10), name+extension)
-	_, err = storage.client.Object.Put(ctx, objectKey, bytes.NewReader(contents), &cos.ObjectPutOptions{
+	keyParts := make([]string, 0, len(parts)+1)
+	if storage.objectPrefix != "" {
+		keyParts = append(keyParts, strings.TrimSuffix(storage.objectPrefix, "/"))
+	}
+	keyParts = append(keyParts, parts...)
+	objectKey := path.Join(keyParts...)
+	if !storage.IsManagedObjectKey(objectKey) {
+		return "", fmt.Errorf("invalid object key")
+	}
+	return objectKey, nil
+}
+
+func (storage *COSStorage) PutObject(ctx context.Context, objectKey, contentType string, contents []byte, cacheControl string) error {
+	if !storage.IsManagedObjectKey(objectKey) {
+		return fmt.Errorf("invalid object key")
+	}
+	_, err := storage.client.Object.Put(ctx, objectKey, bytes.NewReader(contents), &cos.ObjectPutOptions{
 		ObjectPutHeaderOptions: &cos.ObjectPutHeaderOptions{
 			ContentType:   contentType,
 			ContentLength: int64(len(contents)),
-			CacheControl:  "private, max-age=86400",
+			CacheControl:  cacheControl,
 		},
 	})
 	if err != nil {
-		return "", "", fmt.Errorf("upload avatar to COS: %w", err)
+		return fmt.Errorf("upload object to COS: %w", err)
 	}
-	avatarURL, err := storage.SignedAvatarURL(ctx, objectKey)
-	if err != nil {
-		_ = storage.DeleteAvatar(ctx, objectKey)
-		return "", "", err
-	}
-	return objectKey, avatarURL, nil
+	return nil
 }
 
-func (storage *COSStorage) PutProfileBackground(ctx context.Context, userID uint64, contentType string, contents []byte) (string, string, error) {
-	extension, ok := AvatarExtension(contentType)
-	if !ok {
-		return "", "", fmt.Errorf("unsupported profile background content type: %s", contentType)
+func (storage *COSStorage) SignedObjectURL(ctx context.Context, objectKey string, expires time.Duration) (string, error) {
+	if !storage.IsManagedObjectKey(objectKey) {
+		return "", fmt.Errorf("invalid object key")
 	}
-	name, err := sharedid.Opaque("background")
-	if err != nil {
-		return "", "", err
-	}
-	objectKey := path.Join(storage.avatarPrefix, strconv.FormatUint(userID, 10), name+extension)
-	_, err = storage.client.Object.Put(ctx, objectKey, bytes.NewReader(contents), &cos.ObjectPutOptions{
-		ObjectPutHeaderOptions: &cos.ObjectPutHeaderOptions{
-			ContentType:   contentType,
-			ContentLength: int64(len(contents)),
-			CacheControl:  "private, max-age=86400",
-		},
-	})
-	if err != nil {
-		return "", "", fmt.Errorf("upload profile background to COS: %w", err)
-	}
-	backgroundURL, err := storage.SignedProfileBackgroundURL(ctx, objectKey)
-	if err != nil {
-		_ = storage.DeleteProfileBackground(ctx, objectKey)
-		return "", "", err
-	}
-	return objectKey, backgroundURL, nil
-}
-
-func (storage *COSStorage) SignedAvatarURL(ctx context.Context, objectKey string) (string, error) {
-	if !storage.IsAvatarKey(objectKey) {
-		return "", fmt.Errorf("invalid avatar object key")
+	if expires <= 0 {
+		return "", fmt.Errorf("object URL expiration must be positive")
 	}
 	signedURL, err := storage.client.Object.GetPresignedURL(
 		ctx,
@@ -125,63 +126,35 @@ func (storage *COSStorage) SignedAvatarURL(ctx context.Context, objectKey string
 		objectKey,
 		storage.secretID,
 		storage.secretKey,
-		24*time.Hour,
+		expires,
 		nil,
 	)
 	if err != nil {
-		return "", fmt.Errorf("sign avatar URL: %w", err)
+		return "", fmt.Errorf("sign object URL: %w", err)
 	}
 	return signedURL.String(), nil
 }
 
-func (storage *COSStorage) SignedProfileBackgroundURL(ctx context.Context, objectKey string) (string, error) {
-	if !storage.IsProfileBackgroundKey(objectKey) {
-		return "", fmt.Errorf("invalid profile background object key")
-	}
-	signedURL, err := storage.client.Object.GetPresignedURL(
-		ctx,
-		http.MethodGet,
-		objectKey,
-		storage.secretID,
-		storage.secretKey,
-		24*time.Hour,
-		nil,
-	)
-	if err != nil {
-		return "", fmt.Errorf("sign profile background URL: %w", err)
-	}
-	return signedURL.String(), nil
-}
-
-func (storage *COSStorage) DeleteAvatar(ctx context.Context, objectKey string) error {
-	if !storage.IsAvatarKey(objectKey) {
+func (storage *COSStorage) DeleteObject(ctx context.Context, objectKey string) error {
+	if !storage.IsManagedObjectKey(objectKey) {
 		return nil
 	}
 	if _, err := storage.client.Object.Delete(ctx, objectKey); err != nil {
-		return fmt.Errorf("delete avatar from COS: %w", err)
+		return fmt.Errorf("delete object from COS: %w", err)
 	}
 	return nil
 }
 
-func (storage *COSStorage) DeleteProfileBackground(ctx context.Context, objectKey string) error {
-	if !storage.IsProfileBackgroundKey(objectKey) {
-		return nil
-	}
-	if _, err := storage.client.Object.Delete(ctx, objectKey); err != nil {
-		return fmt.Errorf("delete profile background from COS: %w", err)
-	}
-	return nil
+func (storage *COSStorage) IsManagedObjectKey(objectKey string) bool {
+	return objectKey != "" &&
+		!path.IsAbs(objectKey) &&
+		path.Clean(objectKey) == objectKey &&
+		!strings.Contains(objectKey, "\\") &&
+		!strings.Contains(objectKey, "..") &&
+		strings.HasPrefix(objectKey, storage.objectPrefix)
 }
 
-func (storage *COSStorage) IsAvatarKey(objectKey string) bool {
-	return strings.HasPrefix(objectKey, storage.avatarPrefix) && !strings.Contains(objectKey, "..")
-}
-
-func (storage *COSStorage) IsProfileBackgroundKey(objectKey string) bool {
-	return strings.HasPrefix(objectKey, storage.avatarPrefix) && !strings.Contains(objectKey, "..")
-}
-
-func AvatarExtension(contentType string) (string, bool) {
+func ImageExtension(contentType string) (string, bool) {
 	switch contentType {
 	case "image/jpeg":
 		return ".jpg", true

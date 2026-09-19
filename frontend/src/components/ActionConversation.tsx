@@ -95,6 +95,7 @@ const toDraftText = (draft: ActionDraft) => [
 
 async function requestConversation<T>(token: string, path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
+	method: 'POST',
     ...init,
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(init?.headers ?? {}) },
   })
@@ -132,8 +133,8 @@ export function PlanningConversation({ projectId, parentContractId, sourceContra
 
   useEffect(() => {
     let alive = true
-    requestConversation<{ conversation: Conversation }>(token, `/api/projects/${projectId}/planning-conversations`, {
-      method: 'POST', body: JSON.stringify({ parentContractId, sourceContractIds, branchId, fork, closureSourceIds, supplementOfContractId, retryOfContractId }),
+    requestConversation<{ conversation: Conversation }>(token, '/api/commands/projects/create-planning-conversation', {
+      body: JSON.stringify({ projectId, parentContractId, sourceContractIds, branchId, fork, closureSourceIds, supplementOfContractId, retryOfContractId }),
     }).then((data) => { if (alive) setConversation(data.conversation) })
       .catch((reason: Error) => { if (alive) setError(reason.message) })
       .finally(() => { if (alive) setBusy(null) })
@@ -144,8 +145,8 @@ export function PlanningConversation({ projectId, parentContractId, sourceContra
     if (!conversation || (!freezeReview && !body.trim())) return
     setBusy(freezeReview ? 'freezing' : 'replying'); setError('')
     try {
-      const data = await requestConversation<{ conversation: Conversation }>(token, `/api/conversations/${conversation.id}/${freezeReview ? 'freeze-review' : 'messages'}`, {
-        method: 'POST', body: freezeReview ? undefined : JSON.stringify({ body }),
+      const data = await requestConversation<{ conversation: Conversation }>(token, freezeReview ? '/api/commands/conversations/freeze-review' : '/api/commands/conversations/send-message', {
+        body: JSON.stringify(freezeReview ? { conversationId: conversation.id } : { conversationId: conversation.id, body }),
       })
       setConversation(data.conversation); setBody('')
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'AI 对话失败') }

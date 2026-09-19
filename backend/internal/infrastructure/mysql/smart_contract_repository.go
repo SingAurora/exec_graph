@@ -14,7 +14,8 @@ var (
 )
 
 type SmartContract struct {
-	ID          string    `gorm:"column:id"`
+	ID          uint64    `gorm:"column:id;primaryKey"`
+	UUID        string    `gorm:"column:uuid"`
 	Name        string    `gorm:"column:name"`
 	Source      string    `gorm:"column:source"`
 	Version     string    `gorm:"column:version"`
@@ -35,7 +36,7 @@ func NewSmartContractRepository(db *gorm.DB) SmartContractRepository {
 
 func (repository SmartContractRepository) FindByID(ctx context.Context, contractID string) (SmartContract, error) {
 	var contract SmartContract
-	err := repository.db.WithContext(ctx).First(&contract, "id = ?", contractID).Error
+	err := repository.db.WithContext(ctx).First(&contract, "uuid = ?", contractID).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return SmartContract{}, ErrNotFound
 	}
@@ -54,7 +55,7 @@ func (repository SmartContractRepository) ListVisible(ctx context.Context, userI
 func (repository SmartContractRepository) FindVisible(ctx context.Context, userID uint64, contractID string) (SmartContract, error) {
 	var contract SmartContract
 	err := repository.db.WithContext(ctx).
-		Where("id = ? AND deleted_at IS NULL AND (source = ? OR created_by = ?)", contractID, "official", userID).
+		Where("uuid = ? AND deleted_at IS NULL AND (source = ? OR created_by = ?)", contractID, "official", userID).
 		First(&contract).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return SmartContract{}, ErrNotFound
