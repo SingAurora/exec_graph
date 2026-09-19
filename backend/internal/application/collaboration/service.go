@@ -7,6 +7,7 @@ import (
 	"errors"
 	"strings"
 
+	collaborationpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/collaboration"
 	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
 	sharedid "github.com/singaurora/exec-graph/backend/internal/shared/id"
 )
@@ -21,9 +22,17 @@ var (
 	ErrDuplicateSubmission = errors.New("duplicate submission")
 )
 
-type Service struct{ db *sql.DB }
+type Service struct {
+	repository *collaborationpersistence.Repository
+}
 
-func New(db *sql.DB) *Service { return &Service{db: db} }
+type queryer interface {
+	Row(context.Context, string, ...any) *sql.Row
+}
+
+func New(repository *collaborationpersistence.Repository) *Service {
+	return &Service{repository: repository}
+}
 
 func (s *Service) CreateCall(ctx context.Context, input CreateCallInput) (Call, error) {
 	input.TargetContractID = strings.TrimSpace(input.TargetContractID)
@@ -41,7 +50,7 @@ func (s *Service) CreateCall(ctx context.Context, input CreateCallInput) (Call, 
 	defer cancel()
 	var projectInternalID, targetInternalID uint64
 	var targetTitle, stage, visibility string
-	err := s.db.QueryRowContext(ctx, `SELECT p.id, n.id, n.title, n.stage, p.visibility FROM execution_contracts n JOIN projects p ON p.id = n.project_id WHERE n.uuid = ? AND p.uuid = ? AND p.owner_id = ? AND p.archived_at IS NULL`, input.TargetContractID, input.ProjectID, input.OwnerID).Scan(&projectInternalID, &targetInternalID, &targetTitle, &stage, &visibility)
+	err := s.repository.Row(ctx, `SELECT p.id, n.id, n.title, n.stage, p.visibility FROM execution_contracts n JOIN projects p ON p.id = n.project_id WHERE n.uuid = ? AND p.uuid = ? AND p.owner_id = ? AND p.archived_at IS NULL`, input.TargetContractID, input.ProjectID, input.OwnerID).Scan(&projectInternalID, &targetInternalID, &targetTitle, &stage, &visibility)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Call{}, ErrNotFound
 	}
@@ -58,7 +67,7 @@ func (s *Service) CreateCall(ctx context.Context, input CreateCallInput) (Call, 
 		input.Title = targetTitle
 	}
 	var exists bool
-	if err := s.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM collaboration_calls WHERE project_id = ? AND target_contract_id = ? AND status = 'open')`, projectInternalID, targetInternalID).Scan(&exists); err != nil {
+	if err := s.repository.Row(ctx, `SELECT EXISTS(SELECT 1 FROM collaboration_calls WHERE project_id = ? AND target_contract_id = ? AND status = 'open')`, projectInternalID, targetInternalID).Scan(&exists); err != nil {
 		return Call{}, err
 	}
 	if exists {
@@ -68,7 +77,7 @@ func (s *Service) CreateCall(ctx context.Context, input CreateCallInput) (Call, 
 	if err != nil {
 		return Call{}, err
 	}
-	if _, err := s.db.ExecContext(ctx, `INSERT INTO collaboration_calls (uuid, project_id, target_contract_id, created_by, title, max_submissions) VALUES (?, ?, ?, ?, ?, ?)`, id, projectInternalID, targetInternalID, input.OwnerID, input.Title, input.MaxSubmissions); err != nil {
+	if _, err := s.repository.Execute(ctx, `INSERT INTO collaboration_calls (uuid, project_id, target_contract_id, created_by, title, max_submissions) VALUES (?, ?, ?, ?, ?, ?)`, id, projectInternalID, targetInternalID, input.OwnerID, input.Title, input.MaxSubmissions); err != nil {
 		return Call{}, err
 	}
 	return s.GetCall(ctx, id)
@@ -77,7 +86,7 @@ func (s *Service) CreateCall(ctx context.Context, input CreateCallInput) (Call, 
 func (s *Service) ListExplore(ctx context.Context) ([]ExploreProject, error) {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	rows, err := s.db.QueryContext(ctx, `
+	rows, err := s.repository.Rows(ctx, `
 		SELECT p.uuid, p.title, p.description, u.username, u.user_id,
 		       (SELECT COUNT(*) FROM execution_contracts n WHERE n.project_id = p.id),
 		       (SELECT COUNT(*) FROM completion_records r WHERE r.project_id = p.id AND r.record_kind = 'accepted'),
@@ -108,7 +117,7 @@ func (s *Service) GetProject(ctx context.Context, projectID string) (ExploreProj
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	var item ExploreProject
-	err := s.db.QueryRowContext(ctx, `
+	err := s.repository.Row(ctx, `
 		SELECT p.uuid, p.title, p.description, u.username, u.user_id,
 		       (SELECT COUNT(*) FROM execution_contracts n WHERE n.project_id = p.id),
 		       (SELECT COUNT(*) FROM completion_records r WHERE r.project_id = p.id AND r.record_kind = 'accepted'),
@@ -126,7 +135,7 @@ func (s *Service) GetProject(ctx context.Context, projectID string) (ExploreProj
 }
 
 func (s *Service) ListCalls(ctx context.Context, projectID string) ([]Call, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT c.uuid FROM collaboration_calls c JOIN projects p ON p.id = c.project_id WHERE p.uuid = ? ORDER BY c.status = 'open' DESC, c.created_at DESC`, projectID)
+	rows, err := s.repository.Rows(ctx, `SELECT c.uuid FROM collaboration_calls c JOIN projects p ON p.id = c.project_id WHERE p.uuid = ? ORDER BY c.status = 'open' DESC, c.created_at DESC`, projectID)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +158,7 @@ func (s *Service) ListCalls(ctx context.Context, projectID string) ([]Call, erro
 func (s *Service) GetCall(ctx context.Context, id string) (Call, error) {
 	var call Call
 	var criteriaJSON string
-	err := s.db.QueryRowContext(ctx, `
+	err := s.repository.Row(ctx, `
 		SELECT c.uuid, p.uuid, p.title, u.username, u.user_id, c.created_by, c.title, c.status, c.max_submissions, c.created_at,
 		       n.uuid, n.title, n.verifiable_goal, n.acceptance_criteria_json, n.evidence_requirement, n.stage,
 		       (SELECT COUNT(*) FROM collaboration_submissions s WHERE s.call_id = c.id AND s.status <> 'withdrawn')
@@ -197,7 +206,7 @@ func (s *Service) Submit(ctx context.Context, input SubmitInput) (CallDetails, e
 		return CallDetails{}, ErrSubmissionInvalid
 	}
 	var sourceOwner uint64
-	err = s.db.QueryRowContext(ctx, `
+	err = s.repository.Row(ctx, `
 		SELECT n.actor_id FROM completion_records r
 		JOIN projects p ON p.id = r.project_id
 		JOIN execution_contracts n ON n.id = r.closing_contract_id
@@ -208,11 +217,11 @@ func (s *Service) Submit(ctx context.Context, input SubmitInput) (CallDetails, e
 	if err != nil {
 		return CallDetails{}, err
 	}
-	callInternalID, err := internalID(ctx, s.db, "collaboration_calls", input.CallID)
+	callInternalID, err := internalID(ctx, s.repository, "collaboration_calls", input.CallID)
 	if err != nil {
 		return CallDetails{}, err
 	}
-	recordInternalID, err := internalID(ctx, s.db, "completion_records", input.SourceRecordID)
+	recordInternalID, err := internalID(ctx, s.repository, "completion_records", input.SourceRecordID)
 	if err != nil {
 		return CallDetails{}, ErrSubmissionInvalid
 	}
@@ -220,7 +229,7 @@ func (s *Service) Submit(ctx context.Context, input SubmitInput) (CallDetails, e
 	if err != nil {
 		return CallDetails{}, err
 	}
-	if _, err := s.db.ExecContext(ctx, `INSERT INTO collaboration_submissions (uuid, call_id, source_record_id, contributor_id, mapping_text, note) VALUES (?, ?, ?, ?, ?, ?)`, id, callInternalID, recordInternalID, input.UserID, input.MappingText, input.Note); err != nil {
+	if _, err := s.repository.Execute(ctx, `INSERT INTO collaboration_submissions (uuid, call_id, source_record_id, contributor_id, mapping_text, note) VALUES (?, ?, ?, ?, ?, ?)`, id, callInternalID, recordInternalID, input.UserID, input.MappingText, input.Note); err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "duplicate") {
 			return CallDetails{}, ErrDuplicateSubmission
 		}
@@ -230,7 +239,7 @@ func (s *Service) Submit(ctx context.Context, input SubmitInput) (CallDetails, e
 }
 
 func (s *Service) listSubmissions(ctx context.Context, callID string) ([]Submission, error) {
-	rows, err := s.db.QueryContext(ctx, `
+	rows, err := s.repository.Rows(ctx, `
 		SELECT s.uuid, c.uuid, r.uuid, r.title, r.summary, source_project.title,
 		       s.contributor_id, u.username, u.user_id, s.mapping_text, COALESCE(s.note, ''), s.status, s.created_at
 		FROM collaboration_submissions s JOIN completion_records r ON r.id = s.source_record_id
@@ -253,13 +262,13 @@ func (s *Service) listSubmissions(ctx context.Context, callID string) ([]Submiss
 	return items, rows.Err()
 }
 
-func internalID(ctx context.Context, db *sql.DB, table, uuid string) (uint64, error) {
+func internalID(ctx context.Context, db queryer, table, uuid string) (uint64, error) {
 	allowed := map[string]string{"collaboration_calls": "collaboration_calls", "completion_records": "completion_records"}
 	name, ok := allowed[table]
 	if !ok {
 		return 0, errors.New("unsupported collaboration entity")
 	}
 	var id uint64
-	err := db.QueryRowContext(ctx, "SELECT id FROM "+name+" WHERE uuid = ?", uuid).Scan(&id)
+	err := db.Row(ctx, "SELECT id FROM "+name+" WHERE uuid = ?", uuid).Scan(&id)
 	return id, err
 }

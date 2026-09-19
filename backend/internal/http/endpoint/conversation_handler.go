@@ -91,7 +91,7 @@ func (s *Server) createPlanningConversation(w http.ResponseWriter, r *http.Reque
 	var title, description, rules string
 	var contributionCallID sql.NullInt64
 	var archived sql.NullTime
-	if err := s.db.QueryRowContext(ctx, `SELECT id, title, description, COALESCE(project_rules, ''), contribution_call_id, archived_at FROM projects WHERE uuid = ? AND owner_id = ?`, projectID, userID).Scan(&projectInternalID, &title, &description, &rules, &contributionCallID, &archived); err != nil {
+	if err := s.conversations.Row(ctx, `SELECT id, title, description, COALESCE(project_rules, ''), contribution_call_id, archived_at FROM projects WHERE uuid = ? AND owner_id = ?`, projectID, userID).Scan(&projectInternalID, &title, &description, &rules, &contributionCallID, &archived); err != nil {
 		writeError(w, http.StatusNotFound, "项目不存在")
 		return
 	}
@@ -111,7 +111,7 @@ func (s *Server) createPlanningConversation(w http.ResponseWriter, r *http.Reque
 		"sources":  sources,
 	}
 	if contributionCallID.Valid {
-		callID, err := publicUUID(ctx, s.db, "collaboration_calls", uint64(contributionCallID.Int64))
+		callID, err := publicUUID(ctx, s.conversations, "collaboration_calls", uint64(contributionCallID.Int64))
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "读取协作交接上下文失败")
 			return
@@ -125,7 +125,7 @@ func (s *Server) createPlanningConversation(w http.ResponseWriter, r *http.Reque
 	}
 	contextJSON, _ := jsonValue(conversationContext)
 	var existing string
-	err = s.db.QueryRowContext(ctx, `SELECT uuid FROM node_conversations WHERE project_id = ? AND owner_id = ? AND phase = 'planning' AND status IN ('active', 'ready_for_freeze') AND context_json = ? ORDER BY updated_at DESC LIMIT 1`, projectInternalID, userID, contextJSON).Scan(&existing)
+	err = s.conversations.Row(ctx, `SELECT uuid FROM node_conversations WHERE project_id = ? AND owner_id = ? AND phase = 'planning' AND status IN ('active', 'ready_for_freeze') AND context_json = ? ORDER BY updated_at DESC LIMIT 1`, projectInternalID, userID, contextJSON).Scan(&existing)
 	if err == nil {
 		s.getConversation(w, r, userID, existing)
 		return
@@ -139,7 +139,7 @@ func (s *Server) createPlanningConversation(w http.ResponseWriter, r *http.Reque
 		writeError(w, http.StatusInternalServerError, "创建对话失败")
 		return
 	}
-	if _, err := s.db.ExecContext(ctx, `INSERT INTO node_conversations (uuid, project_id, owner_id, phase, status, context_json) VALUES (?, ?, ?, 'planning', 'active', ?)`, id, projectInternalID, userID, contextJSON); err != nil {
+	if _, err := s.conversations.Execute(ctx, `INSERT INTO node_conversations (uuid, project_id, owner_id, phase, status, context_json) VALUES (?, ?, ?, 'planning', 'active', ?)`, id, projectInternalID, userID, contextJSON); err != nil {
 		writeError(w, http.StatusInternalServerError, "创建对话失败")
 		return
 	}
@@ -154,7 +154,7 @@ func (s *Server) loadPlanningSourceContext(ctx context.Context, projectID string
 		var title, goal, evidence, stage string
 		var claim, evidenceText sql.NullString
 		var reviewJSON sql.NullString
-		err := s.db.QueryRowContext(ctx, `
+		err := s.conversations.Row(ctx, `
 			SELECT title, verifiable_goal, evidence_requirement, stage, completion_claim, evidence_text, ai_review_json
 			FROM execution_contracts n JOIN projects p ON p.id = n.project_id WHERE n.uuid = ? AND p.uuid = ?`, sourceID, projectID).
 			Scan(&title, &goal, &evidence, &stage, &claim, &evidenceText, &reviewJSON)
@@ -180,7 +180,7 @@ func (s *Server) createCompletionConversation(w http.ResponseWriter, r *http.Req
 	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.ConversationSetupTimeout)
 	defer cancel()
 	var existing string
-	err := s.db.QueryRowContext(ctx, `SELECT c.uuid FROM node_conversations c JOIN projects p ON p.id = c.project_id JOIN execution_contracts n ON n.id = c.node_id WHERE p.uuid = ? AND n.uuid = ? AND c.owner_id = ? AND c.phase = 'completion' AND c.status = 'active' ORDER BY c.updated_at DESC LIMIT 1`, projectID, nodeID, userID).Scan(&existing)
+	err := s.conversations.Row(ctx, `SELECT c.uuid FROM node_conversations c JOIN projects p ON p.id = c.project_id JOIN execution_contracts n ON n.id = c.node_id WHERE p.uuid = ? AND n.uuid = ? AND c.owner_id = ? AND c.phase = 'completion' AND c.status = 'active' ORDER BY c.updated_at DESC LIMIT 1`, projectID, nodeID, userID).Scan(&existing)
 	if err == nil {
 		s.getConversation(w, r, userID, existing)
 		return
@@ -196,7 +196,7 @@ func (s *Server) createCompletionConversation(w http.ResponseWriter, r *http.Req
 	}
 	var title, goal, evidence, criteriaJSON, projectTitle, projectDescription, rules string
 	var stage string
-	err = s.db.QueryRowContext(ctx, `SELECT n.title, n.verifiable_goal, n.evidence_requirement, n.acceptance_criteria_json, n.stage, p.title, p.description, COALESCE(p.project_rules, '') FROM execution_contracts n JOIN projects p ON p.id = n.project_id WHERE n.uuid = ? AND p.uuid = ? AND p.owner_id = ?`, nodeID, projectID, userID).Scan(&title, &goal, &evidence, &criteriaJSON, &stage, &projectTitle, &projectDescription, &rules)
+	err = s.conversations.Row(ctx, `SELECT n.title, n.verifiable_goal, n.evidence_requirement, n.acceptance_criteria_json, n.stage, p.title, p.description, COALESCE(p.project_rules, '') FROM execution_contracts n JOIN projects p ON p.id = n.project_id WHERE n.uuid = ? AND p.uuid = ? AND p.owner_id = ?`, nodeID, projectID, userID).Scan(&title, &goal, &evidence, &criteriaJSON, &stage, &projectTitle, &projectDescription, &rules)
 	if err != nil {
 		writeError(w, http.StatusNotFound, "节点不存在")
 		return
@@ -212,11 +212,11 @@ func (s *Server) createCompletionConversation(w http.ResponseWriter, r *http.Req
 		return
 	}
 	configJSON, _ := jsonValue(key.snapshot())
-	if _, err := s.db.ExecContext(ctx, `INSERT INTO node_conversations (uuid, project_id, node_id, owner_id, phase, status, context_json, ai_config_json) SELECT ?, p.id, n.id, ?, 'completion', 'active', ?, ? FROM projects p JOIN execution_contracts n ON n.project_id = p.id WHERE p.uuid = ? AND n.uuid = ?`, id, userID, contextJSON, configJSON, projectID, nodeID); err != nil {
+	if _, err := s.conversations.Execute(ctx, `INSERT INTO node_conversations (uuid, project_id, node_id, owner_id, phase, status, context_json, ai_config_json) SELECT ?, p.id, n.id, ?, 'completion', 'active', ?, ? FROM projects p JOIN execution_contracts n ON n.project_id = p.id WHERE p.uuid = ? AND n.uuid = ?`, id, userID, contextJSON, configJSON, projectID, nodeID); err != nil {
 		writeError(w, http.StatusInternalServerError, "创建审查对话失败")
 		return
 	}
-	if _, err := s.db.ExecContext(ctx, `UPDATE execution_contracts n JOIN node_conversations c ON c.uuid = ? SET n.completion_conversation_id = c.id WHERE n.uuid = ?`, id, nodeID); err != nil {
+	if _, err := s.conversations.Execute(ctx, `UPDATE execution_contracts n JOIN node_conversations c ON c.uuid = ? SET n.completion_conversation_id = c.id WHERE n.uuid = ?`, id, nodeID); err != nil {
 		writeError(w, http.StatusInternalServerError, "关联审查对话失败")
 		return
 	}
@@ -242,7 +242,7 @@ func (s *Server) loadConversation(ctx context.Context, userID uint64, id string)
 	var result conversationResponse
 	var nodeID, draft, review, config sql.NullString
 	var contextJSON string
-	err := s.db.QueryRowContext(ctx, `SELECT c.uuid, p.uuid, n.uuid, c.phase, c.status, c.context_json, c.current_draft_json, c.latest_review_json, c.ai_config_json, c.created_at, c.updated_at FROM node_conversations c JOIN projects p ON p.id = c.project_id LEFT JOIN execution_contracts n ON n.id = c.node_id WHERE c.uuid = ? AND c.owner_id = ?`, id, userID).Scan(&result.ID, &result.ProjectID, &nodeID, &result.Phase, &result.Status, &contextJSON, &draft, &review, &config, &result.CreatedAt, &result.UpdatedAt)
+	err := s.conversations.Row(ctx, `SELECT c.uuid, p.uuid, n.uuid, c.phase, c.status, c.context_json, c.current_draft_json, c.latest_review_json, c.ai_config_json, c.created_at, c.updated_at FROM node_conversations c JOIN projects p ON p.id = c.project_id LEFT JOIN execution_contracts n ON n.id = c.node_id WHERE c.uuid = ? AND c.owner_id = ?`, id, userID).Scan(&result.ID, &result.ProjectID, &nodeID, &result.Phase, &result.Status, &contextJSON, &draft, &review, &config, &result.CreatedAt, &result.UpdatedAt)
 	if err != nil {
 		return result, err
 	}
@@ -263,7 +263,7 @@ func (s *Server) loadConversation(ctx context.Context, userID uint64, id string)
 			result.AIConfig = &value
 		}
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT m.uuid, m.role, m.body, m.structured_payload_json, m.ai_config_json, m.created_at FROM node_conversation_messages m JOIN node_conversations c ON c.id = m.conversation_id WHERE c.uuid = ? ORDER BY m.created_at ASC, m.id ASC`, id)
+	rows, err := s.conversations.Rows(ctx, `SELECT m.uuid, m.role, m.body, m.structured_payload_json, m.ai_config_json, m.created_at FROM node_conversation_messages m JOIN node_conversations c ON c.id = m.conversation_id WHERE c.uuid = ? ORDER BY m.created_at ASC, m.id ASC`, id)
 	if err != nil {
 		return result, err
 	}
@@ -328,7 +328,7 @@ func (s *Server) sendConversationMessage(w http.ResponseWriter, r *http.Request,
 		writeError(w, http.StatusInternalServerError, "保存消息失败")
 		return
 	}
-	if _, err := s.db.ExecContext(ctx, `INSERT INTO node_conversation_messages (uuid, conversation_id, role, body) SELECT ?, id, 'user', ? FROM node_conversations WHERE uuid = ?`, userMessageID, input.Body, conversationID); err != nil {
+	if _, err := s.conversations.Execute(ctx, `INSERT INTO node_conversation_messages (uuid, conversation_id, role, body) SELECT ?, id, 'user', ? FROM node_conversations WHERE uuid = ?`, userMessageID, input.Body, conversationID); err != nil {
 		writeError(w, http.StatusInternalServerError, "保存消息失败")
 		return
 	}
@@ -352,7 +352,7 @@ func (s *Server) sendConversationMessage(w http.ResponseWriter, r *http.Request,
 			writeError(w, http.StatusInternalServerError, "保存 AI 回复失败")
 			return
 		}
-		if _, err := s.db.ExecContext(ctx, `UPDATE node_conversations SET status = ?, current_draft_json = ?, ai_config_json = ? WHERE uuid = ?`, status, draftJSON, mustJSON(key.snapshot()), conversationID); err != nil {
+		if _, err := s.conversations.Execute(ctx, `UPDATE node_conversations SET status = ?, current_draft_json = ?, ai_config_json = ? WHERE uuid = ?`, status, draftJSON, mustJSON(key.snapshot()), conversationID); err != nil {
 			writeError(w, http.StatusInternalServerError, "保存对话状态失败")
 			return
 		}
@@ -386,7 +386,7 @@ func (s *Server) sendConversationMessage(w http.ResponseWriter, r *http.Request,
 			return
 		}
 	}
-	_, _ = s.db.ExecContext(ctx, `UPDATE ai_api_keys SET last_used_at = NOW() WHERE uuid = ? AND user_id = ?`, key.UUID, userID)
+	_, _ = s.conversations.Execute(ctx, `UPDATE ai_api_keys SET last_used_at = NOW() WHERE uuid = ? AND user_id = ?`, key.UUID, userID)
 	s.getConversation(w, r, userID, conversationID)
 }
 
@@ -398,14 +398,14 @@ func (s *Server) persistCompletionReview(ctx context.Context, userID uint64, con
 	if conversation.NodeID == nil {
 		return errConversationNoLongerMutable
 	}
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, err := s.conversations.Begin(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
 	var status string
-	if err := tx.QueryRowContext(ctx, `SELECT status FROM node_conversations WHERE uuid = ? AND owner_id = ? FOR UPDATE`, conversationID, userID).Scan(&status); err != nil {
+	if err := tx.Row(ctx, `SELECT status FROM node_conversations WHERE uuid = ? AND owner_id = ? FOR UPDATE`, conversationID, userID).Scan(&status); err != nil {
 		return errConversationNoLongerMutable
 	}
 	if status != "active" {
@@ -413,7 +413,7 @@ func (s *Server) persistCompletionReview(ctx context.Context, userID uint64, con
 	}
 	var nodeStage string
 	var linkedConversation sql.NullString
-	if err := tx.QueryRowContext(ctx, `SELECT n.stage, linked.uuid FROM execution_contracts n LEFT JOIN node_conversations linked ON linked.id = n.completion_conversation_id WHERE n.uuid = ? FOR UPDATE`, *conversation.NodeID).Scan(&nodeStage, &linkedConversation); err != nil {
+	if err := tx.Row(ctx, `SELECT n.stage, linked.uuid FROM execution_contracts n LEFT JOIN node_conversations linked ON linked.id = n.completion_conversation_id WHERE n.uuid = ? FOR UPDATE`, *conversation.NodeID).Scan(&nodeStage, &linkedConversation); err != nil {
 		return errConversationNoLongerMutable
 	}
 	if (nodeStage != "frozen" && nodeStage != "verified" && nodeStage != "needs_supplement") || !linkedConversation.Valid || linkedConversation.String != conversationID {
@@ -423,16 +423,16 @@ func (s *Server) persistCompletionReview(ctx context.Context, userID uint64, con
 	if err != nil {
 		return err
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO node_conversation_messages (uuid, conversation_id, role, body, structured_payload_json, ai_config_json) SELECT ?, id, 'assistant', ?, ?, ? FROM node_conversations WHERE uuid = ?`, messageID, output.Reply, mustJSON(output), mustJSON(config), conversationID); err != nil {
+	if _, err := tx.Execute(ctx, `INSERT INTO node_conversation_messages (uuid, conversation_id, role, body, structured_payload_json, ai_config_json) SELECT ?, id, 'assistant', ?, ?, ? FROM node_conversations WHERE uuid = ?`, messageID, output.Reply, mustJSON(output), mustJSON(config), conversationID); err != nil {
 		return err
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE node_conversations SET latest_review_json = ?, ai_config_json = ? WHERE uuid = ? AND status = 'active'`, reviewJSON, mustJSON(config), conversationID); err != nil {
+	if _, err := tx.Execute(ctx, `UPDATE node_conversations SET latest_review_json = ?, ai_config_json = ? WHERE uuid = ? AND status = 'active'`, reviewJSON, mustJSON(config), conversationID); err != nil {
 		return err
 	}
 	messagesJSON, _ := jsonValue(conversationToLegacyMessages(conversation.Messages, output.Reply))
 	// Completion conversations are for clarification after a formal submission.
 	// Preserve the original claim and evidence when an older client sends a message here.
-	result, err := tx.ExecContext(ctx, `UPDATE execution_contracts n JOIN node_conversations c ON c.id = n.completion_conversation_id SET n.stage = ?, n.completion_claim = COALESCE(n.completion_claim, ?), n.evidence_text = COALESCE(n.evidence_text, ?), n.ai_review_json = ?, n.completion_review_ai_config_json = ?, n.review_messages_json = ? WHERE n.uuid = ? AND c.uuid = ? AND n.stage IN ('frozen', 'verified', 'needs_supplement')`, stage, claim, claim, reviewJSON, mustJSON(config), messagesJSON, *conversation.NodeID, conversationID)
+	result, err := tx.Execute(ctx, `UPDATE execution_contracts n JOIN node_conversations c ON c.id = n.completion_conversation_id SET n.stage = ?, n.completion_claim = COALESCE(n.completion_claim, ?), n.evidence_text = COALESCE(n.evidence_text, ?), n.ai_review_json = ?, n.completion_review_ai_config_json = ?, n.review_messages_json = ? WHERE n.uuid = ? AND c.uuid = ? AND n.stage IN ('frozen', 'verified', 'needs_supplement')`, stage, claim, claim, reviewJSON, mustJSON(config), messagesJSON, *conversation.NodeID, conversationID)
 	if err != nil {
 		return err
 	}
@@ -448,7 +448,7 @@ func (s *Server) persistAssistantConversationMessage(ctx context.Context, conver
 	if err != nil {
 		return err
 	}
-	_, err = s.db.ExecContext(ctx, `INSERT INTO node_conversation_messages (uuid, conversation_id, role, body, structured_payload_json, ai_config_json) SELECT ?, id, 'assistant', ?, ?, ? FROM node_conversations WHERE uuid = ?`, id, body, payload, mustJSON(config), conversationID)
+	_, err = s.conversations.Execute(ctx, `INSERT INTO node_conversation_messages (uuid, conversation_id, role, body, structured_payload_json, ai_config_json) SELECT ?, id, 'assistant', ?, ?, ? FROM node_conversations WHERE uuid = ?`, id, body, payload, mustJSON(config), conversationID)
 	return err
 }
 
@@ -615,7 +615,7 @@ func conversationToLegacyMessages(messages []conversationMessageResponse, pendin
 
 // A frozen node keeps its planning exchange in the public node ledger as well as in its source conversation.
 func (s *Server) copyPlanningConversationToNodeMessages(ctx context.Context, conversationID, nodeID string, userID uint64) {
-	rows, err := s.db.QueryContext(ctx, `SELECT m.uuid, m.role, m.body, m.created_at FROM node_conversation_messages m JOIN node_conversations c ON c.id = m.conversation_id WHERE c.uuid = ? AND c.owner_id = ? ORDER BY m.created_at ASC, m.uuid ASC`, conversationID, userID)
+	rows, err := s.conversations.Rows(ctx, `SELECT m.uuid, m.role, m.body, m.created_at FROM node_conversation_messages m JOIN node_conversations c ON c.id = m.conversation_id WHERE c.uuid = ? AND c.owner_id = ? ORDER BY m.created_at ASC, m.uuid ASC`, conversationID, userID)
 	if err != nil {
 		return
 	}
@@ -645,5 +645,5 @@ func (s *Server) copyPlanningConversationToNodeMessages(ctx context.Context, con
 	if err != nil {
 		return
 	}
-	_, _ = s.db.ExecContext(ctx, `UPDATE execution_contracts SET review_messages_json = ? WHERE uuid = ?`, encoded, nodeID)
+	_, _ = s.conversations.Execute(ctx, `UPDATE execution_contracts SET review_messages_json = ? WHERE uuid = ?`, encoded, nodeID)
 }

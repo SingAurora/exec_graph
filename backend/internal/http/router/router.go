@@ -6,6 +6,8 @@ import (
 	"github.com/gin-gonic/gin"
 	httpendpoint "github.com/singaurora/exec-graph/backend/internal/http/endpoint"
 	httpmiddleware "github.com/singaurora/exec-graph/backend/internal/http/middleware"
+	httpresponse "github.com/singaurora/exec-graph/backend/internal/http/response"
+	"github.com/singaurora/exec-graph/backend/internal/shared/fault"
 )
 
 // New 绑定对外 HTTP 协议。业务接口按明确命令组织：读取使用 GET，
@@ -13,13 +15,13 @@ import (
 func New(endpoints httpendpoint.Endpoints) http.Handler {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
-	router.Use(gin.Logger(), gin.Recovery(), httpmiddleware.CORS())
+	router.Use(httpmiddleware.ErrorBoundary(), gin.Logger(), httpmiddleware.CORS())
 	router.HandleMethodNotAllowed = true
 	router.NoMethod(func(context *gin.Context) {
-		context.JSON(http.StatusMethodNotAllowed, gin.H{"error": "不支持的请求方法"})
+		httpresponse.WriteFault(context.Writer, fault.New(fault.MethodNotAllowed, "不支持的请求方法"))
 	})
 	router.NoRoute(func(context *gin.Context) {
-		context.JSON(http.StatusNotFound, gin.H{"error": "接口不存在"})
+		httpresponse.WriteFault(context.Writer, fault.New(fault.NotFound, "接口不存在"))
 	})
 
 	api := router.Group("/api")

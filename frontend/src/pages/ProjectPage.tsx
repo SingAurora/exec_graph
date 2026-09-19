@@ -6,6 +6,7 @@ import { ProjectGraph } from '../components/ProjectGraph'
 import { SectionHeader } from '../components/SectionHeader'
 import { StatusBadge } from '../components/StatusBadge'
 import { getCall, submitContribution, type CollaborationCall, type CollaborationSubmission } from '../lib/collaboration'
+import { parseJSONResponse } from '../lib/api'
 import { currentContractIDs, isAcceptedRecord, isReadyToProgress, isReviewInProgress, isSealedRecord, needsReviewDecision } from '../lib/execution'
 import { useExecStore } from '../store/useExecStore'
 import type { CompletionRecord, ExecutionBranch, ExecutionContract, Project } from '../types'
@@ -231,9 +232,8 @@ function ProjectAISettings({ project, accessToken, isArchived, onUpdated }: { pr
       setIsLoading(true)
       try {
 		const response = await fetch('/api/commands/ai-keys/list', { method: 'GET', headers: { Authorization: `Bearer ${accessToken}` } })
-        const data = (await response.json().catch(() => ({}))) as { keys?: ProjectAIKey[]; error?: string }
-        if (!response.ok) throw new Error(data.error ?? '读取 AI 密钥失败。')
-        if (!cancelled) setKeys(data.keys ?? [])
+		const data = await parseJSONResponse<{ keys?: ProjectAIKey[] }>(response)
+		if (!cancelled) setKeys(data.keys ?? [])
       } catch (error) {
         if (!cancelled) setMessage(error instanceof Error ? error.message : '读取 AI 密钥失败。')
       } finally {
@@ -254,8 +254,7 @@ function ProjectAISettings({ project, accessToken, isArchived, onUpdated }: { pr
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
 		body: JSON.stringify({ projectId: project.id, aiKeyId: selectedKeyID }),
       })
-      const data = (await response.json().catch(() => ({}))) as { error?: string }
-      if (!response.ok) throw new Error(data.error ?? '更新项目审查 AI 失败。')
+		await parseJSONResponse(response)
       await onUpdated()
       setMessage('项目审查 AI 已更新。')
     } catch (error) {
@@ -691,8 +690,7 @@ function ProjectCollaborationPublisher({ projectId, node, accessToken }: { proje
     setIsPublishing(true); setMessage('')
     try {
 		const response = await fetch('/api/commands/projects/create-collaboration-call', { method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, targetContractId: node.id, title: node.title }) })
-      const data = await response.json().catch(() => ({})) as { error?: string }
-      if (!response.ok) throw new Error(data.error ?? '发布开放缺口失败。')
+		await parseJSONResponse(response)
 		setPublished(true)
       setMessage('开放缺口已发布，可以在协作探索中接收其他人的成果。')
     } catch (reason) { setMessage(reason instanceof Error ? reason.message : '发布开放缺口失败。') }

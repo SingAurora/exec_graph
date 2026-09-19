@@ -6,9 +6,11 @@ import (
 	"database/sql"
 	"errors"
 
+	contractpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/contract"
+	executionpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/execution"
+	projectpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/project"
 	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
 	sharedid "github.com/singaurora/exec-graph/backend/internal/shared/id"
-	"gorm.io/gorm"
 )
 
 var (
@@ -21,25 +23,28 @@ var (
 )
 
 type Service struct {
-	db       *sql.DB
-	database *gorm.DB
+	projects  projectpersistence.ProjectRepository
+	contracts contractpersistence.SmartContractRepository
+	execution *executionpersistence.Repository
 }
 
-func New(db *sql.DB, database *gorm.DB) *Service { return &Service{db: db, database: database} }
+func New(projects projectpersistence.ProjectRepository, contracts contractpersistence.SmartContractRepository, execution *executionpersistence.Repository) *Service {
+	return &Service{projects: projects, contracts: contracts, execution: execution}
+}
 
 func (s *Service) Update(ctx context.Context, userID uint64, projectID, title, description, visibility string) error {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	if visibility == "private" {
 		var adopted int
-		if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM collaboration_submissions s JOIN completion_records r ON r.id = s.source_record_id JOIN projects p ON p.id = r.project_id WHERE p.uuid = ? AND s.status = 'adopted'`, projectID).Scan(&adopted); err != nil {
+		if err := s.execution.Row(ctx, `SELECT COUNT(*) FROM collaboration_submissions s JOIN completion_records r ON r.id = s.source_record_id JOIN projects p ON p.id = r.project_id WHERE p.uuid = ? AND s.status = 'adopted'`, projectID).Scan(&adopted); err != nil {
 			return err
 		}
 		if adopted > 0 {
 			return ErrAdoptedContent
 		}
 	}
-	result, err := s.db.ExecContext(ctx, `UPDATE projects SET title = ?, description = ?, visibility = ? WHERE uuid = ? AND owner_id = ? AND archived_at IS NULL`, title, description, visibility, projectID, userID)
+	result, err := s.execution.Execute(ctx, `UPDATE projects SET title = ?, description = ?, visibility = ? WHERE uuid = ? AND owner_id = ? AND archived_at IS NULL`, title, description, visibility, projectID, userID)
 	if err != nil {
 		return err
 	}
@@ -56,7 +61,7 @@ func (s *Service) Update(ctx context.Context, userID uint64, projectID, title, d
 func (s *Service) Archive(ctx context.Context, userID uint64, projectID string) error {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	result, err := s.db.ExecContext(ctx, `UPDATE projects SET archived_at = NOW() WHERE uuid = ? AND owner_id = ? AND archived_at IS NULL`, projectID, userID)
+	result, err := s.execution.Execute(ctx, `UPDATE projects SET archived_at = NOW() WHERE uuid = ? AND owner_id = ? AND archived_at IS NULL`, projectID, userID)
 	if err != nil {
 		return err
 	}
@@ -73,7 +78,7 @@ func (s *Service) Archive(ctx context.Context, userID uint64, projectID string) 
 func (s *Service) Unarchive(ctx context.Context, userID uint64, projectID string) error {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	result, err := s.db.ExecContext(ctx, `UPDATE projects SET archived_at = NULL WHERE uuid = ? AND owner_id = ? AND archived_at IS NOT NULL`, projectID, userID)
+	result, err := s.execution.Execute(ctx, `UPDATE projects SET archived_at = NULL WHERE uuid = ? AND owner_id = ? AND archived_at IS NOT NULL`, projectID, userID)
 	if err != nil {
 		return err
 	}
@@ -90,7 +95,7 @@ func (s *Service) Unarchive(ctx context.Context, userID uint64, projectID string
 func (s *Service) SetAIKey(ctx context.Context, userID uint64, projectID, keyID string) error {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	result, err := s.db.ExecContext(ctx, `UPDATE projects p JOIN ai_api_keys k ON k.uuid = ? AND k.user_id = p.owner_id SET p.default_ai_key_id = k.id WHERE p.uuid = ? AND p.owner_id = ? AND p.archived_at IS NULL`, keyID, projectID, userID)
+	result, err := s.execution.Execute(ctx, `UPDATE projects p JOIN ai_api_keys k ON k.uuid = ? AND k.user_id = p.owner_id SET p.default_ai_key_id = k.id WHERE p.uuid = ? AND p.owner_id = ? AND p.archived_at IS NULL`, keyID, projectID, userID)
 	if err != nil {
 		return err
 	}
@@ -108,7 +113,7 @@ func (s *Service) SetAIKey(ctx context.Context, userID uint64, projectID, keyID 
 func (s *Service) SetContract(ctx context.Context, userID uint64, projectID, contractID string) (ProjectView, error) {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, err := s.execution.Begin(ctx)
 	if err != nil {
 		return ProjectView{}, err
 	}
@@ -117,7 +122,7 @@ func (s *Service) SetContract(ctx context.Context, userID uint64, projectID, con
 	var projectInternalID uint64
 	var projectType string
 	var contributionCallID sql.NullInt64
-	err = tx.QueryRowContext(ctx, `
+	err = tx.Row(ctx, `
 		SELECT id, project_type, contribution_call_id
 		FROM projects WHERE uuid = ? AND owner_id = ? AND archived_at IS NULL FOR UPDATE`, projectID, userID).
 		Scan(&projectInternalID, &projectType, &contributionCallID)
@@ -133,7 +138,7 @@ func (s *Service) SetContract(ctx context.Context, userID uint64, projectID, con
 
 	var contractInternalID uint64
 	var name, description, version, body string
-	err = tx.QueryRowContext(ctx, `
+	err = tx.Row(ctx, `
 		SELECT id, name, description, version, body
 		FROM smart_contracts
 		WHERE uuid = ? AND deleted_at IS NULL AND (source = 'official' OR (source = 'custom' AND created_by = ?))`, contractID, userID).
@@ -148,7 +153,7 @@ func (s *Service) SetContract(ctx context.Context, userID uint64, projectID, con
 	if err != nil {
 		return ProjectView{}, err
 	}
-	result, err := tx.ExecContext(ctx, `
+	result, err := tx.Execute(ctx, `
 		INSERT INTO project_contract_revisions
 			(uuid, project_id, smart_contract_id, smart_contract_version, reason, smart_contract_name, smart_contract_description, smart_contract_body)
 		VALUES (?, ?, ?, ?, '项目设置更换智能合约', ?, ?, ?)`, revisionID, projectInternalID, contractInternalID, version, name, description, body)
@@ -159,7 +164,7 @@ func (s *Service) SetContract(ctx context.Context, userID uint64, projectID, con
 	if err != nil {
 		return ProjectView{}, err
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE projects SET active_contract_revision_id = ? WHERE id = ? AND owner_id = ?`, revisionInternalID, projectInternalID, userID); err != nil {
+	if _, err := tx.Execute(ctx, `UPDATE projects SET active_contract_revision_id = ? WHERE id = ? AND owner_id = ?`, revisionInternalID, projectInternalID, userID); err != nil {
 		return ProjectView{}, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -171,19 +176,19 @@ func (s *Service) SetContract(ctx context.Context, userID uint64, projectID, con
 func (s *Service) Delete(ctx context.Context, userID uint64, projectID string) error {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, err := s.execution.Begin(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 	var internalID uint64
-	if err := tx.QueryRowContext(ctx, `SELECT id FROM projects WHERE uuid = ? AND owner_id = ?`, projectID, userID).Scan(&internalID); errors.Is(err, sql.ErrNoRows) {
+	if err := tx.Row(ctx, `SELECT id FROM projects WHERE uuid = ? AND owner_id = ?`, projectID, userID).Scan(&internalID); errors.Is(err, sql.ErrNoRows) {
 		return ErrNotFound
 	} else if err != nil {
 		return err
 	}
 	var adopted int
-	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM collaboration_submissions s JOIN completion_records r ON r.id = s.source_record_id WHERE r.project_id = ? AND s.status = 'adopted'`, internalID).Scan(&adopted); err != nil {
+	if err := tx.Row(ctx, `SELECT COUNT(*) FROM collaboration_submissions s JOIN completion_records r ON r.id = s.source_record_id WHERE r.project_id = ? AND s.status = 'adopted'`, internalID).Scan(&adopted); err != nil {
 		return err
 	}
 	if adopted > 0 {
@@ -203,11 +208,11 @@ func (s *Service) Delete(ctx context.Context, userID uint64, projectID string) e
 		if i == 0 {
 			args = []any{internalID, internalID}
 		}
-		if _, err := tx.ExecContext(ctx, statement, args...); err != nil {
+		if _, err := tx.Execute(ctx, statement, args...); err != nil {
 			return err
 		}
 	}
-	result, err := tx.ExecContext(ctx, `DELETE FROM projects WHERE uuid = ? AND owner_id = ?`, projectID, userID)
+	result, err := tx.Execute(ctx, `DELETE FROM projects WHERE uuid = ? AND owner_id = ?`, projectID, userID)
 	if err != nil {
 		return err
 	}

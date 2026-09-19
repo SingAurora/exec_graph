@@ -17,15 +17,21 @@ func Open(config bootstrapconfig.DatabaseConfig) (*gorm.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open mysql with gorm: %w", err)
 	}
-	sqlDB, err := db.DB()
-	if err != nil {
-		return nil, fmt.Errorf("get gorm sql database: %w", err)
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), sharedconstants.DatabasePingTimeout)
 	defer cancel()
-	if err := sqlDB.PingContext(ctx); err != nil {
-		_ = sqlDB.Close()
+	if err := db.WithContext(ctx).Exec("SELECT 1").Error; err != nil {
 		return nil, fmt.Errorf("ping mysql: %w", err)
 	}
 	return db, nil
+}
+
+// Close 仅在应用退出时关闭 GORM 管理的连接池。
+func Close(db *gorm.DB) {
+	if db == nil {
+		return
+	}
+	sqlDB, err := db.DB()
+	if err == nil {
+		_ = sqlDB.Close()
+	}
 }

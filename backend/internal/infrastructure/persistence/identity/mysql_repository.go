@@ -1,12 +1,16 @@
-package mysql
+package identity
 
 import (
 	"context"
 	"errors"
 	"time"
 
+	persistencemysql "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/mysql"
+	projectpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/project"
 	"gorm.io/gorm"
 )
+
+var ErrNotFound = errors.New("identity record not found")
 
 // User is the persistence model for an account. API response shapes remain in
 // the application layer so credential and storage fields cannot leak by
@@ -52,8 +56,8 @@ func NewIdentityRepository(db *gorm.DB) IdentityRepository {
 	return IdentityRepository{db: db}
 }
 
-func (repository IdentityRepository) ProjectRepository() ProjectRepository {
-	return NewProjectRepository(repository.db)
+func (repository IdentityRepository) ProjectRepository() projectpersistence.ProjectRepository {
+	return projectpersistence.NewProjectRepository(repository.db)
 }
 
 func (repository IdentityRepository) Transaction(ctx context.Context, fn func(tx IdentityRepository) error) error {
@@ -66,7 +70,7 @@ func (repository IdentityRepository) FindUserByEmail(ctx context.Context, email 
 	var user User
 	query := repository.db.WithContext(ctx).Where("email = ?", email)
 	if lock {
-		query = query.Clauses(clauseForUpdate)
+		query = query.Clauses(persistencemysql.ForUpdate)
 	}
 	err := query.First(&user).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -114,7 +118,7 @@ func (repository IdentityRepository) LatestActiveCode(ctx context.Context, email
 		Where("email = ? AND purpose = ? AND used_at IS NULL AND expires_at > ?", email, purpose, time.Now()).
 		Order("id DESC")
 	if lock {
-		query = query.Clauses(clauseForUpdate)
+		query = query.Clauses(persistencemysql.ForUpdate)
 	}
 	err := query.First(&code).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {

@@ -1,12 +1,15 @@
-package mysql
+package project
 
 import (
 	"context"
 	"errors"
 	"time"
 
+	contractpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/contract"
 	"gorm.io/gorm"
 )
+
+var ErrNotFound = errors.New("project not found")
 
 type Project struct {
 	ID                             uint64     `gorm:"column:id;primaryKey"`
@@ -78,7 +81,7 @@ func (repository ProjectRepository) EnsureInitialProject(ctx context.Context, sp
 	if err := repository.db.WithContext(ctx).Create(&project).Error; err != nil {
 		return err
 	}
-	var contract SmartContract
+	var contract contractpersistence.SmartContract
 	if err := repository.db.WithContext(ctx).First(&contract, "uuid = ?", spec.SmartContractID).Error; err != nil {
 		return err
 	}

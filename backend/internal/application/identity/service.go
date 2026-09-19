@@ -17,11 +17,12 @@ import (
 	"time"
 
 	infrastructuremail "github.com/singaurora/exec-graph/backend/internal/infrastructure/mail"
-	infrastructuremysql "github.com/singaurora/exec-graph/backend/internal/infrastructure/mysql"
+	contractpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/contract"
+	identitypersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/identity"
+	projectpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/project"
 	infrastructureredis "github.com/singaurora/exec-graph/backend/internal/infrastructure/redis"
 	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
 	sharedid "github.com/singaurora/exec-graph/backend/internal/shared/id"
-	"gorm.io/gorm"
 )
 
 const GeneralSmartContractID = "smart-contract-general"
@@ -52,7 +53,8 @@ var verificationCodePattern = regexp.MustCompile(`^\d{6}$`)
 var userIDPattern = regexp.MustCompile(`^[A-Za-z0-9_]{2,24}$`)
 
 type Dependencies struct {
-	ORM        *gorm.DB
+	Repository identitypersistence.IdentityRepository
+	Contracts  contractpersistence.SmartContractRepository
 	Mailer     *infrastructuremail.Mailer
 	Sessions   *infrastructureredis.SessionStore
 	CodeTTL    time.Duration
@@ -60,7 +62,8 @@ type Dependencies struct {
 }
 
 type Service struct {
-	orm        *gorm.DB
+	repository identitypersistence.IdentityRepository
+	contracts  contractpersistence.SmartContractRepository
 	mailer     *infrastructuremail.Mailer
 	sessions   *infrastructureredis.SessionStore
 	codeTTL    time.Duration
@@ -68,7 +71,7 @@ type Service struct {
 }
 
 func New(dependencies Dependencies) *Service {
-	return &Service{orm: dependencies.ORM, mailer: dependencies.Mailer, sessions: dependencies.Sessions, codeTTL: dependencies.CodeTTL, sessionTTL: dependencies.SessionTTL}
+	return &Service{repository: dependencies.Repository, contracts: dependencies.Contracts, mailer: dependencies.Mailer, sessions: dependencies.Sessions, codeTTL: dependencies.CodeTTL, sessionTTL: dependencies.SessionTTL}
 }
 
 type User struct {
@@ -121,7 +124,7 @@ func (s *Service) SendCode(ctx context.Context, input SendCodeInput) error {
 
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.VerificationCodeTimeout)
 	defer cancel()
-	repository := infrastructuremysql.NewIdentityRepository(s.orm)
+	repository := s.repository
 	exists, err := repository.EmailExists(ctx, email)
 	if err != nil {
 		return err
@@ -139,11 +142,11 @@ func (s *Service) SendCode(ctx context.Context, input SendCodeInput) error {
 	if err := s.mailer.SendVerificationCode(ctx, email, code); err != nil {
 		return fmt.Errorf("send verification email: %w", err)
 	}
-	return repository.Transaction(ctx, func(tx infrastructuremysql.IdentityRepository) error {
+	return repository.Transaction(ctx, func(tx identitypersistence.IdentityRepository) error {
 		if err := tx.InvalidateCodes(ctx, email, purpose); err != nil {
 			return err
 		}
-		return tx.CreateCode(ctx, &infrastructuremysql.EmailVerificationCode{Email: email, Purpose: purpose, CodeHash: hashValue(code), ExpiresAt: time.Now().Add(s.codeTTL), SendIP: &input.ClientIP})
+		return tx.CreateCode(ctx, &identitypersistence.EmailVerificationCode{Email: email, Purpose: purpose, CodeHash: hashValue(code), ExpiresAt: time.Now().Add(s.codeTTL), SendIP: &input.ClientIP})
 	})
 }
 
@@ -166,8 +169,8 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) (User, stri
 	defer cancel()
 	var databaseUserID uint64
 	var handle string
-	repository := infrastructuremysql.NewIdentityRepository(s.orm)
-	err = repository.Transaction(ctx, func(tx infrastructuremysql.IdentityRepository) error {
+	repository := s.repository
+	err = repository.Transaction(ctx, func(tx identitypersistence.IdentityRepository) error {
 		if err := consumeVerificationCode(ctx, tx, email, PurposeRegister, input.Code); err != nil {
 			return err
 		}
@@ -177,7 +180,7 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) (User, stri
 				return err
 			}
 			now := time.Now()
-			user := infrastructuremysql.User{Username: username, UserID: candidate, Email: email, PasswordHash: input.Password, EmailVerifiedAt: &now}
+			user := identitypersistence.User{Username: username, UserID: candidate, Email: email, PasswordHash: input.Password, EmailVerifiedAt: &now}
 			if err := tx.CreateUser(ctx, &user); err != nil {
 				if strings.Contains(strings.ToLower(err.Error()), "uq_users_user_id") {
 					continue
@@ -190,11 +193,11 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) (User, stri
 		if databaseUserID == 0 {
 			return errors.New("could not allocate user handle")
 		}
-		contract, err := infrastructuremysql.NewSmartContractRepository(s.orm).FindByID(ctx, GeneralSmartContractID)
+		contract, err := s.contracts.FindByID(ctx, GeneralSmartContractID)
 		if err != nil {
 			return err
 		}
-		return tx.ProjectRepository().EnsureInitialProject(ctx, infrastructuremysql.InitialProjectSpec{ProjectID: fmt.Sprintf("project-initial-%d", databaseUserID), RevisionID: fmt.Sprintf("project-initial-revision-%d", databaseUserID), OwnerID: databaseUserID, SmartContractID: GeneralSmartContractID, SmartContractVersion: contract.Version})
+		return tx.ProjectRepository().EnsureInitialProject(ctx, projectpersistence.InitialProjectSpec{ProjectID: fmt.Sprintf("project-initial-%d", databaseUserID), RevisionID: fmt.Sprintf("project-initial-revision-%d", databaseUserID), OwnerID: databaseUserID, SmartContractID: GeneralSmartContractID, SmartContractVersion: contract.Version})
 	})
 	if err != nil {
 		return User{}, "", err
@@ -214,8 +217,8 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (User, string, er
 	}
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	stored, err := infrastructuremysql.NewIdentityRepository(s.orm).FindUserByEmail(ctx, email, false)
-	if errors.Is(err, infrastructuremysql.ErrNotFound) || stored.PasswordHash != input.Password {
+	stored, err := s.repository.FindUserByEmail(ctx, email, false)
+	if errors.Is(err, identitypersistence.ErrNotFound) || stored.PasswordHash != input.Password {
 		return User{}, "", ErrInvalidCredentials
 	}
 	if err != nil {
@@ -239,8 +242,8 @@ func (s *Service) ChangeEmail(ctx context.Context, input ChangeEmailInput) (User
 	}
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	repository := infrastructuremysql.NewIdentityRepository(s.orm)
-	err = repository.Transaction(ctx, func(tx infrastructuremysql.IdentityRepository) error {
+	repository := s.repository
+	err = repository.Transaction(ctx, func(tx identitypersistence.IdentityRepository) error {
 		stored, err := tx.FindUserByID(ctx, input.User.ID)
 		if err != nil {
 			return err
@@ -274,8 +277,8 @@ func (s *Service) ChangePassword(ctx context.Context, input ChangePasswordInput)
 	}
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	repository := infrastructuremysql.NewIdentityRepository(s.orm)
-	err := repository.Transaction(ctx, func(tx infrastructuremysql.IdentityRepository) error {
+	repository := s.repository
+	err := repository.Transaction(ctx, func(tx identitypersistence.IdentityRepository) error {
 		stored, err := tx.FindUserByID(ctx, input.User.ID)
 		if err != nil {
 			return err
@@ -304,9 +307,9 @@ func (s *Service) ResetPassword(ctx context.Context, input ResetPasswordInput) e
 	}
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	repository := infrastructuremysql.NewIdentityRepository(s.orm)
+	repository := s.repository
 	var userID uint64
-	err = repository.Transaction(ctx, func(tx infrastructuremysql.IdentityRepository) error {
+	err = repository.Transaction(ctx, func(tx identitypersistence.IdentityRepository) error {
 		stored, err := tx.FindUserByEmail(ctx, email, true)
 		if err != nil {
 			return err
@@ -398,9 +401,9 @@ func NormalizeEmail(value string) (string, error) {
 	}
 	return email, nil
 }
-func consumeVerificationCode(ctx context.Context, repository infrastructuremysql.IdentityRepository, email, purpose, code string) error {
+func consumeVerificationCode(ctx context.Context, repository identitypersistence.IdentityRepository, email, purpose, code string) error {
 	verification, err := repository.LatestActiveCode(ctx, email, purpose, true)
-	if errors.Is(err, infrastructuremysql.ErrNotFound) || !equalHash(verification.CodeHash, code) {
+	if errors.Is(err, identitypersistence.ErrNotFound) || !equalHash(verification.CodeHash, code) {
 		return ErrInvalidCode
 	}
 	if err != nil {

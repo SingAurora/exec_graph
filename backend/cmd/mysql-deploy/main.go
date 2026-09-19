@@ -5,16 +5,14 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"flag"
-	"fmt"
 	"log"
 	"os"
 	"strings"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"
 	bootstrapconfig "github.com/singaurora/exec-graph/backend/internal/bootstrap/config"
+	persistencemysql "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/mysql"
 )
 
 func main() {
@@ -36,17 +34,13 @@ func main() {
 	if strings.Contains(strings.ToUpper(string(content)), "DELIMITER") {
 		log.Fatal("该部署工具不执行包含 DELIMITER 的存储过程脚本；请使用 MySQL 客户端执行该文件")
 	}
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s&parseTime=True&loc=Local", config.Database.User, config.Database.Password, config.Database.Host, config.Database.Port, config.Database.Name, config.Database.Charset)
-	db, err := sql.Open("mysql", dsn)
+	orm, err := persistencemysql.Open(config.Database)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer db.Close()
+	defer persistencemysql.Close(orm)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
-	if err := db.PingContext(ctx); err != nil {
-		log.Fatal(err)
-	}
 	if *start < 1 {
 		log.Fatal("start must be at least 1")
 	}
@@ -55,7 +49,7 @@ func main() {
 			continue
 		}
 		if strings.HasPrefix(strings.ToUpper(statement), "SELECT") {
-			rows, err := db.QueryContext(ctx, statement)
+			rows, err := orm.WithContext(ctx).Raw(statement).Rows()
 			if err != nil {
 				log.Fatalf("statement %d failed: %v\n%s", index+1, err, statement)
 			}
@@ -81,7 +75,7 @@ func main() {
 			}
 			continue
 		}
-		if _, err := db.ExecContext(ctx, statement); err != nil {
+		if err := orm.WithContext(ctx).Exec(statement).Error; err != nil {
 			log.Fatalf("statement %d failed: %v\n%s", index+1, err, statement)
 		}
 		log.Printf("statement %d applied", index+1)

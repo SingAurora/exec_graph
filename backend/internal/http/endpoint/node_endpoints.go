@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	applicationproject "github.com/singaurora/exec-graph/backend/internal/application/project"
+	"github.com/singaurora/exec-graph/backend/internal/shared/fault"
 )
 
 type createExecutionNodeRequest struct {
@@ -26,10 +27,10 @@ type createExecutionNodeRequest struct {
 }
 
 // createExecutionNode 只负责把 HTTP 请求转换为项目领域的创建节点用例。
-func (s *Server) createExecutionNode(w http.ResponseWriter, r *http.Request, userID uint64, projectID string) {
+func (s *Server) createExecutionNode(w http.ResponseWriter, r *http.Request, userID uint64, projectID string) error {
 	var request createExecutionNodeRequest
-	if !bindJSON(w, r, &request) {
-		return
+	if err := decodeJSON(r, &request); err != nil {
+		return err
 	}
 	criteria := make([]applicationproject.Criterion, 0, len(request.AcceptanceCriteria))
 	for _, item := range request.AcceptanceCriteria {
@@ -56,39 +57,35 @@ func (s *Server) createExecutionNode(w http.ResponseWriter, r *http.Request, use
 		PlanningConversationID: request.PlanningConversationID,
 	})
 	if errors.Is(err, applicationproject.ErrNotFound) {
-		writeError(w, http.StatusNotFound, "项目不存在")
-		return
+		return fault.New(fault.NotFound, "项目不存在")
 	}
 	var validation *applicationproject.ValidationError
 	if errors.As(err, &validation) {
-		writeError(w, http.StatusBadRequest, validation.Message)
-		return
+		return fault.New(fault.InvalidRequest, validation.Message)
 	}
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "创建节点失败")
-		return
+		return fault.Wrap(fault.Internal, "创建节点失败", err)
 	}
 	if strings.TrimSpace(request.PlanningConversationID) != "" {
 		s.copyPlanningConversationToNodeMessages(r.Context(), request.PlanningConversationID, result.NodeID, userID)
 	}
 	writeJSON(w, http.StatusCreated, result.State)
+	return nil
 }
 
 // lockExecutionNode 只负责把确认动作交给项目领域服务。
-func (s *Server) lockExecutionNode(w http.ResponseWriter, r *http.Request, userID uint64, projectID, nodeID string) {
+func (s *Server) lockExecutionNode(w http.ResponseWriter, r *http.Request, userID uint64, projectID, nodeID string) error {
 	state, err := s.project.LockNode(r.Context(), userID, projectID, nodeID)
 	if errors.Is(err, applicationproject.ErrNotFound) {
-		writeError(w, http.StatusNotFound, "项目或节点不存在")
-		return
+		return fault.New(fault.NotFound, "项目或节点不存在")
 	}
 	var validation *applicationproject.ValidationError
 	if errors.As(err, &validation) {
-		writeError(w, http.StatusBadRequest, validation.Message)
-		return
+		return fault.New(fault.InvalidRequest, validation.Message)
 	}
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "锁定节点失败")
-		return
+		return fault.Wrap(fault.Internal, "锁定节点失败", err)
 	}
 	writeJSON(w, http.StatusOK, state)
+	return nil
 }

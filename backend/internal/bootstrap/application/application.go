@@ -10,7 +10,7 @@ import (
 	httpendpoint "github.com/singaurora/exec-graph/backend/internal/http/endpoint"
 	httpapirouter "github.com/singaurora/exec-graph/backend/internal/http/router"
 	infrastructuremail "github.com/singaurora/exec-graph/backend/internal/infrastructure/mail"
-	infrastructuremysql "github.com/singaurora/exec-graph/backend/internal/infrastructure/mysql"
+	persistencemysql "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/mysql"
 	infrastructureredis "github.com/singaurora/exec-graph/backend/internal/infrastructure/redis"
 	infrastructurestorage "github.com/singaurora/exec-graph/backend/internal/infrastructure/storage"
 	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
@@ -27,15 +27,11 @@ func Run() error {
 		return fmt.Errorf("load config: %w", err)
 	}
 
-	orm, err := infrastructuremysql.Open(config.Database)
+	orm, err := persistencemysql.Open(config.Database)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}
-	db, err := orm.DB()
-	if err != nil {
-		return fmt.Errorf("get database connection: %w", err)
-	}
-	defer db.Close()
+	defer persistencemysql.Close(orm)
 
 	mailer, err := infrastructuremail.NewTencentSES(config.Mail, config.Credentials)
 	if err != nil {
@@ -54,7 +50,7 @@ func Run() error {
 		_ = redisStore.Close()
 	}()
 
-	apiServer := httpendpoint.NewServer(httpendpoint.Dependencies{DB: db, ORM: orm, Mailer: mailer, Storage: storage, Redis: redisStore, Config: config})
+	apiServer := httpendpoint.NewServer(httpendpoint.Dependencies{ORM: orm, Mailer: mailer, Storage: storage, Redis: redisStore, Config: config})
 	address := fmt.Sprintf("%s:%d", config.App.Host, config.App.Port)
 	log.Printf("exec_graph backend listening on %s", address)
 	return (&http.Server{

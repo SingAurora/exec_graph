@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 import { AuthLayout } from '../components/AuthLayout'
+import { parseJSONResponse } from '../lib/api'
 import { useExecStore } from '../store/useExecStore'
 
 const registerSchema = z.object({
@@ -54,8 +55,7 @@ export function RegisterPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: getValues('email') }),
       })
-      const data = (await response.json().catch(() => ({}))) as { error?: string; message?: string }
-      if (!response.ok) throw new Error(data.error ?? '验证码发送失败，请稍后重试。')
+      const data = await parseJSONResponse<{ message?: string }>(response)
       setCountdown(60)
       setNotice(data.message ?? '验证码已发送，请查收邮件。')
     } catch (error) {
@@ -74,11 +74,7 @@ export function RegisterPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(values),
       })
-      const data = (await response.json().catch(() => ({}))) as { error?: string; accessToken?: string; user?: { username?: string; userId?: string } }
-      if (!response.ok) {
-        setAuthError(data.error ?? '创建失败，请稍后重试。')
-        return
-      }
+      const data = await parseJSONResponse<{ accessToken?: string; user?: { username?: string; userId?: string } }>(response)
       if (!data.accessToken) {
         setAuthError('账号已创建，但登录会话创建失败，请稍后重试。')
         return
@@ -100,8 +96,8 @@ export function RegisterPage() {
         return
       }
       navigate('/')
-    } catch {
-      setAuthError('无法连接服务，请确认后端已启动。')
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : '无法连接服务，请确认后端已启动。')
     }
   }
 

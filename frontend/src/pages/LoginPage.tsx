@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 import { AuthLayout } from '../components/AuthLayout'
+import { parseJSONResponse } from '../lib/api'
 import { useExecStore } from '../store/useExecStore'
 
 const loginSchema = z.object({
@@ -39,9 +40,9 @@ export function LoginPage() {
     setAuthError('')
     try {
       const response = await fetch('/api/commands/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) })
-      const data = (await response.json().catch(() => ({}))) as { accessToken?: string; error?: string; user?: { username?: string; userId?: string } }
-      if (!response.ok || !data.accessToken) {
-        setAuthError(data.error ?? '邮箱或密码不正确。')
+      const data = await parseJSONResponse<{ accessToken?: string; user?: { username?: string; userId?: string } }>(response)
+      if (!data.accessToken) {
+        setAuthError('邮箱或密码不正确。')
         return
       }
       const result = registerAccount(data.user?.username ?? values.email.split('@')[0], data.user?.userId ?? values.email.split('@')[0], values.email, values.password)
@@ -56,8 +57,8 @@ export function LoginPage() {
         return
       }
       navigate('/')
-    } catch {
-      setAuthError('无法连接服务，请确认后端已启动。')
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : '无法连接服务，请确认后端已启动。')
     }
   }
 

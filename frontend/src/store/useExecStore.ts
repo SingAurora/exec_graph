@@ -11,7 +11,7 @@ import {
   projects,
   smartContracts,
 } from '../data/seed'
-import { requestJSON, withQuery } from '../lib/api'
+import { parseJSONResponse, requestJSON, withQuery } from '../lib/api'
 import { isActionableStage, needsReviewDecision } from '../lib/execution'
 import type {
   AIReview,
@@ -1453,7 +1453,7 @@ export const useExecStore = create<ExecState>()(
             fetch('/api/commands/projects/list', { method: 'GET', headers }),
             fetch('/api/commands/contracts/list', { method: 'GET', headers }),
           ])
-          const profileData = (await profileResponse.json().catch(() => ({}))) as {
+          const profileData = await parseJSONResponse<{
             user?: {
               id?: number
               username?: string
@@ -1465,19 +1465,12 @@ export const useExecStore = create<ExecState>()(
               customProfileEnabled?: boolean
               customProfileMarkdown?: string
             }
-          }
-          const projectData = (await projectResponse.json().catch(() => ({}))) as { projects?: Project[] }
-          const smartContractData = (await smartContractResponse.json().catch(() => ({}))) as {
+          }>(profileResponse)
+          const projectData = await parseJSONResponse<{ projects?: Project[] }>(projectResponse)
+          const smartContractData = await parseJSONResponse<{
             smartContracts?: SmartContractDefinition[]
-          }
-          if (
-            !profileResponse.ok ||
-            !projectResponse.ok ||
-            !smartContractResponse.ok ||
-            !profileData.user?.id ||
-            !projectData.projects ||
-            !smartContractData.smartContracts
-          ) {
+          }>(smartContractResponse)
+          if (!profileData.user?.id || !projectData.projects || !smartContractData.smartContracts) {
             throw new Error('读取账户工作区失败。')
           }
           const snapshots = await Promise.all(projectData.projects.map((project) => requestProjectState(accessToken, withQuery('/api/commands/projects/graph', { projectId: project.id }), { method: 'GET' })))

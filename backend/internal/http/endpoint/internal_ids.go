@@ -10,7 +10,7 @@ import (
 // public UUIDs at the HTTP boundary and prevents them from leaking into
 // internal relationship columns.
 type idLookup interface {
-	QueryRowContext(context.Context, string, ...any) *sql.Row
+	Row(context.Context, string, ...any) *sql.Row
 }
 
 var uuidEntityTables = map[string]string{
@@ -32,7 +32,7 @@ func internalID(ctx context.Context, db idLookup, entity, uuid string) (uint64, 
 		return 0, fmt.Errorf("unsupported UUID entity %q", entity)
 	}
 	var id uint64
-	if err := db.QueryRowContext(ctx, "SELECT id FROM "+table+" WHERE uuid = ?", uuid).Scan(&id); err != nil {
+	if err := db.Row(ctx, "SELECT id FROM "+table+" WHERE uuid = ?", uuid).Scan(&id); err != nil {
 		return 0, err
 	}
 	return id, nil
@@ -44,7 +44,7 @@ func publicUUID(ctx context.Context, db idLookup, entity string, id uint64) (str
 		return "", fmt.Errorf("unsupported UUID entity %q", entity)
 	}
 	var uuid string
-	if err := db.QueryRowContext(ctx, "SELECT uuid FROM "+table+" WHERE id = ?", id).Scan(&uuid); err != nil {
+	if err := db.Row(ctx, "SELECT uuid FROM "+table+" WHERE id = ?", id).Scan(&uuid); err != nil {
 		return "", err
 	}
 	return uuid, nil

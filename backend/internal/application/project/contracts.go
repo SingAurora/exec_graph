@@ -7,7 +7,7 @@ import (
 	"errors"
 	"time"
 
-	infrastructuremysql "github.com/singaurora/exec-graph/backend/internal/infrastructure/mysql"
+	contractpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/contract"
 	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
 	sharedid "github.com/singaurora/exec-graph/backend/internal/shared/id"
 )
@@ -27,7 +27,7 @@ var ErrContractNotFound = errors.New("contract not found")
 func (s *Service) ListContracts(ctx context.Context, userID uint64) ([]Contract, error) {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	items, err := infrastructuremysql.NewSmartContractRepository(s.database).ListVisible(ctx, userID)
+	items, err := s.contracts.ListVisible(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -41,8 +41,8 @@ func (s *Service) ListContracts(ctx context.Context, userID uint64) ([]Contract,
 func (s *Service) GetContract(ctx context.Context, userID uint64, contractID string) (Contract, error) {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	item, err := infrastructuremysql.NewSmartContractRepository(s.database).FindVisible(ctx, userID, contractID)
-	if errors.Is(err, infrastructuremysql.ErrNotFound) {
+	item, err := s.contracts.FindVisible(ctx, userID, contractID)
+	if errors.Is(err, contractpersistence.ErrNotFound) {
 		return Contract{}, ErrContractNotFound
 	}
 	if err != nil {
@@ -68,12 +68,12 @@ func (s *Service) CreateContract(ctx context.Context, userID uint64, name, descr
 	if err != nil {
 		return Contract{}, err
 	}
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, err := s.execution.Begin(ctx)
 	if err != nil {
 		return Contract{}, err
 	}
 	defer tx.Rollback()
-	result, err := tx.ExecContext(ctx, `INSERT INTO smart_contracts (uuid, name, source, version, description, body, created_by) VALUES (?, ?, 'custom', '1.0.0', ?, ?, ?)`, id, name, description, body, userID)
+	result, err := tx.Execute(ctx, `INSERT INTO smart_contracts (uuid, name, source, version, description, body, created_by) VALUES (?, ?, 'custom', '1.0.0', ?, ?, ?)`, id, name, description, body, userID)
 	if err != nil {
 		return Contract{}, err
 	}
@@ -81,7 +81,7 @@ func (s *Service) CreateContract(ctx context.Context, userID uint64, name, descr
 	if err != nil {
 		return Contract{}, err
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO smart_contract_events (uuid, contract_id, actor_id, event_type, contract_snapshot_json, created_at) VALUES (?, ?, ?, 'created', ?, ?)`, eventID, internalID, userID, snapshot, created); err != nil {
+	if _, err := tx.Execute(ctx, `INSERT INTO smart_contract_events (uuid, contract_id, actor_id, event_type, contract_snapshot_json, created_at) VALUES (?, ?, ?, 'created', ?, ?)`, eventID, internalID, userID, snapshot, created); err != nil {
 		return Contract{}, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -95,14 +95,14 @@ var ErrContractInUse = errors.New("contract is in use")
 func (s *Service) DeleteContract(ctx context.Context, userID uint64, contractID string) error {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, err := s.execution.Begin(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 	var internalID uint64
 	var contract Contract
-	err = tx.QueryRowContext(ctx, `SELECT id, uuid, name, source, version, description, body, created_at FROM smart_contracts WHERE uuid = ? AND created_by = ? AND source = 'custom' AND deleted_at IS NULL FOR UPDATE`, contractID, userID).Scan(&internalID, &contract.ID, &contract.Name, &contract.Source, &contract.Version, &contract.Description, &contract.Body, &contract.CreatedAt)
+	err = tx.Row(ctx, `SELECT id, uuid, name, source, version, description, body, created_at FROM smart_contracts WHERE uuid = ? AND created_by = ? AND source = 'custom' AND deleted_at IS NULL FOR UPDATE`, contractID, userID).Scan(&internalID, &contract.ID, &contract.Name, &contract.Source, &contract.Version, &contract.Description, &contract.Body, &contract.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return ErrContractNotFound
 	}
@@ -110,7 +110,7 @@ func (s *Service) DeleteContract(ctx context.Context, userID uint64, contractID 
 		return err
 	}
 	var active int
-	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM projects p JOIN project_contract_revisions r ON r.id = p.active_contract_revision_id WHERE p.owner_id = ? AND r.smart_contract_id = ?`, userID, internalID).Scan(&active); err != nil {
+	if err := tx.Row(ctx, `SELECT COUNT(*) FROM projects p JOIN project_contract_revisions r ON r.id = p.active_contract_revision_id WHERE p.owner_id = ? AND r.smart_contract_id = ?`, userID, internalID).Scan(&active); err != nil {
 		return err
 	}
 	if active > 0 {
@@ -125,10 +125,10 @@ func (s *Service) DeleteContract(ctx context.Context, userID uint64, contractID 
 		return err
 	}
 	deleted := time.Now()
-	if _, err := tx.ExecContext(ctx, `UPDATE smart_contracts SET deleted_at = ?, deleted_by = ? WHERE uuid = ?`, deleted, userID, contractID); err != nil {
+	if _, err := tx.Execute(ctx, `UPDATE smart_contracts SET deleted_at = ?, deleted_by = ? WHERE uuid = ?`, deleted, userID, contractID); err != nil {
 		return err
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO smart_contract_events (uuid, contract_id, actor_id, event_type, contract_snapshot_json, created_at) VALUES (?, ?, ?, 'deleted', ?, ?)`, eventID, internalID, userID, snapshot, deleted); err != nil {
+	if _, err := tx.Execute(ctx, `INSERT INTO smart_contract_events (uuid, contract_id, actor_id, event_type, contract_snapshot_json, created_at) VALUES (?, ?, ?, 'deleted', ?, ?)`, eventID, internalID, userID, snapshot, deleted); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -137,7 +137,7 @@ func (s *Service) DeleteContract(ctx context.Context, userID uint64, contractID 
 func (s *Service) ContractEvents(ctx context.Context, userID uint64) ([]ContractEvent, error) {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	rows, err := s.db.QueryContext(ctx, `SELECT e.uuid, c.uuid, e.event_type, e.contract_snapshot_json, e.created_at FROM smart_contract_events e JOIN smart_contracts c ON c.id = e.contract_id WHERE e.actor_id = ? ORDER BY e.created_at DESC`, userID)
+	rows, err := s.execution.Rows(ctx, `SELECT e.uuid, c.uuid, e.event_type, e.contract_snapshot_json, e.created_at FROM smart_contract_events e JOIN smart_contracts c ON c.id = e.contract_id WHERE e.actor_id = ? ORDER BY e.created_at DESC`, userID)
 	if err != nil {
 		return nil, err
 	}

@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	applicationidentity "github.com/singaurora/exec-graph/backend/internal/application/identity"
 	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
+	"github.com/singaurora/exec-graph/backend/internal/shared/fault"
 )
 
 type loginRequest struct {
@@ -18,49 +19,58 @@ type loginRequest struct {
 type authenticatedUser = applicationidentity.User
 type authenticatedUserContextKey struct{}
 
-func (s *Server) login(w http.ResponseWriter, r *http.Request) {
+func (s *Server) login(w http.ResponseWriter, r *http.Request) error {
 	var request loginRequest
-	if !bindJSON(w, r, &request) {
-		return
+	if err := decodeJSON(r, &request); err != nil {
+		return err
 	}
 	user, token, err := s.identity.Login(r.Context(), applicationidentity.LoginInput{Email: request.Email, Password: request.Password})
 	if err != nil {
-		writeIdentityError(w, err, "登录失败")
-		return
+		return identityFault(err, "登录失败")
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"accessToken": token, "user": user})
+	return nil
 }
 
-func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
+func (s *Server) logout(w http.ResponseWriter, r *http.Request) error {
 	if token := bearerToken(r); token != "" {
 		ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.SessionLogoutTimeout)
 		defer cancel()
 		if err := s.identity.DeleteSession(ctx, token); err != nil {
-			writeError(w, http.StatusServiceUnavailable, "退出 Redis 登录会话失败，请稍后重试")
-			return
+			return fault.Wrap(fault.DependencyUnavailable, "登录会话暂时不可用，请稍后重试", err)
 		}
 	}
-	w.WriteHeader(http.StatusNoContent)
+	writeJSON(w, http.StatusOK, nil)
+	return nil
 }
 
-func (s *Server) me(w http.ResponseWriter, r *http.Request) {
-	user, ok := s.requireUser(w, r)
-	if ok {
-		writeJSON(w, http.StatusOK, map[string]any{"user": user})
+func (s *Server) me(w http.ResponseWriter, r *http.Request) error {
+	user, err := s.requireUserError(r)
+	if err != nil {
+		return err
 	}
+	writeJSON(w, http.StatusOK, map[string]any{"user": user})
+	return nil
 }
 
-func (s *Server) requireUser(w http.ResponseWriter, r *http.Request) (authenticatedUser, bool) {
+func (s *Server) requireUserError(r *http.Request) (authenticatedUser, error) {
 	if user, ok := userFromContext(r); ok {
-		return user, true
+		return user, nil
 	}
 	user, err := s.authenticate(r)
 	if err != nil {
 		if errors.Is(err, applicationidentity.ErrUnauthenticated) {
-			writeError(w, http.StatusUnauthorized, "请先登录")
-		} else {
-			writeError(w, http.StatusServiceUnavailable, "Redis 登录会话暂时不可用，请稍后重试")
+			return authenticatedUser{}, fault.New(fault.Unauthenticated, "请先登录")
 		}
+		return authenticatedUser{}, fault.Wrap(fault.DependencyUnavailable, "登录会话暂时不可用，请稍后重试", err)
+	}
+	return user, nil
+}
+
+func (s *Server) requireUser(w http.ResponseWriter, r *http.Request) (authenticatedUser, bool) {
+	user, err := s.requireUserError(r)
+	if err != nil {
+		writeFault(w, err)
 		return authenticatedUser{}, false
 	}
 	return user, true
@@ -71,9 +81,9 @@ func (s *Server) authenticationMiddleware() gin.HandlerFunc {
 		user, err := s.authenticate(ginContext.Request)
 		if err != nil {
 			if errors.Is(err, applicationidentity.ErrUnauthenticated) {
-				writeError(ginContext.Writer, http.StatusUnauthorized, "请先登录")
+				_ = ginContext.Error(fault.New(fault.Unauthenticated, "请先登录"))
 			} else {
-				writeError(ginContext.Writer, http.StatusServiceUnavailable, "Redis 登录会话暂时不可用，请稍后重试")
+				_ = ginContext.Error(fault.Wrap(fault.DependencyUnavailable, "登录会话暂时不可用，请稍后重试", err))
 			}
 			ginContext.Abort()
 			return

@@ -1,4 +1,5 @@
 import type { AcceptanceCriterion, AIReview } from '../types'
+import { parseJSONResponse } from './api'
 
 export type CollaborationTarget = {
   id: string
@@ -101,9 +102,7 @@ async function request<T>(token: string | undefined, path: string, init?: Reques
     ...init,
     headers,
   })
-  const data = await response.json().catch(() => ({})) as T & { error?: string }
-  if (!response.ok) throw new Error(data.error ?? `请求失败（HTTP ${response.status}）`)
-  return data
+	return parseJSONResponse<T>(response)
 }
 
 export const getExploreProjects = (token?: string) => request<{ projects: ExploreProject[] }>(token, '/api/commands/explore/projects/list', { method: 'GET' })

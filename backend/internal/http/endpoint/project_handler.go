@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	applicationproject "github.com/singaurora/exec-graph/backend/internal/application/project"
+	"github.com/singaurora/exec-graph/backend/internal/shared/fault"
 )
 
 type createProjectRequest struct {
@@ -25,53 +26,47 @@ type updateProjectRequest struct {
 	Visibility  string `json:"visibility"`
 }
 
-func (s *Server) updateProject(w http.ResponseWriter, r *http.Request, userID uint64, projectID string) {
+func (s *Server) updateProject(w http.ResponseWriter, r *http.Request, userID uint64, projectID string) error {
 	var request updateProjectRequest
-	if !bindJSON(w, r, &request) {
-		return
+	if err := decodeJSON(r, &request); err != nil {
+		return err
 	}
 	title := strings.TrimSpace(request.Title)
 	description := strings.TrimSpace(request.Description)
 	if title == "" {
-		writeError(w, http.StatusBadRequest, "项目名称不能为空")
-		return
+		return fault.New(fault.InvalidRequest, "项目名称不能为空")
 	}
 	if len([]rune(title)) > 160 || len([]rune(description)) > 2000 {
-		writeError(w, http.StatusBadRequest, "项目名称或描述过长")
-		return
+		return fault.New(fault.InvalidRequest, "项目名称或描述过长")
 	}
 	if request.Visibility != "private" && request.Visibility != "public" {
-		writeError(w, http.StatusBadRequest, "项目可见性不正确")
-		return
+		return fault.New(fault.InvalidRequest, "项目可见性不正确")
 	}
 	if err := s.project.Update(r.Context(), userID, projectID, title, description, request.Visibility); err != nil {
 		if errors.Is(err, applicationproject.ErrAdoptedContent) {
-			writeError(w, http.StatusBadRequest, "项目已有被外部采纳的公开成果，不能改为私人项目")
-			return
+			return fault.New(fault.Conflict, "项目已有被外部采纳的公开成果，不能改为私人项目")
 		}
 		if errors.Is(err, applicationproject.ErrNotFound) {
-			writeError(w, http.StatusBadRequest, "项目不存在或已归档")
-			return
+			return fault.New(fault.NotFound, "项目不存在或已归档")
 		}
-		writeError(w, http.StatusInternalServerError, "保存项目资料失败")
-		return
+		return fault.Wrap(fault.Internal, "保存项目资料失败", err)
 	}
-	s.writeProjectState(r.Context(), w, userID, projectID, http.StatusOK)
+	return s.writeProjectState(r.Context(), w, userID, projectID, http.StatusOK)
 }
 
-func (s *Server) listProjects(w http.ResponseWriter, r *http.Request, userID uint64) {
+func (s *Server) listProjects(w http.ResponseWriter, r *http.Request, userID uint64) error {
 	projects, err := s.project.List(r.Context(), userID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "读取项目失败")
-		return
+		return fault.Wrap(fault.Internal, "读取项目失败", err)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"projects": projects})
+	return nil
 }
 
-func (s *Server) createProject(w http.ResponseWriter, r *http.Request, userID uint64) {
+func (s *Server) createProject(w http.ResponseWriter, r *http.Request, userID uint64) error {
 	var request createProjectRequest
-	if !bindJSON(w, r, &request) {
-		return
+	if err := decodeJSON(r, &request); err != nil {
+		return err
 	}
 	project, err := s.project.Create(r.Context(), applicationproject.CreateInput{
 		OwnerID: userID, Title: request.Title, Description: request.Description,
@@ -80,64 +75,58 @@ func (s *Server) createProject(w http.ResponseWriter, r *http.Request, userID ui
 		AIKeyID: request.AIKeyID, ContributionCallID: request.ContributionCallID,
 	})
 	if errors.Is(err, applicationproject.ErrInvalidProject) {
-		writeError(w, http.StatusBadRequest, "项目参数不正确，规则引导型项目的规则至少需要 12 个字符")
-		return
+		return fault.New(fault.InvalidRequest, "项目参数不正确，规则引导型项目的规则至少需要 12 个字符")
 	}
 	if errors.Is(err, applicationproject.ErrAIKeyUnavailable) {
-		writeError(w, http.StatusBadRequest, "项目审查 AI 不存在或不可用")
-		return
+		return fault.New(fault.InvalidRequest, "项目审查 AI 不存在或不可用")
 	}
 	if errors.Is(err, applicationproject.ErrContractUnavailable) {
-		writeError(w, http.StatusBadRequest, "智能合约不存在或不可用")
-		return
+		return fault.New(fault.InvalidRequest, "智能合约不存在或不可用")
 	}
 	if errors.Is(err, applicationproject.ErrCallUnavailable) {
-		writeError(w, http.StatusBadRequest, "这个开放缺口当前不能开始新的贡献")
-		return
+		return fault.New(fault.InvalidRequest, "这个开放缺口当前不能开始新的贡献")
 	}
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "创建项目失败")
-		return
+		return fault.Wrap(fault.Internal, "创建项目失败", err)
 	}
 	writeJSON(w, http.StatusCreated, project)
+	return nil
 }
 
-func (s *Server) getProject(w http.ResponseWriter, r *http.Request, userID uint64, projectID string) {
+func (s *Server) getProject(w http.ResponseWriter, r *http.Request, userID uint64, projectID string) error {
 	project, err := s.project.Get(r.Context(), userID, projectID)
 	if errors.Is(err, applicationproject.ErrNotFound) {
-		writeError(w, http.StatusNotFound, "项目不存在")
-		return
+		return fault.New(fault.NotFound, "项目不存在")
 	}
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "读取项目失败")
-		return
+		return fault.Wrap(fault.Internal, "读取项目失败", err)
 	}
 	writeJSON(w, http.StatusOK, project)
+	return nil
 }
 
-func (s *Server) listSmartContracts(w http.ResponseWriter, r *http.Request, userID uint64) {
+func (s *Server) listSmartContracts(w http.ResponseWriter, r *http.Request, userID uint64) error {
 	items, err := s.project.ListContracts(r.Context(), userID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "读取智能合约失败")
-		return
+		return fault.Wrap(fault.Internal, "读取智能合约失败", err)
 	}
 	contracts := make([]smartContractResponse, 0, len(items))
 	for _, item := range items {
 		contracts = append(contracts, smartContractResponse{ID: item.ID, Name: item.Name, Source: item.Source, Version: item.Version, Description: item.Description, Body: item.Body, CreatedAt: item.CreatedAt})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"smartContracts": contracts})
+	return nil
 }
 
-func (s *Server) getSmartContract(w http.ResponseWriter, r *http.Request, userID uint64, contractID string) {
+func (s *Server) getSmartContract(w http.ResponseWriter, r *http.Request, userID uint64, contractID string) error {
 	item, err := s.project.GetContract(r.Context(), userID, contractID)
 	if errors.Is(err, applicationproject.ErrContractNotFound) {
-		writeError(w, http.StatusNotFound, "智能合约不存在")
-		return
+		return fault.New(fault.NotFound, "智能合约不存在")
 	}
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "读取智能合约失败")
-		return
+		return fault.Wrap(fault.Internal, "读取智能合约失败", err)
 	}
 	contract := smartContractResponse{ID: item.ID, Name: item.Name, Source: item.Source, Version: item.Version, Description: item.Description, Body: item.Body, CreatedAt: item.CreatedAt}
 	writeJSON(w, http.StatusOK, contract)
+	return nil
 }

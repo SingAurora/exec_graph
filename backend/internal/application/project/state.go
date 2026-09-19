@@ -37,7 +37,7 @@ func (s *Service) State(ctx context.Context, userID uint64, projectID string) (S
 }
 
 func (s *Service) loadNodes(ctx context.Context, projectID string) ([]ExecutionNodeView, error) {
-	rows, err := s.db.QueryContext(ctx, `
+	rows, err := s.execution.Rows(ctx, `
 		SELECT n.uuid, branch.uuid, revision.uuid, parent.uuid,
 		       n.source_contract_ids_json, supplement_node.uuid, retry_node.uuid, n.actor_id, n.title, n.stage, n.original_intent,
 		       contract.uuid, n.smart_contract_version, n.verifiable_goal,
@@ -114,7 +114,7 @@ func (s *Service) loadNodes(ctx context.Context, projectID string) ([]ExecutionN
 }
 
 func (s *Service) loadEdges(ctx context.Context, nodes []ExecutionNodeView) ([]ExecutionEdgeView, error) {
-	rows, err := s.db.QueryContext(ctx, `
+	rows, err := s.execution.Rows(ctx, `
 		SELECT e.uuid, source_node.uuid, target_node.uuid, e.type, e.created_at
 		FROM execution_edges e
 		JOIN execution_contracts source_node ON source_node.id = e.source_contract_id
@@ -146,7 +146,7 @@ func (s *Service) loadEdges(ctx context.Context, nodes []ExecutionNodeView) ([]E
 }
 
 func (s *Service) loadBranches(ctx context.Context, projectID string) ([]ExecutionBranchView, error) {
-	rows, err := s.db.QueryContext(ctx, `
+	rows, err := s.execution.Rows(ctx, `
 		SELECT b.uuid, p.uuid, b.title, root_node.uuid, forked_node.uuid, head_node.uuid, current_node.uuid, b.created_by, b.created_at
 		FROM execution_branches b
 		JOIN projects p ON p.id = b.project_id
@@ -176,7 +176,7 @@ func (s *Service) loadBranches(ctx context.Context, projectID string) ([]Executi
 }
 
 func (s *Service) loadCompletionRecords(ctx context.Context, projectID string) ([]CompletionRecordView, error) {
-	rows, err := s.db.QueryContext(ctx, `
+	rows, err := s.execution.Rows(ctx, `
 		SELECT r.uuid, p.uuid, closing_node.uuid, r.covered_contract_ids_json, r.title, r.summary,
 		       contract.uuid, r.smart_contract_version, r.review_id, ai_review_verdict, record_kind, user_verdict_json, created_at
 		FROM completion_records r
@@ -197,7 +197,7 @@ func (s *Service) loadCompletionRecords(ctx context.Context, projectID string) (
 			return nil, err
 		}
 		for _, id := range decodeUint64IDs(covered) {
-			value, err := publicUUID(ctx, s.db, "execution_contracts", id)
+			value, err := publicUUID(ctx, s.execution, "execution_contracts", id)
 			if err != nil {
 				return nil, err
 			}
@@ -213,7 +213,7 @@ func (s *Service) decodePublicIDs(ctx context.Context, raw string) ([]string, er
 	ids := decodeUint64IDs(raw)
 	result := make([]string, 0, len(ids))
 	for _, id := range ids {
-		value, err := publicUUID(ctx, s.db, "execution_contracts", id)
+		value, err := publicUUID(ctx, s.execution, "execution_contracts", id)
 		if err != nil {
 			return nil, err
 		}

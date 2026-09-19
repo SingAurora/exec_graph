@@ -11,6 +11,7 @@ import { SmartContractsPage } from './SmartContractsPage'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../components/ui/dialog'
 import { CustomProfileCodeEditor } from '../components/CustomProfileCodeEditor'
 import { CustomProfileContent } from '../components/CustomProfileContent'
+import { parseJSONResponse } from '../lib/api'
 import type { Gender } from '../types'
 
 const profileSchema = z.object({
@@ -499,10 +500,8 @@ export function SettingsPage() {
         headers: { Authorization: `Bearer ${accessToken}` },
         body: formData,
       })
-      const data = (await response.json().catch(() => ({}))) as { avatarUrl?: string; error?: string }
-      if (!response.ok || !data.avatarUrl) {
-        throw new Error(data.error ?? '头像上传失败，请稍后重试。')
-      }
+      const data = await parseJSONResponse<{ avatarUrl?: string }>(response)
+      if (!data.avatarUrl) throw new Error('头像上传失败，请稍后重试。')
       setAvatarUrl(data.avatarUrl)
       updateProfile({ ...getProfileValues(), avatarUrl: data.avatarUrl })
       setAvatarError('')
@@ -538,19 +537,14 @@ export function SettingsPage() {
         headers: { Authorization: `Bearer ${accessToken}` },
         body: formData,
       })
-      const data = (await response.json().catch(() => ({}))) as { profileBackgroundUrl?: string; error?: string }
-      if (!response.ok || !data.profileBackgroundUrl) {
-        const message = data.error ?? '背景图片上传失败，请稍后重试。'
-        setProfileBackgroundError(message)
-        showErrorToast(message)
-        return
-      }
+      const data = await parseJSONResponse<{ profileBackgroundUrl?: string }>(response)
+      if (!data.profileBackgroundUrl) throw new Error('背景图片上传失败，请稍后重试。')
       setProfileBackgroundUrl(data.profileBackgroundUrl)
       updateProfile({ ...getProfileValues(), avatarUrl: avatarUrl || undefined, profileBackgroundUrl: data.profileBackgroundUrl })
       setProfileSaved(false)
       showSuccessToast('背景图已更新。')
-    } catch {
-      const message = '无法连接服务，请确认后端已启动。'
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '无法连接服务，请确认后端已启动。'
       setProfileBackgroundError(message)
       showErrorToast(message)
     } finally {
@@ -578,9 +572,9 @@ export function SettingsPage() {
         headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(values),
       })
-      const data = (await response.json().catch(() => ({}))) as { error?: string; user?: { username?: string; userId?: string; bio?: string; gender?: Gender; avatarUrl?: string; profileBackgroundUrl?: string; customProfileEnabled?: boolean; customProfileMarkdown?: string } }
-      if (!response.ok || !data.user?.username || !data.user.userId) {
-        setAvatarError(data.error ?? '保存公开资料失败。')
+      const data = await parseJSONResponse<{ user?: { username?: string; userId?: string; bio?: string; gender?: Gender; avatarUrl?: string; profileBackgroundUrl?: string; customProfileEnabled?: boolean; customProfileMarkdown?: string } }>(response)
+      if (!data.user?.username || !data.user.userId) {
+        setAvatarError('保存公开资料失败。')
         return
       }
       updateProfile({
@@ -599,8 +593,8 @@ export function SettingsPage() {
       if (!wasCustomProfileEnabled && values.customProfileEnabled) {
         setProfileSection('custom')
       }
-    } catch {
-      setAvatarError('无法连接服务，请确认后端已启动。')
+    } catch (error) {
+      setAvatarError(error instanceof Error ? error.message : '无法连接服务，请确认后端已启动。')
     }
   }
 
@@ -621,14 +615,10 @@ export function SettingsPage() {
     setIsLoadingAIKeys(true)
     try {
 		const response = await fetch('/api/commands/ai-keys/list', { method: 'GET', headers: { Authorization: `Bearer ${accessToken}` } })
-      const data = (await response.json().catch(() => ({}))) as { keys?: AIKey[]; error?: string }
-      if (!response.ok) {
-        setAIKeyMessage(data.error ?? '读取 AI 密钥失败。')
-        return
-      }
+      const data = await parseJSONResponse<{ keys?: AIKey[] }>(response)
       setAIKeys(data.keys ?? [])
-    } catch {
-      setAIKeyMessage('无法连接服务，请确认后端已启动。')
+    } catch (error) {
+      setAIKeyMessage(error instanceof Error ? error.message : '无法连接服务，请确认后端已启动。')
     } finally {
       setIsLoadingAIKeys(false)
     }
@@ -681,13 +671,7 @@ export function SettingsPage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify(getAIKeyDraft()),
       })
-      const data = (await response.json().catch(() => ({}))) as AIKey & { error?: string }
-      if (!response.ok) {
-        const message = data.error ?? `保存 AI 密钥失败（HTTP ${response.status}）。`
-        setAIKeyMessage(message)
-        showErrorToast(message)
-        return
-      }
+      const data = await parseJSONResponse<AIKey>(response)
       setAIKeys((keys) => [...keys, data])
       setAIKeyValue('')
       setAIKeyLabel('')
@@ -713,13 +697,7 @@ export function SettingsPage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify(getAIKeyDraft()),
       })
-      const data = (await response.json().catch(() => ({}))) as { error?: string; message?: string }
-      if (!response.ok) {
-        const message = data.error ?? `测试失败（HTTP ${response.status}），请检查 API Key、服务地址和模型名称。`
-        setAIKeyMessage(message)
-        showErrorToast(message)
-        return
-      }
+      const data = await parseJSONResponse<{ message?: string }>(response)
       const message = data.message ?? '测试通过。'
       setAIKeyMessage(message)
       showSuccessToast(message)
@@ -742,13 +720,7 @@ export function SettingsPage() {
 		headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
 		body: JSON.stringify({ keyId: key.id }),
       })
-      const data = (await response.json().catch(() => ({}))) as { error?: string; message?: string; lastVerifiedAt?: string }
-      if (!response.ok) {
-        const message = data.error ?? `AI 密钥操作失败（HTTP ${response.status}）。`
-        setAIKeyMessage(message)
-        if (action === 'verify') showErrorToast(message)
-        return
-      }
+      const data = await parseJSONResponse<{ message?: string; lastVerifiedAt?: string }>(response)
       if (action === 'delete') {
         setAIKeys((keys) => keys.filter((item) => item.id !== key.id))
       } else {
@@ -772,8 +744,7 @@ export function SettingsPage() {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify({ purpose, ...(email ? { email } : {}) }),
     })
-    const data = (await response.json().catch(() => ({}))) as { error?: string; message?: string }
-    if (!response.ok) throw new Error(data.error ?? '验证码发送失败，请稍后重试。')
+    const data = await parseJSONResponse<{ message?: string }>(response)
     return data.message ?? '验证码已发送，请查收邮件。'
   }
 
@@ -826,16 +797,12 @@ export function SettingsPage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify(values),
       })
-      const data = (await response.json().catch(() => ({}))) as { error?: string }
-      if (!response.ok) {
-        setEmailMessage(data.error ?? '邮箱更新失败。')
-        return
-      }
+      await parseJSONResponse(response)
       const result = updateAccountEmail(values.email, values.currentPassword)
       setEmailMessage(result.success ? '邮箱已更新' : result.message ?? '邮箱更新失败。')
       if (result.success) resetEmail({ email: values.email.trim().toLowerCase(), currentPassword: '', code: '' })
-    } catch {
-      setEmailMessage('无法连接服务，请确认后端已启动。')
+    } catch (error) {
+      setEmailMessage(error instanceof Error ? error.message : '无法连接服务，请确认后端已启动。')
     }
   }
 
@@ -851,16 +818,12 @@ export function SettingsPage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify(values),
       })
-      const data = (await response.json().catch(() => ({}))) as { error?: string }
-      if (!response.ok) {
-        setPasswordMessage(data.error ?? '密码更新失败。')
-        return
-      }
+      await parseJSONResponse(response)
       const result = updateAccountPassword(values.currentPassword, values.nextPassword)
       setPasswordMessage(result.success ? '密码已更新' : result.message ?? '密码更新失败。')
       if (result.success) resetPassword()
-    } catch {
-      setPasswordMessage('无法连接服务，请确认后端已启动。')
+    } catch (error) {
+      setPasswordMessage(error instanceof Error ? error.message : '无法连接服务，请确认后端已启动。')
     }
   }
 

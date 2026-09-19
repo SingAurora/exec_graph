@@ -1,5 +1,7 @@
-type ErrorResponse = {
-  error?: string
+export type APIResponse<T> = {
+  code: number
+  msg: string
+  data: T | null
 }
 
 type AuthenticatedRequestInit = RequestInit & {
@@ -15,6 +17,13 @@ export function withQuery(path: string, values: Record<string, string | undefine
   return encoded ? `${path}?${encoded}` : path
 }
 
+export async function parseJSONResponse<T>(response: Response): Promise<T> {
+  const envelope = (await response.json().catch(() => null)) as Partial<APIResponse<T>> | null
+  const message = envelope?.msg ?? `请求失败（HTTP ${response.status}）。`
+  if (!response.ok || envelope?.code !== 0) throw new Error(message)
+  return envelope.data as T
+}
+
 /**
  * The API is JSON-only today. Keeping transport concerns here lets store actions
  * describe their domain operation instead of rebuilding headers and error parsing.
@@ -25,9 +34,7 @@ export async function requestJSON<T>(path: string, init: AuthenticatedRequestIni
   if (init.accessToken) headers.set('Authorization', `Bearer ${init.accessToken}`)
 
   const response = await fetch(path, { method: 'POST', ...init, headers })
-  const data = (await response.json().catch(() => ({}))) as T & ErrorResponse
-  if (!response.ok) throw new Error(data.error ?? `请求失败（HTTP ${response.status}）。`)
-  return data
+  return parseJSONResponse<T>(response)
 }
 
 export function bearerHeaders(accessToken: string): HeadersInit {

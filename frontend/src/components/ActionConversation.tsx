@@ -2,6 +2,7 @@ import { Bot, Copy, LoaderCircle, Send, ShieldCheck } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState, type TextareaHTMLAttributes } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { showErrorToast, showSuccessToast } from '../lib/notifications'
+import { parseJSONResponse } from '../lib/api'
 import { useExecStore } from '../store/useExecStore'
 import type { AIConfigSnapshot, DraftReview, ExecutionContract } from '../types'
 
@@ -99,9 +100,7 @@ async function requestConversation<T>(token: string, path: string, init?: Reques
     ...init,
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(init?.headers ?? {}) },
   })
-  const data = await response.json().catch(() => ({})) as T & { error?: string }
-  if (!response.ok) throw new Error(data.error ?? `请求失败（HTTP ${response.status}）`)
-  return data
+	return parseJSONResponse<T>(response)
 }
 
 type PlanningConversationProps = {

@@ -1,11 +1,17 @@
-package mysql
+package aikey
 
 import (
 	"context"
 	"errors"
 	"time"
 
+	persistencemysql "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/mysql"
 	"gorm.io/gorm"
+)
+
+var (
+	ErrNotFound = errors.New("AI key not found")
+	ErrInUse    = errors.New("AI key is in use")
 )
 
 // AIKey is the internal representation of an AI provider credential. Its
@@ -48,13 +54,13 @@ func (repository AIKeyRepository) MarkVerified(ctx context.Context, userID uint6
 func (repository AIKeyRepository) DeleteUnusedForUser(ctx context.Context, userID uint64, keyID string) error {
 	return repository.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var key AIKey
-		if err := tx.Clauses(clauseForUpdate).Where("uuid = ? AND user_id = ?", keyID, userID).First(&key).Error; errors.Is(err, gorm.ErrRecordNotFound) {
+		if err := tx.Clauses(persistencemysql.ForUpdate).Where("uuid = ? AND user_id = ?", keyID, userID).First(&key).Error; errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrNotFound
 		} else if err != nil {
 			return err
 		}
 		var projectCount int64
-		if err := tx.Model(&Project{}).Where("owner_id = ? AND default_ai_key_id = ?", userID, key.ID).Count(&projectCount).Error; err != nil {
+		if err := tx.Table("projects").Where("owner_id = ? AND default_ai_key_id = ?", userID, key.ID).Count(&projectCount).Error; err != nil {
 			return err
 		}
 		if projectCount > 0 {

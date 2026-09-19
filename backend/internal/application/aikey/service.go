@@ -12,10 +12,9 @@ import (
 	"strings"
 	"time"
 
-	infrastructuremysql "github.com/singaurora/exec-graph/backend/internal/infrastructure/mysql"
+	aikeypersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/aikey"
 	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
 	sharedid "github.com/singaurora/exec-graph/backend/internal/shared/id"
-	"gorm.io/gorm"
 )
 
 type Provider struct{ Label, DefaultBaseURL, AuthStyle string }
@@ -37,14 +36,18 @@ type Key struct {
 	LastVerifiedAt, LastUsedAt                           *time.Time
 	CreatedAt                                            time.Time
 }
-type Service struct{ db *gorm.DB }
+type Service struct {
+	repository aikeypersistence.AIKeyRepository
+}
 
-func New(db *gorm.DB) *Service { return &Service{db: db} }
+func New(repository aikeypersistence.AIKeyRepository) *Service {
+	return &Service{repository: repository}
+}
 
 func (s *Service) List(ctx context.Context, userID uint64) ([]Key, error) {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	rows, err := infrastructuremysql.NewAIKeyRepository(s.db).ListForUser(ctx, userID)
+	rows, err := s.repository.ListForUser(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -66,8 +69,8 @@ func (s *Service) Create(ctx context.Context, userID uint64, provider, label, ap
 	}
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	record := &infrastructuremysql.AIKey{UUID: id, UserID: userID, Provider: provider, Label: label, KeyCiphertext: apiKey, KeyHint: mask(apiKey), BaseURL: baseURL, Model: model}
-	if err := infrastructuremysql.NewAIKeyRepository(s.db).Create(ctx, record); err != nil {
+	record := &aikeypersistence.AIKey{UUID: id, UserID: userID, Provider: provider, Label: label, KeyCiphertext: apiKey, KeyHint: mask(apiKey), BaseURL: baseURL, Model: model}
+	if err := s.repository.Create(ctx, record); err != nil {
 		return Key{}, err
 	}
 	return Key{ID: id, Provider: provider, Label: label, APIKey: apiKey, KeyHint: mask(apiKey), BaseURL: baseURL, Model: model, CreatedAt: time.Now()}, nil
@@ -76,8 +79,8 @@ func (s *Service) Create(ctx context.Context, userID uint64, provider, label, ap
 func (s *Service) Verify(ctx context.Context, userID uint64, keyID string) (time.Time, error) {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.AIKeyVerificationTimeout)
 	defer cancel()
-	key, err := infrastructuremysql.NewAIKeyRepository(s.db).FindForUser(ctx, userID, keyID)
-	if errors.Is(err, infrastructuremysql.ErrNotFound) {
+	key, err := s.repository.FindForUser(ctx, userID, keyID)
+	if errors.Is(err, aikeypersistence.ErrNotFound) {
 		return time.Time{}, ErrNotFound
 	}
 	if err != nil {
@@ -87,7 +90,7 @@ func (s *Service) Verify(ctx context.Context, userID uint64, keyID string) (time
 		return time.Time{}, err
 	}
 	verified := time.Now()
-	if err := infrastructuremysql.NewAIKeyRepository(s.db).MarkVerified(ctx, userID, keyID, verified); err != nil {
+	if err := s.repository.MarkVerified(ctx, userID, keyID, verified); err != nil {
 		return time.Time{}, err
 	}
 	return verified, nil
@@ -105,11 +108,11 @@ func (s *Service) Test(ctx context.Context, provider, label, apiKey, baseURL, mo
 func (s *Service) Delete(ctx context.Context, userID uint64, keyID string) error {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	err := infrastructuremysql.NewAIKeyRepository(s.db).DeleteUnusedForUser(ctx, userID, keyID)
-	if errors.Is(err, infrastructuremysql.ErrNotFound) {
+	err := s.repository.DeleteUnusedForUser(ctx, userID, keyID)
+	if errors.Is(err, aikeypersistence.ErrNotFound) {
 		return ErrNotFound
 	}
-	if errors.Is(err, infrastructuremysql.ErrInUse) {
+	if errors.Is(err, aikeypersistence.ErrInUse) {
 		return ErrInUse
 	}
 	return err
@@ -139,7 +142,7 @@ func normalize(provider, label, apiKey, baseURL, model string) (string, string, 
 	}
 	return provider, label, apiKey, baseURL, model, nil
 }
-func fromRecord(item infrastructuremysql.AIKey) Key {
+func fromRecord(item aikeypersistence.AIKey) Key {
 	return Key{ID: item.UUID, Provider: item.Provider, Label: item.Label, APIKey: item.KeyCiphertext, KeyHint: item.KeyHint, BaseURL: item.BaseURL, Model: item.Model, LastVerifiedAt: item.LastVerifiedAt, LastUsedAt: item.LastUsedAt, CreatedAt: item.CreatedAt}
 }
 func mask(value string) string {

@@ -1,6 +1,7 @@
 package router
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -25,6 +26,16 @@ func TestRoutesRejectUnknownNestedPaths(t *testing.T) {
 
 			if response.Code != http.StatusNotFound {
 				t.Fatalf("status = %d, want %d", response.Code, http.StatusNotFound)
+			}
+			var body struct {
+				Code int    `json:"code"`
+				Msg  string `json:"msg"`
+			}
+			if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+				t.Fatalf("decode error response: %v", err)
+			}
+			if body.Code != 40401 || body.Msg != "接口不存在" {
+				t.Fatalf("unexpected error response: %+v", body)
 			}
 		})
 	}

@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	infrastructuremysql "github.com/singaurora/exec-graph/backend/internal/infrastructure/mysql"
+	aikeypersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/aikey"
 	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
 )
 
@@ -270,7 +270,7 @@ func (s *Server) reviewExecutionNode(w http.ResponseWriter, r *http.Request) {
 	if review.Verdict == "pass" {
 		stage = "verified"
 	}
-	result, err := s.db.ExecContext(ctx, `
+	result, err := s.reviews.Execute(ctx, `
 		UPDATE execution_contracts
 		SET actor_id = ?, completion_claim = ?, evidence_text = ?, started_at = ?, ended_at = ?, stage = ?, ai_review_json = ?, completion_review_ai_config_json = ?, completion_review_rounds_json = ?, review_messages_json = ?
 		WHERE uuid = ? AND stage = 'frozen'`,
@@ -284,7 +284,7 @@ func (s *Server) reviewExecutionNode(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "节点状态已经变化，请刷新后重试")
 		return
 	}
-	if _, err := s.db.ExecContext(ctx, `UPDATE ai_api_keys SET last_used_at = NOW() WHERE uuid = ? AND user_id = ?`, key.UUID, user.ID); err != nil {
+	if _, err := s.reviews.Execute(ctx, `UPDATE ai_api_keys SET last_used_at = NOW() WHERE uuid = ? AND user_id = ?`, key.UUID, user.ID); err != nil {
 		writeError(w, http.StatusInternalServerError, "保存 AI 使用记录失败")
 		return
 	}
@@ -400,7 +400,7 @@ func (s *Server) reviewExecutionNodeClarification(w http.ResponseWriter, r *http
 	if review.Verdict == "pass" {
 		stage = "verified"
 	}
-	result, err := s.db.ExecContext(ctx, `
+	result, err := s.reviews.Execute(ctx, `
 		UPDATE execution_contracts
 		SET stage = ?, ai_review_json = ?, completion_review_ai_config_json = ?, completion_review_rounds_json = ?, review_messages_json = ?
 		WHERE uuid = ? AND stage IN ('verified', 'needs_supplement')`,
@@ -414,7 +414,7 @@ func (s *Server) reviewExecutionNodeClarification(w http.ResponseWriter, r *http
 		writeError(w, http.StatusBadRequest, "节点状态已经变化，请刷新后重试")
 		return
 	}
-	if _, err := s.db.ExecContext(ctx, `UPDATE ai_api_keys SET last_used_at = NOW() WHERE uuid = ? AND user_id = ?`, key.UUID, user.ID); err != nil {
+	if _, err := s.reviews.Execute(ctx, `UPDATE ai_api_keys SET last_used_at = NOW() WHERE uuid = ? AND user_id = ?`, key.UUID, user.ID); err != nil {
 		writeError(w, http.StatusInternalServerError, "保存 AI 使用记录失败")
 		return
 	}
@@ -427,7 +427,7 @@ func (s *Server) loadNodeCompletionReviewRequest(ctx context.Context, userID uin
 	var criteriaJSON, messagesJSON string
 	var branchID, projectCurrentID sql.NullInt64
 	var archivedAt sql.NullTime
-	err := s.db.QueryRowContext(ctx, `
+	err := s.reviews.Row(ctx, `
 		SELECT p.id, n.id, p.uuid, p.title, p.description, COALESCE(p.project_rules, ''), p.current_contract_id, p.archived_at,
 		       n.branch_id, n.title, n.original_intent, n.verifiable_goal,
 		       n.acceptance_criteria_json, n.evidence_requirement, sc.uuid,
@@ -445,7 +445,7 @@ func (s *Server) loadNodeCompletionReviewRequest(ctx context.Context, userID uin
 		return request, "", fmt.Errorf("项目已归档，不能提交审查")
 	}
 	var stage string
-	if err := s.db.QueryRowContext(ctx, `SELECT stage FROM execution_contracts WHERE uuid = ?`, input.NodeID).Scan(&stage); err != nil {
+	if err := s.reviews.Row(ctx, `SELECT stage FROM execution_contracts WHERE uuid = ?`, input.NodeID).Scan(&stage); err != nil {
 		return request, "", err
 	}
 	if stage != "frozen" {
@@ -453,7 +453,7 @@ func (s *Server) loadNodeCompletionReviewRequest(ctx context.Context, userID uin
 	}
 	if branchID.Valid {
 		var branchCurrentID sql.NullInt64
-		if err := s.db.QueryRowContext(ctx, `SELECT current_contract_id FROM execution_branches WHERE id = ? AND project_id = ?`, branchID.Int64, projectInternalID).Scan(&branchCurrentID); err != nil || !branchCurrentID.Valid || uint64(branchCurrentID.Int64) != nodeInternalID {
+		if err := s.reviews.Row(ctx, `SELECT current_contract_id FROM execution_branches WHERE id = ? AND project_id = ?`, branchID.Int64, projectInternalID).Scan(&branchCurrentID); err != nil || !branchCurrentID.Valid || uint64(branchCurrentID.Int64) != nodeInternalID {
 			return request, "", fmt.Errorf("该节点不是当前待推进节点")
 		}
 	} else if !projectCurrentID.Valid || uint64(projectCurrentID.Int64) != nodeInternalID {
@@ -462,7 +462,7 @@ func (s *Server) loadNodeCompletionReviewRequest(ctx context.Context, userID uin
 	if err := json.Unmarshal([]byte(criteriaJSON), &request.AcceptanceCriteria); err != nil {
 		return request, "", fmt.Errorf("节点验收标准已损坏")
 	}
-	if err := s.db.QueryRowContext(ctx, `SELECT name, description, body FROM smart_contracts WHERE uuid = ?`, request.SmartContract.ID).
+	if err := s.reviews.Row(ctx, `SELECT name, description, body FROM smart_contracts WHERE uuid = ?`, request.SmartContract.ID).
 		Scan(&request.SmartContract.Name, &request.SmartContract.Description, &request.SmartContract.Body); err != nil {
 		return request, "", fmt.Errorf("平台基础审查规则不存在")
 	}
@@ -485,7 +485,7 @@ func (s *Server) loadNodeClarificationReviewRequest(ctx context.Context, userID 
 	var branchID, projectCurrentID sql.NullInt64
 	var archivedAt sql.NullTime
 	var stage string
-	err := s.db.QueryRowContext(ctx, `
+	err := s.reviews.Row(ctx, `
 		SELECT p.id, n.id, p.uuid, p.title, p.description, COALESCE(p.project_rules, ''), p.current_contract_id, p.archived_at,
 		       n.branch_id, n.title, n.original_intent, n.verifiable_goal,
 		       n.acceptance_criteria_json, n.evidence_requirement, sc.uuid,
@@ -510,7 +510,7 @@ func (s *Server) loadNodeClarificationReviewRequest(ctx context.Context, userID 
 	}
 	if branchID.Valid {
 		var branchCurrentID sql.NullInt64
-		if err := s.db.QueryRowContext(ctx, `SELECT current_contract_id FROM execution_branches WHERE id = ? AND project_id = ?`, branchID.Int64, projectInternalID).Scan(&branchCurrentID); err != nil || !branchCurrentID.Valid || uint64(branchCurrentID.Int64) != nodeInternalID {
+		if err := s.reviews.Row(ctx, `SELECT current_contract_id FROM execution_branches WHERE id = ? AND project_id = ?`, branchID.Int64, projectInternalID).Scan(&branchCurrentID); err != nil || !branchCurrentID.Valid || uint64(branchCurrentID.Int64) != nodeInternalID {
 			return request, "", nil, fmt.Errorf("该节点不是当前待确认节点")
 		}
 	} else if !projectCurrentID.Valid || uint64(projectCurrentID.Int64) != nodeInternalID {
@@ -544,7 +544,7 @@ func (s *Server) loadNodeClarificationReviewRequest(ctx context.Context, userID 
 		ID: clarificationID, CriterionIDs: input.CriterionIDs, Explanation: input.Explanation,
 		EvidenceReferences: input.EvidenceReferences, EvidenceAddition: input.EvidenceAddition, EvidencePredatesSubmission: input.EvidencePredatesSubmission, CreatedAt: time.Now(),
 	}
-	if err := s.db.QueryRowContext(ctx, `SELECT name, description, body FROM smart_contracts WHERE uuid = ?`, request.SmartContract.ID).
+	if err := s.reviews.Row(ctx, `SELECT name, description, body FROM smart_contracts WHERE uuid = ?`, request.SmartContract.ID).
 		Scan(&request.SmartContract.Name, &request.SmartContract.Description, &request.SmartContract.Body); err != nil {
 		return request, "", nil, fmt.Errorf("平台基础审查规则不存在")
 	}
@@ -605,11 +605,11 @@ func (s *Server) expandCompletionReviewScope(ctx context.Context, request *revie
 }
 
 func (s *Server) loadClosureReviewScope(ctx context.Context, projectID, targetNodeID string) ([]closureReviewScopeNode, error) {
-	projectInternalID, err := internalID(ctx, s.db, "projects", projectID)
+	projectInternalID, err := internalID(ctx, s.reviews, "projects", projectID)
 	if err != nil {
 		return nil, err
 	}
-	targetInternalID, err := internalID(ctx, s.db, "execution_contracts", targetNodeID)
+	targetInternalID, err := internalID(ctx, s.reviews, "execution_contracts", targetNodeID)
 	if err != nil {
 		return nil, err
 	}
@@ -619,7 +619,7 @@ func (s *Server) loadClosureReviewScope(ctx context.Context, projectID, targetNo
 	for len(queue) > 0 {
 		targetID := queue[0]
 		queue = queue[1:]
-		rows, err := s.db.QueryContext(ctx, `
+		rows, err := s.reviews.Rows(ctx, `
 			SELECT source_contract_id FROM execution_edges
 			WHERE target_contract_id = ? AND type = 'closure'`, targetID)
 		if err != nil {
@@ -637,7 +637,7 @@ func (s *Server) loadClosureReviewScope(ctx context.Context, projectID, targetNo
 			visited[sourceID] = struct{}{}
 			var node closureReviewScopeNode
 			var criteriaJSON string
-			if err := s.db.QueryRowContext(ctx, `
+			if err := s.reviews.Row(ctx, `
 				SELECT uuid, title, verifiable_goal, acceptance_criteria_json, evidence_requirement
 				FROM execution_contracts WHERE id = ? AND project_id = ?`, sourceID, projectInternalID).
 				Scan(&node.ID, &node.Title, &node.VerifiableGoal, &criteriaJSON, &node.EvidenceRequirement); err != nil {
@@ -692,7 +692,7 @@ func (s *Server) reviewNodeDraft(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	review.AIConfig = key.snapshot()
-	if _, err := s.db.ExecContext(ctx, `UPDATE ai_api_keys SET last_used_at = NOW() WHERE uuid = ? AND user_id = ?`, key.UUID, user.ID); err != nil {
+	if _, err := s.reviews.Execute(ctx, `UPDATE ai_api_keys SET last_used_at = NOW() WHERE uuid = ? AND user_id = ?`, key.UUID, user.ID); err != nil {
 		writeError(w, http.StatusInternalServerError, "保存 AI 使用记录失败")
 		return
 	}
@@ -745,9 +745,9 @@ func validateReviewNodeDraftRequest(request reviewNodeDraftRequest) error {
 }
 
 func (s *Server) loadProjectAIKey(ctx context.Context, userID uint64, projectID string) (aiStoredKey, error) {
-	stored, err := infrastructuremysql.NewAIKeyRepository(s.orm).FindProjectReviewKey(ctx, userID, projectID)
+	stored, err := s.aiKeyStore.FindProjectReviewKey(ctx, userID, projectID)
 	if err != nil {
-		if errors.Is(err, infrastructuremysql.ErrNotFound) {
+		if errors.Is(err, aikeypersistence.ErrNotFound) {
 			return aiStoredKey{}, sql.ErrNoRows
 		}
 		return aiStoredKey{}, err

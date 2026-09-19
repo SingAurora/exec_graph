@@ -131,7 +131,7 @@ func (s *Server) handleDailyWorkReview(w http.ResponseWriter, r *http.Request, u
 		writeError(w, http.StatusInternalServerError, "保存日结分析失败")
 		return
 	}
-	_, _ = s.db.ExecContext(ctx, `UPDATE ai_api_keys SET last_used_at = NOW() WHERE uuid = ? AND user_id = ?`, key.UUID, userID)
+	_, _ = s.workOverview.Execute(ctx, `UPDATE ai_api_keys SET last_used_at = NOW() WHERE uuid = ? AND user_id = ?`, key.UUID, userID)
 	writeJSON(w, http.StatusOK, map[string]any{"review": review})
 }
 
@@ -159,7 +159,7 @@ func (s *Server) loadDailyWorkDays(ctx context.Context, userID uint64, start, en
 		day.Activities = append(day.Activities, activity)
 	}
 
-	nodes, err := s.db.QueryContext(ctx, `
+	nodes, err := s.workOverview.Rows(ctx, `
 		SELECT n.uuid, p.uuid, p.title, n.title, n.verifiable_goal, n.created_at, n.started_at, n.ended_at
 		FROM execution_contracts n
 		JOIN projects p ON p.id = n.project_id
@@ -193,7 +193,7 @@ func (s *Server) loadDailyWorkDays(ctx context.Context, userID uint64, start, en
 	}
 	nodes.Close()
 
-	records, err := s.db.QueryContext(ctx, `
+	records, err := s.workOverview.Rows(ctx, `
 		SELECT r.uuid, p.uuid, p.title, n.uuid, r.title, r.summary, r.record_kind, r.created_at
 		FROM completion_records r
 		JOIN projects p ON p.id = r.project_id
@@ -248,7 +248,7 @@ func (s *Server) loadDailyWorkDays(ctx context.Context, userID uint64, start, en
 }
 
 func (s *Server) loadDailyWorkReviews(ctx context.Context, userID uint64, start, end time.Time) (map[string]dailyWorkReviewResponse, error) {
-	rows, err := s.db.QueryContext(ctx, `
+	rows, err := s.workOverview.Rows(ctx, `
 		SELECT uuid, DATE_FORMAT(review_date, '%Y-%m-%d'), review_json, ai_config_json, created_at, updated_at
 		FROM daily_work_reviews
 		WHERE user_id = ? AND review_date >= ? AND review_date < ?`, userID, start, end)
@@ -275,7 +275,7 @@ func (s *Server) loadDailyWorkReviews(ctx context.Context, userID uint64, start,
 
 func (s *Server) loadWorkOverviewAIKey(ctx context.Context, userID uint64) (aiStoredKey, error) {
 	var projectID string
-	err := s.db.QueryRowContext(ctx, `
+	err := s.workOverview.Row(ctx, `
 		SELECT uuid FROM projects
 		WHERE owner_id = ? AND archived_at IS NULL AND default_ai_key_id IS NOT NULL
 		ORDER BY updated_at DESC LIMIT 1`, userID).Scan(&projectID)
@@ -317,7 +317,7 @@ func (s *Server) saveDailyWorkReview(ctx context.Context, userID uint64, date ti
 	dateValue := date.Format("2006-01-02")
 	var reviewID string
 	var createdAt time.Time
-	err := s.db.QueryRowContext(ctx, `SELECT uuid, created_at FROM daily_work_reviews WHERE user_id = ? AND review_date = ?`, userID, dateValue).Scan(&reviewID, &createdAt)
+	err := s.workOverview.Row(ctx, `SELECT uuid, created_at FROM daily_work_reviews WHERE user_id = ? AND review_date = ?`, userID, dateValue).Scan(&reviewID, &createdAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		var idErr error
 		reviewID, idErr = newOpaqueID("daily-review")
@@ -338,7 +338,7 @@ func (s *Server) saveDailyWorkReview(ctx context.Context, userID uint64, date ti
 	if err != nil {
 		return dailyWorkReviewResponse{}, err
 	}
-	_, err = s.db.ExecContext(ctx, `
+	_, err = s.workOverview.Execute(ctx, `
 		INSERT INTO daily_work_reviews (uuid, user_id, review_date, review_json, ai_config_json)
 		VALUES (?, ?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE review_json = VALUES(review_json), ai_config_json = VALUES(ai_config_json)`, reviewID, userID, dateValue, reviewJSON, configJSON)

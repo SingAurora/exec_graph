@@ -16,7 +16,6 @@ import (
 	"strings"
 	"time"
 
-	infrastructuremysql "github.com/singaurora/exec-graph/backend/internal/infrastructure/mysql"
 	infrastructurestorage "github.com/singaurora/exec-graph/backend/internal/infrastructure/storage"
 	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
 	sharedid "github.com/singaurora/exec-graph/backend/internal/shared/id"
@@ -105,7 +104,7 @@ func (s *Server) updateCurrentUser(w http.ResponseWriter, r *http.Request, user 
 
 	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	err = infrastructuremysql.NewIdentityRepository(s.orm).UpdateUser(ctx, user.ID, map[string]any{"username": username, "user_id": userID, "bio": bio, "gender": request.Gender, "custom_profile_enabled": request.CustomProfileEnabled, "custom_profile_markdown": customProfileMarkdown})
+	err = s.identityStore.UpdateUser(ctx, user.ID, map[string]any{"username": username, "user_id": userID, "bio": bio, "gender": request.Gender, "custom_profile_enabled": request.CustomProfileEnabled, "custom_profile_markdown": customProfileMarkdown})
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "duplicate") {
 			writeError(w, http.StatusConflict, "该用户 ID 已被使用")
@@ -202,7 +201,7 @@ func (s *Server) uploadAvatar(w http.ResponseWriter, r *http.Request, user authe
 		writeError(w, http.StatusBadGateway, "头像上传失败，请稍后重试")
 		return
 	}
-	if err := infrastructuremysql.NewIdentityRepository(s.orm).UpdateUser(ctx, user.ID, map[string]any{"avatar_url": newObjectKey}); err != nil {
+	if err := s.identityStore.UpdateUser(ctx, user.ID, map[string]any{"avatar_url": newObjectKey}); err != nil {
 		_ = s.storage.DeleteObject(ctx, newObjectKey)
 		writeError(w, http.StatusInternalServerError, "保存头像失败")
 		return
@@ -275,7 +274,7 @@ func (s *Server) uploadProfileBackground(w http.ResponseWriter, r *http.Request,
 		writeError(w, http.StatusBadGateway, "背景图片上传失败，请稍后重试")
 		return
 	}
-	if err := infrastructuremysql.NewIdentityRepository(s.orm).UpdateUser(ctx, user.ID, map[string]any{"profile_background_url": newObjectKey}); err != nil {
+	if err := s.identityStore.UpdateUser(ctx, user.ID, map[string]any{"profile_background_url": newObjectKey}); err != nil {
 		_ = s.storage.DeleteObject(ctx, newObjectKey)
 		writeError(w, http.StatusInternalServerError, "保存背景图片失败")
 		return
@@ -367,7 +366,7 @@ func resizeProfileBackgroundDimensions(width, height, maxWidth, maxHeight int) (
 func (s *Server) loadUserProfile(requestContext context.Context, userID uint64) (userProfileResponse, error) {
 	ctx, cancel := context.WithTimeout(requestContext, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	stored, err := infrastructuremysql.NewIdentityRepository(s.orm).FindUserByID(ctx, userID)
+	stored, err := s.identityStore.FindUserByID(ctx, userID)
 	if err != nil {
 		return userProfileResponse{}, err
 	}
@@ -399,7 +398,7 @@ func (s *Server) loadUserProfile(requestContext context.Context, userID uint64) 
 }
 
 func (s *Server) loadAvatarObjectKey(ctx context.Context, userID uint64) (string, error) {
-	stored, err := infrastructuremysql.NewIdentityRepository(s.orm).FindUserByID(ctx, userID)
+	stored, err := s.identityStore.FindUserByID(ctx, userID)
 	if err != nil {
 		return "", err
 	}
@@ -410,7 +409,7 @@ func (s *Server) loadAvatarObjectKey(ctx context.Context, userID uint64) (string
 }
 
 func (s *Server) loadProfileBackgroundObjectKey(ctx context.Context, userID uint64) (string, error) {
-	stored, err := infrastructuremysql.NewIdentityRepository(s.orm).FindUserByID(ctx, userID)
+	stored, err := s.identityStore.FindUserByID(ctx, userID)
 	if err != nil {
 		return "", err
 	}

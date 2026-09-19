@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	infrastructuremysql "github.com/singaurora/exec-graph/backend/internal/infrastructure/mysql"
+	aikeypersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/aikey"
 	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
 )
 
@@ -76,7 +76,7 @@ type aiKeyResponse struct {
 func (s *Server) listAIKeys(w http.ResponseWriter, r *http.Request, userID uint64) {
 	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	items, err := infrastructuremysql.NewAIKeyRepository(s.orm).ListForUser(ctx, userID)
+	items, err := s.aiKeyStore.ListForUser(ctx, userID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "读取 AI 密钥失败")
 		return
@@ -108,7 +108,7 @@ func (s *Server) createAIKey(w http.ResponseWriter, r *http.Request, userID uint
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	if err := infrastructuremysql.NewAIKeyRepository(s.orm).Create(ctx, &infrastructuremysql.AIKey{UUID: keyID, UserID: userID, Provider: provider, Label: label, KeyCiphertext: apiKey, KeyHint: maskAPIKey(apiKey), BaseURL: baseURL, Model: model}); err != nil {
+	if err := s.aiKeyStore.Create(ctx, &aikeypersistence.AIKey{UUID: keyID, UserID: userID, Provider: provider, Label: label, KeyCiphertext: apiKey, KeyHint: maskAPIKey(apiKey), BaseURL: baseURL, Model: model}); err != nil {
 		writeError(w, http.StatusInternalServerError, "保存 AI 密钥失败")
 		return
 	}
@@ -121,8 +121,8 @@ func (s *Server) createAIKey(w http.ResponseWriter, r *http.Request, userID uint
 func (s *Server) verifyAIKey(w http.ResponseWriter, r *http.Request, userID uint64, keyID string) {
 	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.AIKeyVerificationTimeout)
 	defer cancel()
-	key, err := infrastructuremysql.NewAIKeyRepository(s.orm).FindForUser(ctx, userID, keyID)
-	if errors.Is(err, infrastructuremysql.ErrNotFound) {
+	key, err := s.aiKeyStore.FindForUser(ctx, userID, keyID)
+	if errors.Is(err, aikeypersistence.ErrNotFound) {
 		writeError(w, http.StatusNotFound, "AI 密钥不存在")
 		return
 	}
@@ -135,7 +135,7 @@ func (s *Server) verifyAIKey(w http.ResponseWriter, r *http.Request, userID uint
 		return
 	}
 	verifiedAt := time.Now()
-	if err := infrastructuremysql.NewAIKeyRepository(s.orm).MarkVerified(ctx, userID, keyID, verifiedAt); err != nil {
+	if err := s.aiKeyStore.MarkVerified(ctx, userID, keyID, verifiedAt); err != nil {
 		writeError(w, http.StatusInternalServerError, "保存验证结果失败")
 		return
 	}
@@ -164,12 +164,12 @@ func (s *Server) testAIKeyDraft(w http.ResponseWriter, r *http.Request) {
 func (s *Server) deleteAIKey(w http.ResponseWriter, r *http.Request, userID uint64, keyID string) {
 	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	err := infrastructuremysql.NewAIKeyRepository(s.orm).DeleteUnusedForUser(ctx, userID, keyID)
-	if errors.Is(err, infrastructuremysql.ErrNotFound) {
+	err := s.aiKeyStore.DeleteUnusedForUser(ctx, userID, keyID)
+	if errors.Is(err, aikeypersistence.ErrNotFound) {
 		writeError(w, http.StatusNotFound, "AI 密钥不存在")
 		return
 	}
-	if errors.Is(err, infrastructuremysql.ErrInUse) {
+	if errors.Is(err, aikeypersistence.ErrInUse) {
 		writeError(w, http.StatusBadRequest, "该 AI 密钥正在被项目使用，请先修改项目审查 AI")
 		return
 	}
@@ -177,7 +177,7 @@ func (s *Server) deleteAIKey(w http.ResponseWriter, r *http.Request, userID uint
 		writeError(w, http.StatusInternalServerError, "删除 AI 密钥失败")
 		return
 	}
-	w.WriteHeader(http.StatusNoContent)
+	writeJSON(w, http.StatusOK, nil)
 }
 
 func normalizeAIKeyRequest(request createAIKeyRequest) (provider, label, apiKey, baseURL, model string, err error) {

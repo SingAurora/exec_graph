@@ -48,7 +48,7 @@ type CreateNodeResult struct {
 func (s *Service) LockNode(ctx context.Context, userID uint64, projectID, nodeID string) (State, error) {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, err := s.execution.Begin(ctx)
 	if err != nil {
 		return State{}, err
 	}
@@ -56,7 +56,7 @@ func (s *Service) LockNode(ctx context.Context, userID uint64, projectID, nodeID
 
 	var projectInternalID uint64
 	var archivedAt sql.NullTime
-	err = tx.QueryRowContext(ctx, `SELECT id, archived_at FROM projects WHERE uuid = ? AND owner_id = ? FOR UPDATE`, projectID, userID).Scan(&projectInternalID, &archivedAt)
+	err = tx.Row(ctx, `SELECT id, archived_at FROM projects WHERE uuid = ? AND owner_id = ? FOR UPDATE`, projectID, userID).Scan(&projectInternalID, &archivedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return State{}, ErrNotFound
 	}
@@ -70,7 +70,7 @@ func (s *Service) LockNode(ctx context.Context, userID uint64, projectID, nodeID
 	var nodeInternalID, smartContractInternalID uint64
 	var stage, title, smartContractVersion, reviewJSON, messagesJSON string
 	var branchID, currentProjectNode sql.NullInt64
-	err = tx.QueryRowContext(ctx, `
+	err = tx.Row(ctx, `
 		SELECT n.id, n.stage, n.title, n.branch_id, n.smart_contract_id, n.smart_contract_version,
 		       n.ai_review_json, n.review_messages_json, p.current_contract_id
 		FROM execution_contracts n JOIN projects p ON p.id = n.project_id
@@ -90,7 +90,7 @@ func (s *Service) LockNode(ctx context.Context, userID uint64, projectID, nodeID
 	}
 	if branchID.Valid {
 		var currentBranchNode sql.NullInt64
-		if err := tx.QueryRowContext(ctx, `SELECT current_contract_id FROM execution_branches WHERE id = ? AND project_id = ? FOR UPDATE`, branchID.Int64, projectInternalID).Scan(&currentBranchNode); err != nil || !currentBranchNode.Valid || uint64(currentBranchNode.Int64) != nodeInternalID {
+		if err := tx.Row(ctx, `SELECT current_contract_id FROM execution_branches WHERE id = ? AND project_id = ? FOR UPDATE`, branchID.Int64, projectInternalID).Scan(&currentBranchNode); err != nil || !currentBranchNode.Valid || uint64(currentBranchNode.Int64) != nodeInternalID {
 			return State{}, &ValidationError{"该节点不是路径当前待确认节点"}
 		}
 	}
@@ -137,7 +137,7 @@ func (s *Service) LockNode(ctx context.Context, userID uint64, projectID, nodeID
 	if err != nil {
 		return State{}, err
 	}
-	result, err := tx.ExecContext(ctx, `
+	result, err := tx.Execute(ctx, `
 		INSERT INTO completion_records
 			(uuid, project_id, closing_contract_id, covered_contract_ids_json, title, summary,
 			 smart_contract_id, smart_contract_version, review_id, ai_review_verdict, record_kind, user_verdict_json)
@@ -151,21 +151,21 @@ func (s *Service) LockNode(ctx context.Context, userID uint64, projectID, nodeID
 		return State{}, err
 	}
 	for _, coveredID := range coveredIDs {
-		if _, err := tx.ExecContext(ctx, `UPDATE execution_contracts SET stage = ?, completion_record_id = ? WHERE id = ? AND project_id = ?`, terminalStage, recordInternalID, coveredID, projectInternalID); err != nil {
+		if _, err := tx.Execute(ctx, `UPDATE execution_contracts SET stage = ?, completion_record_id = ? WHERE id = ? AND project_id = ?`, terminalStage, recordInternalID, coveredID, projectInternalID); err != nil {
 			return State{}, err
 		}
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE node_conversations SET status = 'closed' WHERE project_id = ? AND node_id = ? AND owner_id = ? AND phase = 'completion' AND status = 'active'`, projectInternalID, nodeInternalID, userID); err != nil {
+	if _, err := tx.Execute(ctx, `UPDATE node_conversations SET status = 'closed' WHERE project_id = ? AND node_id = ? AND owner_id = ? AND phase = 'completion' AND status = 'active'`, projectInternalID, nodeInternalID, userID); err != nil {
 		return State{}, err
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE execution_contracts SET user_verdict_json = ?, review_messages_json = ? WHERE uuid = ?`, verdictJSON, updatedMessagesJSON, nodeID); err != nil {
+	if _, err := tx.Execute(ctx, `UPDATE execution_contracts SET user_verdict_json = ?, review_messages_json = ? WHERE uuid = ?`, verdictJSON, updatedMessagesJSON, nodeID); err != nil {
 		return State{}, err
 	}
 	if branchID.Valid {
-		if _, err := tx.ExecContext(ctx, `UPDATE execution_branches SET head_contract_id = ?, current_contract_id = NULL WHERE id = ?`, nodeInternalID, branchID.Int64); err != nil {
+		if _, err := tx.Execute(ctx, `UPDATE execution_branches SET head_contract_id = ?, current_contract_id = NULL WHERE id = ?`, nodeInternalID, branchID.Int64); err != nil {
 			return State{}, err
 		}
-	} else if _, err := tx.ExecContext(ctx, `UPDATE projects SET current_contract_id = NULL WHERE id = ? AND current_contract_id = ?`, projectInternalID, nodeInternalID); err != nil {
+	} else if _, err := tx.Execute(ctx, `UPDATE projects SET current_contract_id = NULL WHERE id = ? AND current_contract_id = ?`, projectInternalID, nodeInternalID); err != nil {
 		return State{}, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -180,7 +180,7 @@ type nodeSource struct {
 }
 
 type queryer interface {
-	QueryRowContext(context.Context, string, ...any) *sql.Row
+	Row(context.Context, string, ...any) *sql.Row
 }
 
 func (s *Service) CreateNode(ctx context.Context, input CreateNodeInput) (CreateNodeResult, error) {
@@ -204,7 +204,7 @@ func (s *Service) CreateNode(ctx context.Context, input CreateNodeInput) (Create
 
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, err := s.execution.Begin(ctx)
 	if err != nil {
 		return CreateNodeResult{}, err
 	}
@@ -214,7 +214,7 @@ func (s *Service) CreateNode(ctx context.Context, input CreateNodeInput) (Create
 	var visibility string
 	var currentProjectNode sql.NullInt64
 	var archivedAt sql.NullTime
-	err = tx.QueryRowContext(ctx, `
+	err = tx.Row(ctx, `
 		SELECT id, visibility, active_contract_revision_id, current_contract_id, archived_at
 		FROM projects WHERE uuid = ? AND owner_id = ? FOR UPDATE`, input.ProjectID, input.OwnerID).
 		Scan(&projectInternalID, &visibility, &revisionInternalID, &currentProjectNode, &archivedAt)
@@ -229,7 +229,7 @@ func (s *Service) CreateNode(ctx context.Context, input CreateNodeInput) (Create
 	}
 
 	var configuredKeyID, keyLabel, provider, model, baseURL string
-	err = tx.QueryRowContext(ctx, `
+	err = tx.Row(ctx, `
 		SELECT k.uuid, k.label, k.provider, k.model, k.base_url
 		FROM projects p JOIN ai_api_keys k ON k.id = p.default_ai_key_id
 		WHERE p.uuid = ? AND p.owner_id = ?`, input.ProjectID, input.OwnerID).
@@ -247,7 +247,7 @@ func (s *Service) CreateNode(ctx context.Context, input CreateNodeInput) (Create
 
 	var smartContractID, smartContractVersion string
 	var smartContractInternalID uint64
-	if err := tx.QueryRowContext(ctx, `
+	if err := tx.Row(ctx, `
 		SELECT c.id, c.uuid, revision.smart_contract_version
 		FROM project_contract_revisions revision
 		JOIN smart_contracts c ON c.id = revision.smart_contract_id
@@ -262,7 +262,7 @@ func (s *Service) CreateNode(ctx context.Context, input CreateNodeInput) (Create
 	}
 	if len(sourceIDs) == 0 {
 		var nodeCount int
-		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM execution_contracts WHERE project_id = ?`, projectInternalID).Scan(&nodeCount); err != nil {
+		if err := tx.Row(ctx, `SELECT COUNT(*) FROM execution_contracts WHERE project_id = ?`, projectInternalID).Scan(&nodeCount); err != nil {
 			return CreateNodeResult{}, err
 		}
 		if nodeCount > 0 {
@@ -270,11 +270,11 @@ func (s *Service) CreateNode(ctx context.Context, input CreateNodeInput) (Create
 				return CreateNodeResult{}, &ValidationError{"后续推进必须从已验收成果继续，或从一项已封存的尝试重新开始"}
 			}
 			var retryStage string
-			if err := tx.QueryRowContext(ctx, `SELECT stage FROM execution_contracts WHERE uuid = ? AND project_id = ? FOR UPDATE`, input.RetryOfContractID, projectInternalID).Scan(&retryStage); err != nil || retryStage != "sealed" {
+			if err := tx.Row(ctx, `SELECT stage FROM execution_contracts WHERE uuid = ? AND project_id = ? FOR UPDATE`, input.RetryOfContractID, projectInternalID).Scan(&retryStage); err != nil || retryStage != "sealed" {
 				return CreateNodeResult{}, &ValidationError{"只能基于本项目已封存的尝试重新开始"}
 			}
 			var activeCount int
-			if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM execution_contracts WHERE project_id = ? AND stage IN ('frozen', 'verified', 'needs_supplement')`, projectInternalID).Scan(&activeCount); err != nil {
+			if err := tx.Row(ctx, `SELECT COUNT(*) FROM execution_contracts WHERE project_id = ? AND stage IN ('frozen', 'verified', 'needs_supplement')`, projectInternalID).Scan(&activeCount); err != nil {
 				return CreateNodeResult{}, err
 			}
 			if activeCount > 0 {
@@ -290,7 +290,7 @@ func (s *Service) CreateNode(ctx context.Context, input CreateNodeInput) (Create
 		var stage string
 		var sourceInternalID uint64
 		var completionID, branchID sql.NullInt64
-		err := tx.QueryRowContext(ctx, `
+		err := tx.Row(ctx, `
 			SELECT id, stage, completion_record_id, branch_id
 			FROM execution_contracts WHERE uuid = ? AND project_id = ? FOR UPDATE`, sourceID, projectInternalID).
 			Scan(&sourceInternalID, &stage, &completionID, &branchID)
@@ -340,7 +340,7 @@ func (s *Service) CreateNode(ctx context.Context, input CreateNodeInput) (Create
 
 	if branchID != "" {
 		var headID, currentID sql.NullInt64
-		err := tx.QueryRowContext(ctx, `SELECT head_contract_id, current_contract_id FROM execution_branches WHERE id = ? AND project_id = ? FOR UPDATE`, branchInternalID, projectInternalID).Scan(&headID, &currentID)
+		err := tx.Row(ctx, `SELECT head_contract_id, current_contract_id FROM execution_branches WHERE id = ? AND project_id = ? FOR UPDATE`, branchInternalID, projectInternalID).Scan(&headID, &currentID)
 		allowsReplacingSource := (isSupplement || isClosure) && currentID.Valid && parentInternalID != nil && uint64(currentID.Int64) == parentInternalID.(uint64)
 		if errors.Is(err, sql.ErrNoRows) || !headID.Valid || parentInternalID == nil || uint64(headID.Int64) != parentInternalID.(uint64) || (currentID.Valid && !allowsReplacingSource) {
 			return CreateNodeResult{}, &ValidationError{"这条节点路径已经不是可继续的末端"}
@@ -357,7 +357,7 @@ func (s *Service) CreateNode(ctx context.Context, input CreateNodeInput) (Create
 		if err != nil {
 			return CreateNodeResult{}, err
 		}
-		result, err := tx.ExecContext(ctx, `INSERT INTO execution_branches (uuid, project_id, title, created_by) VALUES (?, ?, ?, ?)`, branchID, projectInternalID, input.Title, input.OwnerID)
+		result, err := tx.Execute(ctx, `INSERT INTO execution_branches (uuid, project_id, title, created_by) VALUES (?, ?, ?, ?)`, branchID, projectInternalID, input.Title, input.OwnerID)
 		if err != nil {
 			return CreateNodeResult{}, err
 		}
@@ -406,7 +406,7 @@ func (s *Service) CreateNode(ctx context.Context, input CreateNodeInput) (Create
 	if err != nil {
 		return CreateNodeResult{}, &ValidationError{"起草对话不存在"}
 	}
-	result, err := tx.ExecContext(ctx, `
+	result, err := tx.Execute(ctx, `
 		INSERT INTO execution_contracts
 			(uuid, project_id, branch_id, project_contract_revision_id, parent_contract_id, source_contract_ids_json, supplement_of_contract_id, retry_of_contract_id,
 			 actor_id, title, stage, original_intent, smart_contract_id, smart_contract_version,
@@ -437,7 +437,7 @@ func (s *Service) CreateNode(ctx context.Context, input CreateNodeInput) (Create
 		} else if len(sourceIDs) > 1 {
 			edgeType = "merge"
 		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO execution_edges (uuid, source_contract_id, target_contract_id, type) VALUES (?, ?, ?, ?)`, edgeID, source.id, nodeInternalID, edgeType); err != nil {
+		if _, err := tx.Execute(ctx, `INSERT INTO execution_edges (uuid, source_contract_id, target_contract_id, type) VALUES (?, ?, ?, ?)`, edgeID, source.id, nodeInternalID, edgeType); err != nil {
 			return CreateNodeResult{}, err
 		}
 	}
@@ -446,22 +446,22 @@ func (s *Service) CreateNode(ctx context.Context, input CreateNodeInput) (Create
 		if err != nil {
 			return CreateNodeResult{}, err
 		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO execution_edges (uuid, source_contract_id, target_contract_id, type) VALUES (?, ?, ?, 'reference')`, edgeID, retryInternalID, nodeInternalID); err != nil {
+		if _, err := tx.Execute(ctx, `INSERT INTO execution_edges (uuid, source_contract_id, target_contract_id, type) VALUES (?, ?, ?, 'reference')`, edgeID, retryInternalID, nodeInternalID); err != nil {
 			return CreateNodeResult{}, err
 		}
 	}
 	if branchID != "" && !createBranch {
-		if _, err := tx.ExecContext(ctx, `UPDATE execution_branches SET head_contract_id = ?, current_contract_id = ? WHERE id = ?`, nodeInternalID, nodeInternalID, branchInternalID); err != nil {
+		if _, err := tx.Execute(ctx, `UPDATE execution_branches SET head_contract_id = ?, current_contract_id = ? WHERE id = ?`, nodeInternalID, nodeInternalID, branchInternalID); err != nil {
 			return CreateNodeResult{}, err
 		}
 	}
 	if branchID == "" {
-		if _, err := tx.ExecContext(ctx, `UPDATE projects SET current_contract_id = ? WHERE id = ?`, nodeInternalID, projectInternalID); err != nil {
+		if _, err := tx.Execute(ctx, `UPDATE projects SET current_contract_id = ? WHERE id = ?`, nodeInternalID, projectInternalID); err != nil {
 			return CreateNodeResult{}, err
 		}
 	}
 	if createBranch {
-		if _, err := tx.ExecContext(ctx, `UPDATE execution_branches SET root_contract_id = ?, forked_from_contract_id = ?, head_contract_id = ?, current_contract_id = ? WHERE id = ?`, nodeInternalID, parentInternalID, nodeInternalID, nodeInternalID, branchInternalID); err != nil {
+		if _, err := tx.Execute(ctx, `UPDATE execution_branches SET root_contract_id = ?, forked_from_contract_id = ?, head_contract_id = ?, current_contract_id = ? WHERE id = ?`, nodeInternalID, parentInternalID, nodeInternalID, nodeInternalID, branchInternalID); err != nil {
 			return CreateNodeResult{}, err
 		}
 	}
@@ -469,7 +469,7 @@ func (s *Service) CreateNode(ctx context.Context, input CreateNodeInput) (Create
 		return CreateNodeResult{}, err
 	}
 	if input.PlanningConversationID != "" {
-		_, _ = s.db.ExecContext(ctx, `UPDATE node_conversations SET node_id = ?, status = 'frozen' WHERE uuid = ? AND project_id = ? AND owner_id = ?`, nodeInternalID, input.PlanningConversationID, projectInternalID, input.OwnerID)
+		_, _ = s.execution.Execute(ctx, `UPDATE node_conversations SET node_id = ?, status = 'frozen' WHERE uuid = ? AND project_id = ? AND owner_id = ?`, nodeInternalID, input.PlanningConversationID, projectInternalID, input.OwnerID)
 	}
 	state, err := s.State(ctx, input.OwnerID, input.ProjectID)
 	return CreateNodeResult{NodeID: nodeID, State: state}, err
@@ -500,7 +500,7 @@ func internalIDFor(ctx context.Context, db queryer, entity, uuid string) (uint64
 		return 0, errors.New("unsupported node id entity")
 	}
 	var id uint64
-	err := db.QueryRowContext(ctx, "SELECT id FROM "+table+" WHERE uuid = ?", uuid).Scan(&id)
+	err := db.Row(ctx, "SELECT id FROM "+table+" WHERE uuid = ?", uuid).Scan(&id)
 	return id, err
 }
 
@@ -517,6 +517,6 @@ func publicUUIDFor(ctx context.Context, db queryer, entity string, id uint64) (s
 		return "", errors.New("unsupported node id entity")
 	}
 	var uuid string
-	err := db.QueryRowContext(ctx, "SELECT uuid FROM "+table+" WHERE id = ?", id).Scan(&uuid)
+	err := db.Row(ctx, "SELECT uuid FROM "+table+" WHERE id = ?", id).Scan(&uuid)
 	return uuid, err
 }
