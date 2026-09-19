@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	applicationidentity "github.com/singaurora/exec-graph/backend/internal/application/identity"
 	endpointcommon "github.com/singaurora/exec-graph/backend/internal/http/endpoint/common"
+	httpresponse "github.com/singaurora/exec-graph/backend/internal/http/response"
 	"github.com/singaurora/exec-graph/backend/internal/shared/fault"
 )
 
@@ -31,7 +32,7 @@ func (s *Server) requireUserError(r *http.Request) (authenticatedUser, error) {
 func (s *Server) requireUser(w http.ResponseWriter, r *http.Request) (authenticatedUser, bool) {
 	user, err := s.requireUserError(r)
 	if err != nil {
-		writeFault(w, err)
+		httpresponse.WriteFault(w, err)
 		return authenticatedUser{}, false
 	}
 	return user, true
@@ -70,4 +71,8 @@ func (s *Server) authenticate(r *http.Request) (authenticatedUser, error) {
 }
 func bearerToken(r *http.Request) string {
 	return endpointcommon.BearerToken(r)
+}
+
+func (s *Server) cacheSession(ctx context.Context, token string, user authenticatedUser) error {
+	return s.identity.CacheSession(ctx, token, user)
 }

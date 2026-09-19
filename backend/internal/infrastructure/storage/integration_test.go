@@ -1,4 +1,4 @@
-package endpoint
+package storage_test
 
 import (
 	"context"
@@ -20,11 +20,11 @@ func TestObjectStorageConnection(t *testing.T) {
 	}
 	storage, err := infrastructurestorage.NewTencentCOS(config.Storage, config.Credentials)
 	if err != nil {
-		t.Fatalf("create COS client: %v", err)
+		t.Fatalf("create object storage client: %v", err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), sharedconstants.WorkOverviewTimeout)
 	defer cancel()
 	if err := storage.Check(ctx); err != nil {
-		t.Fatalf("check COS bucket: %v", err)
+		t.Fatalf("check object storage bucket: %v", err)
 	}
 }

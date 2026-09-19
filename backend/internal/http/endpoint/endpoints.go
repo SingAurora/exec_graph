@@ -13,6 +13,17 @@ type authenticatedHandler func(http.ResponseWriter, *http.Request, authenticated
 type errorHandler func(http.ResponseWriter, *http.Request) error
 type authenticatedErrorHandler func(http.ResponseWriter, *http.Request, authenticatedUser) error
 
+type faultCapturingWriter struct {
+	http.ResponseWriter
+	err error
+}
+
+func (writer *faultCapturingWriter) captureFault(err error) {
+	if writer.err == nil {
+		writer.err = err
+	}
+}
+
 // Endpoints contains method-specific handlers without URL knowledge. The router
 // package is the sole owner of paths, HTTP methods, and route groups.
 type Endpoints struct {
