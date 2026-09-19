@@ -18,19 +18,6 @@ const (
 	dailyRoutineContractID = "smart-contract-daily-routine"
 )
 
-var (
-	ErrInvalidProject      = errors.New("invalid project")
-	ErrContractUnavailable = errors.New("smart contract unavailable")
-	ErrCallUnavailable     = errors.New("contribution call unavailable")
-)
-
-var publicIDTables = map[string]string{
-	"ai_api_keys":                "ai_api_keys",
-	"collaboration_calls":        "collaboration_calls",
-	"execution_contracts":        "execution_contracts",
-	"project_contract_revisions": "project_contract_revisions",
-}
-
 // List 返回当前用户的项目摘要。项目详情由同一个领域服务统一组装。
 func (s *Service) List(ctx context.Context, userID uint64) ([]ProjectView, error) {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)

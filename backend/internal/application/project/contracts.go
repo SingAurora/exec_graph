@@ -12,18 +12,6 @@ import (
 	sharedid "github.com/singaurora/exec-graph/backend/internal/shared/id"
 )
 
-type Contract struct {
-	ID, Name, Source, Version, Description, Body string
-	CreatedAt                                    time.Time
-}
-type ContractEvent struct {
-	ID, ContractID, EventType string
-	Contract                  Contract
-	CreatedAt                 time.Time
-}
-
-var ErrContractNotFound = errors.New("contract not found")
-
 func (s *Service) ListContracts(ctx context.Context, userID uint64) ([]Contract, error) {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
@@ -89,8 +77,6 @@ func (s *Service) CreateContract(ctx context.Context, userID uint64, name, descr
 	}
 	return contract, nil
 }
-
-var ErrContractInUse = errors.New("contract is in use")
 
 func (s *Service) DeleteContract(ctx context.Context, userID uint64, contractID string) error {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)

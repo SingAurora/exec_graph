@@ -9,6 +9,12 @@ import (
 	applicationnetwork "github.com/singaurora/exec-graph/backend/internal/application/network"
 	applicationproject "github.com/singaurora/exec-graph/backend/internal/application/project"
 	bootstrapconfig "github.com/singaurora/exec-graph/backend/internal/bootstrap/config"
+	aikeyendpoint "github.com/singaurora/exec-graph/backend/internal/http/endpoint/aikey"
+	identityendpoint "github.com/singaurora/exec-graph/backend/internal/http/endpoint/identity"
+	networkendpoint "github.com/singaurora/exec-graph/backend/internal/http/endpoint/network"
+	profileendpoint "github.com/singaurora/exec-graph/backend/internal/http/endpoint/profile"
+	projectendpoint "github.com/singaurora/exec-graph/backend/internal/http/endpoint/project"
+	workflowendpoint "github.com/singaurora/exec-graph/backend/internal/http/endpoint/workflow"
 	infrastructuremail "github.com/singaurora/exec-graph/backend/internal/infrastructure/mail"
 	aikeypersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/aikey"
 	collaborationpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/collaboration"
@@ -31,7 +37,7 @@ import (
 // 依赖，不在请求处理层自行连接数据库、Redis、邮件服务或对象存储。
 type Dependencies struct {
 	ORM     *gorm.DB                            // GORM 数据库连接，供各业务仓储创建查询。
-	Mailer  *infrastructuremail.Mailer          // 腾讯云 SES 邮件客户端，用于发送验证码等邮件。
+	Mailer  *infrastructuremail.Mailer          // 邮件客户端，用于发送验证码等邮件。
 	Storage infrastructurestorage.ObjectStorage // 通用对象存储，用于头像、背景图等文件。
 	Redis   *infrastructureredis.SessionStore   // Redis 会话存储，登录态的强依赖。
 	Config  bootstrapconfig.Config              // 已解析并校验的运行配置。
@@ -65,6 +71,13 @@ type Server struct {
 	network       *applicationnetwork.Service       // 探索页的公开人物/项目关系网络。
 	aiKey         *applicationaikey.Service         // AI Key 的创建、验证、查询和删除。
 	collaboration *applicationcollaboration.Service // 协作机会、投稿、审查和采纳。
+
+	projectEndpoints  *projectendpoint.Handler  // 项目与规则模板 HTTP 适配。
+	networkEndpoints  *networkendpoint.Handler  // 探索网络 HTTP 适配。
+	aiKeyEndpoints    *aikeyendpoint.Handler    // AI 密钥 HTTP 适配。
+	identityEndpoints *identityendpoint.Handler // 身份认证和账户凭据 HTTP 适配。
+	profileEndpoints  *profileendpoint.Handler  // 当前用户资料和媒体上传 HTTP 适配。
+	workflowEndpoints *workflowendpoint.Handler // 执行流、审查、协作和对话 HTTP 适配。
 }
 
 func NewServer(dependencies Dependencies) *Server {
@@ -105,6 +118,27 @@ func NewServer(dependencies Dependencies) *Server {
 	server.network = applicationnetwork.New(networkpersistence.NewRepository(dependencies.ORM))
 	server.aiKey = applicationaikey.New(aiKeyStore)
 	server.collaboration = applicationcollaboration.New(collaborationpersistence.NewRepository(dependencies.ORM))
+
+	server.projectEndpoints = projectendpoint.New(server.project)
+	server.networkEndpoints = networkendpoint.New(server.network)
+	server.aiKeyEndpoints = aikeyendpoint.New(server.aiKey)
+	server.identityEndpoints = identityendpoint.New(server.identity, server.requireUserError)
+	server.profileEndpoints = profileendpoint.New(profileendpoint.Dependencies{
+		IdentityStore: identityStore,
+		Storage:       dependencies.Storage,
+		RequireUser:   server.requireUser,
+		CacheSession:  server.cacheSession,
+	})
+	server.workflowEndpoints = workflowendpoint.New(workflowendpoint.Dependencies{
+		Project:            server.project,
+		Collaboration:      server.collaboration,
+		AIKeyStore:         aiKeyStore,
+		Reviews:            server.reviews,
+		Conversations:      server.conversations,
+		CollaborationStore: server.collaborationStore,
+		WorkOverview:       server.workOverview,
+		RequireUser:        server.requireUser,
+	})
 
 	// 第三步：返回已经完成依赖注入的 HTTP endpoint Server。
 	// router 后续只从 server.Endpoints() 取得处理函数，不需要知道这些依赖

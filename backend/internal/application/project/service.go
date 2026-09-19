@@ -13,15 +13,6 @@ import (
 	sharedid "github.com/singaurora/exec-graph/backend/internal/shared/id"
 )
 
-var (
-	ErrNotFound         = errors.New("project not found")
-	ErrAlreadyArchived  = errors.New("project already archived")
-	ErrNotArchived      = errors.New("project is not archived")
-	ErrAdoptedContent   = errors.New("project has adopted content")
-	ErrAIKeyUnavailable = errors.New("AI key unavailable")
-	ErrInvalidContract  = errors.New("invalid project contract")
-)
-
 type Service struct {
 	projects  projectpersistence.ProjectRepository
 	contracts contractpersistence.SmartContractRepository

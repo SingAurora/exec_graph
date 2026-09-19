@@ -13,37 +13,6 @@ import (
 	sharedid "github.com/singaurora/exec-graph/backend/internal/shared/id"
 )
 
-// ValidationError 表示可以直接反馈给用户的节点规则错误。
-type ValidationError struct{ Message string }
-
-func (e *ValidationError) Error() string { return e.Message }
-
-type CreateNodeInput struct {
-	OwnerID                uint64
-	ProjectID              string
-	Draft                  string
-	DraftReview            any
-	DraftReviewVerdict     string
-	DraftReviewKeyID       string
-	Title                  string
-	VerifiableGoal         string
-	AcceptanceCriteria     []Criterion
-	EvidenceRequirement    string
-	ParentContractID       string
-	SourceContractIDs      []string
-	BranchID               string
-	Fork                   bool
-	SupplementOfNodeID     string
-	RetryOfContractID      string
-	Closure                bool
-	PlanningConversationID string
-}
-
-type CreateNodeResult struct {
-	NodeID string
-	State  State
-}
-
 // LockNode 根据最近一次 AI 审查结果，创建完成记录并关闭当前推进。
 func (s *Service) LockNode(ctx context.Context, userID uint64, projectID, nodeID string) (State, error) {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
@@ -491,8 +460,6 @@ func uniqueNonEmpty(values []string) []string {
 	}
 	return result
 }
-
-var nodeIDTables = map[string]string{"execution_branches": "execution_branches", "execution_contracts": "execution_contracts", "node_conversations": "node_conversations"}
 
 func internalIDFor(ctx context.Context, db queryer, entity, uuid string) (uint64, error) {
 	table, ok := nodeIDTables[entity]

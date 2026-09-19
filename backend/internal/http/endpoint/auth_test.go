@@ -3,6 +3,10 @@ package endpoint
 import (
 	"net/http/httptest"
 	"testing"
+
+	applicationidentity "github.com/singaurora/exec-graph/backend/internal/application/identity"
+	endpointcommon "github.com/singaurora/exec-graph/backend/internal/http/endpoint/common"
+	sharedid "github.com/singaurora/exec-graph/backend/internal/shared/id"
 )
 
 func TestNormalizeEmail(t *testing.T) {
@@ -18,7 +22,7 @@ func TestNormalizeEmail(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got, err := normalizeEmail(test.value)
+			got, err := applicationidentity.NormalizeEmail(test.value)
 			if test.wantErr {
 				if err == nil {
 					t.Fatalf("expected an error for %q", test.value)
@@ -38,21 +42,21 @@ func TestNormalizeEmail(t *testing.T) {
 func TestBearerToken(t *testing.T) {
 	request := httptest.NewRequest("GET", "/", nil)
 	request.Header.Set("Authorization", "Bearer token-value")
-	if got := bearerToken(request); got != "token-value" {
+	if got := endpointcommon.BearerToken(request); got != "token-value" {
 		t.Fatalf("bearerToken() = %q, want token-value", got)
 	}
 	request.Header.Set("Authorization", "Basic token-value")
-	if got := bearerToken(request); got != "" {
+	if got := endpointcommon.BearerToken(request); got != "" {
 		t.Fatalf("bearerToken() accepted a non-Bearer scheme: %q", got)
 	}
 }
 
 func TestNewOpaqueID(t *testing.T) {
-	first, err := newOpaqueID("project")
+	first, err := endpointcommon.NewOpaqueID("project")
 	if err != nil {
 		t.Fatalf("newOpaqueID(): %v", err)
 	}
-	second, err := newOpaqueID("project")
+	second, err := endpointcommon.NewOpaqueID("project")
 	if err != nil {
 		t.Fatalf("newOpaqueID(): %v", err)
 	}
@@ -65,31 +69,11 @@ func TestNewOpaqueID(t *testing.T) {
 }
 
 func TestNewUserID(t *testing.T) {
-	userID, err := newUserID()
+	userID, err := sharedid.User()
 	if err != nil {
 		t.Fatalf("newUserID(): %v", err)
 	}
-	if _, err := normalizeUserID(userID); err != nil {
+	if _, err := applicationidentity.NormalizeUserID(userID); err != nil {
 		t.Fatalf("newUserID() = %q, which does not match the user ID rules", userID)
-	}
-}
-
-func TestAvatarExtension(t *testing.T) {
-	tests := []struct {
-		contentType string
-		want        string
-		valid       bool
-	}{
-		{contentType: "image/jpeg", want: ".jpg", valid: true},
-		{contentType: "image/png", want: ".png", valid: true},
-		{contentType: "image/webp", want: ".webp", valid: true},
-		{contentType: "image/gif", valid: false},
-		{contentType: "application/octet-stream", valid: false},
-	}
-	for _, test := range tests {
-		got, valid := avatarExtension(test.contentType)
-		if valid != test.valid || got != test.want {
-			t.Fatalf("avatarExtension(%q) = (%q, %t), want (%q, %t)", test.contentType, got, valid, test.want, test.valid)
-		}
 	}
 }

@@ -77,128 +77,135 @@ type Endpoints struct {
 func (s *Server) Endpoints() Endpoints {
 	return Endpoints{
 		RequireAuthentication: s.authenticationMiddleware(),
-		Health:                s.withErrorHandler(s.health),
-		SendCode:              s.withErrorHandler(s.sendCode),
-		Register:              s.withErrorHandler(s.register),
-		Login:                 s.withErrorHandler(s.login),
-		Logout:                s.withErrorHandler(s.logout),
-		ResetPassword:         s.withErrorHandler(s.resetPassword),
-		CurrentAuth:           s.withErrorHandler(s.me),
-		ChangeEmail:           s.withErrorHandler(s.changeEmail),
-		ChangePassword:        s.withErrorHandler(s.changePassword),
-		CurrentUser:           s.withLegacyHandler(s.handleCurrentUser),
+		Health:                s.withErrorHandler(s.identityEndpoints.Health),
+		SendCode:              s.withErrorHandler(s.identityEndpoints.SendCode),
+		Register:              s.withErrorHandler(s.identityEndpoints.Register),
+		Login:                 s.withErrorHandler(s.identityEndpoints.Login),
+		Logout:                s.withErrorHandler(s.identityEndpoints.Logout),
+		ResetPassword:         s.withErrorHandler(s.identityEndpoints.ResetPassword),
+		CurrentAuth:           s.withErrorHandler(s.identityEndpoints.Me),
+		ChangeEmail:           s.withErrorHandler(s.identityEndpoints.ChangeEmail),
+		ChangePassword:        s.withErrorHandler(s.identityEndpoints.ChangePassword),
+		CurrentUser:           s.withLegacyHandler(s.profileEndpoints.CurrentUser),
 		UpdateCurrentUser: s.withAuthenticatedUser(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) {
-			s.updateCurrentUser(w, r, user)
+			s.profileEndpoints.UpdateCurrentUser(w, r, user)
 		}),
-		UploadAvatar:     s.withLegacyHandler(s.handleAvatar),
-		UploadBackground: s.withLegacyHandler(s.handleProfileBackground),
+		UploadAvatar:     s.withLegacyHandler(s.profileEndpoints.Avatar),
+		UploadBackground: s.withLegacyHandler(s.profileEndpoints.ProfileBackground),
 		ListProjects: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.listProjects(w, r, user.ID)
+			return s.projectEndpoints.List(w, r, user.ID)
 		}),
 		CreateProject: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.createProject(w, r, user.ID)
+			return s.projectEndpoints.Create(w, r, user.ID)
 		}),
 		GetProject: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.getProject(w, r, user.ID, requestParameter(r, "projectID"))
+			return s.projectEndpoints.Get(w, r, user.ID, requestParameter(r, "projectID"))
 		}),
 		UpdateProject: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.updateProject(w, r, user.ID, requestParameter(r, "projectID"))
+			return s.projectEndpoints.Update(w, r, user.ID, requestParameter(r, "projectID"))
 		}),
 		DeleteProject: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.deleteProject(w, r, user.ID, requestParameter(r, "projectID"))
+			return s.projectEndpoints.Delete(w, r, user.ID, requestParameter(r, "projectID"))
 		}),
 		GetProjectGraph: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.getProjectGraph(w, r, user.ID, requestParameter(r, "projectID"))
+			return s.projectEndpoints.Graph(w, r, user.ID, requestParameter(r, "projectID"))
 		}),
 		CreateNode: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.createExecutionNode(w, r, user.ID, requestParameter(r, "projectID"))
+			return s.workflowEndpoints.CreateExecutionNode(w, r, user.ID, requestParameter(r, "projectID"))
 		}),
 		LockNode: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.lockExecutionNode(w, r, user.ID, requestParameter(r, "projectID"), requestParameter(r, "nodeID"))
+			return s.workflowEndpoints.LockExecutionNode(w, r, user.ID, requestParameter(r, "projectID"), requestParameter(r, "nodeID"))
 		}),
 		CreateCall: s.withAuthenticatedUser(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) {
-			s.handleProjectCollaborationCalls(w, r, user.ID, requestParameter(r, "projectID"))
+			s.workflowEndpoints.CreateCollaborationCall(w, r, user.ID, requestParameter(r, "projectID"))
 		}),
 		CreatePlanningChat: s.withAuthenticatedUser(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) {
-			s.createPlanningConversation(w, r, user.ID, requestParameter(r, "projectID"))
+			s.workflowEndpoints.CreatePlanningConversation(w, r, user.ID, requestParameter(r, "projectID"))
 		}),
 		CreateCompletionChat: s.withAuthenticatedUser(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) {
-			s.createCompletionConversation(w, r, user.ID, requestParameter(r, "projectID"), requestParameter(r, "nodeID"))
+			s.workflowEndpoints.CreateCompletionConversation(w, r, user.ID, requestParameter(r, "projectID"), requestParameter(r, "nodeID"))
 		}),
 		SetProjectAIKey: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.setProjectAIKey(w, r, user.ID, requestParameter(r, "projectID"))
+			return s.projectEndpoints.SetAIKey(w, r, user.ID, requestParameter(r, "projectID"))
 		}),
 		SetProjectContract: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.setProjectSmartContract(w, r, user.ID, requestParameter(r, "projectID"))
+			return s.projectEndpoints.SetContract(w, r, user.ID, requestParameter(r, "projectID"))
 		}),
 		ArchiveProject: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.archiveProject(w, r, user.ID, requestParameter(r, "projectID"))
+			return s.projectEndpoints.Archive(w, r, user.ID, requestParameter(r, "projectID"))
 		}),
 		UnarchiveProject: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.unarchiveProject(w, r, user.ID, requestParameter(r, "projectID"))
+			return s.projectEndpoints.Unarchive(w, r, user.ID, requestParameter(r, "projectID"))
 		}),
-		ExploreProjects: s.withLegacyHandler(s.handleExploreProjects),
-		ExploreNetwork:  s.withLegacyHandler(s.handleExploreNetwork),
+		ExploreProjects: s.withLegacyHandler(s.workflowEndpoints.ExploreProjects),
+		ExploreNetwork: s.withErrorHandler(func(w http.ResponseWriter, r *http.Request) error {
+			user, authenticated := s.optionalUser(r)
+			var currentUserID *uint64
+			if authenticated {
+				currentUserID = &user.ID
+			}
+			return s.networkEndpoints.Explore(w, r, currentUserID)
+		}),
 		ExploreProject: s.withLegacyHandler(func(w http.ResponseWriter, r *http.Request) {
-			s.handleExploreProject(w, r, requestParameter(r, "projectID"))
+			s.workflowEndpoints.ExploreProject(w, r, requestParameter(r, "projectID"))
 		}),
-		ContributionSources: s.withLegacyHandler(s.handleContributionSources),
-		MyContributions:     s.withLegacyHandler(s.handleMyContributions),
+		ContributionSources: s.withLegacyHandler(s.workflowEndpoints.ContributionSources),
+		MyContributions:     s.withLegacyHandler(s.workflowEndpoints.MyContributions),
 		GetCall: s.withAuthenticatedUser(func(w http.ResponseWriter, r *http.Request, _ authenticatedUser) {
-			s.getCollaborationCall(w, r, requestParameter(r, "callID"))
+			s.workflowEndpoints.GetCollaborationCall(w, r, requestParameter(r, "callID"))
 		}),
 		SubmitContribution: s.withAuthenticatedUser(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) {
-			s.createCollaborationSubmission(w, r, user.ID, requestParameter(r, "callID"))
+			s.workflowEndpoints.SubmitContribution(w, r, user.ID, requestParameter(r, "callID"))
 		}),
 		ReviewContributions: s.withAuthenticatedUser(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) {
-			s.reviewCollaborationSubmissions(w, r, user.ID, requestParameter(r, "callID"))
+			s.workflowEndpoints.ReviewContributions(w, r, user.ID, requestParameter(r, "callID"))
 		}),
 		AdoptReview: s.withAuthenticatedUser(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) {
-			s.adoptCollaborationReview(w, r, user.ID, requestParameter(r, "batchID"))
+			s.workflowEndpoints.AdoptReview(w, r, user.ID, requestParameter(r, "batchID"))
 		}),
 		ListContracts: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.listSmartContracts(w, r, user.ID)
+			return s.projectEndpoints.ListContracts(w, r, user.ID)
 		}),
 		CreateContract: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.createSmartContractApplication(w, r, user.ID)
+			return s.projectEndpoints.CreateContract(w, r, user.ID)
 		}),
 		ListContractHistory: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.listSmartContractEventsApplication(w, r, user.ID)
+			return s.projectEndpoints.ContractHistory(w, r, user.ID)
 		}),
 		GetContract: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.getSmartContract(w, r, user.ID, requestParameter(r, "contractID"))
+			return s.projectEndpoints.GetContract(w, r, user.ID, requestParameter(r, "contractID"))
 		}),
 		DeleteContract: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.deleteSmartContractApplication(w, r, user.ID, requestParameter(r, "contractID"))
+			return s.projectEndpoints.DeleteContract(w, r, user.ID, requestParameter(r, "contractID"))
 		}),
 		ListAIKeys: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.listAIKeysApplication(w, r, user.ID)
+			return s.aiKeyEndpoints.List(w, r, user.ID)
 		}),
 		CreateAIKey: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.createAIKeyApplication(w, r, user.ID)
+			return s.aiKeyEndpoints.Create(w, r, user.ID)
 		}),
-		TestAIKey: s.withErrorHandler(s.testAIKeyApplication),
+		TestAIKey: s.withErrorHandler(s.aiKeyEndpoints.Test),
 		VerifyAIKey: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.verifyAIKeyApplication(w, r, user.ID, requestParameter(r, "keyID"))
+			return s.aiKeyEndpoints.Verify(w, r, user.ID, requestParameter(r, "keyID"))
 		}),
 		DeleteAIKey: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.deleteAIKeyApplication(w, r, user.ID, requestParameter(r, "keyID"))
+			return s.aiKeyEndpoints.Delete(w, r, user.ID, requestParameter(r, "keyID"))
 		}),
-		ReviewNode:        s.withLegacyHandler(s.reviewExecutionNode),
-		ClarifyNodeReview: s.withLegacyHandler(s.reviewExecutionNodeClarification),
-		ReviewNodeDraft:   s.withLegacyHandler(s.reviewNodeDraft),
-		WorkOverview:      s.withLegacyHandler(s.handleWorkOverview),
+		ReviewNode:        s.withLegacyHandler(s.workflowEndpoints.ReviewNode),
+		ClarifyNodeReview: s.withLegacyHandler(s.workflowEndpoints.ClarifyNodeReview),
+		ReviewNodeDraft:   s.withLegacyHandler(s.workflowEndpoints.ReviewNodeDraft),
+		WorkOverview:      s.withLegacyHandler(s.workflowEndpoints.WorkOverview),
 		ReviewWorkDay: s.withAuthenticatedUser(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) {
-			s.handleDailyWorkReview(w, r, user.ID, requestParameter(r, "date"))
+			s.workflowEndpoints.ReviewWorkDay(w, r, user.ID, requestParameter(r, "date"))
 		}),
 		GetConversation: s.withAuthenticatedUser(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) {
-			s.getConversation(w, r, user.ID, requestParameter(r, "conversationID"))
+			s.workflowEndpoints.GetConversation(w, r, user.ID, requestParameter(r, "conversationID"))
 		}),
 		SendMessage: s.withAuthenticatedUser(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) {
-			s.sendConversationMessage(w, r, user.ID, requestParameter(r, "conversationID"), false)
+			s.workflowEndpoints.SendConversationMessage(w, r, user.ID, requestParameter(r, "conversationID"), false)
 		}),
 		FreezeReview: s.withAuthenticatedUser(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) {
-			s.sendConversationMessage(w, r, user.ID, requestParameter(r, "conversationID"), true)
+			s.workflowEndpoints.SendConversationMessage(w, r, user.ID, requestParameter(r, "conversationID"), true)
 		}),
 	}
 }

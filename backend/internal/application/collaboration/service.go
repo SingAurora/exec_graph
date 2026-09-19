@@ -12,16 +12,6 @@ import (
 	sharedid "github.com/singaurora/exec-graph/backend/internal/shared/id"
 )
 
-var (
-	ErrNotFound            = errors.New("collaboration resource not found")
-	ErrInvalidRequest      = errors.New("invalid collaboration request")
-	ErrProjectPrivate      = errors.New("project is private")
-	ErrTargetNotReady      = errors.New("target is not ready")
-	ErrCallExists          = errors.New("open call already exists")
-	ErrSubmissionInvalid   = errors.New("invalid submission")
-	ErrDuplicateSubmission = errors.New("duplicate submission")
-)
-
 type Service struct {
 	repository *collaborationpersistence.Repository
 }

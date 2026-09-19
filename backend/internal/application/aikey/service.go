@@ -17,25 +17,6 @@ import (
 	sharedid "github.com/singaurora/exec-graph/backend/internal/shared/id"
 )
 
-type Provider struct{ Label, DefaultBaseURL, AuthStyle string }
-
-var providers = map[string]Provider{
-	"deepseek": {Label: "DeepSeek", DefaultBaseURL: "https://api.deepseek.com/v1", AuthStyle: "openai"},
-	"openai":   {Label: "OpenAI", DefaultBaseURL: "https://api.openai.com/v1", AuthStyle: "openai"},
-	"doubao":   {Label: "豆包", DefaultBaseURL: "https://ark.cn-beijing.volces.com/api/v3", AuthStyle: "openai"},
-	"claude":   {Label: "Claude", DefaultBaseURL: "https://api.anthropic.com/v1", AuthStyle: "anthropic"},
-}
-
-var (
-	ErrNotFound = errors.New("AI key not found")
-	ErrInUse    = errors.New("AI key is in use")
-)
-
-type Key struct {
-	ID, Provider, Label, APIKey, KeyHint, BaseURL, Model string
-	LastVerifiedAt, LastUsedAt                           *time.Time
-	CreatedAt                                            time.Time
-}
 type Service struct {
 	repository aikeypersistence.AIKeyRepository
 }
