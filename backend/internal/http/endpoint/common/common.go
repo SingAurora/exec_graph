@@ -21,25 +21,11 @@ func DecodeJSON(r *http.Request, target any) error {
 	return nil
 }
 
-// BindJSON 是旧式 handler 的兼容入口。新代码优先返回 error 给顶层错误边界。
-func BindJSON(w http.ResponseWriter, r *http.Request, target any) bool {
-	if err := DecodeJSON(r, target); err != nil {
-		WriteError(w, http.StatusBadRequest, err.Error())
-		return false
-	}
-	return true
-}
+// BindJSON 解析请求体并返回跨层错误。HTTP 层不在这里直接写响应。
+func BindJSON(r *http.Request, target any) error { return DecodeJSON(r, target) }
 
 func WriteJSON(w http.ResponseWriter, status int, value any) {
 	httpresponse.WriteJSON(w, status, value)
-}
-
-func WriteError(w http.ResponseWriter, status int, message string) {
-	httpresponse.WriteError(w, status, message)
-}
-
-func WriteFault(w http.ResponseWriter, err error) {
-	httpresponse.WriteFault(w, err)
 }
 
 func BearerToken(r *http.Request) string {
@@ -58,7 +44,8 @@ func ClientIP(r *http.Request) string {
 	return address
 }
 
-func NewOpaqueID(_ string) (string, error) { return sharedid.UUID() }
+// NewUUID 创建供 HTTP 公开资源使用的标准 UUID。
+func NewUUID() (string, error) { return sharedid.UUID() }
 
 func JSONValue(value any) (string, error) {
 	encoded, err := json.Marshal(value)

@@ -2,227 +2,234 @@ package endpoint
 
 import (
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
-	httprequest "github.com/singaurora/exec-graph/backend/internal/http/request"
 	"github.com/singaurora/exec-graph/backend/internal/shared/fault"
 )
 
-type authenticatedHandler func(http.ResponseWriter, *http.Request, authenticatedUser)
+// errorHandler 是无须认证的 endpoint 函数签名。业务错误由统一错误边界转换为 HTTP 响应。
 type errorHandler func(http.ResponseWriter, *http.Request) error
+
+// authenticatedErrorHandler 同时携带已认证用户，业务错误仍交给统一错误边界处理。
 type authenticatedErrorHandler func(http.ResponseWriter, *http.Request, authenticatedUser) error
-
-type faultCapturingWriter struct {
-	http.ResponseWriter
-	err error
-}
-
-func (writer *faultCapturingWriter) captureFault(err error) {
-	if writer.err == nil {
-		writer.err = err
-	}
-}
 
 // Endpoints contains method-specific handlers without URL knowledge. The router
 // package is the sole owner of paths, HTTP methods, and route groups.
+//
+// 这里是 HTTP 适配层与 router 之间的连接点：每个字段对应一个 HTTP 能力，
+// 但不包含 URL、请求方法或路由分组信息。具体业务由下方的领域 endpoint 负责。
 type Endpoints struct {
-	RequireAuthentication gin.HandlerFunc
-	Health                gin.HandlerFunc
-	SendCode              gin.HandlerFunc
-	Register              gin.HandlerFunc
-	Login                 gin.HandlerFunc
-	Logout                gin.HandlerFunc
-	ResetPassword         gin.HandlerFunc
-	CurrentAuth           gin.HandlerFunc
-	ChangeEmail           gin.HandlerFunc
-	ChangePassword        gin.HandlerFunc
-	CurrentUser           gin.HandlerFunc
-	UpdateCurrentUser     gin.HandlerFunc
-	UploadAvatar          gin.HandlerFunc
-	UploadBackground      gin.HandlerFunc
-	ListProjects          gin.HandlerFunc
-	CreateProject         gin.HandlerFunc
-	GetProject            gin.HandlerFunc
-	UpdateProject         gin.HandlerFunc
-	DeleteProject         gin.HandlerFunc
-	GetProjectGraph       gin.HandlerFunc
-	CreateNode            gin.HandlerFunc
-	LockNode              gin.HandlerFunc
-	CreateCall            gin.HandlerFunc
-	CreatePlanningChat    gin.HandlerFunc
-	CreateCompletionChat  gin.HandlerFunc
-	SetProjectAIKey       gin.HandlerFunc
-	SetProjectContract    gin.HandlerFunc
-	ArchiveProject        gin.HandlerFunc
-	UnarchiveProject      gin.HandlerFunc
-	ExploreProjects       gin.HandlerFunc
-	ExploreNetwork        gin.HandlerFunc
-	ExploreProject        gin.HandlerFunc
-	ContributionSources   gin.HandlerFunc
-	MyContributions       gin.HandlerFunc
-	GetCall               gin.HandlerFunc
-	SubmitContribution    gin.HandlerFunc
-	ReviewContributions   gin.HandlerFunc
-	AdoptReview           gin.HandlerFunc
-	ListContracts         gin.HandlerFunc
-	CreateContract        gin.HandlerFunc
-	ListContractHistory   gin.HandlerFunc
-	GetContract           gin.HandlerFunc
-	DeleteContract        gin.HandlerFunc
-	ListAIKeys            gin.HandlerFunc
-	CreateAIKey           gin.HandlerFunc
-	TestAIKey             gin.HandlerFunc
-	VerifyAIKey           gin.HandlerFunc
-	DeleteAIKey           gin.HandlerFunc
-	ReviewNode            gin.HandlerFunc
-	ClarifyNodeReview     gin.HandlerFunc
-	ReviewNodeDraft       gin.HandlerFunc
-	WorkOverview          gin.HandlerFunc
-	ReviewWorkDay         gin.HandlerFunc
-	GetConversation       gin.HandlerFunc
-	SendMessage           gin.HandlerFunc
-	FreezeReview          gin.HandlerFunc
+	RequireAuthentication              gin.HandlerFunc
+	Health                             gin.HandlerFunc
+	SendVerificationCode               gin.HandlerFunc
+	RegisterAccount                    gin.HandlerFunc
+	LoginWithPassword                  gin.HandlerFunc
+	LogoutCurrentSession               gin.HandlerFunc
+	ResetLoginPassword                 gin.HandlerFunc
+	GetCurrentSession                  gin.HandlerFunc
+	ChangeLoginEmail                   gin.HandlerFunc
+	ChangeLoginPassword                gin.HandlerFunc
+	GetCurrentUserProfile              gin.HandlerFunc
+	UpdateCurrentUserProfile           gin.HandlerFunc
+	UploadCurrentUserAvatar            gin.HandlerFunc
+	UploadCurrentUserProfileBackground gin.HandlerFunc
+	GetPublicUserProfile               gin.HandlerFunc
+	ListOwnedProjects                  gin.HandlerFunc
+	CreateProject                      gin.HandlerFunc
+	GetProjectDetail                   gin.HandlerFunc
+	UpdateProjectProfile               gin.HandlerFunc
+	DeleteProject                      gin.HandlerFunc
+	GetProjectExecutionGraph           gin.HandlerFunc
+	CreateExecutionNode                gin.HandlerFunc
+	ConfirmNodeCompletion              gin.HandlerFunc
+	PublishCollaborationCall           gin.HandlerFunc
+	OpenPlanningConversation           gin.HandlerFunc
+	OpenCompletionReviewConversation   gin.HandlerFunc
+	SetProjectReviewAI                 gin.HandlerFunc
+	SetProjectSmartContract            gin.HandlerFunc
+	ArchiveProject                     gin.HandlerFunc
+	RestoreArchivedProject             gin.HandlerFunc
+	ListPublicProjects                 gin.HandlerFunc
+	GetPublicCollaborationNetwork      gin.HandlerFunc
+	GetPublicProjectDetail             gin.HandlerFunc
+	ListContributionSourceRecords      gin.HandlerFunc
+	ListCurrentUserContributions       gin.HandlerFunc
+	GetCollaborationCallDetail         gin.HandlerFunc
+	SubmitProjectContribution          gin.HandlerFunc
+	ReviewContributionBatch            gin.HandlerFunc
+	AdoptReviewedContributions         gin.HandlerFunc
+	ListAvailableSmartContracts        gin.HandlerFunc
+	CreateSmartContract                gin.HandlerFunc
+	ListSmartContractHistory           gin.HandlerFunc
+	GetSmartContractDetail             gin.HandlerFunc
+	DeleteSmartContract                gin.HandlerFunc
+	ListAIKeys                         gin.HandlerFunc
+	CreateAIKey                        gin.HandlerFunc
+	TestAIKeyConfiguration             gin.HandlerFunc
+	VerifySavedAIKey                   gin.HandlerFunc
+	DeleteAIKey                        gin.HandlerFunc
+	ReviewNodeCompletion               gin.HandlerFunc
+	ReviewNodeClarification            gin.HandlerFunc
+	ReviewNodeDraft                    gin.HandlerFunc
+	GetMonthlyWorkOverview             gin.HandlerFunc
+	ReviewDailyActivity                gin.HandlerFunc
+	GetAIConversation                  gin.HandlerFunc
+	SendConversationMessage            gin.HandlerFunc
+	RequestPlanningDraftFreezeReview   gin.HandlerFunc
 }
 
 func (s *Server) Endpoints() Endpoints {
+	// 组合顺序是：认证/参数适配 -> 领域 endpoint -> 统一响应和错误边界。
+	// 所有 endpoint 都通过统一错误包装器接入；需要登录的 endpoint
+	// 额外由 withAuthenticatedUserError 注入已认证用户。
 	return Endpoints{
-		RequireAuthentication: s.authenticationMiddleware(),
-		Health:                s.withErrorHandler(s.identityEndpoints.Health),
-		SendCode:              s.withErrorHandler(s.identityEndpoints.SendCode),
-		Register:              s.withErrorHandler(s.identityEndpoints.Register),
-		Login:                 s.withErrorHandler(s.identityEndpoints.Login),
-		Logout:                s.withErrorHandler(s.identityEndpoints.Logout),
-		ResetPassword:         s.withErrorHandler(s.identityEndpoints.ResetPassword),
-		CurrentAuth:           s.withErrorHandler(s.identityEndpoints.Me),
-		ChangeEmail:           s.withErrorHandler(s.identityEndpoints.ChangeEmail),
-		ChangePassword:        s.withErrorHandler(s.identityEndpoints.ChangePassword),
-		CurrentUser:           s.withLegacyHandler(s.profileEndpoints.CurrentUser),
-		UpdateCurrentUser: s.withAuthenticatedUser(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) {
-			s.profileEndpoints.UpdateCurrentUser(w, r, user)
-		}),
-		UploadAvatar:     s.withLegacyHandler(s.profileEndpoints.Avatar),
-		UploadBackground: s.withLegacyHandler(s.profileEndpoints.ProfileBackground),
-		ListProjects: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.projectEndpoints.List(w, r, user.ID)
+		RequireAuthentication:              s.authenticationMiddleware(),
+		Health:                             s.withErrorHandler(s.identityEndpoints.Health),
+		SendVerificationCode:               s.withErrorHandler(s.identityEndpoints.SendVerificationCode),
+		RegisterAccount:                    s.withErrorHandler(s.identityEndpoints.RegisterAccount),
+		LoginWithPassword:                  s.withErrorHandler(s.identityEndpoints.LoginWithPassword),
+		LogoutCurrentSession:               s.withErrorHandler(s.identityEndpoints.LogoutCurrentSession),
+		ResetLoginPassword:                 s.withErrorHandler(s.identityEndpoints.ResetLoginPassword),
+		GetCurrentSession:                  s.withErrorHandler(s.identityEndpoints.GetCurrentSession),
+		ChangeLoginEmail:                   s.withErrorHandler(s.identityEndpoints.ChangeLoginEmail),
+		ChangeLoginPassword:                s.withErrorHandler(s.identityEndpoints.ChangeLoginPassword),
+		GetCurrentUserProfile:              s.withAuthenticatedUserError(s.profileEndpoints.GetCurrentUserProfile),
+		UpdateCurrentUserProfile:           s.withAuthenticatedUserError(s.profileEndpoints.UpdateCurrentUserProfile),
+		UploadCurrentUserAvatar:            s.withAuthenticatedUserError(s.profileEndpoints.UploadCurrentUserAvatar),
+		UploadCurrentUserProfileBackground: s.withAuthenticatedUserError(s.profileEndpoints.UploadCurrentUserProfileBackground),
+		GetPublicUserProfile:               s.withErrorHandler(s.profileEndpoints.GetPublicUserProfile),
+		ListOwnedProjects: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.projectEndpoints.ListOwnedProjects(w, r, user.ID)
 		}),
 		CreateProject: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.projectEndpoints.Create(w, r, user.ID)
+			return s.projectEndpoints.CreateProject(w, r, user.ID)
 		}),
-		GetProject: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.projectEndpoints.Get(w, r, user.ID, requestParameter(r, "projectID"))
+		GetProjectDetail: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.projectEndpoints.GetProjectDetail(w, r, user.ID)
 		}),
-		UpdateProject: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.projectEndpoints.Update(w, r, user.ID, requestParameter(r, "projectID"))
+		UpdateProjectProfile: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.projectEndpoints.UpdateProjectProfile(w, r, user.ID)
 		}),
 		DeleteProject: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.projectEndpoints.Delete(w, r, user.ID, requestParameter(r, "projectID"))
+			return s.projectEndpoints.DeleteProject(w, r, user.ID)
 		}),
-		GetProjectGraph: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.projectEndpoints.Graph(w, r, user.ID, requestParameter(r, "projectID"))
+		GetProjectExecutionGraph: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.projectEndpoints.GetProjectExecutionGraph(w, r, user.ID)
 		}),
-		CreateNode: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.executionEndpoints.CreateNode(w, r, user.ID, requestParameter(r, "projectID"))
+		CreateExecutionNode: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.executionEndpoints.CreateExecutionNode(w, r, user.ID)
 		}),
-		LockNode: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.executionEndpoints.LockNode(w, r, user.ID, requestParameter(r, "projectID"), requestParameter(r, "nodeID"))
+		ConfirmNodeCompletion: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.executionEndpoints.ConfirmNodeCompletion(w, r, user.ID)
 		}),
-		CreateCall: s.withAuthenticatedUser(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) {
-			s.workflowEndpoints.CreateCollaborationCall(w, r, user.ID, requestParameter(r, "projectID"))
+		PublishCollaborationCall: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.workflowEndpoints.PublishCollaborationCall(w, r, user.ID)
 		}),
-		CreatePlanningChat: s.withAuthenticatedUser(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) {
-			s.workflowEndpoints.CreatePlanningConversation(w, r, user.ID, requestParameter(r, "projectID"))
+		OpenPlanningConversation: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.workflowEndpoints.OpenPlanningConversation(w, r, user.ID)
 		}),
-		CreateCompletionChat: s.withAuthenticatedUser(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) {
-			s.workflowEndpoints.CreateCompletionConversation(w, r, user.ID, requestParameter(r, "projectID"), requestParameter(r, "nodeID"))
+		OpenCompletionReviewConversation: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.workflowEndpoints.OpenCompletionReviewConversation(w, r, user.ID)
 		}),
-		SetProjectAIKey: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.projectEndpoints.SetAIKey(w, r, user.ID, requestParameter(r, "projectID"))
+		SetProjectReviewAI: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.projectEndpoints.SetProjectReviewAI(w, r, user.ID)
 		}),
-		SetProjectContract: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.projectEndpoints.SetContract(w, r, user.ID, requestParameter(r, "projectID"))
+		SetProjectSmartContract: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.projectEndpoints.SetProjectSmartContract(w, r, user.ID)
 		}),
 		ArchiveProject: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.projectEndpoints.Archive(w, r, user.ID, requestParameter(r, "projectID"))
+			return s.projectEndpoints.ArchiveProject(w, r, user.ID)
 		}),
-		UnarchiveProject: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.projectEndpoints.Unarchive(w, r, user.ID, requestParameter(r, "projectID"))
+		RestoreArchivedProject: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.projectEndpoints.RestoreArchivedProject(w, r, user.ID)
 		}),
-		ExploreProjects: s.withLegacyHandler(s.workflowEndpoints.ExploreProjects),
-		ExploreNetwork: s.withErrorHandler(func(w http.ResponseWriter, r *http.Request) error {
+		ListPublicProjects: s.withErrorHandler(s.workflowEndpoints.ListPublicProjects),
+		GetPublicCollaborationNetwork: s.withErrorHandler(func(w http.ResponseWriter, r *http.Request) error {
 			user, authenticated := s.optionalUser(r)
 			var currentUserID *uint64
 			if authenticated {
 				currentUserID = &user.ID
 			}
-			return s.networkEndpoints.Explore(w, r, currentUserID)
+			return s.networkEndpoints.GetPublicCollaborationNetwork(w, r, currentUserID)
 		}),
-		ExploreProject: s.withLegacyHandler(func(w http.ResponseWriter, r *http.Request) {
-			s.workflowEndpoints.ExploreProject(w, r, requestParameter(r, "projectID"))
+		GetPublicProjectDetail: s.withErrorHandler(s.workflowEndpoints.GetPublicProjectDetail),
+		ListContributionSourceRecords: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.workflowEndpoints.ListContributionSourceRecords(w, r, user.ID)
 		}),
-		ContributionSources: s.withLegacyHandler(s.workflowEndpoints.ContributionSources),
-		MyContributions:     s.withLegacyHandler(s.workflowEndpoints.MyContributions),
-		GetCall: s.withAuthenticatedUser(func(w http.ResponseWriter, r *http.Request, _ authenticatedUser) {
-			s.workflowEndpoints.GetCollaborationCall(w, r, requestParameter(r, "callID"))
+		ListCurrentUserContributions: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.workflowEndpoints.ListCurrentUserContributions(w, r, user.ID)
 		}),
-		SubmitContribution: s.withAuthenticatedUser(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) {
-			s.workflowEndpoints.SubmitContribution(w, r, user.ID, requestParameter(r, "callID"))
+		GetCollaborationCallDetail: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, _ authenticatedUser) error {
+			return s.workflowEndpoints.GetCollaborationCallDetail(w, r)
 		}),
-		ReviewContributions: s.withAuthenticatedUser(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) {
-			s.workflowEndpoints.ReviewContributions(w, r, user.ID, requestParameter(r, "callID"))
+		SubmitProjectContribution: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.workflowEndpoints.SubmitProjectContribution(w, r, user.ID)
 		}),
-		AdoptReview: s.withAuthenticatedUser(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) {
-			s.workflowEndpoints.AdoptReview(w, r, user.ID, requestParameter(r, "batchID"))
+		ReviewContributionBatch: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.workflowEndpoints.ReviewContributionBatch(w, r, user.ID)
 		}),
-		ListContracts: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.projectEndpoints.ListContracts(w, r, user.ID)
+		AdoptReviewedContributions: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.workflowEndpoints.AdoptReviewedContributions(w, r, user.ID)
 		}),
-		CreateContract: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.projectEndpoints.CreateContract(w, r, user.ID)
+		ListAvailableSmartContracts: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.projectEndpoints.ListAvailableSmartContracts(w, r, user.ID)
 		}),
-		ListContractHistory: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.projectEndpoints.ContractHistory(w, r, user.ID)
+		CreateSmartContract: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.projectEndpoints.CreateSmartContract(w, r, user.ID)
 		}),
-		GetContract: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.projectEndpoints.GetContract(w, r, user.ID, requestParameter(r, "contractID"))
+		ListSmartContractHistory: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.projectEndpoints.ListSmartContractHistory(w, r, user.ID)
 		}),
-		DeleteContract: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.projectEndpoints.DeleteContract(w, r, user.ID, requestParameter(r, "contractID"))
+		GetSmartContractDetail: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.projectEndpoints.GetSmartContractDetail(w, r, user.ID)
+		}),
+		DeleteSmartContract: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.projectEndpoints.DeleteSmartContract(w, r, user.ID)
 		}),
 		ListAIKeys: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.aiKeyEndpoints.List(w, r, user.ID)
+			return s.aiKeyEndpoints.ListAIKeys(w, r, user.ID)
 		}),
 		CreateAIKey: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.aiKeyEndpoints.Create(w, r, user.ID)
+			return s.aiKeyEndpoints.CreateAIKey(w, r, user.ID)
 		}),
-		TestAIKey: s.withErrorHandler(s.aiKeyEndpoints.Test),
-		VerifyAIKey: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.aiKeyEndpoints.Verify(w, r, user.ID, requestParameter(r, "keyID"))
+		TestAIKeyConfiguration: s.withErrorHandler(s.aiKeyEndpoints.TestAIKeyConfiguration),
+		VerifySavedAIKey: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.aiKeyEndpoints.VerifySavedAIKey(w, r, user.ID)
 		}),
 		DeleteAIKey: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.aiKeyEndpoints.Delete(w, r, user.ID, requestParameter(r, "keyID"))
+			return s.aiKeyEndpoints.DeleteAIKey(w, r, user.ID)
 		}),
-		ReviewNode:        s.withLegacyHandler(s.workflowEndpoints.ReviewNode),
-		ClarifyNodeReview: s.withLegacyHandler(s.workflowEndpoints.ClarifyNodeReview),
-		ReviewNodeDraft:   s.withLegacyHandler(s.workflowEndpoints.ReviewNodeDraft),
-		WorkOverview:      s.withLegacyHandler(s.workflowEndpoints.WorkOverview),
-		ReviewWorkDay: s.withAuthenticatedUser(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) {
-			s.workflowEndpoints.ReviewWorkDay(w, r, user.ID, requestParameter(r, "date"))
+		ReviewNodeCompletion: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.workflowEndpoints.ReviewNodeCompletion(w, r, user.ID)
 		}),
-		GetConversation: s.withAuthenticatedUser(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) {
-			s.workflowEndpoints.GetConversation(w, r, user.ID, requestParameter(r, "conversationID"))
+		ReviewNodeClarification: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.workflowEndpoints.ReviewNodeClarification(w, r, user.ID)
 		}),
-		SendMessage: s.withAuthenticatedUser(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) {
-			s.workflowEndpoints.SendConversationMessage(w, r, user.ID, requestParameter(r, "conversationID"), false)
+		ReviewNodeDraft: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.workflowEndpoints.ReviewNodeDraft(w, r, user.ID)
 		}),
-		FreezeReview: s.withAuthenticatedUser(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) {
-			s.workflowEndpoints.SendConversationMessage(w, r, user.ID, requestParameter(r, "conversationID"), true)
+		GetMonthlyWorkOverview: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.workflowEndpoints.GetMonthlyWorkOverview(w, r, user.ID)
+		}),
+		ReviewDailyActivity: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.workflowEndpoints.ReviewDailyActivity(w, r, user.ID)
+		}),
+		GetAIConversation: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.workflowEndpoints.GetAIConversation(w, r, user.ID)
+		}),
+		SendConversationMessage: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.workflowEndpoints.SendConversationMessage(w, r, user.ID)
+		}),
+		RequestPlanningDraftFreezeReview: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.workflowEndpoints.RequestPlanningDraftFreezeReview(w, r, user.ID)
 		}),
 	}
 }
 
 func (s *Server) withErrorHandler(handler errorHandler) gin.HandlerFunc {
 	return func(context *gin.Context) {
+		// endpoint 只返回业务错误，不直接决定错误 JSON 的格式和状态码。
+		// ErrorBoundary 会读取 context.Errors 并统一调用 response.WriteFault。
 		if err := handler(context.Writer, context.Request); err != nil {
 			_ = context.Error(err)
 			context.Abort()
@@ -230,51 +237,20 @@ func (s *Server) withErrorHandler(handler errorHandler) gin.HandlerFunc {
 	}
 }
 
-func (s *Server) withLegacyHandler(handler http.HandlerFunc) gin.HandlerFunc {
-	return func(context *gin.Context) {
-		writer := &faultCapturingWriter{ResponseWriter: context.Writer}
-		handler(writer, context.Request)
-		if writer.err != nil {
-			_ = context.Error(writer.err)
-			context.Abort()
-		}
-	}
-}
-
 func (s *Server) withAuthenticatedUserError(handler authenticatedErrorHandler) gin.HandlerFunc {
 	return func(context *gin.Context) {
+		// authenticationMiddleware 已经验证 token 并把用户放入 Request Context；
+		// 这个包装器只负责取出用户，不重复执行认证。
 		user, ok := userFromContext(context.Request)
 		if !ok {
 			_ = context.Error(fault.New(fault.Internal, "认证上下文缺失"))
 			context.Abort()
 			return
 		}
+		// 业务 endpoint 返回 error，由统一错误边界决定响应内容。
 		if err := handler(context.Writer, context.Request, user); err != nil {
 			_ = context.Error(err)
 			context.Abort()
 		}
 	}
-}
-
-func (s *Server) withAuthenticatedUser(handler authenticatedHandler) gin.HandlerFunc {
-	return func(context *gin.Context) {
-		user, ok := userFromContext(context.Request)
-		if !ok {
-			_ = context.Error(fault.New(fault.Internal, "认证上下文缺失"))
-			context.Abort()
-			return
-		}
-		writer := &faultCapturingWriter{ResponseWriter: context.Writer}
-		handler(writer, context.Request, user)
-		if writer.err != nil {
-			_ = context.Error(writer.err)
-			context.Abort()
-		}
-	}
-}
-
-func requestParameter(r *http.Request, name string) string {
-	key := strings.TrimSuffix(name, "ID") + "Id"
-	value, _ := httprequest.String(r, key)
-	return value
 }

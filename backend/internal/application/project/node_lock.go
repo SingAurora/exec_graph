@@ -5,16 +5,15 @@ import (
 	"encoding/json"
 	"time"
 
-	executionpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/execution"
 	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
 	sharedid "github.com/singaurora/exec-graph/backend/internal/shared/id"
 )
 
-// LockNode 根据最近一次 AI 审查结果，创建完成记录并关闭当前推进。
-func (s *Service) LockNode(ctx context.Context, userID uint64, projectID, nodeID string) (State, error) {
+// ConfirmNodeCompletion 根据最近一次 AI 审查结果创建完成记录，并关闭当前推进。
+func (s *Service) ConfirmNodeCompletion(ctx context.Context, userID uint64, projectID, nodeID string) (State, error) {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	state, err := s.State(ctx, userID, projectID)
+	state, err := s.GetProjectExecutionState(ctx, userID, projectID)
 	if err != nil {
 		return State{}, err
 	}
@@ -53,22 +52,22 @@ func (s *Service) LockNode(ctx context.Context, userID uint64, projectID, nodeID
 	messages, _ := json.Marshal(node.ReviewMessages)
 	var messageList []any
 	_ = json.Unmarshal(messages, &messageList)
-	messageID, err := sharedid.Opaque("message")
+	messageID, err := sharedid.UUID()
 	if err != nil {
 		return State{}, err
 	}
-	messageList = append(messageList, map[string]any{"id": messageID, "speaker": "user", "body": note, "createdAt": now})
+	messageList = append(messageList, map[string]any{"uuid": messageID, "speaker": "user", "body": note, "createdAt": now})
 	messagesJSON, err := json.Marshal(messageList)
 	if err != nil {
 		return State{}, err
 	}
-	recordID, err := sharedid.Opaque("record")
+	recordID, err := sharedid.UUID()
 	if err != nil {
 		return State{}, err
 	}
-	err = s.execution.LockNode(ctx, executionpersistence.LockNodeParams{UserID: userID, ProjectID: projectID, NodeID: nodeID, RecordID: recordID, ReviewID: reviewID, ReviewVerdict: verdict, Title: node.Title, Summary: summary, SmartContractVersion: node.SmartContractVersion, RecordKind: recordKind, TerminalStage: terminalStage, VerdictJSON: string(verdictJSON), MessagesJSON: string(messagesJSON)})
+	err = s.execution.LockNode(ctx, LockNodeRecord{UserID: userID, ProjectID: projectID, NodeID: nodeID, RecordID: recordID, ReviewID: reviewID, ReviewVerdict: verdict, Title: node.Title, Summary: summary, SmartContractVersion: node.SmartContractVersion, RecordKind: recordKind, TerminalStage: terminalStage, VerdictJSON: string(verdictJSON), MessagesJSON: string(messagesJSON)})
 	if err != nil {
 		return State{}, err
 	}
-	return s.State(ctx, userID, projectID)
+	return s.GetProjectExecutionState(ctx, userID, projectID)
 }

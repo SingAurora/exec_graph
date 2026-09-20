@@ -37,17 +37,17 @@ Authorization: Bearer <accessToken>
 接口使用明确的 `/api/commands/<领域>/<操作>` 命名，但 HTTP 方法遵循操作性质：不改变状态的读取使用 `GET`，参数放在 query；创建、更新、审查和其它状态变更使用 `POST`，参数放在 JSON 请求体。接口不使用路径参数、`PATCH` 或 `DELETE`。例如：
 
 - `GET /api/health`
-- `POST /api/commands/auth/login`
-- `GET /api/commands/users/me`
-- `POST /api/commands/users/me/update`
-- `GET /api/commands/projects/list`
-- `GET /api/commands/projects/get?projectId=...`
-- `GET /api/commands/projects/graph?projectId=...`
-- `POST /api/commands/projects/create-node`，请求体包含 `projectId` 和节点草案
-- `POST /api/commands/projects/lock-node`，请求体：`{"projectId":"...","nodeId":"..."}`
-- `GET /api/commands/contracts/list`
-- `POST /api/commands/ai-keys/verify`，请求体：`{"keyId":"..."}`
-- `POST /api/commands/conversations/send-message`，请求体：`{"conversationId":"...","body":"..."}`
+- `POST /api/commands/auth/login-with-password`
+- `GET /api/commands/users/get-current-user-profile`
+- `POST /api/commands/users/update-current-user-profile`
+- `GET /api/commands/projects/list-owned-projects`
+- `GET /api/commands/projects/get-project-detail?projectUuid=...`
+- `GET /api/commands/projects/get-project-execution-graph?projectUuid=...`
+- `POST /api/commands/projects/create-execution-node`，请求体包含 `projectUuid` 和节点草案
+- `POST /api/commands/projects/confirm-node-completion`，请求体：`{"projectUuid":"...","nodeUuid":"..."}`
+- `GET /api/commands/contracts/list-available-smart-contracts`
+- `POST /api/commands/ai-keys/verify-saved-ai-key`，请求体：`{"keyUuid":"..."}`
+- `POST /api/commands/conversations/send-conversation-message`，请求体：`{"conversationUuid":"...","body":"..."}`
 
 上传头像和背景图仍使用命令路径与 `POST`，但请求体为 `multipart/form-data`，不是 JSON。
 
@@ -58,3 +58,14 @@ Authorization: Bearer <accessToken>
 开发期的账号密码和 AI 密钥按用户隔离，以明文保存在数据库中；AI 密钥接口可直接返回原始密钥，方便本地调试。
 
 Redis 连接配置在 `redis` 段。Redis 是唯一登录会话来源：Redis 未配置、无法连接或运行中不可用时，API 不会回退到 MySQL 会话。
+## 凭据部署
+
+部署包含密码哈希或 AI 密钥加密的版本前，先配置
+`security.credential_encryption_key`，停写后执行一次：
+
+```bash
+go run ./cmd/credential-migrate -apply
+```
+
+命令会在一个事务中把旧密码转换为 bcrypt，把旧 AI 密钥转换为
+AES-256-GCM 密文，并在提交前验证所有凭据。API 运行时不兼容明文凭据。

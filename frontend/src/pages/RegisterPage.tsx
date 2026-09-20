@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 import { AuthLayout } from '@/widgets/auth-layout/ui/AuthLayout'
-import { postJSON } from '@/shared/api/client'
+import { registerAccount, sendVerificationCode } from '@/features/auth/api/client'
 import { useWorkspaceStore } from '@/features/workspace/model/useWorkspaceStore'
 
 const registerSchema = z.object({
@@ -49,7 +49,7 @@ export function RegisterPage() {
 
     setIsSendingCode(true)
     try {
-      const data = await postJSON<{ message?: string }>('/api/commands/auth/send-code', { email: getValues('email') })
+      const data = await sendVerificationCode({ email: getValues('email') })
       setCountdown(60)
       setNotice(data.message ?? '验证码已发送，请查收邮件。')
     } catch (error) {
@@ -63,7 +63,7 @@ export function RegisterPage() {
     setAuthError('')
     setNotice('')
     try {
-      const data = await postJSON<{ accessToken?: string; user?: { userId?: string } }>('/api/commands/auth/register', values)
+      const data = await registerAccount(values)
       if (!data.accessToken) {
         setAuthError('账号已创建，但登录会话创建失败，请稍后重试。')
         return

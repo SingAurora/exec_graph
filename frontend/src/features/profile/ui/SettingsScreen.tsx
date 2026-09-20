@@ -6,12 +6,13 @@ import { useNavigate } from 'react-router-dom'
 import { AvatarCropDialog } from '@/features/profile/ui/AvatarCropDialog'
 import { showErrorToast, showSuccessToast } from '@/shared/ui/notifications'
 import { useWorkspaceStore as useExecStore } from '@/features/workspace/model/useWorkspaceStore'
-import { SmartContractsPage } from '@/pages/SmartContractsPage'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/shared/ui/dialog'
 import { CustomProfileCodeEditor } from '@/entities/account/ui/CustomProfileCodeEditor'
 import { CustomProfileContent } from '@/entities/account/ui/CustomProfileContent'
-import { getJSON, postJSON, requestFormData } from '@/shared/api/client'
-import type { Gender } from '@/entities/account/model/types'
+import { updateCurrentUserProfile, uploadCurrentUserAvatar, uploadCurrentUserProfileBackground } from '@/entities/account/api/client'
+import { createAIKey, deleteAIKey, listAIKeys, testAIKeyConfiguration, verifySavedAIKey } from '@/entities/ai-key/api/client'
+import { changeLoginEmail, changeLoginPassword, sendVerificationCode } from '@/features/auth/api/client'
+import { SmartContractsScreen } from '@/features/smart-contract/ui/SmartContractsScreen'
 import { aiProviderOptions, controlClass, emailSchema, genderOptions, passwordSchema, profileSchema, settingsSections, type AIKey, type AIProvider, type AccountSection, type ExecutionSection, type EmailForm, type PasswordForm, type ProfileForm, type ProfileSection, type SettingsSection } from '@/features/profile/model/settings'
 import { defaultCustomProfileMarkdown } from '@/features/profile/model/defaultProfileTemplate'
 
@@ -129,12 +130,9 @@ export function SettingsPage() {
     setAvatarError('')
     setIsUploadingAvatar(true)
     try {
-      const formData = new FormData()
-      formData.append('avatar', file)
-      const data = await requestFormData<{ avatarUrl?: string }>('/api/commands/users/me/upload-avatar', formData, accessToken)
-      if (!data.avatarUrl) throw new Error('头像上传失败，请稍后重试。')
-      setAvatarUrl(data.avatarUrl)
-      updateProfile({ ...getProfileValues(), avatarUrl: data.avatarUrl })
+      const uploadedAvatarUrl = await uploadCurrentUserAvatar(accessToken, file)
+      setAvatarUrl(uploadedAvatarUrl)
+      updateProfile({ ...getProfileValues(), avatarUrl: uploadedAvatarUrl })
       setAvatarError('')
       setProfileSaved(false)
     } catch (error) {
@@ -161,12 +159,9 @@ export function SettingsPage() {
     setProfileBackgroundError('')
     setIsUploadingProfileBackground(true)
     try {
-      const formData = new FormData()
-      formData.append('background', file)
-      const data = await requestFormData<{ profileBackgroundUrl?: string }>('/api/commands/users/me/upload-background', formData, accessToken)
-      if (!data.profileBackgroundUrl) throw new Error('背景图片上传失败，请稍后重试。')
-      setProfileBackgroundUrl(data.profileBackgroundUrl)
-      updateProfile({ ...getProfileValues(), avatarUrl: avatarUrl || undefined, profileBackgroundUrl: data.profileBackgroundUrl })
+      const uploadedBackgroundUrl = await uploadCurrentUserProfileBackground(accessToken, file)
+      setProfileBackgroundUrl(uploadedBackgroundUrl)
+      updateProfile({ ...getProfileValues(), avatarUrl: avatarUrl || undefined, profileBackgroundUrl: uploadedBackgroundUrl })
       setProfileSaved(false)
       showSuccessToast('背景图已更新。')
     } catch (error) {
@@ -193,7 +188,7 @@ export function SettingsPage() {
     setAvatarError('')
     setProfileSaved(false)
     try {
-      const data = await postJSON<{ user?: { username?: string; userId?: string; bio?: string; gender?: Gender; avatarUrl?: string; profileBackgroundUrl?: string; customProfileEnabled?: boolean; customProfileMarkdown?: string } }>('/api/commands/users/me/update', values, accessToken)
+      const data = await updateCurrentUserProfile(accessToken, values)
       if (!data.user?.username || !data.user.userId) {
         setAvatarError('保存公开资料失败。')
         return
@@ -235,7 +230,7 @@ export function SettingsPage() {
     }
     setIsLoadingAIKeys(true)
     try {
-      const data = await getJSON<{ keys?: AIKey[] }>('/api/commands/ai-keys/list', accessToken)
+      const data = await listAIKeys(accessToken)
       setAIKeys(data.keys ?? [])
     } catch (error) {
       setAIKeyMessage(error instanceof Error ? error.message : '无法连接服务，请确认后端已启动。')
@@ -286,7 +281,7 @@ export function SettingsPage() {
     if (!validateAIKeyDraft('保存')) return
     setIsSavingAIKey(true)
     try {
-      const data = await postJSON<AIKey>('/api/commands/ai-keys/create', getAIKeyDraft(), accessToken)
+      const data = await createAIKey(accessToken, getAIKeyDraft())
       setAIKeys((keys) => [...keys, data])
       setAIKeyValue('')
       setAIKeyLabel('')
@@ -307,7 +302,7 @@ export function SettingsPage() {
     if (!validateAIKeyDraft('测试')) return
     setIsTestingAIKey(true)
     try {
-      const data = await postJSON<{ message?: string }>('/api/commands/ai-keys/test', getAIKeyDraft(), accessToken)
+      const data = await testAIKeyConfiguration(accessToken, getAIKeyDraft())
       const message = data.message ?? '测试通过。'
       setAIKeyMessage(message)
       showSuccessToast(message)
@@ -323,17 +318,20 @@ export function SettingsPage() {
   const updateAIKey = async (key: AIKey, action: 'verify' | 'delete') => {
     if (!accessToken) return
     setAIKeyMessage('')
-    setBusyAIKeyID(key.id)
+    setBusyAIKeyID(key.uuid)
     try {
-      const data = await postJSON<{ message?: string; lastVerifiedAt?: string }>(action === 'delete' ? '/api/commands/ai-keys/delete' : '/api/commands/ai-keys/verify', { keyId: key.id }, accessToken)
       if (action === 'delete') {
-        setAIKeys((keys) => keys.filter((item) => item.id !== key.id))
+        const data = await deleteAIKey(accessToken, key.uuid)
+        setAIKeys((keys) => keys.filter((item) => item.uuid !== key.uuid))
+        const message = data.message ?? 'AI 密钥已删除。'
+        setAIKeyMessage(message)
       } else {
-        setAIKeys((keys) => keys.map((item) => (item.id === key.id ? { ...item, lastVerifiedAt: data.lastVerifiedAt ?? new Date().toISOString() } : item)))
+        const data = await verifySavedAIKey(accessToken, key.uuid)
+        setAIKeys((keys) => keys.map((item) => (item.uuid === key.uuid ? { ...item, lastVerifiedAt: data.lastVerifiedAt ?? new Date().toISOString() } : item)))
+        const message = data.message ?? '操作已完成。'
+        setAIKeyMessage(message)
+        showSuccessToast(message)
       }
-      const message = data.message ?? (action === 'delete' ? 'AI 密钥已删除。' : '操作已完成。')
-      setAIKeyMessage(message)
-      if (action === 'verify') showSuccessToast(message)
     } catch {
       const message = '无法连接服务，请确认后端已启动。'
       setAIKeyMessage(message)
@@ -343,8 +341,8 @@ export function SettingsPage() {
     }
   }
 
-  const sendVerificationCode = async (purpose: 'change_email' | 'change_password', email?: string) => {
-    const data = await postJSON<{ message?: string }>('/api/commands/auth/send-code', { purpose, ...(email ? { email } : {}) }, accessToken)
+  const requestVerificationCode = async (purpose: 'change_email' | 'change_password', email?: string) => {
+    const data = await sendVerificationCode({ purpose, ...(email ? { email } : {}) }, accessToken)
     return data.message ?? '验证码已发送，请查收邮件。'
   }
 
@@ -357,7 +355,7 @@ export function SettingsPage() {
     }
     setIsSendingEmailCode(true)
     try {
-      const message = await sendVerificationCode('change_email', getEmailValues('email'))
+      const message = await requestVerificationCode('change_email', getEmailValues('email'))
       setEmailCodeCountdown(60)
       setEmailMessage(message)
     } catch (error) {
@@ -375,7 +373,7 @@ export function SettingsPage() {
     }
     setIsSendingPasswordCode(true)
     try {
-      const message = await sendVerificationCode('change_password')
+      const message = await requestVerificationCode('change_password')
       setPasswordCodeCountdown(60)
       setPasswordMessage(message)
     } catch (error) {
@@ -392,7 +390,7 @@ export function SettingsPage() {
       return
     }
     try {
-      await postJSON('/api/commands/auth/change-email', values, accessToken)
+      await changeLoginEmail(accessToken, values)
       const result = updateAccountEmail(values.email)
       setEmailMessage(result.success ? '邮箱已更新' : result.message ?? '邮箱更新失败。')
       if (result.success) resetEmail({ email: values.email.trim().toLowerCase(), currentPassword: '', code: '' })
@@ -408,7 +406,7 @@ export function SettingsPage() {
       return
     }
     try {
-      await postJSON('/api/commands/auth/change-password', values, accessToken)
+      await changeLoginPassword(accessToken, values)
       const result = updateAccountPassword()
       setPasswordMessage(result.success ? '密码已更新' : result.message ?? '密码更新失败。')
       if (result.success) resetPassword()
@@ -844,9 +842,9 @@ export function SettingsPage() {
           {!isLoadingAIKeys && accessToken && aiKeys.length === 0 ? <p className="text-sm font-medium text-graphite">尚未添加 AI 密钥。</p> : null}
           <div className="divide-y divide-rail">
             {aiKeys.map((key) => {
-              const isBusy = busyAIKeyID === key.id
+              const isBusy = busyAIKeyID === key.uuid
               return (
-                <div key={key.id} className="flex flex-wrap items-center justify-between gap-4 py-4 first:pt-0 last:pb-0">
+                <div key={key.uuid} className="flex flex-wrap items-center justify-between gap-4 py-4 first:pt-0 last:pb-0">
                   <div className="min-w-0">
                     <span className="font-semibold text-ink">{key.label}</span>
                     <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs text-graphite">
@@ -855,10 +853,10 @@ export function SettingsPage() {
                       <span>{key.keyHint}</span>
                       <span>{formatVerifiedAt(key.lastVerifiedAt)}</span>
                     </div>
-                    {revealedAIKeyIDs.includes(key.id) ? <code className="mt-2 block break-all rounded-md bg-paper px-2 py-1.5 text-xs text-ink">{key.apiKey ?? '此密钥需要重新保存后才能显示原文。'}</code> : null}
+                    {revealedAIKeyIDs.includes(key.uuid) ? <code className="mt-2 block break-all rounded-md bg-paper px-2 py-1.5 text-xs text-ink">{key.apiKey ?? '此密钥需要重新保存后才能显示原文。'}</code> : null}
                   </div>
                   <div className="flex items-center gap-1">
-                    <button type="button" onClick={() => setRevealedAIKeyIDs((ids) => (ids.includes(key.id) ? ids.filter((id) => id !== key.id) : [...ids, key.id]))} disabled={isBusy} className="grid size-9 place-items-center rounded-md text-graphite transition hover:bg-paper hover:text-signal disabled:cursor-wait disabled:opacity-55 focus:outline-none focus-visible:shadow-focusline" title={revealedAIKeyIDs.includes(key.id) ? '隐藏原文' : '显示原文'} aria-label={revealedAIKeyIDs.includes(key.id) ? `隐藏 ${key.label} 原文` : `显示 ${key.label} 原文`}>{revealedAIKeyIDs.includes(key.id) ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}</button>
+                    <button type="button" onClick={() => setRevealedAIKeyIDs((ids) => (ids.includes(key.uuid) ? ids.filter((id) => id !== key.uuid) : [...ids, key.uuid]))} disabled={isBusy} className="grid size-9 place-items-center rounded-md text-graphite transition hover:bg-paper hover:text-signal disabled:cursor-wait disabled:opacity-55 focus:outline-none focus-visible:shadow-focusline" title={revealedAIKeyIDs.includes(key.uuid) ? '隐藏原文' : '显示原文'} aria-label={revealedAIKeyIDs.includes(key.uuid) ? `隐藏 ${key.label} 原文` : `显示 ${key.label} 原文`}>{revealedAIKeyIDs.includes(key.uuid) ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}</button>
                     <button type="button" onClick={() => void updateAIKey(key, 'verify')} disabled={isBusy} className="inline-flex h-9 items-center gap-1.5 rounded-md border border-rail bg-paper px-3 text-sm font-semibold text-graphite transition hover:border-signal hover:text-signal disabled:cursor-wait disabled:opacity-55 focus:outline-none focus-visible:shadow-focusline" title="测试密钥" aria-label={`测试 ${key.label}`}>
                       {isBusy ? <LoaderCircle size={16} className="animate-spin" aria-hidden="true" /> : <CheckCircle2 size={16} aria-hidden="true" />}
                       测试
@@ -871,7 +869,7 @@ export function SettingsPage() {
           </div>
         </div>
       </section>
-      ) : <SmartContractsPage compact />}
+      ) : <SmartContractsScreen compact />}
 
       <Dialog open={isAIKeyDialogOpen} onOpenChange={setIsAIKeyDialogOpen}>
         <DialogContent className="grid-rows-[auto_minmax(0,1fr)] max-w-2xl">

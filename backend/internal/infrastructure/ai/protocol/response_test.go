@@ -1,14 +1,14 @@
-package workflow
+package protocol
 
 import (
 	"errors"
 	"testing"
 )
 
-func TestExtractAIMessageContentMarksReasoningOnlyResponseForRecovery(t *testing.T) {
+func TestExtractMessageContentMarksReasoningOnlyResponseForRecovery(t *testing.T) {
 	body := []byte(`{"choices":[{"message":{"content":null,"reasoning_content":"先逐条检查证据"},"finish_reason":"stop"}]}`)
-	_, err := extractAIMessageContent("deepseek", body)
-	var reasoningOnly reasoningOnlyResponseError
+	_, err := ExtractMessageContent("openai", body)
+	var reasoningOnly ReasoningOnlyResponseError
 	if !errors.As(err, &reasoningOnly) {
 		t.Fatalf("expected reasoning-only response error, got %v", err)
 	}

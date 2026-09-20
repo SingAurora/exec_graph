@@ -11,6 +11,8 @@ const validConfig = `app:
   host: 127.0.0.1
   port: 8080
   session_ttl_hours: 168
+  allowed_origins:
+    - http://localhost:5173
 database:
   host: 127.0.0.1
   port: 3306
@@ -35,6 +37,8 @@ storage:
   region: ap-guangzhou
   bucket: exec-graph-1253847355
   avatar_prefix: avatars/
+security:
+  credential_encryption_key: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
 `
 
 func TestLoadRequiresExplicitOperationalValues(t *testing.T) {
@@ -70,6 +74,19 @@ func TestLoadRejectsMissingInfrastructureSettings(t *testing.T) {
 		if !strings.Contains(err.Error(), field) {
 			t.Errorf("Load() error = %q, want %q", err, field)
 		}
+	}
+}
+
+func TestLoadRejectsInvalidCredentialEncryptionKey(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	content := strings.Replace(validConfig, "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=", "too-short", 1)
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	_, err := Load(path)
+	if err == nil || !strings.Contains(err.Error(), "security.credential_encryption_key") {
+		t.Fatalf("Load() error = %v, want invalid credential key", err)
 	}
 }
 

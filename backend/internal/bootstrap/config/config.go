@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"net/mail"
 	"os"
@@ -17,12 +18,14 @@ type Config struct {
 	Credentials CredentialsConfig   `yaml:"credentials"`
 	Mail        MailConfig          `yaml:"mail"`
 	Storage     ObjectStorageConfig `yaml:"storage"`
+	Security    SecurityConfig      `yaml:"security"`
 }
 
 type AppConfig struct {
-	Host            string `yaml:"host"`
-	Port            int    `yaml:"port"`
-	SessionTTLHours int    `yaml:"session_ttl_hours"`
+	Host            string   `yaml:"host"`
+	Port            int      `yaml:"port"`
+	SessionTTLHours int      `yaml:"session_ttl_hours"`
+	AllowedOrigins  []string `yaml:"allowed_origins"`
 }
 
 type DatabaseConfig struct {
@@ -59,6 +62,10 @@ type ObjectStorageConfig struct {
 	AvatarPrefix string `yaml:"avatar_prefix"`
 }
 
+type SecurityConfig struct {
+	CredentialEncryptionKey string `yaml:"credential_encryption_key"`
+}
+
 func Load(path string) (Config, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
@@ -70,6 +77,9 @@ func Load(path string) (Config, error) {
 	decoder.KnownFields(true)
 	if err := decoder.Decode(&config); err != nil {
 		return Config{}, fmt.Errorf("parse config: %w", err)
+	}
+	if value := strings.TrimSpace(os.Getenv("EXEC_GRAPH_CREDENTIAL_ENCRYPTION_KEY")); value != "" {
+		config.Security.CredentialEncryptionKey = value
 	}
 	if err := validate(config); err != nil {
 		return Config{}, fmt.Errorf("validate config: %w", err)
@@ -94,6 +104,16 @@ func validate(config Config) error {
 	requirePort("app.port", config.App.Port)
 	if config.App.SessionTTLHours <= 0 {
 		invalid = append(invalid, "app.session_ttl_hours")
+	}
+	if len(config.App.AllowedOrigins) == 0 {
+		invalid = append(invalid, "app.allowed_origins")
+	} else {
+		for _, origin := range config.App.AllowedOrigins {
+			if !strings.HasPrefix(origin, "http://") && !strings.HasPrefix(origin, "https://") {
+				invalid = append(invalid, "app.allowed_origins")
+				break
+			}
+		}
 	}
 
 	requireText("database.host", config.Database.Host)
@@ -129,6 +149,10 @@ func validate(config Config) error {
 	requireText("storage.region", config.Storage.Region)
 	requireText("storage.bucket", config.Storage.Bucket)
 	requireText("storage.avatar_prefix", config.Storage.AvatarPrefix)
+	key, err := base64.StdEncoding.DecodeString(strings.TrimSpace(config.Security.CredentialEncryptionKey))
+	if err != nil || len(key) != 32 {
+		invalid = append(invalid, "security.credential_encryption_key")
+	}
 
 	if len(invalid) > 0 {
 		return fmt.Errorf("required fields are missing or invalid: %s", strings.Join(invalid, ", "))

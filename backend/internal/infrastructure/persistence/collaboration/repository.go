@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -79,6 +78,7 @@ type CallView struct {
 	OwnerName       string    `gorm:"column:owner_name"`
 	OwnerUserID     string    `gorm:"column:owner_user_id"`
 	CreatedBy       uint64    `gorm:"column:created_by"`
+	CreatedByUserID string    `gorm:"column:created_by_user_id"`
 	Title           string    `gorm:"column:title"`
 	Status          string    `gorm:"column:status"`
 	MaxSubmissions  int       `gorm:"column:max_submissions"`
@@ -181,22 +181,17 @@ func (repository *Repository) HasOpenCall(ctx context.Context, projectID, target
 
 func (repository *Repository) ListPublicProjects(ctx context.Context) ([]ProjectView, error) {
 	var projects []ProjectView
-	err := repository.db.WithContext(ctx).Table("projects AS p").
-		Select("p.uuid AS id, p.title, p.description, u.username AS owner_name, u.user_id AS owner_user_id, p.updated_at").
-		Joins("JOIN users AS u ON u.id = p.owner_id").
+	err := repository.publicProjectQuery(ctx).
 		Where("p.visibility = ? AND p.archived_at IS NULL", "public").
-		Order("p.updated_at DESC").Scan(&projects).Error
-	if err != nil {
-		return nil, err
-	}
-	return repository.addProjectCounts(ctx, projects)
+		Order("open_call_count DESC").
+		Order("p.updated_at DESC").
+		Scan(&projects).Error
+	return projects, err
 }
 
 func (repository *Repository) FindPublicProject(ctx context.Context, projectUUID string) (ProjectView, error) {
 	var projects []ProjectView
-	if err := repository.db.WithContext(ctx).Table("projects AS p").
-		Select("p.uuid AS id, p.title, p.description, u.username AS owner_name, u.user_id AS owner_user_id, p.updated_at").
-		Joins("JOIN users AS u ON u.id = p.owner_id").
+	if err := repository.publicProjectQuery(ctx).
 		Where("p.uuid = ? AND p.visibility = ? AND p.archived_at IS NULL", projectUUID, "public").
 		Scan(&projects).Error; err != nil {
 		return ProjectView{}, err
@@ -204,73 +199,17 @@ func (repository *Repository) FindPublicProject(ctx context.Context, projectUUID
 	if len(projects) == 0 {
 		return ProjectView{}, ErrNotFound
 	}
-	projects, err := repository.addProjectCounts(ctx, projects)
-	return projects[0], err
+	return projects[0], nil
 }
 
-func (repository *Repository) addProjectCounts(ctx context.Context, projects []ProjectView) ([]ProjectView, error) {
-	for index := range projects {
-		var count int64
-		var projectID uint64
-		if err := repository.db.WithContext(ctx).Model(&Project{}).Where("uuid = ?", projects[index].ID).Pluck("id", &projectID).Error; err != nil {
-			return nil, err
-		}
-		if err := repository.db.WithContext(ctx).Model(&ExecutionContract{}).Where("project_id = ?", projectID).Count(&count).Error; err != nil {
-			return nil, err
-		}
-		projects[index].NodeCount = int(count)
-		if err := repository.db.WithContext(ctx).Model(&CompletionRecord{}).Where("project_id = ? AND record_kind = ?", projectID, "accepted").Count(&count).Error; err != nil {
-			return nil, err
-		}
-		projects[index].AcceptedCount = int(count)
-		if err := repository.db.WithContext(ctx).Model(&CollaborationCall{}).Where("project_id = ? AND status = ?", projectID, "open").Count(&count).Error; err != nil {
-			return nil, err
-		}
-		projects[index].OpenCallCount = int(count)
-	}
-	sort.SliceStable(projects, func(left, right int) bool {
-		if projects[left].OpenCallCount != projects[right].OpenCallCount {
-			return projects[left].OpenCallCount > projects[right].OpenCallCount
-		}
-		return projects[left].UpdatedAt.After(projects[right].UpdatedAt)
-	})
-	return projects, nil
-}
-
-func (repository *Repository) ListCallIDs(ctx context.Context, projectUUID string) ([]string, error) {
-	var ids []string
-	err := repository.db.WithContext(ctx).Model(&CollaborationCall{}).
-		Joins("JOIN projects AS p ON p.id = collaboration_calls.project_id").
-		Where("p.uuid = ?", projectUUID).
-		Order("CASE WHEN collaboration_calls.status = 'open' THEN 0 ELSE 1 END").
-		Order("collaboration_calls.created_at DESC").
-		Pluck("collaboration_calls.uuid", &ids).Error
-	return ids, err
-}
-
-func (repository *Repository) FindCall(ctx context.Context, callUUID string) (CallView, error) {
-	var call CallView
-	if err := repository.callQuery(ctx).Where("c.uuid = ?", callUUID).Scan(&call).Error; err != nil {
-		return CallView{}, err
-	}
-	if call.ID == "" {
-		return CallView{}, ErrNotFound
-	}
-	var count int64
-	if err := repository.db.WithContext(ctx).Model(&CollaborationSubmission{}).
-		Where("call_id = ? AND status <> ?", call.InternalID, "withdrawn").Count(&count).Error; err != nil {
-		return CallView{}, err
-	}
-	call.SubmissionCount = int(count)
-	return call, nil
-}
-
-func (repository *Repository) callQuery(ctx context.Context) *gorm.DB {
-	return repository.db.WithContext(ctx).Table("collaboration_calls AS c").
-		Select("c.id AS internal_id, c.uuid AS id, p.uuid AS project_id, p.title AS project_title, u.username AS owner_name, u.user_id AS owner_user_id, c.created_by, c.title, c.status, c.max_submissions, c.created_at, n.uuid AS target_id, n.title AS target_title, n.verifiable_goal, n.acceptance_criteria_json, n.evidence_requirement, n.stage").
-		Joins("JOIN projects AS p ON p.id = c.project_id").
-		Joins("JOIN users AS u ON u.id = p.owner_id").
-		Joins("JOIN execution_contracts AS n ON n.id = c.target_contract_id")
+func (repository *Repository) publicProjectQuery(ctx context.Context) *gorm.DB {
+	return repository.db.WithContext(ctx).Table("projects AS p").
+		Select(`p.uuid AS id, p.title, p.description, u.username AS owner_name,
+			u.user_id AS owner_user_id, p.updated_at,
+			(SELECT COUNT(*) FROM execution_contracts AS n WHERE n.project_id = p.id) AS node_count,
+			(SELECT COUNT(*) FROM completion_records AS r WHERE r.project_id = p.id AND r.record_kind = 'accepted') AS accepted_count,
+			(SELECT COUNT(*) FROM collaboration_calls AS c WHERE c.project_id = p.id AND c.status = 'open') AS open_call_count`).
+		Joins("JOIN users AS u ON u.id = p.owner_id")
 }
 
 func (repository *Repository) ListSubmissions(ctx context.Context, callUUID string, selected []string) ([]SubmissionView, error) {
@@ -451,11 +390,19 @@ func (repository *Repository) ListContributionActivities(ctx context.Context, us
 	if err != nil {
 		return nil, err
 	}
+	callUUIDs := make([]string, 0, len(submissions))
+	for _, submission := range submissions {
+		callUUIDs = append(callUUIDs, submission.CallID)
+	}
+	calls, err := repository.findCalls(ctx, callUUIDs)
+	if err != nil {
+		return nil, err
+	}
 	activities := make([]ContributionActivityView, 0, len(submissions))
 	for _, submission := range submissions {
-		call, err := repository.FindCall(ctx, submission.CallID)
-		if err != nil {
-			return nil, err
+		call, exists := calls[submission.CallID]
+		if !exists {
+			return nil, ErrNotFound
 		}
 		activities = append(activities, ContributionActivityView{Submission: submission, Call: call})
 	}

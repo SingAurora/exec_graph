@@ -8,11 +8,11 @@ import (
 	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
 )
 
-// State 返回项目页面所需的完整执行状态。
-func (s *Service) State(ctx context.Context, userID uint64, projectID string) (State, error) {
+// GetProjectExecutionState 返回项目页面所需的完整执行状态。
+func (s *Service) GetProjectExecutionState(ctx context.Context, userID uint64, projectID string) (State, error) {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	item, err := s.Get(ctx, userID, projectID)
+	item, err := s.GetOwnedProject(ctx, userID, projectID)
 	if err != nil {
 		return State{}, err
 	}
@@ -42,7 +42,7 @@ func (s *Service) loadNodes(ctx context.Context, projectID string) ([]ExecutionN
 	}
 	result := make([]ExecutionNodeView, 0, len(values))
 	for _, value := range values {
-		node := ExecutionNodeView{ID: value.UUID, ProjectID: projectID, BranchID: value.BranchUUID, ProjectContractRevisionID: value.RevisionUUID, ParentContractID: value.ParentUUID, SupplementOfContractID: value.SupplementUUID, RetryOfContractID: value.RetryUUID, ActorID: value.ActorID, Title: value.Title, Stage: value.Stage, OriginalIntent: value.OriginalIntent, SmartContractID: value.SmartContractUUID, SmartContractVersion: value.SmartContractVersion, VerifiableGoal: value.Goal, EvidenceRequirement: value.EvidenceRequirement, CompletionClaim: value.Claim, EvidenceText: value.Evidence, StartedAt: value.StartedAt, EndedAt: value.EndedAt, CompletionRecordID: value.RecordUUID, NextContractTitle: value.NextTitle, CreatedAt: value.CreatedAt, UpdatedAt: value.UpdatedAt}
+		node := ExecutionNodeView{ID: value.UUID, ProjectID: projectID, BranchID: value.BranchUUID, ProjectContractRevisionID: value.RevisionUUID, ParentContractID: value.ParentUUID, SupplementOfContractID: value.SupplementUUID, RetryOfContractID: value.RetryUUID, ActorUserID: value.ActorUserID, Title: value.Title, Stage: value.Stage, OriginalIntent: value.OriginalIntent, SmartContractID: value.SmartContractUUID, SmartContractVersion: value.SmartContractVersion, VerifiableGoal: value.Goal, EvidenceRequirement: value.EvidenceRequirement, CompletionClaim: value.Claim, EvidenceText: value.Evidence, StartedAt: value.StartedAt, EndedAt: value.EndedAt, CompletionRecordID: value.RecordUUID, NextContractTitle: value.NextTitle, CreatedAt: value.CreatedAt, UpdatedAt: value.UpdatedAt}
 		node.SourceContractIDs, err = s.decodePublicIDs(ctx, value.SourceIDs)
 		if err != nil {
 			return nil, err
@@ -89,7 +89,7 @@ func (s *Service) loadBranches(ctx context.Context, projectID string) ([]Executi
 	}
 	result := make([]ExecutionBranchView, 0, len(values))
 	for _, value := range values {
-		result = append(result, ExecutionBranchView{ID: value.UUID, ProjectID: value.ProjectUUID, Title: value.Title, RootContractID: value.RootUUID, ForkedFromContractID: value.ForkedUUID, HeadContractID: value.HeadUUID, CurrentContractID: value.CurrentUUID, CreatedByID: value.CreatedBy, CreatedAt: value.CreatedAt})
+		result = append(result, ExecutionBranchView{ID: value.UUID, ProjectID: value.ProjectUUID, Title: value.Title, RootContractID: value.RootUUID, ForkedFromContractID: value.ForkedUUID, HeadContractID: value.HeadUUID, CurrentContractID: value.CurrentUUID, CreatedByUserID: value.CreatedByUserID, CreatedAt: value.CreatedAt})
 	}
 	return result, nil
 }

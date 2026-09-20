@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { Settings2, ShieldCheck, UserRound, type LucideIcon } from 'lucide-react'
 import type { Gender } from '@/entities/account/model/types'
+import type { AIKey, AIProvider } from '@/entities/ai-key/model/types'
 
 export const profileSchema = z.object({
   username: z.string().trim().min(2, '请输入至少两个字符的用户名。').max(64, '用户名最多 64 个字符。'),
@@ -34,18 +35,7 @@ export type SettingsSection = 'profile' | 'account' | 'execution'
 export type ProfileSection = 'basic' | 'custom'
 export type AccountSection = 'email' | 'password'
 export type ExecutionSection = 'keys' | 'contracts'
-export type AIProvider = 'deepseek' | 'openai' | 'doubao' | 'claude'
-
-export type AIKey = {
-  id: string
-  provider: AIProvider | 'openai_compatible'
-  label: string
-  apiKey?: string
-  keyHint: string
-  baseUrl: string
-  model: string
-  lastVerifiedAt?: string
-}
+export type { AIKey, AIProvider }
 
 export const genderOptions: Array<{ value: Gender; label: string }> = [
   { value: 'undisclosed', label: '不透露' },

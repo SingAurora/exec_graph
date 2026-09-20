@@ -17,19 +17,19 @@ func TestBearerToken(t *testing.T) {
 	}
 }
 
-func TestNewOpaqueID(t *testing.T) {
-	first, err := NewOpaqueID("project")
+func TestNewUUID(t *testing.T) {
+	first, err := NewUUID()
 	if err != nil {
-		t.Fatalf("NewOpaqueID(): %v", err)
+		t.Fatalf("NewUUID(): %v", err)
 	}
-	second, err := NewOpaqueID("project")
+	second, err := NewUUID()
 	if err != nil {
-		t.Fatalf("NewOpaqueID(): %v", err)
+		t.Fatalf("NewUUID(): %v", err)
 	}
 	if first == second {
-		t.Fatalf("NewOpaqueID() returned duplicate IDs: %q", first)
+		t.Fatalf("NewUUID() returned duplicate UUIDs: %q", first)
 	}
 	if len(first) != 36 || first[8] != '-' || first[13] != '-' || first[18] != '-' || first[23] != '-' || first[14] != '4' {
-		t.Fatalf("NewOpaqueID() = %q, want an RFC 4122 version 4 UUID", first)
+		t.Fatalf("NewUUID() = %q, want an RFC 4122 version 4 UUID", first)
 	}
 }

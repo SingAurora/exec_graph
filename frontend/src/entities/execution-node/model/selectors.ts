@@ -18,21 +18,21 @@ export const isAcceptedRecord = (record: CompletionRecord) => record.recordKind 
 export const isSealedRecord = (record: CompletionRecord) => record.recordKind === 'sealed'
 
 export function currentContractIDs(projects: Project[], branches: ExecutionBranch[], projectID?: string) {
-  const visibleProjects = projectID ? projects.filter((project) => project.id === projectID) : projects
-  const visibleProjectIDs = new Set(visibleProjects.map((project) => project.id))
+  const visibleProjects = projectID ? projects.filter((project) => project.uuid === projectID) : projects
+  const visibleProjectIDs = new Set(visibleProjects.map((project) => project.uuid))
 
   return new Set([
-    ...visibleProjects.flatMap((project) => project.currentContractId ?? ''),
+    ...visibleProjects.flatMap((project) => project.currentContractUuid ?? ''),
     ...branches
-      .filter((branch) => visibleProjectIDs.has(branch.projectId))
-      .flatMap((branch) => branch.currentContractId ?? ''),
+      .filter((branch) => visibleProjectIDs.has(branch.projectUuid))
+      .flatMap((branch) => branch.currentContractUuid ?? ''),
   ])
 }
 
 export function completionRecordForContract(records: CompletionRecord[], contract: ExecutionContract) {
-  return contract.completionRecordId
-    ? records.find((record) => record.id === contract.completionRecordId)
-    : records.find((record) => record.coveredContractIds.includes(contract.id))
+  return contract.completionRecordUuid
+    ? records.find((record) => record.uuid === contract.completionRecordUuid)
+    : records.find((record) => record.coveredContractUuids.includes(contract.uuid))
 }
 
 export function nextActionLabel(contract: ExecutionContract) {

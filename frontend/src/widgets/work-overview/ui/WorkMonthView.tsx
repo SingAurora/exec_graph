@@ -1,43 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Bot, CheckCircle2, ChevronLeft, ChevronRight, CircleDotDashed, Flag, LoaderCircle, LockKeyhole } from 'lucide-react'
-import { requestJSON, withQuery } from '@/shared/api/client'
-
-type DailyActivity = {
-  id: string
-  kind: 'started' | 'completed' | 'sealed'
-  projectId: string
-  projectTitle: string
-  nodeId?: string
-  title: string
-  detail?: string
-  createdAt: string
-  startedAt?: string
-  endedAt?: string
-}
-
-type DailyReview = {
-  id: string
-  date: string
-  summary: string
-  momentum: string
-  highlights: string[]
-  friction: string[]
-  nextStep: string
-  aiConfig: { label: string; provider: string; model: string }
-  createdAt: string
-  updatedAt: string
-}
-
-type WorkDay = {
-  date: string
-  activities: DailyActivity[]
-  review?: DailyReview
-}
-
-type WorkOverview = {
-  month: string
-  days: WorkDay[]
-}
+import { getMonthlyWorkOverview, reviewDailyActivity, type DailyActivity, type DailyReview, type WorkDay, type WorkOverview } from '@/features/work-overview/api/client'
 
 const weekdayLabels = ['一', '二', '三', '四', '五', '六', '日']
 
@@ -91,7 +54,7 @@ export function WorkMonthView({ accessToken }: { accessToken: string }) {
     let cancelled = false
     setLoading(true)
     setError('')
-	void requestJSON<WorkOverview>(withQuery('/api/commands/work-overview/get', { month: monthValue(month) }), { method: 'GET', accessToken })
+	void getMonthlyWorkOverview(accessToken, monthValue(month))
       .then((data) => {
         if (cancelled) return
         setOverview(data)
@@ -119,7 +82,7 @@ export function WorkMonthView({ accessToken }: { accessToken: string }) {
     setReviewing(true)
     setError('')
     try {
-		const data = await requestJSON<{ review: DailyReview }>('/api/commands/work-overview/review-day', { accessToken, body: JSON.stringify({ date: selectedDate }) })
+		const data = await reviewDailyActivity(accessToken, selectedDate)
       setOverview((current) => current ? {
         ...current,
         days: current.days.map((day) => day.date === selectedDate ? { ...day, review: data.review } : day),
@@ -184,7 +147,7 @@ function DailyDetail({ day, reviewing, onReview }: { day: WorkDay; reviewing: bo
       </div>
       {day.activities.length > 0 ? <>
         <DayTimeline activities={day.activities.filter((activity) => activity.startedAt || activity.endedAt)} />
-        <div className="mt-5 divide-y divide-rail border-y border-rail">{day.activities.map((activity) => <ActivityRow key={activity.id} activity={activity} />)}</div>
+        <div className="mt-5 divide-y divide-rail border-y border-rail">{day.activities.map((activity) => <ActivityRow key={activity.uuid} activity={activity} />)}</div>
       </> : <p className="mt-4 text-sm leading-6 text-graphite">当天没有行动记录。</p>}
     </div>
     {day.review ? <DailyReviewDetail review={day.review} /> : <div className="border-l border-rail pl-5 text-sm leading-6 text-graphite">AI 日结会基于当天行动记录生成，不会改变任何验收结论。</div>}
@@ -206,7 +169,7 @@ function DayTimeline({ activities }: { activities: DailyActivity[] }) {
     const duration = Math.max(30, Math.round((end.getTime() - start.getTime()) / 60000))
     return { activity, top: Math.max(0, Math.min(1439, startMinutes)) / 1440 * 100, height: Math.min(100 - Math.max(0, Math.min(1439, startMinutes)) / 1440 * 100, Math.max(3.5, duration / 1440 * 100)) }
   })
-  return <div className="mt-5 border-y border-rail py-4" aria-label="当天时间轴"><div className="flex items-center justify-between"><div className="text-sm font-semibold text-ink">当天时间轴</div><div className="text-xs text-graphite">已填写时间的行动</div></div><div className="mt-4 grid grid-cols-[44px_minmax(0,1fr)] gap-3"><div className="relative h-[360px] text-[10px] font-mono text-graphite">{[0, 6, 12, 18, 24].map((hour) => <span key={hour} className="absolute right-0" style={{ top: `${hour / 24 * 100}%`, transform: hour === 24 ? 'translateY(-100%)' : 'none' }}>{String(hour).padStart(2, '0')}:00</span>)}</div><div className="relative h-[360px] overflow-hidden border-l border-rail bg-shell/35">{[0, 6, 12, 18, 24].map((hour) => <span key={hour} className="absolute inset-x-0 border-t border-rail/70" style={{ top: `${hour / 24 * 100}%` }} />)}{positioned.map(({ activity, top, height }) => <a key={activity.id} href={activity.nodeId ? `/contracts/${activity.nodeId}?tab=completion` : undefined} className="absolute inset-x-2 overflow-hidden border-l-2 border-signal bg-signal/15 px-2 py-1 text-left transition hover:bg-signal/25" style={{ top: `${top}%`, height: `${height}%`, minHeight: '32px' }}><span className="block truncate text-xs font-semibold text-ink">{activity.title}</span><span className="block truncate text-[10px] text-graphite">{activity.projectTitle} · {formatTime(activity.startedAt ?? activity.createdAt)}{activity.endedAt ? `–${formatTime(activity.endedAt)}` : ''}</span></a>)}</div></div></div>
+  return <div className="mt-5 border-y border-rail py-4" aria-label="当天时间轴"><div className="flex items-center justify-between"><div className="text-sm font-semibold text-ink">当天时间轴</div><div className="text-xs text-graphite">已填写时间的行动</div></div><div className="mt-4 grid grid-cols-[44px_minmax(0,1fr)] gap-3"><div className="relative h-[360px] text-[10px] font-mono text-graphite">{[0, 6, 12, 18, 24].map((hour) => <span key={hour} className="absolute right-0" style={{ top: `${hour / 24 * 100}%`, transform: hour === 24 ? 'translateY(-100%)' : 'none' }}>{String(hour).padStart(2, '0')}:00</span>)}</div><div className="relative h-[360px] overflow-hidden border-l border-rail bg-shell/35">{[0, 6, 12, 18, 24].map((hour) => <span key={hour} className="absolute inset-x-0 border-t border-rail/70" style={{ top: `${hour / 24 * 100}%` }} />)}{positioned.map(({ activity, top, height }) => <a key={activity.uuid} href={activity.nodeUuid ? `/contracts/${activity.nodeUuid}?tab=completion` : undefined} className="absolute inset-x-2 overflow-hidden border-l-2 border-signal bg-signal/15 px-2 py-1 text-left transition hover:bg-signal/25" style={{ top: `${top}%`, height: `${height}%`, minHeight: '32px' }}><span className="block truncate text-xs font-semibold text-ink">{activity.title}</span><span className="block truncate text-[10px] text-graphite">{activity.projectTitle} · {formatTime(activity.startedAt ?? activity.createdAt)}{activity.endedAt ? `–${formatTime(activity.endedAt)}` : ''}</span></a>)}</div></div></div>
 }
 
 function DailyReviewDetail({ review }: { review: DailyReview }) {

@@ -6,49 +6,49 @@ import type { Project } from '@/entities/project/model/types'
 export function ProjectProfileSettings({
   project,
   isArchived,
-  onUpdateProject,
-  onUpgradeContract,
-  onArchive,
-  onRestore,
-  onDelete,
+  onUpdateProjectProfile,
+  onSetProjectSmartContract,
+  onArchiveProject,
+  onRestoreArchivedProject,
+  onDeleteProject,
 }: {
   project: Project
   isArchived: boolean
-  onUpdateProject: (input: { title: string; description: string; visibility: Project['visibility'] }) => Promise<{ success: boolean; message?: string }>
-  onUpgradeContract: (smartContractId: string) => Promise<{ success: boolean; message?: string }>
-  onArchive: () => Promise<{ success: boolean; message?: string }>
-  onRestore: () => Promise<{ success: boolean; message?: string }>
-  onDelete: () => Promise<void>
+  onUpdateProjectProfile: (input: { title: string; description: string; visibility: Project['visibility'] }) => Promise<{ success: boolean; message?: string }>
+  onSetProjectSmartContract: (smartContractUuid: string) => Promise<{ success: boolean; message?: string }>
+  onArchiveProject: () => Promise<{ success: boolean; message?: string }>
+  onRestoreArchivedProject: () => Promise<{ success: boolean; message?: string }>
+  onDeleteProject: () => Promise<void>
 }) {
   return (
     <div className="grid max-w-3xl gap-4">
       {isArchived ? (
         <div className="border-l-2 border-graphite py-2 pl-4 text-sm leading-6 text-graphite">项目资料已锁定为只读记录。</div>
       ) : (
-        <ProjectDetailsSettings key={project.id} project={project} onSave={onUpdateProject} />
+        <ProjectDetailsSettings key={project.uuid} project={project} onSave={onUpdateProjectProfile} />
       )}
-      {!isArchived && project.projectType === 'autonomous' ? <ProjectContractSettings project={project} onUpgrade={onUpgradeContract} /> : null}
-      <ProjectDangerZone isArchived={isArchived} projectTitle={project.title} onArchive={onArchive} onRestore={onRestore} onDelete={onDelete} />
+      {!isArchived && project.projectType === 'autonomous' ? <ProjectContractSettings project={project} onUpgrade={onSetProjectSmartContract} /> : null}
+      <ProjectDangerZone isArchived={isArchived} projectTitle={project.title} onArchive={onArchiveProject} onRestore={onRestoreArchivedProject} onDelete={onDeleteProject} />
     </div>
   )
 }
 
-function ProjectContractSettings({ project, onUpgrade }: { project: Project; onUpgrade: (smartContractId: string) => Promise<{ success: boolean; message?: string }> }) {
+function ProjectContractSettings({ project, onUpgrade }: { project: Project; onUpgrade: (smartContractUuid: string) => Promise<{ success: boolean; message?: string }> }) {
   const smartContracts = useExecStore((state) => state.smartContracts)
-  const activeRevision = project.contractRevisions.find((revision) => revision.id === project.activeContractRevisionId) ?? project.contractRevisions[0]
-  const [selectedID, setSelectedID] = useState(activeRevision?.smartContractId ?? '')
+  const activeRevision = project.contractRevisions.find((revision) => revision.uuid === project.activeContractRevisionUuid) ?? project.contractRevisions[0]
+  const [selectedID, setSelectedID] = useState(activeRevision?.smartContractUuid ?? '')
   const [isSaving, setIsSaving] = useState(false)
   const [message, setMessage] = useState('')
   const officialContracts = smartContracts.filter((contract) => contract.source === 'official')
   const customContracts = smartContracts.filter((contract) => contract.source === 'custom')
-  const selected = smartContracts.find((contract) => contract.id === selectedID)
+  const selected = smartContracts.find((contract) => contract.uuid === selectedID)
 
   useEffect(() => {
-    setSelectedID(activeRevision?.smartContractId ?? '')
-  }, [activeRevision?.smartContractId])
+    setSelectedID(activeRevision?.smartContractUuid ?? '')
+  }, [activeRevision?.smartContractUuid])
 
   const save = async () => {
-    if (!selectedID || selectedID === activeRevision?.smartContractId) return
+    if (!selectedID || selectedID === activeRevision?.smartContractUuid) return
     setIsSaving(true)
     setMessage('')
     const result = await onUpgrade(selectedID)
@@ -66,14 +66,14 @@ function ProjectContractSettings({ project, onUpgrade }: { project: Project; onU
           <span className="text-sm font-semibold text-ink">当前使用的规则</span>
           <select value={selectedID} onChange={(event) => { setSelectedID(event.target.value); setMessage('') }} className="h-11 rounded-md border border-rail bg-paper px-3 text-sm outline-none focus:border-signal focus:shadow-focusline">
             <optgroup label="平台规则">
-              {officialContracts.map((contract) => <option key={contract.id} value={contract.id}>{contract.name} · {contract.description}</option>)}
+              {officialContracts.map((contract) => <option key={contract.uuid} value={contract.uuid}>{contract.name} · {contract.description}</option>)}
             </optgroup>
-            {customContracts.length > 0 ? <optgroup label="我的自定义规则">{customContracts.map((contract) => <option key={contract.id} value={contract.id}>{contract.name}</option>)}</optgroup> : null}
+            {customContracts.length > 0 ? <optgroup label="我的自定义规则">{customContracts.map((contract) => <option key={contract.uuid} value={contract.uuid}>{contract.name}</option>)}</optgroup> : null}
           </select>
         </label>
         {selected ? <p className="border-l-2 border-signal py-2 pl-3 text-sm leading-6 text-graphite"><span className="font-semibold text-ink">{selected.name}</span>：{selected.description}</p> : null}
         <div className="flex flex-wrap items-center gap-3">
-          <button type="button" disabled={isSaving || !selectedID || selectedID === activeRevision?.smartContractId} onClick={() => void save()} className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-signal px-3 text-sm font-semibold text-white transition hover:bg-signalStrong disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:shadow-focusline"><ShieldCheck size={16} aria-hidden="true" />{isSaving ? '正在保存' : '保存智能合约'}</button>
+          <button type="button" disabled={isSaving || !selectedID || selectedID === activeRevision?.smartContractUuid} onClick={() => void save()} className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-signal px-3 text-sm font-semibold text-white transition hover:bg-signalStrong disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:shadow-focusline"><ShieldCheck size={16} aria-hidden="true" />{isSaving ? '正在保存' : '保存智能合约'}</button>
           {message ? <span className={`text-sm font-semibold ${message.includes('失败') || message.includes('不能') ? 'text-clay' : 'text-signal'}`}>{message}</span> : null}
         </div>
       </div>

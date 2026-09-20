@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 	applicationidentity "github.com/singaurora/exec-graph/backend/internal/application/identity"
 	endpointcommon "github.com/singaurora/exec-graph/backend/internal/http/endpoint/common"
-	httpresponse "github.com/singaurora/exec-graph/backend/internal/http/response"
 	"github.com/singaurora/exec-graph/backend/internal/shared/fault"
 )
 
@@ -27,15 +26,6 @@ func (s *Server) requireUserError(r *http.Request) (authenticatedUser, error) {
 		return authenticatedUser{}, fault.Wrap(fault.DependencyUnavailable, "登录会话暂时不可用，请稍后重试", err)
 	}
 	return user, nil
-}
-
-func (s *Server) requireUser(w http.ResponseWriter, r *http.Request) (authenticatedUser, bool) {
-	user, err := s.requireUserError(r)
-	if err != nil {
-		httpresponse.WriteFault(w, err)
-		return authenticatedUser{}, false
-	}
-	return user, true
 }
 
 func (s *Server) authenticationMiddleware() gin.HandlerFunc {
@@ -59,6 +49,7 @@ func userFromContext(r *http.Request) (authenticatedUser, bool) {
 	user, ok := r.Context().Value(authenticatedUserContextKey{}).(authenticatedUser)
 	return user, ok
 }
+
 func (s *Server) optionalUser(r *http.Request) (authenticatedUser, bool) {
 	if bearerToken(r) == "" {
 		return authenticatedUser{}, false
@@ -66,9 +57,11 @@ func (s *Server) optionalUser(r *http.Request) (authenticatedUser, bool) {
 	user, err := s.authenticate(r)
 	return user, err == nil
 }
+
 func (s *Server) authenticate(r *http.Request) (authenticatedUser, error) {
 	return s.identity.Authenticate(r.Context(), bearerToken(r))
 }
+
 func bearerToken(r *http.Request) string {
 	return endpointcommon.BearerToken(r)
 }

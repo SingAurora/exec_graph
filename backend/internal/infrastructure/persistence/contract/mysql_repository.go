@@ -108,6 +108,12 @@ func (repository SmartContractRepository) FindByID(ctx context.Context, contract
 	return contract, err
 }
 
+// FindVersionByID 返回系统规则当前冻结版本，供身份注册用例创建初始项目。
+func (repository SmartContractRepository) FindVersionByID(ctx context.Context, contractID string) (string, error) {
+	contract, err := repository.FindByID(ctx, contractID)
+	return contract.Version, err
+}
+
 func (repository SmartContractRepository) ListVisible(ctx context.Context, userID uint64) ([]SmartContract, error) {
 	var contracts []SmartContract
 	err := repository.db.WithContext(ctx).

@@ -7,9 +7,8 @@ import (
 	"strings"
 	"time"
 
-	identitypersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/identity"
-	projectpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/project"
 	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
+	sharedid "github.com/singaurora/exec-graph/backend/internal/shared/id"
 )
 
 // SendCode 发送注册、换绑或重置密码所需的邮箱验证码。
@@ -54,11 +53,11 @@ func (s *Service) SendCode(ctx context.Context, input SendCodeInput) error {
 	if err := s.mailer.SendVerificationCode(ctx, email, code); err != nil {
 		return fmt.Errorf("send verification email: %w", err)
 	}
-	return s.repository.Transaction(ctx, func(tx identitypersistence.IdentityRepository) error {
+	return s.repository.Transaction(ctx, func(tx Repository) error {
 		if err := tx.InvalidateCodes(ctx, email, purpose); err != nil {
 			return err
 		}
-		return tx.CreateCode(ctx, &identitypersistence.EmailVerificationCode{
+		return tx.CreateCode(ctx, &VerificationCodeRecord{
 			Email:     email,
 			Purpose:   purpose,
 			CodeHash:  hashValue(code),
@@ -84,11 +83,15 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) (User, stri
 	if !verificationCodePattern.MatchString(input.Code) {
 		return User{}, "", ErrInvalidCode
 	}
+	passwordHash, err := s.passwords.Hash(input.Password)
+	if err != nil {
+		return User{}, "", fmt.Errorf("hash password: %w", err)
+	}
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	var databaseUserID uint64
 	var handle string
-	err = s.repository.Transaction(ctx, func(tx identitypersistence.IdentityRepository) error {
+	err = s.repository.Transaction(ctx, func(tx Repository) error {
 		if err := consumeVerificationCode(ctx, tx, email, PurposeRegister, input.Code); err != nil {
 			return err
 		}
@@ -98,7 +101,7 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) (User, stri
 				return err
 			}
 			now := time.Now()
-			user := identitypersistence.User{Username: username, UserID: candidate, Email: email, PasswordHash: input.Password, EmailVerifiedAt: &now}
+			user := UserRecord{Username: username, UserID: candidate, Email: email, PasswordHash: passwordHash, EmailVerifiedAt: &now}
 			if err := tx.CreateUser(ctx, &user); err != nil {
 				if strings.Contains(strings.ToLower(err.Error()), "uq_users_user_id") {
 					continue
@@ -111,16 +114,24 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) (User, stri
 		if databaseUserID == 0 {
 			return errors.New("could not allocate user handle")
 		}
-		contract, err := s.contracts.FindByID(ctx, GeneralSmartContractID)
+		contractVersion, err := s.contracts.FindVersionByID(ctx, GeneralSmartContractID)
 		if err != nil {
 			return err
 		}
-		return tx.ProjectRepository().EnsureInitialProject(ctx, projectpersistence.InitialProjectSpec{
-			ProjectID:            fmt.Sprintf("project-initial-%d", databaseUserID),
-			RevisionID:           fmt.Sprintf("project-initial-revision-%d", databaseUserID),
+		projectUUID, err := sharedid.UUID()
+		if err != nil {
+			return err
+		}
+		revisionUUID, err := sharedid.UUID()
+		if err != nil {
+			return err
+		}
+		return tx.EnsureInitialProject(ctx, InitialProjectInput{
+			ProjectUUID:          projectUUID,
+			RevisionUUID:         revisionUUID,
 			OwnerID:              databaseUserID,
-			SmartContractID:      GeneralSmartContractID,
-			SmartContractVersion: contract.Version,
+			SmartContractUUID:    GeneralSmartContractID,
+			SmartContractVersion: contractVersion,
 		})
 	})
 	if err != nil {
@@ -143,11 +154,14 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (User, string, er
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	stored, err := s.repository.FindUserByEmail(ctx, email, false)
-	if errors.Is(err, identitypersistence.ErrNotFound) || stored.PasswordHash != input.Password {
+	if errors.Is(err, ErrRecordNotFound) {
 		return User{}, "", ErrInvalidCredentials
 	}
 	if err != nil {
 		return User{}, "", err
+	}
+	if !s.passwords.Verify(stored.PasswordHash, input.Password) {
+		return User{}, "", ErrInvalidCredentials
 	}
 	user := User{ID: stored.ID, Username: stored.Username, UserID: stored.UserID, Email: stored.Email}
 	token, err := s.CreateSession(ctx, user)

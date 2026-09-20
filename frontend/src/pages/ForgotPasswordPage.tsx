@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 import { AuthLayout } from '@/widgets/auth-layout/ui/AuthLayout'
-import { postJSON } from '@/shared/api/client'
+import { resetLoginPassword, sendVerificationCode } from '@/features/auth/api/client'
 
 const forgotPasswordSchema = z
   .object({
@@ -39,7 +39,7 @@ export function ForgotPasswordPage() {
     if (!(await trigger('email'))) return
     setIsSendingCode(true)
     try {
-      const data = await postJSON<{ message?: string }>('/api/commands/auth/send-code', { email: getValues('email'), purpose: 'reset_password' })
+      const data = await sendVerificationCode({ email: getValues('email'), purpose: 'reset_password' })
       setCountdown(60)
       setMessage(data.message ?? '验证码已发送，请查收邮件。')
     } catch (error) {
@@ -53,7 +53,7 @@ export function ForgotPasswordPage() {
     setMessage('')
     setErrorMessage('')
     try {
-      const data = await postJSON<{ message?: string }>('/api/commands/auth/reset-password', { email: values.email, code: values.code, nextPassword: values.password })
+      const data = await resetLoginPassword({ email: values.email, code: values.code, nextPassword: values.password })
       setMessage(data.message ?? '密码已重设，请使用新密码登录。')
       window.setTimeout(() => navigate('/login'), 1200)
     } catch (error) {

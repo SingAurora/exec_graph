@@ -5,8 +5,9 @@ import { ContractComposer } from '@/features/project/ui/ContractComposer'
 import { ProjectGraph } from '@/widgets/project/ui/ProjectGraph'
 import { SectionHeader } from '@/shared/ui/SectionHeader'
 import { StatusBadge } from '@/entities/execution-node/ui/StatusBadge'
-import { getCall, submitContribution, type CollaborationCall, type CollaborationSubmission } from '@/features/collaboration/api/client'
-import { getJSON, postJSON } from '@/shared/api/client'
+import { getCollaborationCallDetail, submitProjectContribution, type CollaborationCall, type CollaborationSubmission } from '@/features/collaboration/api/client'
+import { listAIKeys } from '@/entities/ai-key/api/client'
+import { publishCollaborationCall, setProjectReviewAI } from '@/entities/project/api/client'
 import { currentContractIDs, isAcceptedRecord, isReadyToProgress, isReviewInProgress, isSealedRecord, needsReviewDecision } from '@/entities/execution-node/model/selectors'
 import { useWorkspaceStore as useExecStore } from '@/features/workspace/model/useWorkspaceStore'
 import type { CompletionRecord, ExecutionBranch, ExecutionContract } from '@/entities/execution-node/model/types'
@@ -36,7 +37,7 @@ const projectTabFrom = (value: string | null): ProjectTab =>
   value === 'records' || value === 'graph' || value === 'profile' || value === 'ai' ? value : 'nodes'
 
 type ProjectAIKey = {
-  id: string
+  uuid: string
   provider: string
   label: string
   model: string
@@ -75,23 +76,23 @@ const recordDate = (record: { createdAt: string }) =>
   new Intl.DateTimeFormat('zh-CN', { month: 'numeric', day: 'numeric' }).format(new Date(record.createdAt))
 
 export function ProjectPage() {
-  const { projectId = '' } = useParams()
+  const { projectUuid = '' } = useParams()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const project = useExecStore((state) => state.projects.find((item) => item.id === projectId))
+  const project = useExecStore((state) => state.projects.find((item) => item.uuid === projectUuid))
   const allContracts = useExecStore((state) => state.contracts)
   const allCompletionRecords = useExecStore((state) => state.completionRecords)
   const allBranches = useExecStore((state) => state.branches)
-  const updateProject = useExecStore((state) => state.updateProject)
+  const updateProjectProfile = useExecStore((state) => state.updateProjectProfile)
   const archiveProject = useExecStore((state) => state.archiveProject)
-  const restoreProject = useExecStore((state) => state.restoreProject)
+  const restoreArchivedProject = useExecStore((state) => state.restoreArchivedProject)
   const deleteProject = useExecStore((state) => state.deleteProject)
-  const upgradeProjectContract = useExecStore((state) => state.upgradeProjectContract)
+  const setProjectSmartContract = useExecStore((state) => state.setProjectSmartContract)
   const accessToken = useExecStore((state) => state.accessToken)
   const refreshWorkspace = useExecStore((state) => state.refreshWorkspace)
-  const contracts = useMemo(() => allContracts.filter((contract) => contract.projectId === projectId), [allContracts, projectId])
-  const completionRecords = useMemo(() => allCompletionRecords.filter((record) => record.projectId === projectId), [allCompletionRecords, projectId])
-  const branches = useMemo(() => allBranches.filter((branch) => branch.projectId === projectId), [allBranches, projectId])
+  const contracts = useMemo(() => allContracts.filter((contract) => contract.projectUuid === projectUuid), [allContracts, projectUuid])
+  const completionRecords = useMemo(() => allCompletionRecords.filter((record) => record.projectUuid === projectUuid), [allCompletionRecords, projectUuid])
+  const branches = useMemo(() => allBranches.filter((branch) => branch.projectUuid === projectUuid), [allBranches, projectUuid])
 
   if (!project) {
     return (
@@ -103,31 +104,31 @@ export function ProjectPage() {
   }
 
   const isArchived = Boolean(project.archivedAt)
-  const unlockedContracts = contracts.filter((contract) => !contract.completionRecordId)
+  const unlockedContracts = contracts.filter((contract) => !contract.completionRecordUuid)
   const sortedCompletionRecords = completionRecords.slice().sort((left, right) => Date.parse(left.createdAt) - Date.parse(right.createdAt))
-  const currentContract = contracts.find((contract) => contract.id === project.currentContractId)
+  const currentContract = contracts.find((contract) => contract.uuid === project.currentContractUuid)
   const requestedParentId = searchParams.get('parent') ?? undefined
-  const requestedParent = contracts.find((contract) => contract.id === requestedParentId && contract.stage === 'completed')
+  const requestedParent = contracts.find((contract) => contract.uuid === requestedParentId && contract.stage === 'completed')
   const requestedClosureId = searchParams.get('close') ?? undefined
-  const requestedClosure = contracts.find((contract) => contract.id === requestedClosureId && contract.stage === 'frozen')
+  const requestedClosure = contracts.find((contract) => contract.uuid === requestedClosureId && contract.stage === 'frozen')
   const requestedSupplementId = searchParams.get('supplement') ?? undefined
-  const requestedSupplement = contracts.find((contract) => contract.id === requestedSupplementId && contract.stage === 'needs_supplement')
+  const requestedSupplement = contracts.find((contract) => contract.uuid === requestedSupplementId && contract.stage === 'needs_supplement')
   const requestedRetryId = searchParams.get('retry') ?? undefined
-  const requestedRetry = contracts.find((contract) => contract.id === requestedRetryId && contract.stage === 'sealed')
+  const requestedRetry = contracts.find((contract) => contract.uuid === requestedRetryId && contract.stage === 'sealed')
   const isFork = searchParams.get('fork') === '1'
-  const requestedBranch = branches.find((branch) => branch.id === (searchParams.get('branch') ?? requestedClosure?.branchId ?? requestedSupplement?.branchId))
+  const requestedBranch = branches.find((branch) => branch.uuid === (searchParams.get('branch') ?? requestedClosure?.branchUuid ?? requestedSupplement?.branchUuid))
   const activeBranchContracts = branches
-    .map((branch) => ({ branch, contract: contracts.find((contract) => contract.id === branch.currentContractId) }))
+    .map((branch) => ({ branch, contract: contracts.find((contract) => contract.uuid === branch.currentContractUuid) }))
     .filter((item): item is { branch: ExecutionBranch; contract: ExecutionContract } => Boolean(item.contract))
 	const publishableCollaborationNodes = [currentContract, ...activeBranchContracts.map((item) => item.contract)]
 		.filter((contract): contract is ExecutionContract => Boolean(contract && contract.stage === 'frozen'))
-		.filter((contract, index, list) => list.findIndex((item) => item.id === contract.id) === index)
+		.filter((contract, index, list) => list.findIndex((item) => item.uuid === contract.uuid) === index)
   const mergeSources = branches
-    .map((branch) => contracts.find((contract) => contract.id === branch.headContractId && contract.stage === 'completed' && contract.completionRecordId))
+    .map((branch) => contracts.find((contract) => contract.uuid === branch.headContractUuid && contract.stage === 'completed' && contract.completionRecordUuid))
     .filter((contract): contract is ExecutionContract => Boolean(contract))
-    .filter((contract, index, list) => list.findIndex((item) => item.id === contract.id) === index)
+    .filter((contract, index, list) => list.findIndex((item) => item.uuid === contract.uuid) === index)
   const latestRecord = sortedCompletionRecords.filter(isAcceptedRecord).at(-1)
-  const latestCompleted = latestRecord ? contracts.find((contract) => contract.id === latestRecord.closingContractId) : undefined
+  const latestCompleted = latestRecord ? contracts.find((contract) => contract.uuid === latestRecord.closingContractUuid) : undefined
   const requestedTab = projectTabFrom(searchParams.get('tab'))
   const activeTab = requestedParent || requestedClosure || requestedSupplement || requestedRetry ? 'nodes' : requestedTab
 
@@ -170,7 +171,7 @@ export function ProjectPage() {
         <>
           {isArchived ? <ArchivedProjectNotice /> : <ProjectWorkstation project={project} contracts={contracts} currentContract={currentContract} activeBranchContracts={activeBranchContracts} latestCompleted={latestCompleted} requestedParent={requestedParent} requestedClosure={requestedClosure} requestedSupplement={requestedSupplement} requestedRetry={requestedRetry} requestedBranch={requestedBranch} isFork={isFork} />}
 
-          {project.visibility === 'public' ? publishableCollaborationNodes.map((node) => <ProjectCollaborationPublisher key={node.id} projectId={project.id} node={node} accessToken={accessToken} />) : null}
+          {project.visibility === 'public' ? publishableCollaborationNodes.map((node) => <ProjectCollaborationPublisher key={node.uuid} projectUuid={project.uuid} node={node} accessToken={accessToken} />) : null}
 
           <ProjectQueues
             project={project}
@@ -195,12 +196,12 @@ export function ProjectPage() {
         <ProjectProfileSettings
           project={project}
           isArchived={isArchived}
-          onUpdateProject={(input) => updateProject(project.id, input)}
-          onUpgradeContract={(smartContractId) => upgradeProjectContract(project.id, smartContractId)}
-          onArchive={() => archiveProject(project.id)}
-          onRestore={() => restoreProject(project.id)}
-          onDelete={async () => {
-            const result = await deleteProject(project.id)
+          onUpdateProjectProfile={(input) => updateProjectProfile(project.uuid, input)}
+          onSetProjectSmartContract={(smartContractUuid) => setProjectSmartContract(project.uuid, smartContractUuid)}
+          onArchiveProject={() => archiveProject(project.uuid)}
+          onRestoreArchivedProject={() => restoreArchivedProject(project.uuid)}
+          onDeleteProject={async () => {
+            const result = await deleteProject(project.uuid)
             if (result.success) navigate('/')
           }}
         />
@@ -215,14 +216,14 @@ export function ProjectPage() {
 
 function ProjectAISettings({ project, accessToken, isArchived, onUpdated }: { project: Project; accessToken: string; isArchived: boolean; onUpdated: () => Promise<unknown> }) {
   const [keys, setKeys] = useState<ProjectAIKey[]>([])
-  const [selectedKeyID, setSelectedKeyID] = useState(project.reviewAIKeyId ?? '')
+  const [selectedKeyID, setSelectedKeyID] = useState(project.reviewAIKeyUuid ?? '')
   const [isLoading, setIsLoading] = useState(Boolean(accessToken))
   const [isSaving, setIsSaving] = useState(false)
   const [message, setMessage] = useState('')
 
   useEffect(() => {
-    setSelectedKeyID(project.reviewAIKeyId ?? '')
-  }, [project.reviewAIKeyId])
+    setSelectedKeyID(project.reviewAIKeyUuid ?? '')
+  }, [project.reviewAIKeyUuid])
 
   useEffect(() => {
     if (!accessToken) {
@@ -234,7 +235,7 @@ function ProjectAISettings({ project, accessToken, isArchived, onUpdated }: { pr
     const load = async () => {
       setIsLoading(true)
       try {
-		const data = await getJSON<{ keys?: ProjectAIKey[] }>('/api/commands/ai-keys/list', accessToken)
+		const data = await listAIKeys(accessToken)
 		if (!cancelled) setKeys(data.keys ?? [])
       } catch (error) {
         if (!cancelled) setMessage(error instanceof Error ? error.message : '读取 AI 密钥失败。')
@@ -251,7 +252,7 @@ function ProjectAISettings({ project, accessToken, isArchived, onUpdated }: { pr
     setIsSaving(true)
     setMessage('')
     try {
-      await postJSON('/api/commands/projects/set-ai-key', { projectId: project.id, aiKeyId: selectedKeyID }, accessToken)
+      await setProjectReviewAI(accessToken, project.uuid, selectedKeyID)
       await onUpdated()
       setMessage('项目审查 AI 已更新。')
     } catch (error) {
@@ -261,7 +262,7 @@ function ProjectAISettings({ project, accessToken, isArchived, onUpdated }: { pr
     }
   }
 
-  const selected = keys.find((key) => key.id === selectedKeyID)
+  const selected = keys.find((key) => key.uuid === selectedKeyID)
   return (
     <section className="max-w-3xl rounded-md border border-rail bg-surface/72 p-5">
       <div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal"><Bot size={17} aria-hidden="true" />Review AI</div>
@@ -273,13 +274,13 @@ function ProjectAISettings({ project, accessToken, isArchived, onUpdated }: { pr
             <span className="text-sm font-semibold text-ink">审核节点描述与完成证明</span>
             <select value={selectedKeyID} onChange={(event) => { setSelectedKeyID(event.target.value); setMessage('') }} disabled={isLoading || !accessToken} className="h-11 rounded-md border border-rail bg-paper px-3 text-sm outline-none focus:border-signal focus:shadow-focusline">
               <option value="">选择 AI 配置</option>
-              {keys.map((key) => <option key={key.id} value={key.id}>{key.label} · {key.provider} · {key.model}</option>)}
+              {keys.map((key) => <option key={key.uuid} value={key.uuid}>{key.label} · {key.provider} · {key.model}</option>)}
             </select>
           </label>
           {selected ? <p className="mt-3 text-sm text-graphite">{selected.label} · {selected.provider} · {selected.model}</p> : null}
           {keys.length === 0 && !isLoading ? <p className="mt-3 text-sm text-clay">请先到个人设置添加 AI 密钥。</p> : null}
           <div className="mt-5 flex flex-wrap items-center gap-3">
-            <button type="button" onClick={() => void save()} disabled={!selectedKeyID || selectedKeyID === project.reviewAIKeyId || isSaving} className="inline-flex h-10 items-center gap-2 rounded-md bg-signal px-3 text-sm font-semibold text-white transition hover:bg-signalStrong disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:shadow-focusline"><Bot size={16} aria-hidden="true" />保存审查 AI</button>
+            <button type="button" onClick={() => void save()} disabled={!selectedKeyID || selectedKeyID === project.reviewAIKeyUuid || isSaving} className="inline-flex h-10 items-center gap-2 rounded-md bg-signal px-3 text-sm font-semibold text-white transition hover:bg-signalStrong disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:shadow-focusline"><Bot size={16} aria-hidden="true" />保存审查 AI</button>
             {message ? <span className="text-sm font-semibold text-signal">{message}</span> : null}
           </div>
         </>
@@ -297,7 +298,7 @@ function ContributionOriginBanner({ origin }: { origin: NonNullable<Project['con
         <p className="mt-2 max-w-3xl text-sm leading-6 text-graphite">你的行动会围绕这个缺口推进；成果通过验收后，在“成果与封存”中回交给维护者组合审查。</p>
 		{origin.availableSources.length > 0 ? <p className="mt-2 max-w-3xl text-xs leading-5 text-graphite">可参考的已有成果：{origin.availableSources.map((source) => `「${source.title}」`).join('、')}。它们是协作背景，不会替代你的独立贡献。</p> : null}
       </div>
-      <Link to={`/explore/projects/${origin.projectId}#call-${origin.callId}`} className="inline-flex h-10 items-center justify-center gap-2 border border-rail bg-surface px-3 text-sm font-semibold text-ink hover:border-signal"><ArrowRight size={16} aria-hidden="true" />查看原始协作目标</Link>
+      <Link to={`/explore/projects/${origin.projectUuid}#call-${origin.callUuid}`} className="inline-flex h-10 items-center justify-center gap-2 border border-rail bg-surface px-3 text-sm font-semibold text-ink hover:border-signal"><ArrowRight size={16} aria-hidden="true" />查看原始协作目标</Link>
     </section>
   )
 }
@@ -312,22 +313,22 @@ function ContributionHandoff({ origin, records, token }: { origin: NonNullable<P
 
   const load = useCallback(async () => {
     try {
-      const data = await getCall(token, origin.callId)
+      const data = await getCollaborationCallDetail(token, origin.callUuid)
       setCall(data.call)
       setSubmissions(data.submissions)
     } catch (reason) {
       setMessage(reason instanceof Error ? reason.message : '读取协作交接失败')
     }
-  }, [origin.callId, token])
+  }, [origin.callUuid, token])
 
   useEffect(() => { void load() }, [load])
   useEffect(() => {
-    const available = records.find((record) => !submissions.some((submission) => submission.sourceRecordId === record.id))
-    if (available) setRecordID((current) => current || available.id)
+    const available = records.find((record) => !submissions.some((submission) => submission.sourceRecordUuid === record.uuid))
+    if (available) setRecordID((current) => current || available.uuid)
   }, [records, submissions])
 
-  const submitted = submissions.filter((submission) => records.some((record) => record.id === submission.sourceRecordId))
-  const availableRecords = records.filter((record) => !submissions.some((submission) => submission.sourceRecordId === record.id))
+  const submitted = submissions.filter((submission) => records.some((record) => record.uuid === submission.sourceRecordUuid))
+  const availableRecords = records.filter((record) => !submissions.some((submission) => submission.sourceRecordUuid === record.uuid))
   const handoff = async () => {
     if (!recordID || mapping.trim().length < 8) {
       setMessage('说明这份成果对应目标标准的哪一部分，以及证据在哪里。')
@@ -335,7 +336,7 @@ function ContributionHandoff({ origin, records, token }: { origin: NonNullable<P
     }
     setBusy(true); setMessage('')
     try {
-      await submitContribution(token, origin.callId, recordID, mapping, '')
+      await submitProjectContribution(token, origin.callUuid, recordID, mapping, '')
       setMapping('')
       setMessage('成果已回交，等待维护者选择来源并进行组合审查。')
       await load()
@@ -363,8 +364,8 @@ function ContributionHandoff({ origin, records, token }: { origin: NonNullable<P
           </div>
         </aside>
       </div>
-      {submitted.length > 0 ? <div className="divide-y divide-rail border-t border-rail">{submitted.map((submission) => <div key={submission.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm"><span className="font-semibold text-ink">{submission.sourceTitle}</span><span className={submission.status === 'adopted' ? 'font-semibold text-moss' : 'font-semibold text-graphite'}>{submission.status === 'adopted' ? '已被维护者采纳' : '等待组合审查'}</span></div>)}</div> : null}
-      {call?.status === 'open' && availableRecords.length > 0 ? <div className="border-t border-rail bg-shell/45 p-5"><div className="grid gap-3"><select value={recordID} onChange={(event) => setRecordID(event.target.value)} className="h-11 border border-rail bg-paper px-3 text-sm outline-none focus:border-signal"><option value="">选择一份已验收成果</option>{availableRecords.map((record) => <option key={record.id} value={record.id}>{record.title}</option>)}</select><textarea value={mapping} onChange={(event) => setMapping(event.target.value)} placeholder="说明这份成果对应哪些验收标准，以及证据在哪里。" className="min-h-20 border border-rail bg-paper px-3 py-2 text-sm leading-6 outline-none focus:border-signal" /><button type="button" disabled={busy || !recordID} onClick={() => void handoff()} className="inline-flex h-10 w-fit items-center gap-2 bg-signal px-3 text-sm font-semibold text-white disabled:opacity-50"><Send size={16} aria-hidden="true" />{busy ? '正在回交' : '提交回协作目标'}</button></div></div> : null}
+      {submitted.length > 0 ? <div className="divide-y divide-rail border-t border-rail">{submitted.map((submission) => <div key={submission.uuid} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm"><span className="font-semibold text-ink">{submission.sourceTitle}</span><span className={submission.status === 'adopted' ? 'font-semibold text-moss' : 'font-semibold text-graphite'}>{submission.status === 'adopted' ? '已被维护者采纳' : '等待组合审查'}</span></div>)}</div> : null}
+      {call?.status === 'open' && availableRecords.length > 0 ? <div className="border-t border-rail bg-shell/45 p-5"><div className="grid gap-3"><select value={recordID} onChange={(event) => setRecordID(event.target.value)} className="h-11 border border-rail bg-paper px-3 text-sm outline-none focus:border-signal"><option value="">选择一份已验收成果</option>{availableRecords.map((record) => <option key={record.uuid} value={record.uuid}>{record.title}</option>)}</select><textarea value={mapping} onChange={(event) => setMapping(event.target.value)} placeholder="说明这份成果对应哪些验收标准，以及证据在哪里。" className="min-h-20 border border-rail bg-paper px-3 py-2 text-sm leading-6 outline-none focus:border-signal" /><button type="button" disabled={busy || !recordID} onClick={() => void handoff()} className="inline-flex h-10 w-fit items-center gap-2 bg-signal px-3 text-sm font-semibold text-white disabled:opacity-50"><Send size={16} aria-hidden="true" />{busy ? '正在回交' : '提交回协作目标'}</button></div></div> : null}
       {availableRecords.length === 0 && submitted.length === 0 ? <p className="border-t border-rail px-5 py-4 text-sm leading-6 text-graphite">先完成并确认至少一项行动成果，它会出现在这里供你回交。</p> : null}
       {message ? <p className="border-t border-rail px-5 py-3 text-sm font-semibold text-graphite">{message}</p> : null}
     </section>
@@ -372,7 +373,7 @@ function ContributionHandoff({ origin, records, token }: { origin: NonNullable<P
 }
 
 function ProjectTabs({ project, activeTab }: { project: Project; activeTab: ProjectTab }) {
-  const projectId = project.id
+  const projectUuid = project.uuid
   return (
     <nav className="-mt-5 flex gap-1 overflow-x-auto border-b border-rail" aria-label="项目页面">
       {projectTabs.map((tab) => {
@@ -381,7 +382,7 @@ function ProjectTabs({ project, activeTab }: { project: Project; activeTab: Proj
         return (
           <Link
             key={tab.id}
-            to={tab.id === 'nodes' ? `/projects/${projectId}` : `/projects/${projectId}?tab=${tab.id}`}
+            to={tab.id === 'nodes' ? `/projects/${projectUuid}` : `/projects/${projectUuid}?tab=${tab.id}`}
             className={[
               'inline-flex h-12 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-semibold transition focus:outline-none focus-visible:shadow-focusline',
               active ? 'border-ink text-ink' : 'border-transparent text-graphite hover:border-rail hover:text-ink',
@@ -406,7 +407,7 @@ function ProjectGraphTab({ project, contracts, branches }: { project: Project; c
       {contracts.length > 0 ? (
         <>
           <ProjectGraphLegend />
-          <ProjectGraph projectId={project.id} heightClassName="h-[620px] min-h-[420px]" />
+          <ProjectGraph projectUuid={project.uuid} heightClassName="h-[620px] min-h-[420px]" />
         </>
       ) : (
         <div className="border-l-2 border-moss py-2 pl-4 text-sm leading-6 text-graphite">第一项行为通过审查后，这里会成为项目的推进记录。</div>
@@ -460,11 +461,11 @@ type QueueListProps = {
 }
 
 function ProjectQueues({ project, contracts, activeBranchContracts }: { project: Project; contracts: ExecutionContract[]; activeBranchContracts: Array<{ branch: ExecutionBranch; contract: ExecutionContract }> }) {
-  const currentContractIds = currentContractIDs([project], activeBranchContracts.map(({ branch }) => branch))
-  const currentContracts = contracts.filter((contract) => currentContractIds.has(contract.id))
-  const pendingProgress = currentContracts.filter((contract) => !contract.completionRecordId && isReadyToProgress(contract))
-  const awaitingConfirmation = currentContracts.filter((contract) => !contract.completionRecordId && needsReviewDecision(contract))
-  const reviewing = currentContracts.filter((contract) => !contract.completionRecordId && isReviewInProgress(contract))
+  const currentContractUuids = currentContractIDs([project], activeBranchContracts.map(({ branch }) => branch))
+  const currentContracts = contracts.filter((contract) => currentContractUuids.has(contract.uuid))
+  const pendingProgress = currentContracts.filter((contract) => !contract.completionRecordUuid && isReadyToProgress(contract))
+  const awaitingConfirmation = currentContracts.filter((contract) => !contract.completionRecordUuid && needsReviewDecision(contract))
+  const reviewing = currentContracts.filter((contract) => !contract.completionRecordUuid && isReviewInProgress(contract))
 
   return (
     <section className="space-y-5 border-y border-rail py-8" aria-labelledby="project-queues-title">
@@ -478,13 +479,13 @@ function ProjectQueues({ project, contracts, activeBranchContracts }: { project:
 
       <div className="divide-y divide-rail border-y border-rail bg-surface">
         {awaitingConfirmation.length > 0 ? <QueueList title="等待你的确认" eyebrow="Your decision" count={awaitingConfirmation.length} icon={CheckCircle2} empty="">
-          {awaitingConfirmation.map((contract) => <QueueNodeRow key={contract.id} contract={contract} mode="confirmation" />)}
+          {awaitingConfirmation.map((contract) => <QueueNodeRow key={contract.uuid} contract={contract} mode="confirmation" />)}
         </QueueList> : null}
         {reviewing.length > 0 ? <QueueList title="AI 正在审核" eyebrow="AI review" count={reviewing.length} icon={Bot} empty="">
-          {reviewing.map((contract) => <QueueNodeRow key={contract.id} contract={contract} mode="reviewing" />)}
+          {reviewing.map((contract) => <QueueNodeRow key={contract.uuid} contract={contract} mode="reviewing" />)}
         </QueueList> : null}
         {pendingProgress.length > 0 ? <QueueList title="等待推进" eyebrow="Next action" count={pendingProgress.length} icon={FileCheck2} empty="">
-          {pendingProgress.map((contract) => <QueueNodeRow key={contract.id} contract={contract} mode="pending" />)}
+          {pendingProgress.map((contract) => <QueueNodeRow key={contract.uuid} contract={contract} mode="pending" />)}
         </QueueList> : null}
         {pendingProgress.length + awaitingConfirmation.length + reviewing.length === 0 ? <p className="px-5 py-4 text-sm text-graphite">当前没有需要处理的行动。</p> : null}
       </div>
@@ -519,7 +520,7 @@ function QueueNodeRow({ contract, mode }: { contract: ExecutionContract; mode: '
       ? contract.aiReview?.verdict === 'pass' ? 'AI 已通过 · 等待确认' : 'AI 未通过 · 等待确认'
       : '打开节点提交这次推进结果'
   return (
-    <Link to={`/contracts/${contract.id}`} className="group grid gap-3 px-4 py-4 transition hover:bg-shell focus:outline-none focus-visible:shadow-focusline sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+    <Link to={`/contracts/${contract.uuid}`} className="group grid gap-3 px-4 py-4 transition hover:bg-shell focus:outline-none focus-visible:shadow-focusline sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
       <span className="min-w-0">
         <span className="block truncate text-sm font-semibold text-ink">{contract.title}</span>
         <span className="mt-1 block line-clamp-2 text-xs leading-5 text-graphite">{contract.verifiableGoal}</span>
@@ -544,9 +545,9 @@ function ProjectRecords({ records, contracts }: { records: CompletionRecord[]; c
         <div className="border-y border-rail bg-surface">
           {records.slice().reverse().map((record) => {
             const isAccepted = isAcceptedRecord(record)
-            const closingNode = contracts.find((contract) => contract.id === record.closingContractId)
+            const closingNode = contracts.find((contract) => contract.uuid === record.closingContractUuid)
             return (
-              <Link key={record.id} to={`/contracts/${record.closingContractId}?tab=completion`} className="group grid gap-4 border-b border-rail px-5 py-5 last:border-b-0 transition hover:bg-shell/45 focus:outline-none focus-visible:shadow-focusline lg:grid-cols-[104px_minmax(0,1fr)_240px_auto] lg:items-start">
+              <Link key={record.uuid} to={`/contracts/${record.closingContractUuid}?tab=completion`} className="group grid gap-4 border-b border-rail px-5 py-5 last:border-b-0 transition hover:bg-shell/45 focus:outline-none focus-visible:shadow-focusline lg:grid-cols-[104px_minmax(0,1fr)_240px_auto] lg:items-start">
                 <div className={`border-l-2 pl-3 font-mono text-xs font-semibold ${isAccepted ? 'border-moss text-moss' : 'border-graphite text-graphite'}`}>
                   {recordDate(record)}
                 </div>
@@ -555,7 +556,7 @@ function ProjectRecords({ records, contracts }: { records: CompletionRecord[]; c
                   <p className="mt-2 max-w-3xl text-sm leading-6 text-graphite">{record.summary}</p>
                 </div>
                 <div className="text-xs leading-5 text-graphite">
-                  <div className="font-semibold text-ink">覆盖 {record.coveredContractIds.length} 个推进节点</div>
+                  <div className="font-semibold text-ink">覆盖 {record.coveredContractUuids.length} 个推进节点</div>
                   <div className={`mt-1 font-semibold ${isAccepted ? 'text-moss' : 'text-graphite'}`}>{isAccepted ? 'AI 审查通过 · 用户确认' : 'AI 有缺口 · 已封存'}</div>
                   <div className="mt-1 truncate">收束节点：{closingNode?.title ?? '推进节点'}</div>
                 </div>
@@ -578,7 +579,7 @@ function ProjectWorkstation({ project, contracts, currentContract, activeBranchC
     return (
       <section id="new-node" className="space-y-6 border-y border-rail py-8">
         <FlowIntroduction icon={isFork ? GitFork : ArrowRight} title={isFork ? `从「${requestedParent.title}」拆分新路径` : `从「${requestedParent.title}」继续下一项`} />
-        <ContractComposer projectId={project.id} lockProject parentContractId={requestedParent.id} branchId={requestedBranch?.id} fork={isFork} />
+        <ContractComposer projectUuid={project.uuid} lockProject parentContractUuid={requestedParent.uuid} branchUuid={requestedBranch?.uuid} fork={isFork} />
       </section>
     )
   }
@@ -587,7 +588,7 @@ function ProjectWorkstation({ project, contracts, currentContract, activeBranchC
     return (
       <section id="new-node" className="space-y-6 border-y border-rail py-8">
         <FlowIntroduction icon={GitMerge} title={`补齐并收束「${requestedClosure.title}」`} />
-        <ContractComposer projectId={project.id} lockProject parentContractId={requestedClosure.id} sourceContractIds={[requestedClosure.id]} closureSourceIds={[requestedClosure.id]} branchId={requestedBranch?.id} />
+        <ContractComposer projectUuid={project.uuid} lockProject parentContractUuid={requestedClosure.uuid} sourceContractUuids={[requestedClosure.uuid]} closureSourceUuids={[requestedClosure.uuid]} branchUuid={requestedBranch?.uuid} />
       </section>
     )
   }
@@ -596,7 +597,7 @@ function ProjectWorkstation({ project, contracts, currentContract, activeBranchC
     return (
       <section id="new-node" className="space-y-6 border-y border-rail py-8">
         <FlowIntroduction icon={GitBranchPlus} title={`补足「${requestedSupplement.title}」中的缺口`} />
-        <ContractComposer projectId={project.id} lockProject parentContractId={requestedSupplement.id} sourceContractIds={[requestedSupplement.id]} supplementOfContractId={requestedSupplement.id} branchId={requestedBranch?.id} />
+        <ContractComposer projectUuid={project.uuid} lockProject parentContractUuid={requestedSupplement.uuid} sourceContractUuids={[requestedSupplement.uuid]} supplementOfContractUuid={requestedSupplement.uuid} branchUuid={requestedBranch?.uuid} />
       </section>
     )
   }
@@ -605,7 +606,7 @@ function ProjectWorkstation({ project, contracts, currentContract, activeBranchC
     return (
       <section id="new-node" className="space-y-6 border-y border-rail py-8">
         <FlowIntroduction icon={GitBranchPlus} title={`从「${requestedRetry.title}」的经验重新尝试`} />
-        <ContractComposer projectId={project.id} lockProject retryOfContractId={requestedRetry.id} />
+        <ContractComposer projectUuid={project.uuid} lockProject retryOfContractUuid={requestedRetry.uuid} />
       </section>
     )
   }
@@ -621,7 +622,7 @@ function ProjectWorkstation({ project, contracts, currentContract, activeBranchC
           <span className="text-sm font-semibold text-graphite">{activeActions.length} 个行动节点</span>
         </div>
         <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-          {activeActions.map(({ branch, contract }) => <div key={contract.id} className="space-y-2"><div className="font-mono text-xs font-semibold text-signal">{branch?.title ?? '项目主线'}</div><CurrentActionCard contract={contract} /></div>)}
+          {activeActions.map(({ branch, contract }) => <div key={contract.uuid} className="space-y-2"><div className="font-mono text-xs font-semibold text-signal">{branch?.title ?? '项目主线'}</div><CurrentActionCard contract={contract} /></div>)}
         </div>
       </section>
     )
@@ -637,7 +638,7 @@ function ProjectWorkstation({ project, contracts, currentContract, activeBranchC
           <h2 className="mt-3 font-display text-3xl font-semibold leading-tight text-ink">从最近完成记录继续</h2>
           <p className="mt-3 max-w-md text-sm leading-6 text-graphite">完成记录只锁定已经闭合的范围，下一项行动仍会作为新的节点加入链上。</p>
         </div>
-        <ContractComposer projectId={project.id} lockProject parentContractId={latestCompleted.id} />
+        <ContractComposer projectUuid={project.uuid} lockProject parentContractUuid={latestCompleted.uuid} />
       </section>
     )
   }
@@ -651,7 +652,7 @@ function ProjectWorkstation({ project, contracts, currentContract, activeBranchC
           <h2 className="mt-3 font-display text-3xl font-semibold leading-tight text-ink">保留这次经验，再开始新的尝试</h2>
           <p className="mt-3 max-w-md text-sm leading-6 text-graphite">封存不会变成已验收成果，但 AI 会带入原目标、已提交证据和指出的缺口，帮助你调整下一步。</p>
         </div>
-        {latestSealed ? <ContractComposer projectId={project.id} lockProject retryOfContractId={latestSealed.id} /> : <div className="border-l-2 border-graphite py-2 pl-4 text-sm leading-6 text-graphite">当前项目没有可接续的已验收行动。</div>}
+        {latestSealed ? <ContractComposer projectUuid={project.uuid} lockProject retryOfContractUuid={latestSealed.uuid} /> : <div className="border-l-2 border-graphite py-2 pl-4 text-sm leading-6 text-graphite">当前项目没有可接续的已验收行动。</div>}
       </section>
     )
   }
@@ -659,7 +660,7 @@ function ProjectWorkstation({ project, contracts, currentContract, activeBranchC
   return (
     <section id="new-node" className="space-y-6 border-y border-rail py-8">
       <FlowIntroduction icon={LockKeyhole} title="创建第一项推进" />
-      <ContractComposer projectId={project.id} lockProject />
+      <ContractComposer projectUuid={project.uuid} lockProject />
     </section>
   )
 }
@@ -679,14 +680,14 @@ function CurrentActionSection({ contract }: { contract: ExecutionContract }) {
   )
 }
 
-function ProjectCollaborationPublisher({ projectId, node, accessToken }: { projectId: string; node: ExecutionContract; accessToken: string }) {
+function ProjectCollaborationPublisher({ projectUuid, node, accessToken }: { projectUuid: string; node: ExecutionContract; accessToken: string }) {
   const [isPublishing, setIsPublishing] = useState(false)
 	const [published, setPublished] = useState(false)
   const [message, setMessage] = useState('')
   const publish = async () => {
     setIsPublishing(true); setMessage('')
     try {
-		await postJSON('/api/commands/projects/create-collaboration-call', { projectId, targetContractId: node.id, title: node.title }, accessToken)
+		await publishCollaborationCall(accessToken, projectUuid, node.uuid, node.title)
 		setPublished(true)
       setMessage('开放缺口已发布，可以在协作探索中接收其他人的成果。')
     } catch (reason) { setMessage(reason instanceof Error ? reason.message : '发布开放缺口失败。') }
@@ -704,7 +705,7 @@ function CurrentActionCard({ contract }: { contract: ExecutionContract }) {
       ? '确认验收后，这次行动会成为可接续成果'
       : '可以继续补足，或封存这次尚未验收的行动'
   return (
-    <Link to={`/contracts/${contract.id}`} className="group block border-l-2 border-ink bg-surface/72 p-6 transition hover:bg-shell focus:outline-none focus-visible:shadow-focusline">
+    <Link to={`/contracts/${contract.uuid}`} className="group block border-l-2 border-ink bg-surface/72 p-6 transition hover:bg-shell focus:outline-none focus-visible:shadow-focusline">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal"><Icon size={16} aria-hidden="true" />当前要处理</div>
         <StatusBadge stage={contract.stage} />
@@ -731,7 +732,7 @@ function ConvergenceGate({ project, branches, sources }: { project: Project; bra
         </div>
         {canConverge && !isOpen ? <button type="button" onClick={() => setIsOpen(true)} className="inline-flex h-10 items-center gap-2 rounded-md bg-signal px-3 text-sm font-semibold text-white transition hover:bg-signalStrong focus:outline-none focus-visible:shadow-focusline"><GitMerge size={16} aria-hidden="true" />开始汇合行动</button> : null}
       </div>
-      {canConverge ? isOpen ? <ContractComposer projectId={project.id} lockProject sourceContractIds={sources.map((source) => source.id)} /> : <p className="text-sm leading-6 text-graphite">把多条路径的完成记录作为依据，开始一个普通行动节点。这个节点提交的结果仍由同一份智能合约审查，必要时可以把前置推进一起锁定。</p> : <p className="text-sm leading-6 text-graphite">当多条路径都形成完成记录后，可以从它们开始一项汇合行动；当前仍有路径在推进。</p>}
+      {canConverge ? isOpen ? <ContractComposer projectUuid={project.uuid} lockProject sourceContractUuids={sources.map((source) => source.uuid)} /> : <p className="text-sm leading-6 text-graphite">把多条路径的完成记录作为依据，开始一个普通行动节点。这个节点提交的结果仍由同一份智能合约审查，必要时可以把前置推进一起锁定。</p> : <p className="text-sm leading-6 text-graphite">当多条路径都形成完成记录后，可以从它们开始一项汇合行动；当前仍有路径在推进。</p>}
     </section>
   )
 }

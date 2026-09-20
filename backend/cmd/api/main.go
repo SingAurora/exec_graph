@@ -1,13 +1,15 @@
 package main
 
 import (
-	"log"
+	"log/slog"
+	"os"
 
 	application "github.com/singaurora/exec-graph/backend/internal/bootstrap/application"
 )
 
 func main() {
 	if err := application.Run(); err != nil {
-		log.Fatal(err)
+		slog.Error("backend stopped with error", "error", err)
+		os.Exit(1)
 	}
 }

@@ -6,12 +6,12 @@ import (
 	"errors"
 	"time"
 
-	contractpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/contract"
 	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
 	sharedid "github.com/singaurora/exec-graph/backend/internal/shared/id"
 )
 
-func (s *Service) ListContracts(ctx context.Context, userID uint64) ([]Contract, error) {
+// ListAvailableSmartContracts 列出系统合约和当前用户创建的合约。
+func (s *Service) ListAvailableSmartContracts(ctx context.Context, userID uint64) ([]Contract, error) {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	items, err := s.contracts.ListVisible(ctx, userID)
@@ -25,11 +25,12 @@ func (s *Service) ListContracts(ctx context.Context, userID uint64) ([]Contract,
 	return result, nil
 }
 
-func (s *Service) GetContract(ctx context.Context, userID uint64, contractID string) (Contract, error) {
+// GetSmartContract 返回当前用户可访问的一份智能合约。
+func (s *Service) GetSmartContract(ctx context.Context, userID uint64, contractID string) (Contract, error) {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	item, err := s.contracts.FindVisible(ctx, userID, contractID)
-	if errors.Is(err, contractpersistence.ErrNotFound) {
+	if errors.Is(err, ErrContractRecordNotFound) {
 		return Contract{}, ErrContractNotFound
 	}
 	if err != nil {
@@ -38,14 +39,15 @@ func (s *Service) GetContract(ctx context.Context, userID uint64, contractID str
 	return Contract{ID: item.UUID, Name: item.Name, Source: item.Source, Version: item.Version, Description: item.Description, Body: item.Body, CreatedAt: item.CreatedAt}, nil
 }
 
-func (s *Service) CreateContract(ctx context.Context, userID uint64, name, description, body string) (Contract, error) {
+// CreateSmartContract 创建一份用户自定义智能合约。
+func (s *Service) CreateSmartContract(ctx context.Context, userID uint64, name, description, body string) (Contract, error) {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	id, err := sharedid.Opaque("smart-contract")
+	id, err := sharedid.UUID()
 	if err != nil {
 		return Contract{}, err
 	}
-	eventID, err := sharedid.Opaque("contract-event")
+	eventID, err := sharedid.UUID()
 	if err != nil {
 		return Contract{}, err
 	}
@@ -55,17 +57,18 @@ func (s *Service) CreateContract(ctx context.Context, userID uint64, name, descr
 	if err != nil {
 		return Contract{}, err
 	}
-	if err := s.contracts.CreateCustom(ctx, contractpersistence.CreateCustomInput{ID: id, EventID: eventID, Name: name, Description: description, Body: body, Snapshot: string(snapshot), OwnerID: userID, CreatedAt: created}); err != nil {
+	if err := s.contracts.CreateCustom(ctx, CreateContractRecord{ID: id, EventID: eventID, Name: name, Description: description, Body: body, Snapshot: string(snapshot), OwnerID: userID, CreatedAt: created}); err != nil {
 		return Contract{}, err
 	}
 	return contract, nil
 }
 
-func (s *Service) DeleteContract(ctx context.Context, userID uint64, contractID string) error {
+// DeleteSmartContract 删除一份未被项目使用的用户自定义智能合约。
+func (s *Service) DeleteSmartContract(ctx context.Context, userID uint64, contractID string) error {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	contract, err := s.contracts.FindVisible(ctx, userID, contractID)
-	if errors.Is(err, contractpersistence.ErrNotFound) {
+	if errors.Is(err, ErrContractRecordNotFound) {
 		return ErrContractNotFound
 	}
 	if err != nil {
@@ -75,21 +78,22 @@ func (s *Service) DeleteContract(ctx context.Context, userID uint64, contractID 
 	if err != nil {
 		return err
 	}
-	eventID, err := sharedid.Opaque("contract-event")
+	eventID, err := sharedid.UUID()
 	if err != nil {
 		return err
 	}
 	deleted := time.Now()
-	if err := s.contracts.DeleteCustom(ctx, userID, contractID, eventID, string(snapshot), deleted); errors.Is(err, contractpersistence.ErrNotFound) {
+	if err := s.contracts.DeleteCustom(ctx, userID, contractID, eventID, string(snapshot), deleted); errors.Is(err, ErrContractRecordNotFound) {
 		return ErrContractNotFound
-	} else if errors.Is(err, contractpersistence.ErrInUse) {
+	} else if errors.Is(err, ErrContractRecordInUse) {
 		return ErrContractInUse
 	} else {
 		return err
 	}
 }
 
-func (s *Service) ContractEvents(ctx context.Context, userID uint64) ([]ContractEvent, error) {
+// ListSmartContractEvents 返回智能合约的创建、删除和使用记录。
+func (s *Service) ListSmartContractEvents(ctx context.Context, userID uint64) ([]ContractEvent, error) {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	rows, err := s.contracts.ListEvents(ctx, userID)
@@ -100,7 +104,7 @@ func (s *Service) ContractEvents(ctx context.Context, userID uint64) ([]Contract
 	for _, row := range rows {
 		var event ContractEvent
 		event.ID, event.ContractID, event.EventType, event.CreatedAt = row.ID, row.ContractID, row.EventType, row.CreatedAt
-		if err := contractpersistence.DecodeEventContract(row.SnapshotJSON, &event.Contract); err != nil {
+		if err := json.Unmarshal([]byte(row.SnapshotJSON), &event.Contract); err != nil {
 			return nil, err
 		}
 		events = append(events, event)

@@ -4,29 +4,29 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ContractStageRail } from '@/entities/execution-node/ui/ContractStageRail'
 import { CompletionConversation } from '@/features/conversation/ui/ActionConversation'
 import { EvidenceCoverage } from '@/entities/execution-node/ui/EvidenceCoverage'
-import { RelayRail } from '@/widgets/project/ui/RelayRail'
+import { RelayRail } from '@/entities/execution-node/ui/RelayRail'
 import { StatusBadge } from '@/entities/execution-node/ui/StatusBadge'
 import { completionRecordForContract, isAcceptedRecord, isReviewInProgress, needsReviewDecision } from '@/entities/execution-node/model/selectors'
 import { NodeEventLog, NodeTabs, ReviewAIIdentity, ReviewClarificationDialog, CompletionRecordSummary, CopyReviewStateButton, InfoBlock } from './node-review-panels'
 import { useWorkspaceStore as useExecStore } from '@/features/workspace/model/useWorkspaceStore'
 import type { ExecutionContract } from '@/entities/execution-node/model/types'
-import { criterionText, verdictText } from '../model/reviewCopy'
+import { criterionText, verdictText } from '@/entities/execution-node/model/reviewCopy'
 
 type NodeTab = 'task' | 'completion' | 'events'
 
 export function NodePage() {
-  const { contractId = '' } = useParams()
+  const { contractUuid = '' } = useParams()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const contract = useExecStore((state) => state.contracts.find((item) => item.id === contractId))
-  const project = useExecStore((state) => state.projects.find((item) => item.id === contract?.projectId))
-  const smartContract = useExecStore((state) => state.smartContracts.find((item) => item.id === contract?.smartContractId))
+  const contract = useExecStore((state) => state.contracts.find((item) => item.uuid === contractUuid))
+  const project = useExecStore((state) => state.projects.find((item) => item.uuid === contract?.projectUuid))
+  const smartContract = useExecStore((state) => state.smartContracts.find((item) => item.uuid === contract?.smartContractUuid))
   const allContracts = useExecStore((state) => state.contracts)
   const allEdges = useExecStore((state) => state.edges)
   const completionRecords = useExecStore((state) => state.completionRecords)
   const allBranches = useExecStore((state) => state.branches)
-  const submitReviewClarification = useExecStore((state) => state.submitReviewClarification)
-  const confirmCompletion = useExecStore((state) => state.confirmCompletion)
+  const reviewNodeClarification = useExecStore((state) => state.reviewNodeClarification)
+  const confirmNodeCompletion = useExecStore((state) => state.confirmNodeCompletion)
   const [isClarificationOpen, setIsClarificationOpen] = useState(false)
   const [clarificationCriterionIds, setClarificationCriterionIds] = useState<string[]>([])
   const [clarificationExplanation, setClarificationExplanation] = useState('')
@@ -49,18 +49,18 @@ export function NodePage() {
   }
 
   const onConfirmCompletion = async () => {
-    const result = await confirmCompletion(contract.id)
+    const result = await confirmNodeCompletion(contract.uuid)
     if (!result.success) {
       return
     }
-    navigate(`/contracts/${contract.id}?tab=completion`)
+    navigate(`/contracts/${contract.uuid}?tab=completion`)
   }
 
   const onSubmitClarification = async () => {
     setClarificationMessage('')
     if (clarificationMode === 'new-work') return
     setIsClarifying(true)
-    const result = await submitReviewClarification(contract.id, {
+    const result = await reviewNodeClarification(contract.uuid, {
       criterionIds: clarificationCriterionIds,
       explanation: clarificationExplanation,
       evidenceReferences: clarificationEvidenceReferences,
@@ -78,33 +78,33 @@ export function NodePage() {
     setClarificationEvidenceReferences('')
     setClarificationEvidenceAddition('')
     setClarificationEvidencePredatesSubmission(false)
-    navigate(`/contracts/${contract.id}?tab=completion`)
+    navigate(`/contracts/${contract.uuid}?tab=completion`)
   }
 
-  const branch = allBranches.find((item) => item.id === contract.branchId)
+  const branch = allBranches.find((item) => item.uuid === contract.branchUuid)
   const isArchived = Boolean(project?.archivedAt)
-  const isCurrent = !isArchived && (project?.currentContractId === contract.id || branch?.currentContractId === contract.id)
-  const currentContract = allContracts.find((item) => item.id === (branch ? branch.currentContractId : project?.currentContractId))
+  const isCurrent = !isArchived && (project?.currentContractUuid === contract.uuid || branch?.currentContractUuid === contract.uuid)
+  const currentContract = allContracts.find((item) => item.uuid === (branch ? branch.currentContractUuid : project?.currentContractUuid))
   const isReviewing = isReviewInProgress(contract)
   const canSubmit = isCurrent && contract.stage === 'frozen' && !isReviewing
   const canUseCompletionConversation = isCurrent && !isArchived && contract.stage !== 'completed' && contract.stage !== 'sealed'
   const aiReviewPassed = contract.aiReview?.verdict === 'pass'
   const canLock = isCurrent && needsReviewDecision(contract) && Boolean(contract.aiReview)
-  const canClarify = canLock && !contract.completionRecordId
-  const supplement = allContracts.find((item) => item.supplementOfContractId === contract.id)
-  const sourceIds = contract.sourceContractIds ?? (contract.parentContractId ? [contract.parentContractId] : [])
+  const canClarify = canLock && !contract.completionRecordUuid
+  const supplement = allContracts.find((item) => item.supplementOfContractUuid === contract.uuid)
+  const sourceIds = contract.sourceContractUuids ?? (contract.parentContractUuid ? [contract.parentContractUuid] : [])
   const sourceContracts = sourceIds
-    .map((sourceId) => allContracts.find((item) => item.id === sourceId))
+    .map((sourceId) => allContracts.find((item) => item.uuid === sourceId))
     .filter((item): item is NonNullable<typeof item> => Boolean(item))
   const hasMultipleSources = sourceContracts.length > 1
-  const closureSourceIds = allEdges.filter((edge) => edge.targetContractId === contract.id && edge.type === 'closure').map((edge) => edge.sourceContractId)
-  const closureSources = closureSourceIds
-    .map((sourceId) => allContracts.find((item) => item.id === sourceId))
+  const closureSourceUuids = allEdges.filter((edge) => edge.targetContractUuid === contract.uuid && edge.type === 'closure').map((edge) => edge.sourceContractUuid)
+  const closureSources = closureSourceUuids
+    .map((sourceId) => allContracts.find((item) => item.uuid === sourceId))
     .filter((item): item is ExecutionContract => Boolean(item))
   const criterionForReview = (criterionId: string) => {
-    const [nodeId, localCriterionId] = criterionId.split('::')
+    const [nodeUuid, localCriterionId] = criterionId.split('::')
     if (!localCriterionId) return contract.acceptanceCriteria.find((item) => item.id === criterionId)
-    return allContracts.find((item) => item.id === nodeId)?.acceptanceCriteria.find((item) => item.id === localCriterionId)
+    return allContracts.find((item) => item.uuid === nodeUuid)?.acceptanceCriteria.find((item) => item.id === localCriterionId)
   }
   const canSupplement = isCurrent && contract.stage === 'needs_supplement' && Boolean(contract.aiReview?.suggestedSupplementTitle) && !supplement
   const completionRecord = completionRecordForContract(completionRecords, contract)
@@ -112,9 +112,9 @@ export function NodePage() {
     !isArchived &&
     Boolean(completionRecord && isAcceptedRecord(completionRecord)) &&
     Boolean(project) &&
-    (branch ? branch.headContractId === contract.id && !branch.currentContractId : !project?.currentContractId)
+    (branch ? branch.headContractUuid === contract.uuid && !branch.currentContractUuid : !project?.currentContractUuid)
   const canFork =
-    !isArchived && Boolean(completionRecord && isAcceptedRecord(completionRecord)) && Boolean(project) && completionRecord?.closingContractId === contract.id
+    !isArchived && Boolean(completionRecord && isAcceptedRecord(completionRecord)) && Boolean(project) && completionRecord?.closingContractUuid === contract.uuid
   const requestedTab = searchParams.get('tab')
   const activeTab: NodeTab = requestedTab === 'completion' || requestedTab === 'events' ? requestedTab : 'task'
 
@@ -147,10 +147,10 @@ export function NodePage() {
         </div>
       </section>
 
-      <RelayRail node={contract} />
+        <RelayRail node={contract} contracts={allContracts} edges={allEdges} />
       <ContractStageRail stage={contract.stage} />
 
-      <NodeTabs contractId={contract.id} activeTab={activeTab} />
+      <NodeTabs contractUuid={contract.uuid} activeTab={activeTab} />
 
       {activeTab === 'task' ? (
         <div className="space-y-7">
@@ -219,7 +219,7 @@ export function NodePage() {
                 <p className="mt-1 text-sm text-graphite">任务规则已确定，可以提交本次推进结果。</p>
               </div>
               <Link
-                to={`/contracts/${contract.id}?tab=completion`}
+                to={`/contracts/${contract.uuid}?tab=completion`}
                 className="inline-flex h-10 items-center justify-center px-3 text-sm font-semibold text-signal transition hover:text-ink focus:outline-none focus-visible:shadow-focusline"
               >
                 前往任务完成
@@ -235,8 +235,8 @@ export function NodePage() {
               <p className="mt-2 text-sm leading-6 text-graphite">本节点提交时，智能合约会同时核验并收束以下未闭合节点：</p>
               <div className="mt-3 grid gap-3">
                 {closureSources.map((source) => (
-                  <div key={source.id} className="border border-moss/25 bg-moss/5 p-3">
-                    <Link to={`/contracts/${source.id}`} className="text-sm font-semibold text-signal hover:text-ink">
+                  <div key={source.uuid} className="border border-moss/25 bg-moss/5 p-3">
+                    <Link to={`/contracts/${source.uuid}`} className="text-sm font-semibold text-signal hover:text-ink">
                       {source.title}
                     </Link>
                     <div className="mt-2 grid gap-1 text-xs leading-5 text-graphite">
@@ -278,7 +278,7 @@ export function NodePage() {
                 {currentContract.title}」。
               </p>
               <Link
-                to={`/contracts/${currentContract.id}`}
+                to={`/contracts/${currentContract.uuid}`}
                 className="mt-3 inline-flex text-sm font-semibold text-signal transition hover:text-ink focus:outline-none focus-visible:shadow-focusline"
               >
                 打开当前行为
@@ -356,7 +356,7 @@ export function NodePage() {
                     智能合约没有确认这项行为已经完成。原审查记录会保留；你可以把缺口变成下一项行为继续推进。
                   </p>
                   <Link
-                    to={`/projects/${contract.projectId}?supplement=${contract.id}${branch ? `&branch=${branch.id}` : ''}#new-node`}
+                    to={`/projects/${contract.projectUuid}?supplement=${contract.uuid}${branch ? `&branch=${branch.uuid}` : ''}#new-node`}
                     className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-md border border-rail bg-surface px-4 text-sm font-semibold text-ink transition hover:border-graphite/50 focus:outline-none focus-visible:shadow-focusline"
                   >
                     <GitBranchPlus size={17} aria-hidden="true" />
@@ -381,7 +381,7 @@ export function NodePage() {
                   <div className="text-sm font-semibold text-ink">补足行为已生成</div>
                   <p className="mt-2 text-sm leading-6 text-graphite">原行为保留审查结论，缺口将在新的冻结规则中继续推进。</p>
                   <Link
-                    to={`/contracts/${supplement.id}`}
+                    to={`/contracts/${supplement.uuid}`}
                     className="mt-4 inline-flex h-10 items-center justify-center rounded-md border border-rail bg-surface px-3 text-sm font-semibold text-ink transition hover:border-graphite/50 focus:outline-none focus-visible:shadow-focusline"
                   >
                     打开补足行为
@@ -397,8 +397,8 @@ export function NodePage() {
             <CompletionRecordSummary
               record={completionRecord}
               contracts={allContracts}
-              closingContractId={completionRecord.closingContractId}
-              currentContractId={contract.id}
+              closingContractUuid={completionRecord.closingContractUuid}
+              currentContractUuid={contract.uuid}
             />
           ) : null}
 
@@ -407,7 +407,7 @@ export function NodePage() {
               <div className="font-mono text-xs font-semibold uppercase text-signal">{branch ? 'Continue path' : 'Continue record'}</div>
               <h2 className="mt-2 font-display text-2xl font-semibold">继续下一项推进</h2>
               <Link
-                to={`/projects/${project.id}?parent=${contract.id}${branch ? `&branch=${branch.id}` : ''}#new-node`}
+                to={`/projects/${project.uuid}?parent=${contract.uuid}${branch ? `&branch=${branch.uuid}` : ''}#new-node`}
                 className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-md bg-signal px-4 text-sm font-semibold text-white transition hover:bg-signalStrong focus:outline-none focus-visible:shadow-focusline"
               >
                 <GitBranchPlus size={17} aria-hidden="true" />
@@ -422,7 +422,7 @@ export function NodePage() {
               <h2 className="mt-2 font-display text-2xl font-semibold">从这条记录拆分新路径</h2>
               <p className="mt-2 text-xs leading-5 text-graphite">把较大的目标拆成另一条推进路径；这条阶段完成记录会作为依据。</p>
               <Link
-                to={`/projects/${project.id}?parent=${contract.id}&fork=1#new-node`}
+                to={`/projects/${project.uuid}?parent=${contract.uuid}&fork=1#new-node`}
                 className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-md border border-ink bg-surface px-4 text-sm font-semibold text-ink transition hover:bg-paper focus:outline-none focus-visible:shadow-focusline"
               >
                 <GitBranchPlus size={17} aria-hidden="true" />
@@ -437,7 +437,7 @@ export function NodePage() {
 
       <ReviewClarificationDialog
         contract={contract}
-        branchId={branch?.id}
+        branchUuid={branch?.uuid}
         isOpen={isClarificationOpen}
         mode={clarificationMode}
         criterionIds={clarificationCriterionIds}

@@ -14,6 +14,7 @@ type Service struct{ repository Repository }
 
 func New(repository Repository) *Service { return &Service{repository: repository} }
 
-func (s *Service) Explore(ctx context.Context, currentUserID *uint64) (Graph, error) {
+// GetPublicCollaborationNetwork 返回公开项目、成果和参与者组成的关系网络。
+func (s *Service) GetPublicCollaborationNetwork(ctx context.Context, currentUserID *uint64) (Graph, error) {
 	return s.repository.Load(ctx, currentUserID)
 }

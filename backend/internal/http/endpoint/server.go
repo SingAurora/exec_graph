@@ -8,6 +8,8 @@ import (
 	applicationidentity "github.com/singaurora/exec-graph/backend/internal/application/identity"
 	applicationnetwork "github.com/singaurora/exec-graph/backend/internal/application/network"
 	applicationproject "github.com/singaurora/exec-graph/backend/internal/application/project"
+	applicationpublicprofile "github.com/singaurora/exec-graph/backend/internal/application/publicprofile"
+	applicationreview "github.com/singaurora/exec-graph/backend/internal/application/review"
 	applicationworkoverview "github.com/singaurora/exec-graph/backend/internal/application/workoverview"
 	aikeyendpoint "github.com/singaurora/exec-graph/backend/internal/http/endpoint/aikey"
 	executionendpoint "github.com/singaurora/exec-graph/backend/internal/http/endpoint/execution"
@@ -16,25 +18,24 @@ import (
 	profileendpoint "github.com/singaurora/exec-graph/backend/internal/http/endpoint/profile"
 	projectendpoint "github.com/singaurora/exec-graph/backend/internal/http/endpoint/project"
 	workflowendpoint "github.com/singaurora/exec-graph/backend/internal/http/endpoint/workflow"
-	conversationpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/conversation"
-	reviewpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/review"
-	infrastructurestorage "github.com/singaurora/exec-graph/backend/internal/infrastructure/storage"
 )
+
+// WorkflowDependencies 是 workflow endpoint 使用的应用服务。
+type WorkflowDependencies struct {
+	Reviewer *applicationreview.Service
+}
 
 // Dependencies 是已经完成组装的 HTTP 依赖。具体仓储、服务和外部客户端只在
 // bootstrap 层创建；endpoint 不持有 GORM 连接，也不决定使用哪种基础设施实现。
 type Dependencies struct {
-	// 下面两个仓储仍服务于 workflow 中尚未完成领域化的旧审查和对话流程。
-	// 协作和工作总览已经通过 application service 进入 HTTP 层。
-	Reviews       *reviewpersistence.Repository
-	Conversations *conversationpersistence.Repository
-	Conversation  *applicationconversation.Service
-	WorkOverview  *applicationworkoverview.Service
-	Storage       infrastructurestorage.ObjectStorage
+	Workflow     WorkflowDependencies
+	Conversation *applicationconversation.Service
+	WorkOverview *applicationworkoverview.Service
 
 	Identity      *applicationidentity.Service
 	Project       *applicationproject.Service
 	Network       *applicationnetwork.Service
+	PublicProfile *applicationpublicprofile.Service
 	AIKey         *applicationaikey.Service
 	Collaboration *applicationcollaboration.Service
 }
@@ -60,23 +61,19 @@ func NewServer(dependencies Dependencies) *Server {
 	server.aiKeyEndpoints = aikeyendpoint.New(dependencies.AIKey)
 	server.identityEndpoints = identityendpoint.New(dependencies.Identity, server.requireUserError)
 	server.profileEndpoints = profileendpoint.New(profileendpoint.Dependencies{
-		Identity:     dependencies.Identity,
-		Storage:      dependencies.Storage,
-		RequireUser:  server.requireUser,
-		CacheSession: server.cacheSession,
+		Identity:      dependencies.Identity,
+		PublicProfile: dependencies.PublicProfile,
+		CacheSession:  server.cacheSession,
 	})
 	server.executionEndpoints = executionendpoint.New(executionendpoint.Dependencies{
 		Project:      dependencies.Project,
 		Conversation: dependencies.Conversation,
 	})
 	server.workflowEndpoints = workflowendpoint.New(workflowendpoint.Dependencies{
-		Project:       dependencies.Project,
 		Collaboration: dependencies.Collaboration,
-		AIKey:         dependencies.AIKey,
-		Reviews:       dependencies.Reviews,
-		Conversations: dependencies.Conversations,
+		Conversation:  dependencies.Conversation,
 		WorkOverview:  dependencies.WorkOverview,
-		RequireUser:   server.requireUser,
+		Reviewer:      dependencies.Workflow.Reviewer,
 	})
 	return server
 }

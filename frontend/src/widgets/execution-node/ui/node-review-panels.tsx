@@ -5,10 +5,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { isAcceptedRecord } from '@/entities/execution-node/model/selectors'
 import { showErrorToast, showSuccessToast } from '@/shared/ui/notifications'
 import type { AIConfigSnapshot, CompletionRecord, CompletionReviewRound, ExecutionContract } from '@/entities/execution-node/model/types'
-import { criterionText, verdictText } from '../model/reviewCopy'
+import { criterionText, verdictText } from '@/entities/execution-node/model/reviewCopy'
 type NodeTab = 'task' | 'completion' | 'events'
 
-export function NodeTabs({ contractId, activeTab }: { contractId: string; activeTab: NodeTab }) {
+export function NodeTabs({ contractUuid, activeTab }: { contractUuid: string; activeTab: NodeTab }) {
   const tabs: Array<{ id: NodeTab; label: string }> = [
     { id: 'task', label: '行动目标' },
     { id: 'completion', label: '提交与验收' },
@@ -22,7 +22,7 @@ export function NodeTabs({ contractId, activeTab }: { contractId: string; active
         return (
           <Link
             key={tab.id}
-            to={tab.id === 'task' ? `/contracts/${contractId}` : `/contracts/${contractId}?tab=${tab.id}`}
+            to={tab.id === 'task' ? `/contracts/${contractUuid}` : `/contracts/${contractUuid}?tab=${tab.id}`}
             className={[
               'inline-flex h-11 shrink-0 items-center border-b-2 px-3 text-sm font-semibold transition focus:outline-none focus-visible:shadow-focusline',
               active ? 'border-ink text-ink' : 'border-transparent text-graphite hover:border-rail hover:text-ink',
@@ -72,7 +72,7 @@ export function NodeEventLog({ contract, projectTitle }: { contract: ExecutionCo
       {reviewRounds.length > 0 ? (
         <div className="mt-5 grid gap-4 border-l border-rail pl-5">
           {reviewRounds.map((round, index) => (
-            <article key={round.id} className="border-l-2 border-signal/45 bg-surface/65 px-4 py-4">
+            <article key={round.uuid} className="border-l-2 border-signal/45 bg-surface/65 px-4 py-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="font-mono text-xs font-semibold text-signal">
                   第 {index + 1} 轮{round.kind === 'initial' ? ' · 初次审查' : ' · 澄清复审'}
@@ -106,7 +106,7 @@ export function NodeEventLog({ contract, projectTitle }: { contract: ExecutionCo
       <div className="mt-5 border-l border-rail">
         {contract.reviewMessages.length > 0 ? (
           contract.reviewMessages.map((message) => (
-            <div key={message.id} className="relative border-b border-rail py-4 pl-5 last:border-b-0">
+            <div key={message.uuid} className="relative border-b border-rail py-4 pl-5 last:border-b-0">
               <span className={`absolute -left-[5px] top-5 size-2 rounded-full ${message.speaker === 'ai' ? 'bg-amber' : 'bg-signal'}`} aria-hidden="true" />
               <div className="font-mono text-xs font-semibold text-signal">{message.speaker === 'ai' ? 'AI 审查' : '用户提交'}</div>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-graphite">{message.body}</p>
@@ -122,7 +122,7 @@ export function NodeEventLog({ contract, projectTitle }: { contract: ExecutionCo
 
 type ReviewClarificationDialogProps = {
   contract: ExecutionContract
-  branchId?: string
+  branchUuid?: string
   isOpen: boolean
   mode: 'existing' | 'existing-evidence' | 'new-work'
   criterionIds: string[]
@@ -144,7 +144,7 @@ type ReviewClarificationDialogProps = {
 
 export function ReviewClarificationDialog({
   contract,
-  branchId,
+  branchUuid,
   isOpen,
   mode,
   criterionIds,
@@ -163,7 +163,7 @@ export function ReviewClarificationDialog({
   onEvidencePredatesSubmissionChange,
   onSubmit,
 }: ReviewClarificationDialogProps) {
-  const newWorkHref = `/projects/${contract.projectId}?supplement=${contract.id}${branchId ? `&branch=${branchId}` : ''}#new-node`
+  const newWorkHref = `/projects/${contract.projectUuid}?supplement=${contract.uuid}${branchUuid ? `&branch=${branchUuid}` : ''}#new-node`
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl grid-rows-[auto_minmax(0,1fr)]">
@@ -316,7 +316,7 @@ function getReviewRounds(contract: ExecutionContract): CompletionReviewRound[] {
   if (!contract.aiReview) return []
   return [
     {
-      id: contract.aiReview.id,
+      uuid: contract.aiReview.uuid,
       kind: 'initial',
       review: contract.aiReview,
       aiConfig: contract.completionReviewAIConfig ?? contract.aiReview.aiConfig,
@@ -350,8 +350,8 @@ export function CopyReviewStateButton({ contract, projectTitle }: { contract: Ex
 function buildReviewTranscript(contract: ExecutionContract, projectTitle: string, reviewRounds: CompletionReviewRound[]) {
   const blocks = [
     `# 节点审查记录：${contract.title}`,
-    `项目：${projectTitle || contract.projectId}`,
-    `节点：${contract.id}`,
+    `项目：${projectTitle || contract.projectUuid}`,
+    `节点：${contract.uuid}`,
     '',
     '## 冻结可验证目标',
     contract.verifiableGoal,
@@ -421,15 +421,15 @@ export function InfoBlock({ title, body }: { title: string; body: string }) {
 export function CompletionRecordSummary({
   record,
   contracts,
-  closingContractId,
-  currentContractId,
+  closingContractUuid,
+  currentContractUuid,
 }: {
   record: CompletionRecord
   contracts: ExecutionContract[]
-  closingContractId: string
-  currentContractId: string
+  closingContractUuid: string
+  currentContractUuid: string
 }) {
-  const isClosingNode = closingContractId === currentContractId
+  const isClosingNode = closingContractUuid === currentContractUuid
   const isAccepted = isAcceptedRecord(record)
   return (
     <section className={`rounded-md border p-5 ${isAccepted ? 'border-moss/35 bg-moss/8' : 'border-graphite/30 bg-shell'}`}>
@@ -439,7 +439,7 @@ export function CompletionRecordSummary({
       <h2 className="mt-2 font-display text-2xl font-semibold">{isAccepted ? '已纳入阶段验收成果' : '已封存，尚未验收'}</h2>
       <p className="mt-3 text-sm leading-6 text-graphite">{record.summary}</p>
       <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold text-graphite">
-        <span>覆盖 {record.coveredContractIds.length} 个推进节点</span>
+        <span>覆盖 {record.coveredContractUuids.length} 个推进节点</span>
         <span className={isAccepted ? 'text-moss' : 'text-graphite'}>{isAccepted ? 'AI 审查通过 · 用户确认' : 'AI 有缺口 · 用户封存'}</span>
         <span>
           {new Intl.DateTimeFormat('zh-CN', {
@@ -452,14 +452,14 @@ export function CompletionRecordSummary({
       <div className={`mt-4 border-t pt-4 ${isAccepted ? 'border-moss/20' : 'border-rail'}`}>
         <div className={`font-mono text-xs font-semibold ${isAccepted ? 'text-moss' : 'text-graphite'}`}>{isAccepted ? '本次验收范围' : '本次封存范围'}</div>
         <div className="mt-2 grid gap-1 text-sm text-graphite">
-          {record.coveredContractIds.map((contractId) => (
-            <span key={contractId}>{contracts.find((contract) => contract.id === contractId)?.title ?? '推进节点'}</span>
+          {record.coveredContractUuids.map((contractUuid) => (
+            <span key={contractUuid}>{contracts.find((contract) => contract.uuid === contractUuid)?.title ?? '推进节点'}</span>
           ))}
         </div>
       </div>
       {!isClosingNode ? (
         <Link
-          to={`/contracts/${closingContractId}`}
+          to={`/contracts/${closingContractUuid}`}
           className="mt-4 inline-flex items-center text-sm font-semibold text-signal hover:text-ink focus:outline-none focus-visible:shadow-focusline"
         >
           打开收束节点

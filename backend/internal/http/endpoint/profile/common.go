@@ -5,51 +5,42 @@ import (
 	"net/http"
 
 	applicationidentity "github.com/singaurora/exec-graph/backend/internal/application/identity"
+	applicationpublicprofile "github.com/singaurora/exec-graph/backend/internal/application/publicprofile"
 	endpointcommon "github.com/singaurora/exec-graph/backend/internal/http/endpoint/common"
-	infrastructurestorage "github.com/singaurora/exec-graph/backend/internal/infrastructure/storage"
+	"github.com/singaurora/exec-graph/backend/internal/shared/fault"
 )
 
-type RequireUserFunc func(http.ResponseWriter, *http.Request) (applicationidentity.User, bool)
 type CacheSessionFunc func(context.Context, string, applicationidentity.User) error
 
 // Handler 负责当前用户资料和媒体上传接口。
 type Handler struct {
-	identity        *applicationidentity.Service
-	storage         infrastructurestorage.ObjectStorage
-	requireUserFunc RequireUserFunc
-	cacheSession    CacheSessionFunc
+	identity      *applicationidentity.Service
+	publicProfile *applicationpublicprofile.Service
+	cacheSession  CacheSessionFunc
 }
 
 type Dependencies struct {
-	Identity     *applicationidentity.Service
-	Storage      infrastructurestorage.ObjectStorage
-	RequireUser  RequireUserFunc
-	CacheSession CacheSessionFunc
+	Identity      *applicationidentity.Service
+	PublicProfile *applicationpublicprofile.Service
+	CacheSession  CacheSessionFunc
 }
 
 func New(dependencies Dependencies) *Handler {
 	return &Handler{
-		identity:        dependencies.Identity,
-		storage:         dependencies.Storage,
-		requireUserFunc: dependencies.RequireUser,
-		cacheSession:    dependencies.CacheSession,
+		identity:      dependencies.Identity,
+		publicProfile: dependencies.PublicProfile,
+		cacheSession:  dependencies.CacheSession,
 	}
 }
 
-func (h *Handler) requireUser(w http.ResponseWriter, r *http.Request) (applicationidentity.User, bool) {
-	return h.requireUserFunc(w, r)
-}
-
-func bindJSON(w http.ResponseWriter, r *http.Request, target any) bool {
-	return endpointcommon.BindJSON(w, r, target)
+func bindJSON(r *http.Request, target any) error {
+	return endpointcommon.BindJSON(r, target)
 }
 func writeJSON(w http.ResponseWriter, status int, value any) {
 	endpointcommon.WriteJSON(w, status, value)
 }
-func writeError(w http.ResponseWriter, status int, message string) {
-	endpointcommon.WriteError(w, status, message)
-}
-func bearerToken(r *http.Request) string { return endpointcommon.BearerToken(r) }
+func newHTTPError(status int, message string) error { return fault.FromHTTP(status, message) }
+func bearerToken(r *http.Request) string            { return endpointcommon.BearerToken(r) }
 func normalizeUserID(value string) (string, error) {
 	return applicationidentity.NormalizeUserID(value)
 }

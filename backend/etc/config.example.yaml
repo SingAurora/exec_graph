@@ -4,6 +4,9 @@ app:
   port: 8080
   # 登录会话的有效期，单位为小时；168 表示 7 天。
   session_ttl_hours: 168
+  # 允许访问 API 的前端来源，生产环境填写实际 HTTPS 域名。
+  allowed_origins:
+    - http://localhost:5173
 
 database:
   host: 127.0.0.1
@@ -38,3 +41,8 @@ storage:
   bucket: exec-graph-1253847355
   # COS 中存放个人资料媒体的对象键前缀，末尾保留 /。
   avatar_prefix: avatars/
+
+security:
+  # 用 `openssl rand -base64 32` 生成；生产环境建议通过
+  # EXEC_GRAPH_CREDENTIAL_ENCRYPTION_KEY 注入。
+  credential_encryption_key: replace-with-base64-encoded-32-byte-key

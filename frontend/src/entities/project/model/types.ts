@@ -5,8 +5,8 @@ export type ProjectVisibility = 'private' | 'public'
 export type ProjectType = 'guided' | 'autonomous'
 
 export type ProjectContractRevision = {
-  id: string
-  smartContractId: string
+  uuid: string
+  smartContractUuid: string
   smartContractVersion: string
   reason: string
   activatedAt: string
@@ -14,8 +14,8 @@ export type ProjectContractRevision = {
 }
 
 export type ContributionOrigin = {
-  callId: string
-  projectId: string
+  callUuid: string
+  projectUuid: string
   projectTitle: string
   callTitle: string
   status: 'open' | 'adopted' | 'closed'
@@ -27,17 +27,17 @@ export type ContributionOrigin = {
 }
 
 export type Project = {
-  id: string
+  uuid: string
   title: string
   description: string
   isDefault: boolean
   visibility: ProjectVisibility
   projectType: ProjectType
   projectRules: string
-  reviewAIKeyId?: string
+  reviewAIKeyUuid?: string
   contributionOrigin?: ContributionOrigin
-  currentContractId?: string | null
-  activeContractRevisionId: string
+  currentContractUuid?: string | null
+  activeContractRevisionUuid: string
   contractRevisions: ProjectContractRevision[]
   createdAt: string
   archivedAt?: string

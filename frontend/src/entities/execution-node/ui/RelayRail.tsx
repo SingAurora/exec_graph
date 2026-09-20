@@ -1,26 +1,30 @@
 import { Link } from 'react-router-dom'
-import { useWorkspaceStore as useExecStore } from '@/features/workspace/model/useWorkspaceStore'
-import type { ExecutionContract } from '@/entities/execution-node/model/types'
+import type { ExecutionContract, ExecutionEdge } from '@/entities/execution-node/model/types'
 import { StatusBadge } from '@/entities/execution-node/ui/StatusBadge'
 
-export function RelayRail({ node }: { node: ExecutionContract }) {
-  const contracts = useExecStore((state) => state.contracts)
-  const edges = useExecStore((state) => state.edges)
-  const sourceIds = node.sourceContractIds?.length ? node.sourceContractIds : node.parentContractId ? [node.parentContractId] : node.retryOfContractId ? [node.retryOfContractId] : []
-  const sources = sourceIds.map((sourceId) => contracts.find((item) => item.id === sourceId)).filter((item): item is ExecutionContract => Boolean(item))
-  const children = contracts.filter((item) => item.parentContractId === node.id)
-  const supplement = contracts.find((item) => item.supplementOfContractId === node.id)
+type RelayRailProps = {
+  node: ExecutionContract
+  contracts: ExecutionContract[]
+  edges: ExecutionEdge[]
+}
+
+/** 展示节点的来源、当前行动与可接续行动，不读取任何全局状态。 */
+export function RelayRail({ node, contracts, edges }: RelayRailProps) {
+  const sourceIds = node.sourceContractUuids?.length ? node.sourceContractUuids : node.parentContractUuid ? [node.parentContractUuid] : node.retryOfContractUuid ? [node.retryOfContractUuid] : []
+  const sources = sourceIds.map((sourceId) => contracts.find((item) => item.uuid === sourceId)).filter((item): item is ExecutionContract => Boolean(item))
+  const children = contracts.filter((item) => item.parentContractUuid === node.uuid)
+  const supplement = contracts.find((item) => item.supplementOfContractUuid === node.uuid)
   const closure = edges
-    .filter((edge) => edge.sourceContractId === node.id && edge.type === 'closure')
-    .map((edge) => contracts.find((item) => item.id === edge.targetContractId))
+    .filter((edge) => edge.sourceContractUuid === node.uuid && edge.type === 'closure')
+    .map((edge) => contracts.find((item) => item.uuid === edge.targetContractUuid))
     .filter((item): item is ExecutionContract => Boolean(item))
-  const isClosureNode = edges.some((edge) => edge.targetContractId === node.id && edge.type === 'closure')
+  const isClosureNode = edges.some((edge) => edge.targetContractUuid === node.uuid && edge.type === 'closure')
   const followUps = supplement ? [supplement] : closure.length > 0 ? closure : children
 
   return (
     <div className="border-y border-rail bg-shell/55 px-5 py-4">
       <div className="grid gap-3 md:grid-cols-[1fr_auto_1fr_auto_1fr] md:items-stretch">
-        <SourceStop sources={sources} closure={isClosureNode} retry={Boolean(node.retryOfContractId)} />
+        <SourceStop sources={sources} closure={isClosureNode} retry={Boolean(node.retryOfContractUuid)} />
         <RailConnector />
         <RailStop label="当前行为" contract={node} current />
         <RailConnector />
@@ -37,7 +41,7 @@ function FollowUpStop({ label, contracts }: { label: string; contracts: Executio
       {contracts.length > 0 ? (
         <div className="mt-3 grid gap-2">
           {contracts.map((contract) => (
-            <Link key={contract.id} to={`/contracts/${contract.id}`} className="truncate text-sm font-semibold text-ink hover:text-signal focus:outline-none focus-visible:shadow-focusline">
+            <Link key={contract.uuid} to={`/contracts/${contract.uuid}`} className="truncate text-sm font-semibold text-ink hover:text-signal focus:outline-none focus-visible:shadow-focusline">
               {contract.title}
             </Link>
           ))}
@@ -54,7 +58,7 @@ function SourceStop({ sources, closure, retry }: { sources: ExecutionContract[];
       {sources.length > 0 ? (
         <div className="mt-3 grid gap-2">
           {sources.map((source) => (
-            <Link key={source.id} to={`/contracts/${source.id}`} className="truncate text-sm font-semibold text-ink hover:text-signal focus:outline-none focus-visible:shadow-focusline">
+            <Link key={source.uuid} to={`/contracts/${source.uuid}`} className="truncate text-sm font-semibold text-ink hover:text-signal focus:outline-none focus-visible:shadow-focusline">
               {source.title}
             </Link>
           ))}
@@ -95,7 +99,7 @@ function RailStop({
   )
 
   return contract && !current ? (
-    <Link to={`/contracts/${contract.id}`} className="rounded-md focus:outline-none focus-visible:shadow-focusline">
+    <Link to={`/contracts/${contract.uuid}`} className="rounded-md focus:outline-none focus-visible:shadow-focusline">
       {content}
     </Link>
   ) : (

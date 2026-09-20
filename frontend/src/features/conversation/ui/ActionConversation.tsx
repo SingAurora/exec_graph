@@ -2,27 +2,10 @@ import { Bot, Copy, LoaderCircle, Send, ShieldCheck } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState, type TextareaHTMLAttributes } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { showErrorToast, showSuccessToast } from '@/shared/ui/notifications'
-import { requestJSON } from '@/shared/api/client'
+import { openPlanningConversation, requestPlanningDraftFreezeReview, sendConversationMessage } from '@/features/conversation/api/client'
 import { useWorkspaceStore } from '@/features/workspace/model/useWorkspaceStore'
-import type { AIConfigSnapshot, DraftReview, ExecutionContract } from '@/entities/execution-node/model/types'
-
-type ActionDraft = {
-  title: string
-  verifiableGoal: string
-  acceptanceCriteria: string[]
-  evidenceRequirement: string
-}
-
-type ConversationMessage = { id: string; role: 'user' | 'assistant'; body: string; createdAt: string }
-type Conversation = {
-  id: string
-  phase: 'planning' | 'completion'
-  status: string
-  currentDraft?: ActionDraft
-  aiConfig?: AIConfigSnapshot
-  messages: ConversationMessage[]
-  updatedAt: string
-}
+import type { DraftReview, ExecutionContract } from '@/entities/execution-node/model/types'
+import type { ActionConversation as Conversation, ActionDraft, ConversationMessage } from '@/features/conversation/model/types'
 
 type CompletionDraft = {
   claim: string
@@ -94,20 +77,16 @@ const toDraftText = (draft: ActionDraft) => [
   `证据要求：${draft.evidenceRequirement}`,
 ].join('\n')
 
-async function requestConversation<T>(token: string, path: string, init?: RequestInit): Promise<T> {
-  return requestJSON<T>(path, { ...init, accessToken: token })
-}
-
 type PlanningConversationProps = {
-  projectId: string
-  parentContractId?: string
-  sourceContractIds?: string[]
-  branchId?: string
+  projectUuid: string
+  parentContractUuid?: string
+  sourceContractUuids?: string[]
+  branchUuid?: string
   fork?: boolean
-  closureSourceIds?: string[]
-  supplementOfContractId?: string
-  retryOfContractId?: string
-  onCreate: (input: { draft: string; draftReview: DraftReview; planningConversationId: string }) => Promise<{ contractId?: string; draftReview?: DraftReview }>
+  closureSourceUuids?: string[]
+  supplementOfContractUuid?: string
+  retryOfContractUuid?: string
+  onCreate: (input: { draft: string; draftReview: DraftReview; planningConversationUuid: string }) => Promise<{ contractUuid?: string; draftReview?: DraftReview }>
 }
 
 function conversationTranscript(messages: ConversationMessage[], draft?: ActionDraft) {
@@ -117,7 +96,7 @@ function conversationTranscript(messages: ConversationMessage[], draft?: ActionD
   return `${transcript}\n\n# 当前行动契约草案\n\n## ${draft.title}\n\n**可验证目标**\n\n${draft.verifiableGoal}\n\n**验收标准**\n\n${draft.acceptanceCriteria.map((item) => `- ${item}`).join('\n')}\n\n**证据要求**\n\n${draft.evidenceRequirement}`
 }
 
-export function PlanningConversation({ projectId, parentContractId, sourceContractIds, branchId, fork, closureSourceIds, supplementOfContractId, retryOfContractId, onCreate }: PlanningConversationProps) {
+export function PlanningConversation({ projectUuid, parentContractUuid, sourceContractUuids, branchUuid, fork, closureSourceUuids, supplementOfContractUuid, retryOfContractUuid, onCreate }: PlanningConversationProps) {
   const navigate = useNavigate()
   const token = useWorkspaceStore((state) => state.accessToken)
   const [conversation, setConversation] = useState<Conversation | null>(null)
@@ -127,21 +106,19 @@ export function PlanningConversation({ projectId, parentContractId, sourceContra
 
   useEffect(() => {
     let alive = true
-    requestConversation<{ conversation: Conversation }>(token, '/api/commands/projects/create-planning-conversation', {
-      body: JSON.stringify({ projectId, parentContractId, sourceContractIds, branchId, fork, closureSourceIds, supplementOfContractId, retryOfContractId }),
-    }).then((data) => { if (alive) setConversation(data.conversation) })
+    openPlanningConversation(token, { projectUuid, parentContractUuid, sourceContractUuids, branchUuid, fork, closureSourceUuids, supplementOfContractUuid, retryOfContractUuid }).then((data) => { if (alive) setConversation(data.conversation) })
       .catch((reason: Error) => { if (alive) setError(reason.message) })
       .finally(() => { if (alive) setBusy(null) })
     return () => { alive = false }
-  }, [token, projectId, parentContractId, sourceContractIds, branchId, fork, closureSourceIds, supplementOfContractId, retryOfContractId])
+  }, [token, projectUuid, parentContractUuid, sourceContractUuids, branchUuid, fork, closureSourceUuids, supplementOfContractUuid, retryOfContractUuid])
 
   const send = async (freezeReview = false) => {
     if (!conversation || (!freezeReview && !body.trim())) return
     setBusy(freezeReview ? 'freezing' : 'replying'); setError('')
     try {
-      const data = await requestConversation<{ conversation: Conversation }>(token, freezeReview ? '/api/commands/conversations/freeze-review' : '/api/commands/conversations/send-message', {
-        body: JSON.stringify(freezeReview ? { conversationId: conversation.id } : { conversationId: conversation.id, body }),
-      })
+      const data = freezeReview
+        ? await requestPlanningDraftFreezeReview(token, conversation.uuid)
+        : await sendConversationMessage(token, conversation.uuid, body)
       setConversation(data.conversation); setBody('')
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'AI 对话失败') }
     finally { setBusy(null) }
@@ -160,16 +137,16 @@ export function PlanningConversation({ projectId, parentContractId, sourceContra
       // Calling the standalone draft-review endpoint again could contradict or block
       // this already approved conversation.
       const draftReview: DraftReview = {
-        id: `conversation-freeze-${conversation.id}`,
+        uuid: crypto.randomUUID(),
         verdict: 'pass',
         summary: '目标对话已完成，节点草案通过冻结审核。',
         missingRequirements: [],
         createdAt: conversation.updatedAt ?? new Date().toISOString(),
         aiConfig: conversation.aiConfig,
       }
-      const result = await onCreate({ draft, draftReview, planningConversationId: conversation.id })
-      if (!result.contractId) { setError(result.draftReview?.summary ?? '节点没有创建成功，请检查冻结审核。'); return }
-      navigate(`/contracts/${result.contractId}`)
+      const result = await onCreate({ draft, draftReview, planningConversationUuid: conversation.uuid })
+      if (!result.contractUuid) { setError(result.draftReview?.summary ?? '节点没有创建成功，请检查冻结审核。'); return }
+      navigate(`/contracts/${result.contractUuid}`)
     } catch (reason) { setError(reason instanceof Error ? reason.message : '冻结节点失败') }
     finally { setBusy(null) }
   }
@@ -191,7 +168,7 @@ export function PlanningConversation({ projectId, parentContractId, sourceContra
         <h2 className="mt-2 font-display text-2xl font-semibold">和 AI 定义这次推进</h2>
         <div className="mt-5 max-h-[520px] space-y-4 overflow-y-auto border-y border-rail py-4">
           {conversation?.messages.length ? conversation.messages.map((message) => (
-            <div key={message.id} className={message.role === 'assistant' ? 'border-l-2 border-signal pl-4' : 'border-l-2 border-rail pl-4'}>
+            <div key={message.uuid} className={message.role === 'assistant' ? 'border-l-2 border-signal pl-4' : 'border-l-2 border-rail pl-4'}>
               <div className="font-mono text-xs font-semibold text-signal">{message.role === 'assistant' ? 'AI' : '你'}</div>
               <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-graphite">{message.body}</p>
             </div>
@@ -214,7 +191,7 @@ export function PlanningConversation({ projectId, parentContractId, sourceContra
 }
 
 export function CompletionConversation({ contract }: { contract: ExecutionContract }) {
-  const submitCompletion = useWorkspaceStore((state) => state.submitCompletion)
+  const reviewNodeCompletion = useWorkspaceStore((state) => state.reviewNodeCompletion)
   const [claim, setClaim] = useState('')
   const [evidence, setEvidence] = useState('')
   const [startedAt, setStartedAt] = useState('')
@@ -226,26 +203,26 @@ export function CompletionConversation({ contract }: { contract: ExecutionContra
 
   useEffect(() => {
     if (isSubmitted) {
-      clearCompletionDraft(contract.id)
+      clearCompletionDraft(contract.uuid)
       setClaim('')
       setEvidence('')
       setStartedAt('')
       setEndedAt('')
-      setHydratedContractID(contract.id)
+      setHydratedContractID(contract.uuid)
       return
     }
-    const draft = loadCompletionDraft(contract.id)
+    const draft = loadCompletionDraft(contract.uuid)
     setClaim(draft?.claim ?? '')
     setEvidence(draft?.evidence ?? '')
     setStartedAt(draft?.startedAt ?? '')
     setEndedAt(draft?.endedAt ?? '')
-    setHydratedContractID(contract.id)
-  }, [contract.id, isSubmitted])
+    setHydratedContractID(contract.uuid)
+  }, [contract.uuid, isSubmitted])
 
   useEffect(() => {
-    if (isSubmitted || hydratedContractID !== contract.id) return
-    saveCompletionDraft(contract.id, { claim, evidence, startedAt, endedAt })
-  }, [claim, contract.id, endedAt, evidence, hydratedContractID, isSubmitted, startedAt])
+    if (isSubmitted || hydratedContractID !== contract.uuid) return
+    saveCompletionDraft(contract.uuid, { claim, evidence, startedAt, endedAt })
+  }, [claim, contract.uuid, endedAt, evidence, hydratedContractID, isSubmitted, startedAt])
 
   const submit = async () => {
     if (!claim.trim() || !evidence.trim()) return
@@ -254,7 +231,7 @@ export function CompletionConversation({ contract }: { contract: ExecutionContra
       return
     }
     setBusy('review'); setError('')
-    const result = await submitCompletion(contract.id, {
+    const result = await reviewNodeCompletion(contract.uuid, {
       completionClaim: claim,
       evidenceText: evidence,
       startedAt: startedAt ? new Date(startedAt).toISOString() : undefined,
@@ -262,7 +239,7 @@ export function CompletionConversation({ contract }: { contract: ExecutionContra
     })
     if (!result.success) setError(result.message ?? '提交验收失败')
     else {
-      clearCompletionDraft(contract.id)
+      clearCompletionDraft(contract.uuid)
       setClaim('')
       setEvidence('')
       setStartedAt('')

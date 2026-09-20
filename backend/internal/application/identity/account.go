@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 
-	identitypersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/identity"
 	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
 )
 
@@ -23,19 +22,19 @@ func (s *Service) ChangeEmail(ctx context.Context, input ChangeEmailInput) (User
 	}
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	err = s.repository.Transaction(ctx, func(tx identitypersistence.IdentityRepository) error {
+	err = s.repository.Transaction(ctx, func(tx Repository) error {
 		stored, err := tx.FindUserByID(ctx, input.User.ID)
 		if err != nil {
 			return err
 		}
-		if stored.PasswordHash != input.CurrentPassword {
+		if !s.passwords.Verify(stored.PasswordHash, input.CurrentPassword) {
 			return ErrCurrentPassword
 		}
 		if err := consumeVerificationCode(ctx, tx, email, PurposeChangeEmail, input.Code); err != nil {
 			return err
 		}
 		now := time.Now()
-		return tx.UpdateUser(ctx, input.User.ID, map[string]any{"email": email, "email_verified_at": now})
+		return tx.UpdateEmail(ctx, input.User.ID, email, now)
 	})
 	if err != nil {
 		return User{}, err
@@ -56,20 +55,24 @@ func (s *Service) ChangePassword(ctx context.Context, input ChangePasswordInput)
 	if strings.TrimSpace(input.CurrentPassword) == "" || !verificationCodePattern.MatchString(input.Code) {
 		return ErrInvalidCode
 	}
+	passwordHash, err := s.passwords.Hash(input.NextPassword)
+	if err != nil {
+		return err
+	}
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	err := s.repository.Transaction(ctx, func(tx identitypersistence.IdentityRepository) error {
+	err = s.repository.Transaction(ctx, func(tx Repository) error {
 		stored, err := tx.FindUserByID(ctx, input.User.ID)
 		if err != nil {
 			return err
 		}
-		if stored.PasswordHash != input.CurrentPassword {
+		if !s.passwords.Verify(stored.PasswordHash, input.CurrentPassword) {
 			return ErrCurrentPassword
 		}
 		if err := consumeVerificationCode(ctx, tx, input.User.Email, PurposeChangePassword, input.Code); err != nil {
 			return err
 		}
-		return tx.UpdateUser(ctx, input.User.ID, map[string]any{"password_hash": input.NextPassword})
+		return tx.UpdatePassword(ctx, input.User.ID, passwordHash)
 	})
 	if err != nil {
 		return err
@@ -86,10 +89,14 @@ func (s *Service) ResetPassword(ctx context.Context, input ResetPasswordInput) e
 	if len(input.NextPassword) < 6 || !verificationCodePattern.MatchString(input.Code) {
 		return ErrInvalidCode
 	}
+	passwordHash, err := s.passwords.Hash(input.NextPassword)
+	if err != nil {
+		return err
+	}
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	var userID uint64
-	err = s.repository.Transaction(ctx, func(tx identitypersistence.IdentityRepository) error {
+	err = s.repository.Transaction(ctx, func(tx Repository) error {
 		stored, err := tx.FindUserByEmail(ctx, email, true)
 		if err != nil {
 			return err
@@ -98,7 +105,7 @@ func (s *Service) ResetPassword(ctx context.Context, input ResetPasswordInput) e
 		if err := consumeVerificationCode(ctx, tx, email, PurposeResetPassword, input.Code); err != nil {
 			return err
 		}
-		return tx.UpdateUser(ctx, userID, map[string]any{"password_hash": input.NextPassword})
+		return tx.UpdatePassword(ctx, userID, passwordHash)
 	})
 	if err != nil {
 		return err

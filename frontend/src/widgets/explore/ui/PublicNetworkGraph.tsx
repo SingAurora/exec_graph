@@ -25,14 +25,14 @@ export function PublicNetworkGraph({ network, view }: PublicNetworkGraphProps) {
   const [themeRevision, setThemeRevision] = useState(0)
   const allowedKinds = useMemo(() => visibleKinds(view), [view])
   const nodes = useMemo(() => network.nodes.filter((node) => allowedKinds.has(node.kind)), [allowedKinds, network.nodes])
-  const nodeIDs = useMemo(() => new Set(nodes.map((node) => node.id)), [nodes])
+  const nodeIDs = useMemo(() => new Set(nodes.map((node) => node.key)), [nodes])
   const edges = useMemo(() => network.edges.filter((edge) => nodeIDs.has(edge.source) && nodeIDs.has(edge.target) && (view !== 'projects' || edge.type !== 'maintains')), [network.edges, nodeIDs, view])
-  const selected = useMemo(() => nodes.find((node) => node.id === selectedID) ?? nodes[0], [nodes, selectedID])
-  const selectedEdge = useMemo(() => edges.find((edge) => edge.id === selectedEdgeID), [edges, selectedEdgeID])
+  const selected = useMemo(() => nodes.find((node) => node.key === selectedID) ?? nodes[0], [nodes, selectedID])
+  const selectedEdge = useMemo(() => edges.find((edge) => edge.key === selectedEdgeID), [edges, selectedEdgeID])
 
   useEffect(() => {
-    if (!selectedID || !nodes.some((node) => node.id === selectedID)) setSelectedID(nodes[0]?.id ?? '')
-    if (!edges.some((edge) => edge.id === selectedEdgeID)) setSelectedEdgeID('')
+    if (!selectedID || !nodes.some((node) => node.key === selectedID)) setSelectedID(nodes[0]?.key ?? '')
+    if (!edges.some((edge) => edge.key === selectedEdgeID)) setSelectedEdgeID('')
   }, [edges, nodes, selectedEdgeID, selectedID])
 
   useEffect(() => {
@@ -48,8 +48,8 @@ export function PublicNetworkGraph({ network, view }: PublicNetworkGraphProps) {
     const cy = cytoscape({
       container: containerRef.current,
       elements: [
-        ...nodes.map((node) => ({ data: { id: node.id, label: node.label, kind: node.kind, size: nodeSize(node.weight), open: node.hasOpenCall ? 'yes' : 'no', mine: node.isCurrentUser ? 'yes' : 'no' } })),
-        ...edges.map((edge) => ({ data: edge })),
+        ...nodes.map((node) => ({ data: { id: node.key, label: node.label, kind: node.kind, size: nodeSize(node.weight), open: node.hasOpenCall ? 'yes' : 'no', mine: node.isCurrentUser ? 'yes' : 'no' } })),
+        ...edges.map((edge) => ({ data: { ...edge, id: edge.key } })),
       ],
       style: [
         { selector: 'node', style: { label: 'data(label)', color: colors.ink, 'font-family': 'Inter, sans-serif', 'font-size': '11px', 'font-weight': 600, 'text-wrap': 'ellipsis', 'text-max-width': '118px', 'text-valign': 'bottom', 'text-margin-y': 9, 'background-color': colors.surface, 'border-width': 2, 'border-color': colors.rail, width: 'data(size)', height: 'data(size)' } },
@@ -87,7 +87,7 @@ export function PublicNetworkGraph({ network, view }: PublicNetworkGraphProps) {
     active.removeClass('is-muted').addClass('is-focus')
   }, [selectedEdgeID, selectedID, nodes, edges])
 
-  const relatedEdges = selected ? edges.filter((edge) => edge.source === selected.id || edge.target === selected.id) : []
+  const relatedEdges = selected ? edges.filter((edge) => edge.source === selected.key || edge.target === selected.key) : []
   const adoptedCount = relatedEdges.filter((edge) => edge.type === 'adopted').length
   const openContribution = relatedEdges.some((edge) => edge.type === 'contributing' || edge.type === 'workspace')
 
@@ -98,12 +98,14 @@ export function PublicNetworkGraph({ network, view }: PublicNetworkGraphProps) {
 
 function NetworkDetail({ node, relatedCount, adoptedCount, openContribution }: { node: PublicNetworkNode; relatedCount: number; adoptedCount: number; openContribution: boolean }) {
   const Icon = node.kind === 'project' ? Network : node.kind === 'record' ? FileCheck2 : UsersRound
-  return <aside className="border-l-2 border-ink bg-shell p-5"><div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal"><Icon size={15} aria-hidden="true" />当前聚焦</div><h2 className="mt-3 font-display text-2xl font-semibold leading-tight text-ink">{node.label}</h2><p className="mt-3 text-sm leading-6 text-graphite">{node.detail}</p><div className="mt-5 grid grid-cols-2 border-y border-rail text-sm"><div className="py-3"><div className="text-xs text-graphite">直接关系</div><b className="mt-1 block text-ink">{relatedCount}</b></div><div className="border-l border-rail py-3 pl-4"><div className="text-xs text-graphite">正式采纳</div><b className="mt-1 block text-moss">{adoptedCount}</b></div></div>{node.hasOpenCall || openContribution ? <p className="mt-4 text-sm font-semibold text-signal">{node.hasOpenCall ? '有开放缺口可以参与' : '正在连接新的贡献'}</p> : null}{node.projectId ? <Link to={`/explore/projects/${node.projectId}`} className="mt-6 inline-flex h-10 items-center gap-2 border border-rail bg-surface px-3 text-sm font-semibold text-ink hover:border-signal">进入项目<ArrowRight size={16} aria-hidden="true" /></Link> : null}</aside>
+  const detailPath = node.projectUuid ? `/explore/projects/${node.projectUuid}` : node.userId ? `/u/${node.userId}` : ''
+  const detailLabel = node.projectUuid ? '进入项目' : node.userId ? '查看主页' : ''
+  return <aside className="border-l-2 border-ink bg-shell p-5"><div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal"><Icon size={15} aria-hidden="true" />当前聚焦</div><h2 className="mt-3 font-display text-2xl font-semibold leading-tight text-ink">{node.label}</h2><p className="mt-3 text-sm leading-6 text-graphite">{node.detail}</p><div className="mt-5 grid grid-cols-2 border-y border-rail text-sm"><div className="py-3"><div className="text-xs text-graphite">直接关系</div><b className="mt-1 block text-ink">{relatedCount}</b></div><div className="border-l border-rail py-3 pl-4"><div className="text-xs text-graphite">正式采纳</div><b className="mt-1 block text-moss">{adoptedCount}</b></div></div>{node.hasOpenCall || openContribution ? <p className="mt-4 text-sm font-semibold text-signal">{node.hasOpenCall ? '有开放缺口可以参与' : '正在连接新的贡献'}</p> : null}{detailPath ? <Link to={detailPath} className="mt-6 inline-flex h-10 items-center gap-2 border border-rail bg-surface px-3 text-sm font-semibold text-ink hover:border-signal">{detailLabel}<ArrowRight size={16} aria-hidden="true" /></Link> : null}</aside>
 }
 
 function EdgeDetail({ edge, nodes }: { edge: PublicNetworkEdge; nodes: PublicNetworkNode[] }) {
-  const source = nodes.find((node) => node.id === edge.source)
-  const target = nodes.find((node) => node.id === edge.target)
+  const source = nodes.find((node) => node.key === edge.source)
+  const target = nodes.find((node) => node.key === edge.target)
   const date = edge.createdAt ? new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'numeric', day: 'numeric' }).format(new Date(edge.createdAt)) : ''
-  return <aside className="border-l-2 border-moss bg-shell p-5"><div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-moss"><FileCheck2 size={15} aria-hidden="true" />关系事实</div><h2 className="mt-3 text-xl font-semibold leading-tight text-ink">{edge.label}</h2><p className="mt-2 text-sm font-semibold text-graphite">{source?.label ?? '来源'} <ArrowRight className="mx-1 inline" size={14} aria-hidden="true" /> {target?.label ?? '使用方'}</p>{edge.detail ? <div className="mt-5 border-y border-rail py-4"><div className="text-xs font-semibold text-graphite">对应说明</div><p className="mt-2 whitespace-pre-line text-sm leading-6 text-ink">{edge.detail}</p></div> : null}<dl className="mt-5 space-y-3 text-sm"><div><dt className="text-xs text-graphite">来源成果</dt><dd className="mt-1 font-semibold text-ink">{nodes.find((node) => node.recordId === edge.recordId)?.label ?? '无具体成果记录'}</dd></div>{date ? <div><dt className="text-xs text-graphite">关系发生时间</dt><dd className="mt-1 font-semibold text-ink">{date}</dd></div> : null}</dl><div className="mt-6 flex flex-wrap gap-3">{edge.sourceProjectId ? <Link to={`/explore/projects/${edge.sourceProjectId}`} className="inline-flex h-9 items-center gap-1 border border-rail bg-surface px-3 text-sm font-semibold text-ink hover:border-signal">来源项目<ArrowRight size={15} /></Link> : null}{edge.targetProjectId && edge.targetProjectId !== edge.sourceProjectId ? <Link to={`/explore/projects/${edge.targetProjectId}`} className="inline-flex h-9 items-center gap-1 border border-rail bg-surface px-3 text-sm font-semibold text-ink hover:border-signal">使用项目<ArrowRight size={15} /></Link> : null}</div></aside>
+  return <aside className="border-l-2 border-moss bg-shell p-5"><div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-moss"><FileCheck2 size={15} aria-hidden="true" />关系事实</div><h2 className="mt-3 text-xl font-semibold leading-tight text-ink">{edge.label}</h2><p className="mt-2 text-sm font-semibold text-graphite">{source?.label ?? '来源'} <ArrowRight className="mx-1 inline" size={14} aria-hidden="true" /> {target?.label ?? '使用方'}</p>{edge.detail ? <div className="mt-5 border-y border-rail py-4"><div className="text-xs font-semibold text-graphite">对应说明</div><p className="mt-2 whitespace-pre-line text-sm leading-6 text-ink">{edge.detail}</p></div> : null}<dl className="mt-5 space-y-3 text-sm"><div><dt className="text-xs text-graphite">来源成果</dt><dd className="mt-1 font-semibold text-ink">{nodes.find((node) => node.recordUuid === edge.recordUuid)?.label ?? '无具体成果记录'}</dd></div>{date ? <div><dt className="text-xs text-graphite">关系发生时间</dt><dd className="mt-1 font-semibold text-ink">{date}</dd></div> : null}</dl><div className="mt-6 flex flex-wrap gap-3">{edge.sourceProjectUuid ? <Link to={`/explore/projects/${edge.sourceProjectUuid}`} className="inline-flex h-9 items-center gap-1 border border-rail bg-surface px-3 text-sm font-semibold text-ink hover:border-signal">来源项目<ArrowRight size={15} /></Link> : null}{edge.targetProjectUuid && edge.targetProjectUuid !== edge.sourceProjectUuid ? <Link to={`/explore/projects/${edge.targetProjectUuid}`} className="inline-flex h-9 items-center gap-1 border border-rail bg-surface px-3 text-sm font-semibold text-ink hover:border-signal">使用项目<ArrowRight size={15} /></Link> : null}</div></aside>
 }

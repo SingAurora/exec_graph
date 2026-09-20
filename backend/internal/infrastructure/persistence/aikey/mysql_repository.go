@@ -5,17 +5,12 @@ import (
 	"errors"
 	"time"
 
+	applicationaikey "github.com/singaurora/exec-graph/backend/internal/application/aikey"
 	persistencemysql "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/mysql"
 	"gorm.io/gorm"
 )
 
-var (
-	ErrNotFound = errors.New("AI key not found")
-	ErrInUse    = errors.New("AI key is in use")
-)
-
-// AIKey is the internal representation of an AI provider credential. Its
-// ciphertext must never be serialized into an API response.
+// AIKey 是 AI 服务凭据的数据库模型。KeyCiphertext 只能保存加密后的内容。
 type AIKey struct {
 	ID             uint64     `gorm:"column:id;primaryKey"`
 	UUID           string     `gorm:"column:uuid"`
@@ -41,8 +36,13 @@ func NewAIKeyRepository(db *gorm.DB) AIKeyRepository {
 	return AIKeyRepository{db: db}
 }
 
-func (repository AIKeyRepository) Create(ctx context.Context, key *AIKey) error {
-	return repository.db.WithContext(ctx).Create(key).Error
+func (repository AIKeyRepository) Create(ctx context.Context, key *applicationaikey.Record) error {
+	model := modelFromRecord(*key)
+	if err := repository.db.WithContext(ctx).Create(&model).Error; err != nil {
+		return err
+	}
+	*key = recordFromModel(model)
+	return nil
 }
 
 func (repository AIKeyRepository) MarkVerified(ctx context.Context, userID uint64, keyID string, verifiedAt time.Time) error {
@@ -55,7 +55,7 @@ func (repository AIKeyRepository) DeleteUnusedForUser(ctx context.Context, userI
 	return repository.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var key AIKey
 		if err := tx.Clauses(persistencemysql.ForUpdate).Where("uuid = ? AND user_id = ?", keyID, userID).First(&key).Error; errors.Is(err, gorm.ErrRecordNotFound) {
-			return ErrNotFound
+			return applicationaikey.ErrNotFound
 		} else if err != nil {
 			return err
 		}
@@ -64,33 +64,33 @@ func (repository AIKeyRepository) DeleteUnusedForUser(ctx context.Context, userI
 			return err
 		}
 		if projectCount > 0 {
-			return ErrInUse
+			return applicationaikey.ErrInUse
 		}
 		return tx.Delete(&key).Error
 	})
 }
 
-func (repository AIKeyRepository) ListForUser(ctx context.Context, userID uint64) ([]AIKey, error) {
+func (repository AIKeyRepository) ListForUser(ctx context.Context, userID uint64) ([]applicationaikey.Record, error) {
 	var keys []AIKey
 	err := repository.db.WithContext(ctx).
 		Where("user_id = ?", userID).
 		Order("created_at ASC").
 		Find(&keys).Error
-	return keys, err
+	return recordsFromModels(keys), err
 }
 
-func (repository AIKeyRepository) FindForUser(ctx context.Context, userID uint64, keyID string) (AIKey, error) {
+func (repository AIKeyRepository) FindForUser(ctx context.Context, userID uint64, keyID string) (applicationaikey.Record, error) {
 	var key AIKey
 	err := repository.db.WithContext(ctx).
 		Where("uuid = ? AND user_id = ?", keyID, userID).
 		First(&key).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return AIKey{}, ErrNotFound
+		return applicationaikey.Record{}, applicationaikey.ErrNotFound
 	}
-	return key, err
+	return recordFromModel(key), err
 }
 
-func (repository AIKeyRepository) FindProjectReviewKey(ctx context.Context, userID uint64, projectID string) (AIKey, error) {
+func (repository AIKeyRepository) FindProjectReviewKey(ctx context.Context, userID uint64, projectID string) (applicationaikey.Record, error) {
 	var key AIKey
 	err := repository.db.WithContext(ctx).
 		Table("projects AS p").
@@ -99,15 +99,15 @@ func (repository AIKeyRepository) FindProjectReviewKey(ctx context.Context, user
 		Where("p.uuid = ? AND p.owner_id = ?", projectID, userID).
 		Scan(&key).Error
 	if err != nil {
-		return AIKey{}, err
+		return applicationaikey.Record{}, err
 	}
 	if key.ID == 0 {
-		return AIKey{}, ErrNotFound
+		return applicationaikey.Record{}, applicationaikey.ErrNotFound
 	}
-	return key, nil
+	return recordFromModel(key), nil
 }
 
-func (repository AIKeyRepository) FindLatestProjectReviewKey(ctx context.Context, userID uint64) (AIKey, error) {
+func (repository AIKeyRepository) FindLatestProjectReviewKey(ctx context.Context, userID uint64) (applicationaikey.Record, error) {
 	var key AIKey
 	err := repository.db.WithContext(ctx).
 		Table("projects AS p").
@@ -118,12 +118,38 @@ func (repository AIKeyRepository) FindLatestProjectReviewKey(ctx context.Context
 		Limit(1).
 		Scan(&key).Error
 	if err != nil {
-		return AIKey{}, err
+		return applicationaikey.Record{}, err
 	}
 	if key.ID == 0 {
-		return AIKey{}, ErrNotFound
+		return applicationaikey.Record{}, applicationaikey.ErrNotFound
 	}
-	return key, nil
+	return recordFromModel(key), nil
+}
+
+func modelFromRecord(record applicationaikey.Record) AIKey {
+	return AIKey{
+		ID: record.ID, UUID: record.UUID, UserID: record.UserID, Provider: record.Provider,
+		Label: record.Label, KeyCiphertext: record.KeyCiphertext, KeyHint: record.KeyHint,
+		BaseURL: record.BaseURL, Model: record.Model, LastVerifiedAt: record.LastVerifiedAt,
+		LastUsedAt: record.LastUsedAt, CreatedAt: record.CreatedAt,
+	}
+}
+
+func recordFromModel(model AIKey) applicationaikey.Record {
+	return applicationaikey.Record{
+		ID: model.ID, UUID: model.UUID, UserID: model.UserID, Provider: model.Provider,
+		Label: model.Label, KeyCiphertext: model.KeyCiphertext, KeyHint: model.KeyHint,
+		BaseURL: model.BaseURL, Model: model.Model, LastVerifiedAt: model.LastVerifiedAt,
+		LastUsedAt: model.LastUsedAt, CreatedAt: model.CreatedAt,
+	}
+}
+
+func recordsFromModels(models []AIKey) []applicationaikey.Record {
+	records := make([]applicationaikey.Record, 0, len(models))
+	for _, model := range models {
+		records = append(records, recordFromModel(model))
+	}
+	return records
 }
 
 func (repository AIKeyRepository) MarkUsed(ctx context.Context, userID uint64, keyID string, usedAt time.Time) error {

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"time"
 
+	applicationreview "github.com/singaurora/exec-graph/backend/internal/application/review"
 	"gorm.io/gorm"
 )
 
@@ -13,7 +14,7 @@ import (
 type Repository struct{ orm *gorm.DB }
 
 // ErrNotFound indicates that a review target does not exist.
-var ErrNotFound = gorm.ErrRecordNotFound
+var ErrNotFound = applicationreview.ErrNotFound
 
 // NodeReviewContext is the complete node/project projection required by a review.
 type NodeReviewContext struct {
@@ -45,17 +46,6 @@ type NodeReviewContext struct {
 	SmartContractBody        string     `gorm:"column:smart_contract_body"`
 }
 
-// ReviewSaveInput contains the immutable submission and AI result fields.
-type ReviewSaveInput struct {
-	UserID                                                    uint64
-	NodeID, CompletionClaim, EvidenceText                     string
-	StartedAt, EndedAt                                        *time.Time
-	Stage, ReviewJSON, AIConfigJSON, RoundsJSON, MessagesJSON string
-}
-
-// ClarificationSaveInput contains a follow-up review result.
-type ClarificationSaveInput struct{ NodeID, Stage, ReviewJSON, AIConfigJSON, RoundsJSON, MessagesJSON string }
-
 // ClosureSource is a closure predecessor projection.
 type ClosureSource struct {
 	ID       uint64 `gorm:"column:id"`
@@ -70,40 +60,50 @@ type ClosureSource struct {
 func NewRepository(orm *gorm.DB) *Repository { return &Repository{orm: orm} }
 
 // LoadNodeReviewContext returns the node and project facts needed before AI review.
-func (repository *Repository) LoadNodeReviewContext(ctx context.Context, userID uint64, nodeID string) (NodeReviewContext, error) {
+func (repository *Repository) LoadNodeReviewContext(ctx context.Context, userID uint64, nodeID string) (applicationreview.NodeReviewContext, error) {
 	var value NodeReviewContext
 	result := repository.orm.WithContext(ctx).Table("execution_contracts AS n").Select(`p.id AS project_internal_id, n.id AS node_internal_id, p.uuid AS project_id, p.title AS project_title, p.description AS project_description, COALESCE(p.project_rules, '') AS project_rules, p.current_contract_id AS project_current_id, p.archived_at, n.branch_id, n.uuid AS node_id, n.title, n.original_intent, n.verifiable_goal, n.acceptance_criteria_json AS criteria_json, n.evidence_requirement, sc.uuid AS smart_contract_id, n.review_messages_json AS messages_json, n.stage, n.completion_claim, n.evidence_text, n.ai_review_json, n.completion_review_ai_config_json AS review_config_json, n.completion_review_rounds_json AS review_rounds_json, sc.name AS smart_contract_name, sc.description AS smart_contract_description, sc.body AS smart_contract_body`).Joins("JOIN projects AS p ON p.id = n.project_id").Joins("JOIN smart_contracts AS sc ON sc.id = n.smart_contract_id").Where("n.uuid = ? AND p.owner_id = ?", nodeID, userID).Scan(&value)
 	if result.Error != nil {
-		return value, result.Error
+		return applicationreview.NodeReviewContext{}, result.Error
 	}
 	if result.RowsAffected == 0 {
-		return value, gorm.ErrRecordNotFound
+		return applicationreview.NodeReviewContext{}, applicationreview.ErrNotFound
 	}
-	return value, nil
+	isCurrent := false
+	if value.BranchID != nil {
+		var branchCurrentID *uint64
+		if err := repository.loadBranchCurrent(ctx, *value.BranchID, value.ProjectInternalID, &branchCurrentID); err != nil {
+			return applicationreview.NodeReviewContext{}, err
+		}
+		isCurrent = branchCurrentID != nil && *branchCurrentID == value.NodeInternalID
+	} else {
+		isCurrent = value.ProjectCurrentID != nil && *value.ProjectCurrentID == value.NodeInternalID
+	}
+	return applicationreview.NodeReviewContext{
+		ProjectID: value.ProjectID, ProjectTitle: value.ProjectTitle, ProjectDescription: value.ProjectDescription,
+		ProjectRules: value.ProjectRules, ArchivedAt: value.ArchivedAt, IsCurrent: isCurrent,
+		NodeID: value.NodeID, Title: value.Title, OriginalIntent: value.OriginalIntent, Goal: value.Goal,
+		CriteriaJSON: value.CriteriaJSON, EvidenceRequirement: value.EvidenceRequirement,
+		SmartContractID: value.SmartContractID, MessagesJSON: value.MessagesJSON, Stage: value.Stage,
+		Claim: value.Claim, Evidence: value.Evidence, ReviewJSON: value.ReviewJSON,
+		ReviewConfigJSON: value.ReviewConfigJSON, ReviewRoundsJSON: value.ReviewRoundsJSON,
+		SmartContractName: value.SmartContractName, SmartContractDescription: value.SmartContractDescription,
+		SmartContractBody: value.SmartContractBody,
+	}, nil
 }
 
-// FindInternalID resolves an internal ID for a whitelisted review table.
-func (repository *Repository) FindInternalID(ctx context.Context, table, uuid string) (uint64, error) {
-	allowed := map[string]bool{"projects": true, "execution_contracts": true}
-	if !allowed[table] {
-		return 0, errors.New("unsupported review entity")
-	}
-	var value struct {
-		ID uint64 `gorm:"column:id"`
-	}
-	err := repository.orm.WithContext(ctx).Table(table).Select("id").Where("uuid = ?", uuid).First(&value).Error
-	return value.ID, err
-}
-
-// ListClosureSourceIDs lists immediate closure predecessors.
-func (repository *Repository) ListClosureSourceIDs(ctx context.Context, targetID uint64) ([]uint64, error) {
-	var values []uint64
-	err := repository.orm.WithContext(ctx).Table("execution_edges").Where("target_contract_id = ? AND type = ?", targetID, "closure").Pluck("source_contract_id", &values).Error
+// ListClosureSourceUUIDs lists immediate closure predecessors without exposing database IDs.
+func (repository *Repository) ListClosureSourceUUIDs(ctx context.Context, targetNodeUUID string) ([]string, error) {
+	var values []string
+	err := repository.orm.WithContext(ctx).Table("execution_edges AS edge").
+		Joins("JOIN execution_contracts AS source ON source.id = edge.source_contract_id").
+		Joins("JOIN execution_contracts AS target ON target.id = edge.target_contract_id").
+		Where("target.uuid = ? AND edge.type = ?", targetNodeUUID, "closure").
+		Pluck("source.uuid", &values).Error
 	return values, err
 }
 
-// LoadBranchCurrent loads the current node of a branch while keeping IDs internal.
-func (repository *Repository) LoadBranchCurrent(ctx context.Context, branchID, projectID uint64, target **uint64) error {
+func (repository *Repository) loadBranchCurrent(ctx context.Context, branchID, projectID uint64, target **uint64) error {
 	var value struct {
 		CurrentID *uint64 `gorm:"column:current_contract_id"`
 	}
@@ -116,27 +116,26 @@ func (repository *Repository) LoadBranchCurrent(ctx context.Context, branchID, p
 }
 
 // LoadClosureSource loads one closure predecessor in a project.
-func (repository *Repository) LoadClosureSource(ctx context.Context, sourceID, projectID uint64) (ClosureSource, error) {
+func (repository *Repository) LoadClosureSource(ctx context.Context, sourceNodeUUID, projectUUID string) (applicationreview.ClosureSource, error) {
 	var value ClosureSource
-	err := repository.orm.WithContext(ctx).Table("execution_contracts").Select("id, uuid, title, verifiable_goal, acceptance_criteria_json, evidence_requirement").Where("id = ? AND project_id = ?", sourceID, projectID).First(&value).Error
-	return value, err
-}
-
-// FindSmartContract returns a visible contract body by UUID.
-func (repository *Repository) FindSmartContract(ctx context.Context, id string) (struct{ Name, Description, Body string }, error) {
-	var value struct{ Name, Description, Body string }
-	err := repository.orm.WithContext(ctx).Table("smart_contracts").Select("name, description, body").Where("uuid = ? AND deleted_at IS NULL", id).First(&value).Error
-	return value, err
+	err := repository.orm.WithContext(ctx).Table("execution_contracts AS node").
+		Select("node.id, node.uuid, node.title, node.verifiable_goal, node.acceptance_criteria_json, node.evidence_requirement").
+		Joins("JOIN projects AS project ON project.id = node.project_id").
+		Where("node.uuid = ? AND project.uuid = ?", sourceNodeUUID, projectUUID).First(&value).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return applicationreview.ClosureSource{}, applicationreview.ErrNotFound
+	}
+	return applicationreview.ClosureSource{ID: value.UUID, Title: value.Title, Goal: value.Goal, Criteria: value.Criteria, Evidence: value.Evidence}, err
 }
 
 // SaveInitialReview stores the first submission review if the node is still frozen.
-func (repository *Repository) SaveInitialReview(ctx context.Context, input ReviewSaveInput) (bool, error) {
+func (repository *Repository) SaveInitialReview(ctx context.Context, input applicationreview.InitialReviewSave) (bool, error) {
 	result := repository.orm.WithContext(ctx).Table("execution_contracts").Where("uuid = ? AND stage = ?", input.NodeID, "frozen").Updates(map[string]any{"actor_id": input.UserID, "completion_claim": input.CompletionClaim, "evidence_text": input.EvidenceText, "started_at": input.StartedAt, "ended_at": input.EndedAt, "stage": input.Stage, "ai_review_json": input.ReviewJSON, "completion_review_ai_config_json": input.AIConfigJSON, "completion_review_rounds_json": input.RoundsJSON, "review_messages_json": input.MessagesJSON})
 	return result.RowsAffected == 1, result.Error
 }
 
 // SaveClarificationReview stores a follow-up review for an active review state.
-func (repository *Repository) SaveClarificationReview(ctx context.Context, input ClarificationSaveInput) (bool, error) {
+func (repository *Repository) SaveClarificationReview(ctx context.Context, input applicationreview.ClarificationReviewSave) (bool, error) {
 	result := repository.orm.WithContext(ctx).Table("execution_contracts").Where("uuid = ? AND stage IN ?", input.NodeID, []string{"verified", "needs_supplement"}).Updates(map[string]any{"stage": input.Stage, "ai_review_json": input.ReviewJSON, "completion_review_ai_config_json": input.AIConfigJSON, "completion_review_rounds_json": input.RoundsJSON, "review_messages_json": input.MessagesJSON})
 	return result.RowsAffected == 1, result.Error
 }

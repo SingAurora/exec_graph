@@ -9,6 +9,12 @@ const (
 	DatabaseOperationTimeout = 8 * time.Second
 	// HTTPReadHeaderTimeout 限制客户端发送请求头的最长时间。
 	HTTPReadHeaderTimeout = 10 * time.Second
+	// HTTPReadTimeout、HTTPWriteTimeout 和 HTTPIdleTimeout 限制完整请求、响应和空闲连接。
+	HTTPReadTimeout  = 30 * time.Second
+	HTTPWriteTimeout = 2 * time.Minute
+	HTTPIdleTimeout  = 60 * time.Second
+	// HTTPShutdownTimeout 限制进程收到终止信号后的优雅停机时间。
+	HTTPShutdownTimeout = 20 * time.Second
 
 	// RedisDialTimeout 和 RedisPingTimeout 限制启动时 Redis 的连通性检查时间。
 	RedisDialTimeout = 2 * time.Second
@@ -20,6 +26,8 @@ const (
 	VerificationCodeTimeout = 15 * time.Second
 	// ProfileMediaTimeout 限制对象存储上传和个人资料更新的总时间。
 	ProfileMediaTimeout = 30 * time.Second
+	// ProfileMediaURLTTL 是头像和个人主页背景图临时访问地址的有效期。
+	ProfileMediaURLTTL = 24 * time.Hour
 	// ConversationSetupTimeout 用于短时的对话读取和初始化。
 	ConversationSetupTimeout = 10 * time.Second
 	// ConversationReviewTimeout 覆盖一次模型响应及其结果持久化。

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"strings"
 
-	projectpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/project"
 	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
 	sharedid "github.com/singaurora/exec-graph/backend/internal/shared/id"
 )
@@ -17,8 +16,8 @@ const (
 	dailyRoutineContractID = "smart-contract-daily-routine"
 )
 
-// List 返回当前用户的项目摘要。项目详情由同一个领域服务统一组装。
-func (s *Service) List(ctx context.Context, userID uint64) ([]ProjectView, error) {
+// ListOwnedProjects 返回当前用户的项目摘要。项目详情由同一个领域服务统一组装。
+func (s *Service) ListOwnedProjects(ctx context.Context, userID uint64) ([]ProjectView, error) {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	ids, err := s.projects.ListIDsForOwner(ctx, userID)
@@ -27,7 +26,7 @@ func (s *Service) List(ctx context.Context, userID uint64) ([]ProjectView, error
 	}
 	projects := make([]ProjectView, 0, len(ids))
 	for _, id := range ids {
-		item, err := s.Get(ctx, userID, id)
+		item, err := s.GetOwnedProject(ctx, userID, id)
 		if err != nil {
 			return nil, err
 		}
@@ -36,12 +35,12 @@ func (s *Service) List(ctx context.Context, userID uint64) ([]ProjectView, error
 	return projects, nil
 }
 
-// Get 返回项目资料及其当前合约修订。节点图属于 ProjectState，单独读取。
-func (s *Service) Get(ctx context.Context, userID uint64, projectID string) (ProjectView, error) {
+// GetOwnedProject 返回当前用户拥有的项目资料及其当前合约修订。
+func (s *Service) GetOwnedProject(ctx context.Context, userID uint64, projectID string) (ProjectView, error) {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	stored, err := s.projects.FindForOwner(ctx, userID, projectID)
-	if errors.Is(err, projectpersistence.ErrNotFound) {
+	if errors.Is(err, ErrProjectRecordNotFound) {
 		return ProjectView{}, ErrNotFound
 	}
 	if err != nil {
@@ -89,7 +88,7 @@ func (s *Service) Get(ctx context.Context, userID uint64, projectID string) (Pro
 		if err != nil {
 			return ProjectView{}, err
 		}
-		origin, err := s.ContributionOrigin(ctx, callID)
+		origin, err := s.GetContributionOrigin(ctx, callID)
 		if err == nil {
 			item.ContributionOrigin = &origin
 		} else {
@@ -119,8 +118,8 @@ func (s *Service) Get(ctx context.Context, userID uint64, projectID string) (Pro
 	return item, nil
 }
 
-// Create 创建项目及其第一条合约修订，整个过程在一个事务内完成。
-func (s *Service) Create(ctx context.Context, input CreateInput) (ProjectView, error) {
+// CreateProject 创建项目及其第一条合约修订，整个过程在一个事务内完成。
+func (s *Service) CreateProject(ctx context.Context, input CreateInput) (ProjectView, error) {
 	input.Title = strings.TrimSpace(input.Title)
 	input.Description = strings.TrimSpace(input.Description)
 	input.ProjectType = strings.TrimSpace(input.ProjectType)
@@ -157,11 +156,11 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (ProjectView, e
 
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	projectID, err := sharedid.Opaque("project")
+	projectID, err := sharedid.UUID()
 	if err != nil {
 		return ProjectView{}, err
 	}
-	revisionID, err := sharedid.Opaque("project-revision")
+	revisionID, err := sharedid.UUID()
 	if err != nil {
 		return ProjectView{}, err
 	}
@@ -172,7 +171,7 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (ProjectView, e
 	}
 	var snapshot string
 	if input.ContributionCallID != "" {
-		origin, err := s.ContributionOrigin(ctx, input.ContributionCallID)
+		origin, err := s.GetContributionOrigin(ctx, input.ContributionCallID)
 		if err != nil {
 			return ProjectView{}, err
 		}
@@ -182,21 +181,21 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (ProjectView, e
 		}
 		snapshot = string(encoded)
 	}
-	err = s.projects.CreateProject(ctx, projectpersistence.CreateProjectInput{UUID: projectID, RevisionUUID: revisionID, OwnerID: input.OwnerID, Title: input.Title, Description: input.Description, ProjectType: input.ProjectType, ProjectRules: input.ProjectRules, Visibility: input.Visibility, SmartContractUUID: input.SmartContractID, AIKeyUUID: input.AIKeyID, ContributionCallUUID: input.ContributionCallID, OriginSnapshot: snapshot})
-	if errors.Is(err, projectpersistence.ErrNotFound) {
+	err = s.projects.CreateProject(ctx, CreateProjectRecord{UUID: projectID, RevisionUUID: revisionID, OwnerID: input.OwnerID, Title: input.Title, Description: input.Description, ProjectType: input.ProjectType, ProjectRules: input.ProjectRules, Visibility: input.Visibility, SmartContractUUID: input.SmartContractID, AIKeyUUID: input.AIKeyID, ContributionCallUUID: input.ContributionCallID, OriginSnapshot: snapshot})
+	if errors.Is(err, ErrProjectRecordNotFound) {
 		return ProjectView{}, ErrContractUnavailable
 	}
-	if errors.Is(err, projectpersistence.ErrInvalid) {
+	if errors.Is(err, ErrProjectRecordInvalid) {
 		return ProjectView{}, ErrCallUnavailable
 	}
 	if err != nil {
 		return ProjectView{}, err
 	}
-	return s.Get(ctx, input.OwnerID, projectID)
+	return s.GetOwnedProject(ctx, input.OwnerID, projectID)
 }
 
-// ContributionOrigin 返回开放缺口交接给贡献者所需的上下文和已有来源。
-func (s *Service) ContributionOrigin(ctx context.Context, callID string) (ContributionOrigin, error) {
+// GetContributionOrigin 返回开放缺口交接给贡献者所需的上下文和已有来源。
+func (s *Service) GetContributionOrigin(ctx context.Context, callID string) (ContributionOrigin, error) {
 	stored, sources, err := s.projects.FindContributionOrigin(ctx, callID)
 	if err != nil {
 		return ContributionOrigin{}, err

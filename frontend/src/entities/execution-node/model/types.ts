@@ -3,13 +3,13 @@ export type CompletionRecordKind = 'accepted' | 'sealed'
 export type ExecutionNodeKind = 'task' | 'progress'
 export type ReviewVerdict = 'pass' | 'partial' | 'fail'
 
-export type AIConfigSnapshot = { keyId: string; label: string; provider: string; model: string; baseUrl: string }
+export type AIConfigSnapshot = { keyUuid: string; label: string; provider: string; model: string; baseUrl: string }
 export type AcceptanceCriterion = { id: string; text: string; requiredEvidence: string }
 export type CriterionReview = { criterionId: string; result: 'met' | 'unclear' | 'unmet'; reason: string }
-export type ReviewMessage = { id: string; speaker: 'user' | 'ai'; body: string; createdAt: string }
+export type ReviewMessage = { uuid: string; speaker: 'user' | 'ai'; body: string; createdAt: string }
 
 export type AIReview = {
-  id: string
+  uuid: string
   verdict: ReviewVerdict
   summary: string
   criterionReviews: CriterionReview[]
@@ -19,7 +19,7 @@ export type AIReview = {
 }
 
 export type ReviewClarification = {
-  id: string
+  uuid: string
   criterionIds: string[]
   explanation: string
   evidenceReferences?: string
@@ -29,7 +29,7 @@ export type ReviewClarification = {
 }
 
 export type CompletionReviewRound = {
-  id: string
+  uuid: string
   kind: 'initial' | 'clarification'
   clarification?: ReviewClarification
   review: AIReview
@@ -37,19 +37,19 @@ export type CompletionReviewRound = {
   createdAt: string
 }
 
-export type DraftReview = { id: string; verdict: 'pass' | 'fail'; summary: string; missingRequirements: string[]; createdAt: string; aiConfig?: AIConfigSnapshot }
+export type DraftReview = { uuid: string; verdict: 'pass' | 'fail'; summary: string; missingRequirements: string[]; createdAt: string; aiConfig?: AIConfigSnapshot }
 export type UserVerdict = { result: 'confirmed_complete' | 'sealed_with_ai_gap' | 'locked_with_ai_failure'; note: string; createdAt: string }
 
 export type CompletionRecord = {
-  id: string
-  projectId: string
-  closingContractId: string
-  coveredContractIds: string[]
+  uuid: string
+  projectUuid: string
+  closingContractUuid: string
+  coveredContractUuids: string[]
   title: string
   summary: string
-  smartContractId: string
+  smartContractUuid: string
   smartContractVersion: string
-  reviewId: string
+  reviewUuid: string
   aiReviewVerdict: ReviewVerdict
   recordKind: CompletionRecordKind
   userVerdict: UserVerdict
@@ -57,32 +57,32 @@ export type CompletionRecord = {
 }
 
 export type ExecutionBranch = {
-  id: string
-  projectId: string
+  uuid: string
+  projectUuid: string
   title: string
-  rootContractId?: string
-  forkedFromContractId?: string
-  headContractId?: string | null
-  currentContractId?: string | null
-  createdById?: string
+  rootContractUuid?: string
+  forkedFromContractUuid?: string
+  headContractUuid?: string | null
+  currentContractUuid?: string | null
+  createdByUserId?: string
   createdAt: string
 }
 
 export type ExecutionContract = {
-  id: string
-  projectId: string
-  branchId?: string
-  projectContractRevisionId: string
-  parentContractId?: string
-  sourceContractIds?: string[]
-  supplementOfContractId?: string
-  retryOfContractId?: string
-  actorId?: string
+  uuid: string
+  projectUuid: string
+  branchUuid?: string
+  projectContractRevisionUuid: string
+  parentContractUuid?: string
+  sourceContractUuids?: string[]
+  supplementOfContractUuid?: string
+  retryOfContractUuid?: string
+  actorUserId?: string
   title: string
   nodeKind?: ExecutionNodeKind
   stage: ContractStage
   originalIntent: string
-  smartContractId: string
+  smartContractUuid: string
   smartContractVersion: string
   verifiableGoal: string
   acceptanceCriteria: AcceptanceCriterion[]
@@ -91,19 +91,19 @@ export type ExecutionContract = {
   evidenceText?: string
   startedAt?: string
   endedAt?: string
-  completionRecordId?: string
+  completionRecordUuid?: string
   draftReview?: DraftReview
   draftReviewAIConfig?: AIConfigSnapshot
   reviewMessages: ReviewMessage[]
   aiReview?: AIReview
   completionReviewAIConfig?: AIConfigSnapshot
   completionReviewRounds?: CompletionReviewRound[]
-  planningConversationId?: string
-  completionConversationId?: string
+  planningConversationUuid?: string
+  completionConversationUuid?: string
   userVerdict?: UserVerdict
   nextContractTitle?: string
   createdAt: string
   updatedAt: string
 }
 
-export type ExecutionEdge = { id: string; sourceContractId: string; targetContractId: string; type: 'lineage' | 'fork' | 'supplement' | 'closure' | 'reference' | 'merge' }
+export type ExecutionEdge = { uuid: string; sourceContractUuid: string; targetContractUuid: string; type: 'lineage' | 'fork' | 'supplement' | 'closure' | 'reference' | 'merge' }

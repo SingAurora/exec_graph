@@ -1,6 +1,20 @@
 package identity
 
-import "testing"
+import (
+	"encoding/json"
+	"strings"
+	"testing"
+)
+
+func TestUserJSONDoesNotExposeInternalID(t *testing.T) {
+	encoded, err := json.Marshal(User{ID: 42, Username: "测试用户", UserID: "u-public", Email: "user@example.com"})
+	if err != nil {
+		t.Fatalf("marshal user: %v", err)
+	}
+	if strings.Contains(string(encoded), "42") || strings.Contains(string(encoded), `"id"`) {
+		t.Fatalf("public user JSON exposes internal ID: %s", encoded)
+	}
+}
 
 func TestNormalizeEmail(t *testing.T) {
 	tests := []struct {

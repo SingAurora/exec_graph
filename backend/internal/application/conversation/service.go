@@ -6,18 +6,30 @@ import (
 	"encoding/json"
 	"time"
 
-	conversationpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/conversation"
+	applicationaigateway "github.com/singaurora/exec-graph/backend/internal/application/aigateway"
+	applicationreview "github.com/singaurora/exec-graph/backend/internal/application/review"
 	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
 	sharedid "github.com/singaurora/exec-graph/backend/internal/shared/id"
 )
 
 // Service 负责对话与执行节点之间的应用层交接。
 type Service struct {
-	repository *conversationpersistence.Repository
+	repository          Repository
+	credentials         CredentialProvider
+	contributionOrigins ContributionOriginProvider
+	modelClient         applicationaigateway.Client
+	reviewer            *applicationreview.Service
 }
 
-func New(repository *conversationpersistence.Repository) *Service {
-	return &Service{repository: repository}
+// New 创建对话应用服务。
+func New(dependencies Dependencies) *Service {
+	return &Service{
+		repository:          dependencies.Repository,
+		credentials:         dependencies.Credentials,
+		contributionOrigins: dependencies.ContributionOrigins,
+		modelClient:         dependencies.ModelClient,
+		reviewer:            dependencies.Reviewer,
+	}
 }
 
 // CopyPlanningMessagesToNode 将规划对话的原始消息复制到节点公开记录。
@@ -35,13 +47,13 @@ func (s *Service) CopyPlanningMessagesToNode(ctx context.Context, conversationID
 		if row.Role == "assistant" {
 			speaker = "ai"
 		}
-		messages = append(messages, map[string]any{"id": row.UUID, "speaker": speaker, "body": row.Body, "createdAt": row.CreatedAt})
+		messages = append(messages, map[string]any{"uuid": row.UUID, "speaker": speaker, "body": row.Body, "createdAt": row.CreatedAt})
 	}
-	messageID, err := sharedid.Opaque("message")
+	messageID, err := sharedid.UUID()
 	if err != nil {
 		return err
 	}
-	messages = append(messages, map[string]any{"id": messageID, "speaker": "ai", "body": "目标对话已完成，节点草案通过冻结审核，目标、验收标准和证据要求已冻结。", "createdAt": time.Now()})
+	messages = append(messages, map[string]any{"uuid": messageID, "speaker": "ai", "body": "目标对话已完成，节点草案通过冻结审核，目标、验收标准和证据要求已冻结。", "createdAt": time.Now()})
 	encoded, err := json.Marshal(messages)
 	if err != nil {
 		return err

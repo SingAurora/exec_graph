@@ -5,12 +5,12 @@ import { graphColor } from '@/shared/lib/theme'
 import { useWorkspaceStore as useExecStore } from '@/features/workspace/model/useWorkspaceStore'
 
 type ProjectGraphProps = {
-  projectId: string
+  projectUuid: string
   heightClassName?: string
   visibleContractIds?: string[]
 }
 
-export function ProjectGraph({ projectId, heightClassName = 'h-[360px] min-h-[280px]', visibleContractIds }: ProjectGraphProps) {
+export function ProjectGraph({ projectUuid, heightClassName = 'h-[360px] min-h-[280px]', visibleContractIds }: ProjectGraphProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const cyRef = useRef<Core | null>(null)
   const [themeRevision, setThemeRevision] = useState(0)
@@ -20,18 +20,18 @@ export function ProjectGraph({ projectId, heightClassName = 'h-[360px] min-h-[28
   const contracts = useMemo(
     () => {
       const selectedIds = visibleContractIds ? new Set(visibleContractIds) : undefined
-      return allContracts.filter((contract) => contract.projectId === projectId && (!selectedIds || selectedIds.has(contract.id)))
+      return allContracts.filter((contract) => contract.projectUuid === projectUuid && (!selectedIds || selectedIds.has(contract.uuid)))
     },
-    [allContracts, projectId, visibleContractIds],
+    [allContracts, projectUuid, visibleContractIds],
   )
-  const contractIds = useMemo(() => new Set(contracts.map((contract) => contract.id)), [contracts])
+  const contractUuids = useMemo(() => new Set(contracts.map((contract) => contract.uuid)), [contracts])
   const edges = useMemo(
-    () => allEdges.filter((edge) => contractIds.has(edge.sourceContractId) && contractIds.has(edge.targetContractId)),
-    [allEdges, contractIds],
+    () => allEdges.filter((edge) => contractUuids.has(edge.sourceContractUuid) && contractUuids.has(edge.targetContractUuid)),
+    [allEdges, contractUuids],
   )
   const rootIds = useMemo(() => {
-    const targetIds = new Set(edges.map((edge) => edge.targetContractId))
-    return contracts.filter((contract) => !targetIds.has(contract.id)).map((contract) => contract.id)
+    const targetIds = new Set(edges.map((edge) => edge.targetContractUuid))
+    return contracts.filter((contract) => !targetIds.has(contract.uuid)).map((contract) => contract.uuid)
   }, [contracts, edges])
 
   useEffect(() => {
@@ -62,17 +62,17 @@ export function ProjectGraph({ projectId, heightClassName = 'h-[360px] min-h-[28
       elements: [
         ...contracts.map((contract) => ({
           data: {
-            id: contract.id,
+            id: contract.uuid,
             label: contract.title,
             stage: contract.stage,
-            record: Boolean(contract.completionRecordId),
+            record: Boolean(contract.completionRecordUuid),
           },
         })),
         ...edges.map((edge) => ({
           data: {
-            id: edge.id,
-            source: edge.sourceContractId,
-            target: edge.targetContractId,
+            id: edge.uuid,
+            source: edge.sourceContractUuid,
+            target: edge.targetContractUuid,
             type: edge.type,
           },
         })),
@@ -158,7 +158,7 @@ export function ProjectGraph({ projectId, heightClassName = 'h-[360px] min-h-[28
       maxZoom: 2,
     })
 
-    cy.on('tap', 'node', (event) => navigate(`/contracts/${event.target.id()}`))
+    cy.on('tap', 'node', (event) => navigate(`/contracts/${event.target.uuid()}`))
     cyRef.current = cy
     return () => cy.destroy()
   }, [contracts, edges, navigate, rootIds, themeRevision])

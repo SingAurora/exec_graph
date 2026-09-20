@@ -6,6 +6,7 @@ import (
 	"fmt"
 )
 
+// Opaque 创建带业务前缀的随机对象键；它不用于公开资源 UUID。
 func Opaque(prefix string) (string, error) {
 	value := make([]byte, 16)
 	if _, err := rand.Read(value); err != nil {

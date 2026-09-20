@@ -27,18 +27,16 @@ export function App() {
         <Route path="/register" element={<RegisterRoute />} />
         <Route element={<PublicExploreApp />}>
           <Route path="/explore" element={<ExplorePage />} />
-          <Route path="/explore/projects/:projectId" element={<PublicProjectPage />} />
+          <Route path="/explore/projects/:projectUuid" element={<PublicProjectPage />} />
+          <Route path="/u/:handle" element={<PublicProfilePage />} />
         </Route>
         <Route element={<ProtectedApp />}>
           <Route index element={<DashboardPage />} />
-          <Route path="/u/:handle" element={<PublicProfilePage />} />
           <Route path="/chains" element={<Navigate to="/" replace />} />
           <Route path="/projects/new" element={<NewProjectPage />} />
-          <Route path="/projects/:projectId" element={<ProjectPage />} />
-          <Route path="/goals/goal-product" element={<Navigate to="/projects/project-exec-graph" replace />} />
-          <Route path="/goals/goal-writing" element={<Navigate to="/projects/project-writing" replace />} />
-          <Route path="/contracts/:contractId" element={<NodePage />} />
-          <Route path="/nodes/:contractId" element={<NodePage />} />
+          <Route path="/projects/:projectUuid" element={<ProjectPage />} />
+          <Route path="/contracts/:contractUuid" element={<NodePage />} />
+          <Route path="/nodes/:contractUuid" element={<NodePage />} />
           <Route path="/me" element={<MePage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/smart-contracts" element={<SmartContractsPage />} />

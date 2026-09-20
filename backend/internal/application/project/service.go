@@ -5,24 +5,22 @@ import (
 	"context"
 	"errors"
 
-	contractpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/contract"
-	executionpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/execution"
-	projectpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/project"
 	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
 	sharedid "github.com/singaurora/exec-graph/backend/internal/shared/id"
 )
 
 type Service struct {
-	projects  projectpersistence.ProjectRepository
-	contracts contractpersistence.SmartContractRepository
-	execution *executionpersistence.Repository
+	projects  ProjectRepository
+	contracts ContractRepository
+	execution ExecutionRepository
 }
 
-func New(projects projectpersistence.ProjectRepository, contracts contractpersistence.SmartContractRepository, execution *executionpersistence.Repository) *Service {
+func New(projects ProjectRepository, contracts ContractRepository, execution ExecutionRepository) *Service {
 	return &Service{projects: projects, contracts: contracts, execution: execution}
 }
 
-func (s *Service) Update(ctx context.Context, userID uint64, projectID, title, description, visibility string) error {
+// UpdateProjectProfile 更新项目名称、说明和可见性。
+func (s *Service) UpdateProjectProfile(ctx context.Context, userID uint64, projectID, title, description, visibility string) error {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	if visibility == "private" {
@@ -44,7 +42,8 @@ func (s *Service) Update(ctx context.Context, userID uint64, projectID, title, d
 	return nil
 }
 
-func (s *Service) Archive(ctx context.Context, userID uint64, projectID string) error {
+// ArchiveProject 停止项目继续推进，同时保留历史数据。
+func (s *Service) ArchiveProject(ctx context.Context, userID uint64, projectID string) error {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	archived, err := s.projects.Archive(ctx, userID, projectID)
@@ -57,7 +56,8 @@ func (s *Service) Archive(ctx context.Context, userID uint64, projectID string) 
 	return nil
 }
 
-func (s *Service) Unarchive(ctx context.Context, userID uint64, projectID string) error {
+// RestoreArchivedProject 恢复一个已归档项目。
+func (s *Service) RestoreArchivedProject(ctx context.Context, userID uint64, projectID string) error {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	restored, err := s.projects.Unarchive(ctx, userID, projectID)
@@ -70,7 +70,8 @@ func (s *Service) Unarchive(ctx context.Context, userID uint64, projectID string
 	return nil
 }
 
-func (s *Service) SetAIKey(ctx context.Context, userID uint64, projectID, keyID string) error {
+// SetProjectReviewAI 设置项目后续审查使用的 AI 密钥。
+func (s *Service) SetProjectReviewAI(ctx context.Context, userID uint64, projectID, keyID string) error {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	updated, err := s.projects.SetAIKey(ctx, userID, projectID, keyID)
@@ -83,35 +84,36 @@ func (s *Service) SetAIKey(ctx context.Context, userID uint64, projectID, keyID 
 	return nil
 }
 
-// SetContract 为自主项目创建一条新的项目合约修订。
-func (s *Service) SetContract(ctx context.Context, userID uint64, projectID, contractID string) (ProjectView, error) {
+// SetProjectSmartContract 为自主项目创建一条新的项目合约修订。
+func (s *Service) SetProjectSmartContract(ctx context.Context, userID uint64, projectID, contractID string) (ProjectView, error) {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	revisionID, err := sharedid.Opaque("project-revision")
+	revisionID, err := sharedid.UUID()
 	if err != nil {
 		return ProjectView{}, err
 	}
-	err = s.projects.SetContract(ctx, projectpersistence.SetContractInput{ProjectID: projectID, ContractID: contractID, RevisionUUID: revisionID, OwnerID: userID})
-	if errors.Is(err, projectpersistence.ErrNotFound) {
+	err = s.projects.SetContract(ctx, SetContractRecord{ProjectUUID: projectID, ContractUUID: contractID, RevisionUUID: revisionID, OwnerID: userID})
+	if errors.Is(err, ErrProjectRecordNotFound) {
 		return ProjectView{}, ErrNotFound
 	}
-	if errors.Is(err, projectpersistence.ErrInvalid) {
+	if errors.Is(err, ErrProjectRecordInvalid) {
 		return ProjectView{}, ErrInvalidContract
 	}
 	if err != nil {
 		return ProjectView{}, err
 	}
-	return s.Get(ctx, userID, projectID)
+	return s.GetOwnedProject(ctx, userID, projectID)
 }
 
-func (s *Service) Delete(ctx context.Context, userID uint64, projectID string) error {
+// DeleteProject 删除没有外部采纳关系的项目及其执行数据。
+func (s *Service) DeleteProject(ctx context.Context, userID uint64, projectID string) error {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	deleted, err := s.projects.DeleteProject(ctx, userID, projectID)
-	if errors.Is(err, projectpersistence.ErrNotFound) {
+	if errors.Is(err, ErrProjectRecordNotFound) {
 		return ErrNotFound
 	}
-	if errors.Is(err, projectpersistence.ErrAdopted) {
+	if errors.Is(err, ErrProjectRecordAdopted) {
 		return ErrAdoptedContent
 	}
 	if err != nil {

@@ -1,7 +1,7 @@
 export type SmartContractSource = 'official' | 'custom'
 
 export type SmartContractDefinition = {
-  id: string
+  uuid: string
   name: string
   source: SmartContractSource
   version: string

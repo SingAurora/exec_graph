@@ -73,7 +73,7 @@ export const buildDraftReview = (draft: string): { review: DraftReview; compiled
   return {
     compiled,
     review: {
-      id: `draft-review-${crypto.randomUUID()}`,
+      uuid: crypto.randomUUID(),
       verdict,
       summary:
         verdict === 'pass'

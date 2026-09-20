@@ -5,33 +5,33 @@ import type { DraftReview } from '@/entities/execution-node/model/types'
 import { PlanningConversation } from '@/features/conversation/ui/ActionConversation'
 
 type ContractComposerProps = {
-  projectId?: string
+  projectUuid?: string
   lockProject?: boolean
-  parentContractId?: string
-  sourceContractIds?: string[]
-  branchId?: string
+  parentContractUuid?: string
+  sourceContractUuids?: string[]
+  branchUuid?: string
   fork?: boolean
-  closureSourceIds?: string[]
-  supplementOfContractId?: string
-  retryOfContractId?: string
+  closureSourceUuids?: string[]
+  supplementOfContractUuid?: string
+  retryOfContractUuid?: string
 }
 
-export function ContractComposer({ projectId, lockProject = false, parentContractId, sourceContractIds, branchId, fork = false, closureSourceIds, supplementOfContractId, retryOfContractId }: ContractComposerProps) {
+export function ContractComposer({ projectUuid, lockProject = false, parentContractUuid, sourceContractUuids, branchUuid, fork = false, closureSourceUuids, supplementOfContractUuid, retryOfContractUuid }: ContractComposerProps) {
   const projects = useExecStore((state) => state.projects)
-  const parentContract = useExecStore((state) => state.contracts.find((contract) => contract.id === parentContractId))
+  const parentContract = useExecStore((state) => state.contracts.find((contract) => contract.uuid === parentContractUuid))
   const smartContracts = useExecStore((state) => state.smartContracts)
   const contracts = useExecStore((state) => state.contracts)
-  const createContract = useExecStore((state) => state.createContract)
-  const [selectedProjectID, setSelectedProjectID] = useState(projectId ?? '')
-  const selectedProject = projects.find((project) => project.id === selectedProjectID)
-  const isFirstNode = Boolean(selectedProject) && contracts.every((contract) => contract.projectId !== selectedProject?.id) && !parentContractId && !(sourceContractIds && sourceContractIds.length > 0)
+  const createExecutionNode = useExecStore((state) => state.createExecutionNode)
+  const [selectedProjectID, setSelectedProjectID] = useState(projectUuid ?? '')
+  const selectedProject = projects.find((project) => project.uuid === selectedProjectID)
+  const isFirstNode = Boolean(selectedProject) && contracts.every((contract) => contract.projectUuid !== selectedProject?.uuid) && !parentContractUuid && !(sourceContractUuids && sourceContractUuids.length > 0)
   const activeRevision = selectedProject?.contractRevisions.find(
-    (revision) => revision.id === selectedProject.activeContractRevisionId,
+    (revision) => revision.uuid === selectedProject.activeContractRevisionUuid,
   )
-  const selectedContract = smartContracts.find((contract) => contract.id === activeRevision?.smartContractId)
-  const isClosure = Boolean(parentContractId && closureSourceIds?.includes(parentContractId))
+  const selectedContract = smartContracts.find((contract) => contract.uuid === activeRevision?.smartContractUuid)
+  const isClosure = Boolean(parentContractUuid && closureSourceUuids?.includes(parentContractUuid))
 
-  const onCreate = async ({ draft, draftReview, planningConversationId }: { draft: string; draftReview: DraftReview; planningConversationId: string }) => createContract({ projectId: selectedProject!.id, draft, parentContractId, sourceContractIds, branchId, fork, closureSourceIds, supplementOfContractId, retryOfContractId, draftReview, planningConversationId })
+  const onCreate = async ({ draft, draftReview, planningConversationUuid }: { draft: string; draftReview: DraftReview; planningConversationUuid: string }) => createExecutionNode({ projectUuid: selectedProject!.uuid, draft, parentContractUuid, sourceContractUuids, branchUuid, fork, closureSourceUuids, supplementOfContractUuid, retryOfContractUuid, draftReview, planningConversationUuid })
 
   return (
     <section className="rounded-md border border-rail bg-surface/72 p-5">
@@ -39,7 +39,7 @@ export function ContractComposer({ projectId, lockProject = false, parentContrac
         <LockKeyhole size={15} aria-hidden="true" />
         {isFirstNode ? 'First action' : 'New action'}
       </div>
-      <h2 className="mt-2 font-display text-2xl font-semibold">{isFirstNode ? '创建第一项推进' : retryOfContractId ? '根据上次经验重新尝试' : supplementOfContractId ? '开始补足行动' : isClosure ? '创建补齐并收束节点' : '开始一项推进'}</h2>
+      <h2 className="mt-2 font-display text-2xl font-semibold">{isFirstNode ? '创建第一项推进' : retryOfContractUuid ? '根据上次经验重新尝试' : supplementOfContractUuid ? '开始补足行动' : isClosure ? '创建补齐并收束节点' : '开始一项推进'}</h2>
       <p className="mt-3 text-sm leading-6 text-graphite">先和 AI 把本次行动收敛为可验证的契约；只有通过冻结审核，才会写入节点链。</p>
 
       <div className="mt-5 grid gap-4">
@@ -58,7 +58,7 @@ export function ContractComposer({ projectId, lockProject = false, parentContrac
             >
               <option value="">选择一个项目</option>
               {projects.filter((project) => !project.archivedAt).map((project) => (
-                <option key={project.id} value={project.id}>
+                <option key={project.uuid} value={project.uuid}>
                   {project.title}
                 </option>
               ))}
@@ -81,23 +81,23 @@ export function ContractComposer({ projectId, lockProject = false, parentContrac
           </div>
         ) : null}
 
-        {sourceContractIds && sourceContractIds.length > 1 ? (
+        {sourceContractUuids && sourceContractUuids.length > 1 ? (
           <div className="border-y border-rail py-3">
             <div className="flex items-center gap-2 font-mono text-xs font-semibold text-signal">
               <GitBranch size={15} aria-hidden="true" />
               依据记录
             </div>
             <div className="mt-3 grid gap-2">
-              {sourceContractIds.map((sourceId) => {
-                const source = contracts.find((contract) => contract.id === sourceId)
-                return source ? <div key={source.id} className="text-sm font-semibold text-ink">{source.title}</div> : null
+              {sourceContractUuids.map((sourceId) => {
+                const source = contracts.find((contract) => contract.uuid === sourceId)
+                return source ? <div key={source.uuid} className="text-sm font-semibold text-ink">{source.title}</div> : null
               })}
             </div>
             <p className="mt-2 text-sm leading-6 text-graphite">这是一项普通推进，只是同时引用多条已经锁定的完成记录。提交结果后，智能合约仍按本节点的规则审查。</p>
           </div>
         ) : null}
 
-        {!(sourceContractIds && sourceContractIds.length > 1) && parentContract ? (
+        {!(sourceContractUuids && sourceContractUuids.length > 1) && parentContract ? (
           <div className="border-y border-rail py-3">
             <div className="flex items-center gap-2 font-mono text-xs font-semibold text-signal">
               <GitBranch size={15} aria-hidden="true" />
@@ -105,12 +105,12 @@ export function ContractComposer({ projectId, lockProject = false, parentContrac
             </div>
             <div className="mt-2 text-sm font-semibold text-ink">{parentContract.title}</div>
             <p className="mt-1 text-sm leading-6 text-graphite">
-              {closureSourceIds?.includes(parentContract.id) ? '本节点完成时会与这项未闭合推进一起接受审查并收束。' : fork ? '这项行为会从这条完成记录拆出一条独立路径。' : '这项行为会从这条完成记录继续。'}
+              {closureSourceUuids?.includes(parentContract.uuid) ? '本节点完成时会与这项未闭合推进一起接受审查并收束。' : fork ? '这项行为会从这条完成记录拆出一条独立路径。' : '这项行为会从这条完成记录继续。'}
             </p>
           </div>
         ) : null}
 
-        {selectedProject ? <PlanningConversation projectId={selectedProject.id} parentContractId={parentContractId} sourceContractIds={sourceContractIds} branchId={branchId} fork={fork} closureSourceIds={closureSourceIds} supplementOfContractId={supplementOfContractId} retryOfContractId={retryOfContractId} onCreate={onCreate} /> : null}
+        {selectedProject ? <PlanningConversation projectUuid={selectedProject.uuid} parentContractUuid={parentContractUuid} sourceContractUuids={sourceContractUuids} branchUuid={branchUuid} fork={fork} closureSourceUuids={closureSourceUuids} supplementOfContractUuid={supplementOfContractUuid} retryOfContractUuid={retryOfContractUuid} onCreate={onCreate} /> : null}
       </div>
     </section>
   )

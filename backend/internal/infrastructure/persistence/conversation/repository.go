@@ -3,13 +3,15 @@ package conversation
 
 import (
 	"context"
+	"errors"
 	"time"
 
+	applicationconversation "github.com/singaurora/exec-graph/backend/internal/application/conversation"
 	"gorm.io/gorm"
 )
 
 // ErrNotFound indicates that a requested conversation or context does not exist.
-var ErrNotFound = gorm.ErrRecordNotFound
+var ErrNotFound = applicationconversation.ErrNotFound
 
 // Repository owns execution-domain SQL and transactions. Callers never receive
 // a database connection; they only use this domain persistence boundary.
@@ -101,17 +103,10 @@ type ExecutionContract struct {
 
 func (ExecutionContract) TableName() string { return "execution_contracts" }
 
-type PlanningMessage struct {
-	UUID      string    `gorm:"column:uuid"`
-	Role      string    `gorm:"column:role"`
-	Body      string    `gorm:"column:body"`
-	CreatedAt time.Time `gorm:"column:created_at"`
-}
-
 func NewRepository(orm *gorm.DB) *Repository { return &Repository{orm: orm} }
 
-func (repository *Repository) ListPlanningMessages(ctx context.Context, conversationID string, ownerID uint64) ([]PlanningMessage, error) {
-	var messages []PlanningMessage
+func (repository *Repository) ListPlanningMessages(ctx context.Context, conversationID string, ownerID uint64) ([]applicationconversation.PlanningMessage, error) {
+	var messages []applicationconversation.PlanningMessage
 	err := repository.orm.WithContext(ctx).Table("node_conversation_messages AS m").
 		Select("m.uuid, m.role, m.body, m.created_at").
 		Joins("JOIN node_conversations AS c ON c.id = m.conversation_id").
@@ -126,67 +121,84 @@ func (repository *Repository) UpdateReviewMessages(ctx context.Context, nodeID, 
 }
 
 // FindProjectContext loads an owned project for planning.
-func (repository *Repository) FindProjectContext(ctx context.Context, userID uint64, projectID string) (ProjectContext, error) {
+func (repository *Repository) FindProjectContext(ctx context.Context, userID uint64, projectID string) (applicationconversation.ProjectContext, error) {
 	var value ProjectContext
 	result := repository.orm.WithContext(ctx).Table("projects").Select("id, uuid, title, description, COALESCE(project_rules, '') AS rules, contribution_call_id, archived_at").Where("uuid = ? AND owner_id = ?", projectID, userID).Scan(&value)
 	err := result.Error
 	if err == nil && result.RowsAffected == 0 {
-		err = ErrNotFound
+		return applicationconversation.ProjectContext{}, applicationconversation.ErrNotFound
 	}
-	return value, err
-}
-
-// FindCallUUID resolves a stored collaboration call ID without exposing database IDs.
-func (repository *Repository) FindCallUUID(ctx context.Context, internalID uint64) (string, error) {
-	var value struct {
-		UUID string `gorm:"column:uuid"`
+	if err != nil {
+		return applicationconversation.ProjectContext{}, err
 	}
-	err := repository.orm.WithContext(ctx).Table("collaboration_calls").Select("uuid").Where("id = ?", internalID).First(&value).Error
-	return value.UUID, err
+	resultValue := applicationconversation.ProjectContext{UUID: value.UUID, Title: value.Title, Description: value.Description, Rules: value.Rules, ArchivedAt: value.ArchivedAt}
+	if value.ContributionCallID != nil {
+		var call struct {
+			UUID string `gorm:"column:uuid"`
+		}
+		if err := repository.orm.WithContext(ctx).Table("collaboration_calls").Select("uuid").Where("id = ?", *value.ContributionCallID).First(&call).Error; err != nil {
+			return applicationconversation.ProjectContext{}, err
+		}
+		resultValue.ContributionCallID = &call.UUID
+	}
+	return resultValue, nil
 }
 
 // ListSourceContexts loads node facts used by a planning conversation.
-func (repository *Repository) ListSourceContexts(ctx context.Context, projectID string, sourceIDs []string) ([]SourceContext, error) {
+func (repository *Repository) ListSourceContexts(ctx context.Context, projectID string, sourceIDs []string) ([]applicationconversation.SourceContext, error) {
 	if len(sourceIDs) == 0 {
-		return []SourceContext{}, nil
+		return []applicationconversation.SourceContext{}, nil
 	}
 	var values []SourceContext
 	err := repository.orm.WithContext(ctx).Table("execution_contracts AS n").Select("n.uuid, n.title, n.verifiable_goal, n.evidence_requirement, n.stage, n.completion_claim, n.evidence_text, n.ai_review_json").Joins("JOIN projects AS p ON p.id = n.project_id").Where("p.uuid = ? AND n.uuid IN ?", projectID, sourceIDs).Find(&values).Error
-	return values, err
+	result := make([]applicationconversation.SourceContext, 0, len(values))
+	for _, value := range values {
+		result = append(result, applicationconversation.SourceContext{UUID: value.UUID, Title: value.Title, Goal: value.Goal, EvidenceRequirement: value.EvidenceRequirement, Stage: value.Stage, CompletionClaim: value.CompletionClaim, EvidenceText: value.EvidenceText, ReviewJSON: value.ReviewJSON})
+	}
+	return result, err
 }
 
 // FindPlanningConversation finds an existing mutable planning conversation.
-func (repository *Repository) FindPlanningConversation(ctx context.Context, userID uint64, projectID, contextJSON string) (NodeConversation, error) {
+func (repository *Repository) FindPlanningConversation(ctx context.Context, userID uint64, projectID, contextJSON string) (string, error) {
 	var value NodeConversation
 	err := repository.orm.WithContext(ctx).Where("project_id IN (SELECT id FROM projects WHERE uuid = ?) AND owner_id = ? AND phase = ? AND status IN ? AND context_json = ?", projectID, userID, "planning", []string{"active", "ready_for_freeze"}, contextJSON).Order("updated_at DESC").First(&value).Error
-	return value, err
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return "", applicationconversation.ErrNotFound
+	}
+	return value.UUID, err
 }
 
 // CreatePlanningConversation creates a planning conversation for an owned project.
 func (repository *Repository) CreatePlanningConversation(ctx context.Context, id string, userID uint64, projectID, contextJSON string) error {
 	var project ProjectContext
 	if err := repository.orm.WithContext(ctx).Where("uuid = ? AND owner_id = ?", projectID, userID).First(&project).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return applicationconversation.ErrNotFound
+		}
 		return err
 	}
 	return repository.orm.WithContext(ctx).Create(&NodeConversation{UUID: id, ProjectID: project.ID, OwnerID: userID, Phase: "planning", Status: "active", ContextJSON: contextJSON}).Error
 }
 
 // FindCompletionConversation finds an active completion conversation.
-func (repository *Repository) FindCompletionConversation(ctx context.Context, userID uint64, projectID, nodeID string) (NodeConversation, error) {
+func (repository *Repository) FindCompletionConversation(ctx context.Context, userID uint64, projectID, nodeID string) (string, error) {
 	var value NodeConversation
 	err := repository.orm.WithContext(ctx).Table("node_conversations AS c").Joins("JOIN projects AS p ON p.id = c.project_id").Joins("JOIN execution_contracts AS n ON n.id = c.node_id").Where("p.uuid = ? AND n.uuid = ? AND c.owner_id = ? AND c.phase = ? AND c.status = ?", projectID, nodeID, userID, "completion", "active").Order("c.updated_at DESC").First(&value).Error
-	return value, err
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return "", applicationconversation.ErrNotFound
+	}
+	return value.UUID, err
 }
 
 // FindCompletionContext loads a node and its owning project.
-func (repository *Repository) FindCompletionContext(ctx context.Context, userID uint64, projectID, nodeID string) (CompletionContext, error) {
+func (repository *Repository) FindCompletionContext(ctx context.Context, userID uint64, projectID, nodeID string) (applicationconversation.CompletionContext, error) {
 	var value CompletionContext
 	result := repository.orm.WithContext(ctx).Table("execution_contracts AS n").Select("n.title AS node_title, n.verifiable_goal, n.evidence_requirement, n.acceptance_criteria_json, n.stage, p.title AS project_title, p.description AS project_description, COALESCE(p.project_rules, '') AS rules").Joins("JOIN projects AS p ON p.id = n.project_id").Where("n.uuid = ? AND p.uuid = ? AND p.owner_id = ?", nodeID, projectID, userID).Scan(&value)
 	err := result.Error
 	if err == nil && result.RowsAffected == 0 {
-		err = ErrNotFound
+		return applicationconversation.CompletionContext{}, applicationconversation.ErrNotFound
 	}
-	return value, err
+	return applicationconversation.CompletionContext{NodeTitle: value.NodeTitle, Goal: value.Goal, EvidenceRequirement: value.EvidenceRequirement, AcceptanceCriteriaJSON: value.AcceptanceCriteriaJSON, Stage: value.Stage, ProjectTitle: value.ProjectTitle, ProjectDescription: value.ProjectDescription, Rules: value.Rules}, err
 }
 
 // CreateCompletionConversation creates and links a completion conversation atomically.
@@ -194,10 +206,16 @@ func (repository *Repository) CreateCompletionConversation(ctx context.Context, 
 	return repository.orm.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var project ProjectContext
 		if err := tx.Where("uuid = ? AND owner_id = ?", projectID, userID).First(&project).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return applicationconversation.ErrNotFound
+			}
 			return err
 		}
 		var node ExecutionContract
 		if err := tx.Where("uuid = ? AND project_id = ?", nodeID, project.ID).First(&node).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return applicationconversation.ErrNotFound
+			}
 			return err
 		}
 		conversation := NodeConversation{UUID: id, ProjectID: project.ID, NodeID: &node.ID, OwnerID: userID, Phase: "completion", Status: "active", ContextJSON: contextJSON, AIConfigJSON: &configJSON}
@@ -209,19 +227,22 @@ func (repository *Repository) CreateCompletionConversation(ctx context.Context, 
 }
 
 // FindConversation loads a conversation owned by a user.
-func (repository *Repository) FindConversation(ctx context.Context, userID uint64, id string) (ConversationView, error) {
+func (repository *Repository) FindConversation(ctx context.Context, userID uint64, id string) (applicationconversation.ConversationRecordView, error) {
 	var value ConversationView
 	var conversation NodeConversation
 	err := repository.orm.WithContext(ctx).Where("uuid = ? AND owner_id = ?", id, userID).First(&conversation).Error
 	if err != nil {
-		return value, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return applicationconversation.ConversationRecordView{}, applicationconversation.ErrNotFound
+		}
+		return applicationconversation.ConversationRecordView{}, err
 	}
 	value.Conversation = conversation
 	var project struct {
 		UUID string `gorm:"column:uuid"`
 	}
 	if err := repository.orm.WithContext(ctx).Table("projects").Select("uuid").Where("id = ?", conversation.ProjectID).Scan(&project).Error; err != nil {
-		return value, err
+		return applicationconversation.ConversationRecordView{}, err
 	}
 	value.ProjectID = project.UUID
 	if conversation.NodeID != nil {
@@ -229,20 +250,30 @@ func (repository *Repository) FindConversation(ctx context.Context, userID uint6
 			UUID string `gorm:"column:uuid"`
 		}
 		if err := repository.orm.WithContext(ctx).Table("execution_contracts").Select("uuid").Where("id = ?", *conversation.NodeID).Scan(&node).Error; err != nil {
-			return value, err
+			return applicationconversation.ConversationRecordView{}, err
 		}
 		value.NodeID = &node.UUID
 	}
 	if err := repository.orm.WithContext(ctx).Where("conversation_id = ?", conversation.ID).Order("created_at ASC, id ASC").Find(&value.Messages).Error; err != nil {
-		return value, err
+		return applicationconversation.ConversationRecordView{}, err
 	}
-	return value, nil
+	result := applicationconversation.ConversationRecordView{
+		Conversation: applicationconversation.ConversationRecord{UUID: conversation.UUID, Phase: conversation.Phase, Status: conversation.Status, ContextJSON: conversation.ContextJSON, CurrentDraftJSON: conversation.CurrentDraftJSON, LatestReviewJSON: conversation.LatestReviewJSON, AIConfigJSON: conversation.AIConfigJSON, CreatedAt: conversation.CreatedAt, UpdatedAt: conversation.UpdatedAt},
+		ProjectID:    value.ProjectID, NodeID: value.NodeID, Messages: make([]applicationconversation.MessageRecord, 0, len(value.Messages)),
+	}
+	for _, message := range value.Messages {
+		result.Messages = append(result.Messages, applicationconversation.MessageRecord{UUID: message.UUID, Role: message.Role, Body: message.Body, StructuredPayloadJSON: message.StructuredPayloadJSON, AIConfigJSON: message.AIConfigJSON, CreatedAt: message.CreatedAt})
+	}
+	return result, nil
 }
 
 // AddUserMessage stores a user message in an owned conversation.
 func (repository *Repository) AddUserMessage(ctx context.Context, id string, userID uint64, conversationID, body string) error {
 	var conversation NodeConversation
 	if err := repository.orm.WithContext(ctx).Where("uuid = ? AND owner_id = ?", conversationID, userID).First(&conversation).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return applicationconversation.ErrNotFound
+		}
 		return err
 	}
 	return repository.orm.WithContext(ctx).Create(&NodeConversationMessage{UUID: id, ConversationID: conversation.ID, Role: "user", Body: body}).Error
@@ -262,6 +293,9 @@ func (repository *Repository) UpdatePlanningConversation(ctx context.Context, us
 	return repository.orm.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var conversation NodeConversation
 		if err := tx.Where("uuid = ? AND owner_id = ? AND phase = ? AND status NOT IN ?", conversationID, userID, "planning", []string{"frozen", "closed"}).First(&conversation).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return applicationconversation.ErrNoLongerMutable
+			}
 			return err
 		}
 		if err := tx.Create(&NodeConversationMessage{UUID: messageID, ConversationID: conversation.ID, Role: "assistant", Body: body, StructuredPayloadJSON: &payloadJSON, AIConfigJSON: &configJSON}).Error; err != nil {
@@ -276,14 +310,20 @@ func (repository *Repository) PersistCompletionReview(ctx context.Context, userI
 	return repository.orm.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var conversation NodeConversation
 		if err := tx.Where("uuid = ? AND owner_id = ? AND status = ?", conversationID, userID, "active").First(&conversation).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return applicationconversation.ErrNoLongerMutable
+			}
 			return err
 		}
 		var node ExecutionContract
 		if err := tx.Where("uuid = ?", nodeID).First(&node).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return applicationconversation.ErrNoLongerMutable
+			}
 			return err
 		}
 		if node.Stage != "frozen" && node.Stage != "verified" && node.Stage != "needs_supplement" || node.CompletionConversationID == nil || *node.CompletionConversationID != conversation.ID {
-			return gorm.ErrInvalidData
+			return applicationconversation.ErrNoLongerMutable
 		}
 		if err := tx.Create(&NodeConversationMessage{UUID: messageID, ConversationID: conversation.ID, Role: "assistant", Body: reply, StructuredPayloadJSON: &payloadJSON, AIConfigJSON: &configJSON}).Error; err != nil {
 			return err

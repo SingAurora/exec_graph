@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 import { AuthLayout } from '@/widgets/auth-layout/ui/AuthLayout'
-import { postJSON } from '@/shared/api/client'
+import { loginWithPassword } from '@/features/auth/api/client'
 import { useWorkspaceStore } from '@/features/workspace/model/useWorkspaceStore'
 
 const loginSchema = z.object({
@@ -38,7 +38,7 @@ export function LoginPage() {
   const onSubmit = async (values: LoginForm) => {
     setAuthError('')
     try {
-      const data = await postJSON<{ accessToken?: string }>('/api/commands/auth/login', values)
+      const data = await loginWithPassword(values)
       if (!data.accessToken) {
         setAuthError('邮箱或密码不正确。')
         return

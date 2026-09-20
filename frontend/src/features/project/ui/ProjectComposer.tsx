@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { z } from 'zod'
-import { getCall, type CollaborationCall } from '@/features/collaboration/api/client'
-import { getJSON } from '@/shared/api/client'
+import { getCollaborationCallDetail, type CollaborationCall } from '@/features/collaboration/api/client'
+import { listAIKeys } from '@/entities/ai-key/api/client'
 import { useWorkspaceStore as useExecStore } from '@/features/workspace/model/useWorkspaceStore'
 
 const formalContractIDs = new Set(['smart-contract-general', 'skill-general-contract'])
@@ -16,22 +16,22 @@ const projectSchema = z.object({
   description: z.string().trim().max(2000, '项目描述最多 2000 个字符'),
   projectType: z.enum(['guided', 'autonomous']),
   projectRules: z.string().trim().optional(),
-  smartContractId: z.string().trim().optional(),
-  aiKeyId: z.string().trim().min(1, '请选择项目审查 AI'),
+  smartContractUuid: z.string().trim().optional(),
+  aiKeyUuid: z.string().trim().min(1, '请选择项目审查 AI'),
   visibility: z.enum(['private', 'public']),
 }).superRefine((values, context) => {
   if (values.projectType === 'guided' && (!values.projectRules || values.projectRules.length < 12)) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ['projectRules'], message: '请填写项目规则，至少 12 个字符' })
   }
-  if (values.projectType === 'autonomous' && !values.smartContractId) {
-    context.addIssue({ code: z.ZodIssueCode.custom, path: ['smartContractId'], message: '请选择一套行动规则' })
+  if (values.projectType === 'autonomous' && !values.smartContractUuid) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['smartContractUuid'], message: '请选择一套行动规则' })
   }
 })
 
 type ProjectForm = z.infer<typeof projectSchema>
 
 type AIKeyOption = {
-  id: string
+  uuid: string
   provider: string
   label: string
   model: string
@@ -64,18 +64,18 @@ export function ProjectComposer() {
     formState: { errors },
   } = useForm<ProjectForm>({
     resolver: zodResolver(projectSchema),
-    defaultValues: { title: '', description: '', projectType: 'guided', projectRules: '', smartContractId: '', aiKeyId: '', visibility: 'private' },
+    defaultValues: { title: '', description: '', projectType: 'guided', projectRules: '', smartContractUuid: '', aiKeyUuid: '', visibility: 'private' },
   })
   const projectType = watch('projectType')
-	const selectedSmartContractID = watch('smartContractId')
-	const selectedSmartContract = smartContracts.find((contract) => contract.id === selectedSmartContractID)
+	const selectedSmartContractID = watch('smartContractUuid')
+	const selectedSmartContract = smartContracts.find((contract) => contract.uuid === selectedSmartContractID)
 	const needsProjectRules = projectType === 'guided'
 	const contributionCallID = searchParams.get('fromCall')
 
 	useEffect(() => {
 		if (!selectedSmartContractID && smartContracts.length > 0) {
-			const formal = smartContracts.find((contract) => formalContractIDs.has(contract.id) && contract.source === 'official')
-			setValue('smartContractId', formal?.id ?? smartContracts[0].id)
+			const formal = smartContracts.find((contract) => formalContractIDs.has(contract.uuid) && contract.source === 'official')
+			setValue('smartContractUuid', formal?.uuid ?? smartContracts[0].uuid)
 		}
 	}, [selectedSmartContractID, setValue, smartContracts])
 
@@ -89,7 +89,7 @@ export function ProjectComposer() {
     const loadAIKeys = async () => {
       setIsLoadingAIKeys(true)
       try {
-		const data = await getJSON<{ keys?: AIKeyOption[] }>('/api/commands/ai-keys/list', accessToken)
+		const data = await listAIKeys(accessToken)
 		if (!cancelled) setAIKeys(data.keys ?? [])
       } finally {
         if (!cancelled) setIsLoadingAIKeys(false)
@@ -102,7 +102,7 @@ export function ProjectComposer() {
 	useEffect(() => {
 		if (!contributionCallID || !accessToken) return
 		let cancelled = false
-		getCall(accessToken, contributionCallID).then(({ call }) => {
+		getCollaborationCallDetail(accessToken, contributionCallID).then(({ call }) => {
 			if (cancelled) return
 			setContributionCall(call)
 			setValue('title', `贡献：${call.title}`)
@@ -116,19 +116,19 @@ export function ProjectComposer() {
 
   const onSubmit = async (values: ProjectForm) => {
     try {
-		const projectId = await createProject({
+		const projectUuid = await createProject({
 			...values,
 			projectType: contributionCall ? 'autonomous' : values.projectType,
 			projectRules: contributionCall ? '' : values.projectRules ?? '',
-			smartContractId: contributionCall || values.projectType === 'guided' ? 'smart-contract-general' : values.smartContractId ?? 'smart-contract-general',
+			smartContractUuid: contributionCall || values.projectType === 'guided' ? 'smart-contract-general' : values.smartContractUuid ?? 'smart-contract-general',
 			visibility: contributionCall ? 'public' : values.visibility,
-			contributionCallId: contributionCall?.id,
+			contributionCallUuid: contributionCall?.uuid,
 		})
-      if (!projectId) {
+      if (!projectUuid) {
         setError('root', { message: '项目创建失败，请检查项目规则和 AI 配置。' })
         return
       }
-      navigate(`/projects/${projectId}`)
+      navigate(`/projects/${projectUuid}`)
     } catch (error) {
       setError('root', { message: error instanceof Error ? error.message : '项目创建失败。' })
       return
@@ -163,12 +163,12 @@ export function ProjectComposer() {
 		{!contributionCall && projectType === 'autonomous' ? <fieldset className="grid gap-2">
 		  <legend className="text-sm font-semibold text-ink">行动规则</legend>
 		  <div className="grid gap-3 lg:grid-cols-3">
-			{smartContracts.filter((contract) => contract.source === 'official' && (formalContractIDs.has(contract.id) || lightweightContractIDs.has(contract.id))).map((contract) => {
-			  const kind = contractKind(contract.id)
+			{smartContracts.filter((contract) => contract.source === 'official' && (formalContractIDs.has(contract.uuid) || lightweightContractIDs.has(contract.uuid))).map((contract) => {
+			  const kind = contractKind(contract.uuid)
 			  const visual = contractVisuals[kind]
 			  const Icon = visual.icon
-			  return <label key={contract.id} className="cursor-pointer rounded-md border border-rail bg-paper p-4 transition has-[:checked]:border-signal has-[:checked]:bg-surface">
-				<input className="sr-only" type="radio" value={contract.id} {...register('smartContractId')} />
+			  return <label key={contract.uuid} className="cursor-pointer rounded-md border border-rail bg-paper p-4 transition has-[:checked]:border-signal has-[:checked]:bg-surface">
+				<input className="sr-only" type="radio" value={contract.uuid} {...register('smartContractUuid')} />
 				<span className={`flex items-center gap-2 text-sm font-semibold ${visual.accent}`}><Icon size={17} aria-hidden="true" />{contract.name}</span>
 				<span className="mt-2 block text-xs font-semibold text-ink">{visual.eyebrow}</span>
 				<span className="mt-1 block text-sm leading-6 text-graphite">{contract.description}</span>
@@ -178,13 +178,13 @@ export function ProjectComposer() {
 		  </div>
 		  {smartContracts.some((contract) => contract.source === 'custom') ? <label className="grid gap-2 sm:max-w-md">
 			<span className="text-xs font-semibold text-graphite">或选择自定义规则</span>
-			<select className="h-10 rounded-md border border-rail bg-paper px-3 text-sm outline-none focus:border-signal focus:shadow-focusline" value={selectedSmartContract?.source === 'custom' ? selectedSmartContractID : ''} onChange={(event) => { setValue('smartContractId', event.target.value || [...formalContractIDs][0]) }}>
+			<select className="h-10 rounded-md border border-rail bg-paper px-3 text-sm outline-none focus:border-signal focus:shadow-focusline" value={selectedSmartContract?.source === 'custom' ? selectedSmartContractID : ''} onChange={(event) => { setValue('smartContractUuid', event.target.value || [...formalContractIDs][0]) }}>
 			  <option value="">使用上面的平台规则</option>
-			  {smartContracts.filter((contract) => contract.source === 'custom').map((contract) => <option key={contract.id} value={contract.id}>{contract.name}</option>)}
+			  {smartContracts.filter((contract) => contract.source === 'custom').map((contract) => <option key={contract.uuid} value={contract.uuid}>{contract.name}</option>)}
 			</select>
 		  </label> : null}
 		  {selectedSmartContract ? <p className="text-xs leading-5 text-graphite">当前选择：<span className="font-semibold text-ink">{selectedSmartContract.name}</span>。它会作为这个项目后续行动的审查基础。</p> : null}
-		  {errors.smartContractId?.message ? <span className="text-sm font-medium text-clay">{errors.smartContractId.message}</span> : null}
+		  {errors.smartContractUuid?.message ? <span className="text-sm font-medium text-clay">{errors.smartContractUuid.message}</span> : null}
 		</fieldset> : null}
 		{!contributionCall ? <fieldset className="grid gap-2">
           <legend className="text-sm font-semibold text-ink">项目类型</legend>
@@ -230,15 +230,15 @@ export function ProjectComposer() {
           <span className="text-sm font-semibold text-ink">项目审查 AI</span>
           <select
             className="h-11 rounded-md border border-rail bg-paper px-3 text-sm outline-none focus:border-signal focus:shadow-focusline"
-            aria-invalid={errors.aiKeyId ? 'true' : 'false'}
+            aria-invalid={errors.aiKeyUuid ? 'true' : 'false'}
             disabled={isLoadingAIKeys || aiKeys.length === 0}
-            {...register('aiKeyId')}
+            {...register('aiKeyUuid')}
           >
             <option value="">{isLoadingAIKeys ? '读取 AI 配置...' : aiKeys.length === 0 ? '暂无可用 AI 配置' : '选择 AI 配置'}</option>
-            {aiKeys.map((key) => <option key={key.id} value={key.id}>{key.label} · {key.provider} · {key.model}</option>)}
+            {aiKeys.map((key) => <option key={key.uuid} value={key.uuid}>{key.label} · {key.provider} · {key.model}</option>)}
           </select>
           {aiKeys.length === 0 && !isLoadingAIKeys ? <span className="text-sm leading-6 text-graphite">先到 <Link to="/settings" className="font-semibold text-signal hover:text-ink">个人设置</Link> 添加 AI 密钥。</span> : null}
-          {errors.aiKeyId?.message ? <span className="text-sm font-medium text-clay">{errors.aiKeyId.message}</span> : null}
+          {errors.aiKeyUuid?.message ? <span className="text-sm font-medium text-clay">{errors.aiKeyUuid.message}</span> : null}
         </label>
         {errors.root?.message ? <p className="text-sm font-medium text-clay" role="alert">{errors.root.message}</p> : null}
         <button

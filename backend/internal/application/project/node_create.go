@@ -6,13 +6,12 @@ import (
 	"strings"
 	"time"
 
-	executionpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/execution"
 	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
 	sharedid "github.com/singaurora/exec-graph/backend/internal/shared/id"
 )
 
-// CreateNode creates a frozen execution node after the draft review has passed.
-func (s *Service) CreateNode(ctx context.Context, input CreateNodeInput) (CreateNodeResult, error) {
+// CreateExecutionNode 在草案审查通过后创建冻结的执行节点。
+func (s *Service) CreateExecutionNode(ctx context.Context, input CreateNodeInput) (CreateNodeResult, error) {
 	input.Title = strings.TrimSpace(input.Title)
 	input.Draft = strings.TrimSpace(input.Draft)
 	input.VerifiableGoal = strings.TrimSpace(input.VerifiableGoal)
@@ -32,7 +31,7 @@ func (s *Service) CreateNode(ctx context.Context, input CreateNodeInput) (Create
 	}
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	nodeID, err := sharedid.Opaque("node")
+	nodeID, err := sharedid.UUID()
 	if err != nil {
 		return CreateNodeResult{}, err
 	}
@@ -44,13 +43,13 @@ func (s *Service) CreateNode(ctx context.Context, input CreateNodeInput) (Create
 	if err != nil {
 		return CreateNodeResult{}, err
 	}
-	configJSON, _ := json.Marshal(map[string]string{"keyId": input.DraftReviewKeyID})
-	messageID, err := sharedid.Opaque("message")
+	configJSON, _ := json.Marshal(map[string]string{"keyUuid": input.DraftReviewKeyID})
+	messageID, err := sharedid.UUID()
 	if err != nil {
 		return CreateNodeResult{}, err
 	}
-	messagesJSON, _ := json.Marshal([]map[string]any{{"id": messageID, "speaker": "ai", "body": "推进节点已通过 AI 草案审核，目标、验收标准和证据要求已冻结。", "createdAt": time.Now()}})
-	project, err := s.Get(ctx, input.OwnerID, input.ProjectID)
+	messagesJSON, _ := json.Marshal([]map[string]any{{"uuid": messageID, "speaker": "ai", "body": "推进节点已通过 AI 草案审核，目标、验收标准和证据要求已冻结。", "createdAt": time.Now()}})
+	project, err := s.GetOwnedProject(ctx, input.OwnerID, input.ProjectID)
 	if err != nil {
 		return CreateNodeResult{}, err
 	}
@@ -59,11 +58,11 @@ func (s *Service) CreateNode(ctx context.Context, input CreateNodeInput) (Create
 		sourceIDs = []string{input.ParentContractID}
 	}
 	sourceJSON, _ := json.Marshal(sourceIDs)
-	err = s.execution.CreateNode(ctx, executionpersistence.CreateNodeParams{OwnerID: input.OwnerID, ProjectID: input.ProjectID, NodeID: nodeID, Title: input.Title, Draft: input.Draft, Goal: input.VerifiableGoal, CriteriaJSON: string(criteriaJSON), EvidenceRequirement: input.EvidenceRequirement, DraftReviewJSON: string(draftJSON), DraftAIConfigJSON: string(configJSON), MessagesJSON: string(messagesJSON), SourceIDsJSON: string(sourceJSON), ParentID: input.ParentContractID, SupplementID: input.SupplementOfNodeID, RetryID: input.RetryOfContractID, PlanningConversationID: input.PlanningConversationID, BranchID: input.BranchID, SmartContractID: "", SmartContractVersion: "", EdgeType: "lineage", SourceIDs: sourceIDs, Visibility: project.Visibility, Fork: input.Fork, Closure: input.Closure, Supplement: input.SupplementOfNodeID != "", CreateBranch: input.Fork})
+	err = s.execution.CreateNode(ctx, CreateNodeRecord{OwnerID: input.OwnerID, ProjectID: input.ProjectID, NodeID: nodeID, Title: input.Title, Draft: input.Draft, Goal: input.VerifiableGoal, CriteriaJSON: string(criteriaJSON), EvidenceRequirement: input.EvidenceRequirement, DraftReviewJSON: string(draftJSON), DraftAIConfigJSON: string(configJSON), MessagesJSON: string(messagesJSON), SourceIDsJSON: string(sourceJSON), ParentID: input.ParentContractID, SupplementID: input.SupplementOfNodeID, RetryID: input.RetryOfContractID, PlanningConversationID: input.PlanningConversationID, BranchID: input.BranchID, EdgeType: "lineage", SourceIDs: sourceIDs, Visibility: project.Visibility, Fork: input.Fork, Closure: input.Closure, Supplement: input.SupplementOfNodeID != "", CreateBranch: input.Fork})
 	if err != nil {
 		return CreateNodeResult{}, err
 	}
-	state, err := s.State(ctx, input.OwnerID, input.ProjectID)
+	state, err := s.GetProjectExecutionState(ctx, input.OwnerID, input.ProjectID)
 	return CreateNodeResult{NodeID: nodeID, State: state}, err
 }
 

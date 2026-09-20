@@ -2,7 +2,8 @@ package identity
 
 // User 是当前登录用户的应用层视图。
 type User struct {
-	ID       uint64 `json:"id"`
+	// ID 仅供服务端鉴权、权限判断和数据库操作使用，不属于公开用户视图。
+	ID       uint64 `json:"-"`
 	Username string `json:"username"`
 	UserID   string `json:"userId"`
 	Email    string `json:"email"`
@@ -10,6 +11,7 @@ type User struct {
 
 // Profile 是个人资料用例返回的视图，不包含密码和验证码等敏感字段。
 type Profile struct {
+	// ID 仅供服务端读取资料后的内部处理使用，不应进入 HTTP 响应。
 	ID                    uint64
 	Username              string
 	UserID                string
@@ -18,8 +20,15 @@ type Profile struct {
 	Gender                string
 	AvatarObjectKey       string
 	ProfileBackgroundKey  string
+	AvatarURL             *string
+	ProfileBackgroundURL  *string
 	CustomProfileEnabled  bool
 	CustomProfileMarkdown string
+}
+
+// ProfileMediaResult 是上传并保存个人资料媒体后的访问结果。
+type ProfileMediaResult struct {
+	URL string
 }
 
 // UpdateProfileInput 是更新个人资料用例的输入。

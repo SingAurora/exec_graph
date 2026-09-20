@@ -32,18 +32,18 @@ function backNavigation(pathname: string, contracts: ExecutionContract[]) {
   if (pathname.startsWith('/smart-contracts')) return { to: '/', label: '返回我的项目' }
   if (pathname.startsWith('/projects/')) return { to: '/', label: '返回我的项目' }
 
-  const contractId = pathname.match(/^\/(?:contracts|nodes)\/([^/]+)/)?.[1]
-  const contract = contracts.find((item) => item.id === contractId)
-  return contract ? { to: `/projects/${contract.projectId}`, label: '返回项目' } : undefined
+  const contractUuid = pathname.match(/^\/(?:contracts|nodes)\/([^/]+)/)?.[1]
+  const contract = contracts.find((item) => item.uuid === contractUuid)
+  return contract ? { to: `/projects/${contract.projectUuid}`, label: '返回项目' } : undefined
 }
 
 function resolveActiveProjectId(pathname: string, projects: Project[], contracts: ExecutionContract[]) {
-  const projectId = pathname.match(/^\/projects\/([^/]+)/)?.[1]
-  if (projectId) return projectId
+  const projectUuid = pathname.match(/^\/projects\/([^/]+)/)?.[1]
+  if (projectUuid) return projectUuid
 
-  const contractId = pathname.match(/^\/(?:contracts|nodes)\/([^/]+)/)?.[1]
-  const contract = contracts.find((item) => item.id === contractId)
-  if (contract) return contract.projectId
+  const contractUuid = pathname.match(/^\/(?:contracts|nodes)\/([^/]+)/)?.[1]
+  const contract = contracts.find((item) => item.uuid === contractUuid)
+  if (contract) return contract.projectUuid
 
   return undefined
 }
@@ -58,7 +58,7 @@ function projectStatus(project: Project, contracts: ExecutionContract[], branche
 
   const currentIds = currentContractIDs([project], branches)
   const currentContracts = contracts.filter(
-    (contract) => contract.projectId === project.id && currentIds.has(contract.id) && !contract.completionRecordId,
+    (contract) => contract.projectUuid === project.uuid && currentIds.has(contract.uuid) && !contract.completionRecordUuid,
   )
 
   if (currentContracts.length > 1) return { label: `${currentContracts.length} 条路径待处理`, dotClassName: 'bg-signal' }
@@ -100,7 +100,7 @@ function ProjectRailItem({ project, active, contracts, branches }: { project: Pr
 
   return (
     <Link
-      to={`/projects/${project.id}`}
+      to={`/projects/${project.uuid}`}
       className={[
         'group flex min-w-0 items-center gap-2 rounded-md px-3 py-2.5 transition-colors focus:outline-none focus-visible:shadow-focusline',
         active ? 'bg-signal/10 text-signal' : 'text-graphite hover:bg-shell/65 hover:text-ink',
@@ -187,7 +187,7 @@ function ProfileCard({ actor, profileHref, publicProjectCount, lockedRecordCount
         </div>
 
         {currentProject ? (
-          <Link to={`/projects/${currentProject.id}`} onClick={onClose} className="mt-3 block rounded-md border border-rail bg-paper/70 p-3 transition hover:border-signal/45 hover:bg-shell focus:outline-none focus-visible:shadow-focusline">
+          <Link to={`/projects/${currentProject.uuid}`} onClick={onClose} className="mt-3 block rounded-md border border-rail bg-paper/70 p-3 transition hover:border-signal/45 hover:bg-shell focus:outline-none focus-visible:shadow-focusline">
             <div className="flex items-center justify-between gap-3">
               <span className="min-w-0 truncate text-sm font-semibold text-ink">{currentProject.title}</span>
               <span className={`size-2 shrink-0 rounded-full ${currentProjectStatus?.dotClassName ?? 'bg-graphite/35'}`} aria-hidden="true" />
@@ -271,7 +271,7 @@ function SidebarIdentity({ actor, profileHref, publicProjectCount, lockedRecordC
 }
 
 function MobileProjectMenu({ projects, activeProjectId, contracts, branches, profileHref }: { projects: Project[]; activeProjectId?: string; contracts: ExecutionContract[]; branches: ExecutionBranch[]; profileHref: string }) {
-  const activeProject = projects.find((project) => project.id === activeProjectId)
+  const activeProject = projects.find((project) => project.uuid === activeProjectId)
 
   return (
     <details className="relative min-w-0 lg:hidden">
@@ -285,7 +285,7 @@ function MobileProjectMenu({ projects, activeProjectId, contracts, branches, pro
         <div className="px-2 py-2 font-mono text-[11px] font-semibold uppercase text-signal">我的项目</div>
         <div className="space-y-1">
           {projects.filter((project) => !project.archivedAt).map((project) => (
-            <ProjectRailItem key={project.id} project={project} active={project.id === activeProjectId} contracts={contracts} branches={branches} />
+            <ProjectRailItem key={project.uuid} project={project} active={project.uuid === activeProjectId} contracts={contracts} branches={branches} />
           ))}
         </div>
         <div className="mt-2 border-t border-rail pt-2">
@@ -312,7 +312,7 @@ export function AppShell() {
   const profileHref = currentActor?.customProfileEnabled ? '/me?tab=custom' : '/me'
   const completionRecords = useWorkspaceStore((state) => state.completionRecords)
   const activeProjectId = resolveActiveProjectId(location.pathname, projects, contracts)
-  const activeProject = projects.find((project) => project.id === activeProjectId)
+  const activeProject = projects.find((project) => project.uuid === activeProjectId)
   const currentWorkspace = activeProject && location.pathname !== '/' ? activeProject.title : workspaceLabel(location.pathname)
   const back = backNavigation(location.pathname, contracts)
   const activeProjects = projects.filter((project) => !project.archivedAt)
@@ -320,11 +320,11 @@ export function AppShell() {
   const nextTheme = themeMode === 'light' ? 'dark' : 'light'
   const ThemeIcon = nextTheme === 'dark' ? Moon : Sun
   const publicProjects = projects.filter((project) => project.visibility === 'public')
-  const publicProjectIds = new Set(publicProjects.map((project) => project.id))
+  const publicProjectIds = new Set(publicProjects.map((project) => project.uuid))
   const publicCompleted = completionRecords
-    .filter((record) => publicProjectIds.has(record.projectId))
+    .filter((record) => publicProjectIds.has(record.projectUuid))
     .filter(isAcceptedRecord)
-    .filter((record) => contracts.find((contract) => contract.id === record.closingContractId)?.actorId === currentActorId)
+    .filter((record) => contracts.find((contract) => contract.uuid === record.closingContractUuid)?.actorUserId === currentActorId)
   const activeDays = new Set(publicCompleted.map((record) => new Date(record.createdAt).toDateString())).size
 
   // Avatar URLs are signed by COS. Refresh persisted workspace data when an existing session restores.
@@ -337,10 +337,10 @@ export function AppShell() {
     applyTheme(nextTheme)
   }
 
-  const cardProject = activeProject ?? activeProjects.find((project) => project.currentContractId) ?? activeProjects[0]
+  const cardProject = activeProject ?? activeProjects.find((project) => project.currentContractUuid) ?? activeProjects[0]
   const cardProjectStatus = cardProject ? projectStatus(cardProject, contracts, branches) : undefined
-  const cardProjectRecordCount = cardProject ? completionRecords.filter((record) => record.projectId === cardProject.id && isAcceptedRecord(record)).length : 0
-  const cardProjectBranchCount = cardProject ? branches.filter((branch) => branch.projectId === cardProject.id).length : 0
+  const cardProjectRecordCount = cardProject ? completionRecords.filter((record) => record.projectUuid === cardProject.uuid && isAcceptedRecord(record)).length : 0
+  const cardProjectBranchCount = cardProject ? branches.filter((branch) => branch.projectUuid === cardProject.uuid).length : 0
 
   return (
     <div className="h-[100dvh] overflow-hidden bg-paper text-ink">
@@ -362,13 +362,13 @@ export function AppShell() {
             </Link>
           </div>
           <nav className="mt-3 space-y-1" aria-label="我的项目">
-            {activeProjects.map((project) => <ProjectRailItem key={project.id} project={project} active={project.id === activeProjectId} contracts={contracts} branches={branches} />)}
+            {activeProjects.map((project) => <ProjectRailItem key={project.uuid} project={project} active={project.uuid === activeProjectId} contracts={contracts} branches={branches} />)}
           </nav>
 
           {archivedProjects.length > 0 ? (
             <details className="mt-5 border-t border-rail pt-4">
               <summary className="flex cursor-pointer list-none items-center gap-2 px-3 text-xs font-semibold text-graphite marker:hidden focus:outline-none focus-visible:shadow-focusline"><Archive size={14} aria-hidden="true" />已归档项目</summary>
-              <div className="mt-2 space-y-1">{archivedProjects.map((project) => <ProjectRailItem key={project.id} project={project} active={project.id === activeProjectId} contracts={contracts} branches={branches} />)}</div>
+              <div className="mt-2 space-y-1">{archivedProjects.map((project) => <ProjectRailItem key={project.uuid} project={project} active={project.uuid === activeProjectId} contracts={contracts} branches={branches} />)}</div>
             </details>
           ) : null}
 

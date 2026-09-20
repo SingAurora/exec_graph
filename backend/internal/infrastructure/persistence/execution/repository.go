@@ -20,7 +20,7 @@ type NodeProjection struct {
 	SourceIDs            *string    `gorm:"column:source_ids"`
 	SupplementUUID       *string    `gorm:"column:supplement_uuid"`
 	RetryUUID            *string    `gorm:"column:retry_uuid"`
-	ActorID              *uint64    `gorm:"column:actor_id"`
+	ActorUserID          *string    `gorm:"column:actor_user_id"`
 	Title                string     `gorm:"column:title"`
 	Stage                string     `gorm:"column:stage"`
 	OriginalIntent       string     `gorm:"column:original_intent"`
@@ -155,7 +155,7 @@ func (repository *Repository) CreateNode(ctx context.Context, input CreateNodePa
 		}
 		if createBranch {
 			var err error
-			branchID, err = sharedid.Opaque("branch")
+			branchID, err = sharedid.UUID()
 			if err != nil {
 				return err
 			}
@@ -177,7 +177,7 @@ func (repository *Repository) CreateNode(ctx context.Context, input CreateNodePa
 			return err
 		}
 		for _, sourceID := range sourceInternal {
-			edgeID, _ := sharedid.Opaque("edge")
+			edgeID, _ := sharedid.UUID()
 			edgeType := input.EdgeType
 			if edgeType == "" {
 				edgeType = "lineage"
@@ -212,7 +212,7 @@ type EdgeProjection struct {
 type BranchProjection struct {
 	UUID, ProjectUUID, Title                    string
 	RootUUID, ForkedUUID, HeadUUID, CurrentUUID *string
-	CreatedBy                                   uint64
+	CreatedByUserID                             string
 	CreatedAt                                   time.Time
 }
 
@@ -314,7 +314,7 @@ func NewRepository(orm *gorm.DB) *Repository { return &Repository{orm: orm} }
 // ListNodeProjections loads nodes belonging to one public project.
 func (repository *Repository) ListNodeProjections(ctx context.Context, projectID string) ([]NodeProjection, error) {
 	var values []NodeProjection
-	err := repository.orm.WithContext(ctx).Table("execution_contracts AS n").Select(`n.uuid, branch.uuid AS branch_uuid, revision.uuid AS revision_uuid, parent.uuid AS parent_uuid, n.source_contract_ids_json AS source_ids, supplement_node.uuid AS supplement_uuid, retry_node.uuid AS retry_uuid, n.actor_id, n.title, n.stage, n.original_intent, contract.uuid AS smart_contract_uuid, n.smart_contract_version, n.verifiable_goal, n.acceptance_criteria_json, n.evidence_requirement, n.completion_claim, n.evidence_text, n.started_at, n.ended_at, record.uuid AS record_uuid, n.draft_review_json, n.draft_review_ai_config_json AS draft_ai_json, n.review_messages_json, n.ai_review_json, n.completion_review_ai_config_json AS completion_ai_json, n.completion_review_rounds_json AS review_rounds_json, planning.uuid AS planning_uuid, completion.uuid AS completion_uuid, n.user_verdict_json, n.next_contract_title, n.created_at, n.updated_at`).Joins("JOIN projects AS p ON p.id = n.project_id").Joins("LEFT JOIN execution_branches AS branch ON branch.id = n.branch_id").Joins("JOIN project_contract_revisions AS revision ON revision.id = n.project_contract_revision_id").Joins("LEFT JOIN execution_contracts AS parent ON parent.id = n.parent_contract_id").Joins("LEFT JOIN execution_contracts AS supplement_node ON supplement_node.id = n.supplement_of_contract_id").Joins("LEFT JOIN execution_contracts AS retry_node ON retry_node.id = n.retry_of_contract_id").Joins("LEFT JOIN smart_contracts AS contract ON contract.id = n.smart_contract_id").Joins("LEFT JOIN completion_records AS record ON record.id = n.completion_record_id").Joins("LEFT JOIN node_conversations AS planning ON planning.id = n.planning_conversation_id").Joins("LEFT JOIN node_conversations AS completion ON completion.id = n.completion_conversation_id").Where("p.uuid = ?", projectID).Order("n.created_at ASC").Scan(&values).Error
+	err := repository.orm.WithContext(ctx).Table("execution_contracts AS n").Select(`n.uuid, branch.uuid AS branch_uuid, revision.uuid AS revision_uuid, parent.uuid AS parent_uuid, n.source_contract_ids_json AS source_ids, supplement_node.uuid AS supplement_uuid, retry_node.uuid AS retry_uuid, actor.user_id AS actor_user_id, n.title, n.stage, n.original_intent, contract.uuid AS smart_contract_uuid, n.smart_contract_version, n.verifiable_goal, n.acceptance_criteria_json, n.evidence_requirement, n.completion_claim, n.evidence_text, n.started_at, n.ended_at, record.uuid AS record_uuid, n.draft_review_json, n.draft_review_ai_config_json AS draft_ai_json, n.review_messages_json, n.ai_review_json, n.completion_review_ai_config_json AS completion_ai_json, n.completion_review_rounds_json AS review_rounds_json, planning.uuid AS planning_uuid, completion.uuid AS completion_uuid, n.user_verdict_json, n.next_contract_title, n.created_at, n.updated_at`).Joins("JOIN projects AS p ON p.id = n.project_id").Joins("LEFT JOIN users AS actor ON actor.id = n.actor_id").Joins("LEFT JOIN execution_branches AS branch ON branch.id = n.branch_id").Joins("JOIN project_contract_revisions AS revision ON revision.id = n.project_contract_revision_id").Joins("LEFT JOIN execution_contracts AS parent ON parent.id = n.parent_contract_id").Joins("LEFT JOIN execution_contracts AS supplement_node ON supplement_node.id = n.supplement_of_contract_id").Joins("LEFT JOIN execution_contracts AS retry_node ON retry_node.id = n.retry_of_contract_id").Joins("LEFT JOIN smart_contracts AS contract ON contract.id = n.smart_contract_id").Joins("LEFT JOIN completion_records AS record ON record.id = n.completion_record_id").Joins("LEFT JOIN node_conversations AS planning ON planning.id = n.planning_conversation_id").Joins("LEFT JOIN node_conversations AS completion ON completion.id = n.completion_conversation_id").Where("p.uuid = ?", projectID).Order("n.created_at ASC").Scan(&values).Error
 	return values, err
 }
 
@@ -328,7 +328,7 @@ func (repository *Repository) ListEdgeProjections(ctx context.Context) ([]EdgePr
 // ListBranchProjections loads branches belonging to one public project.
 func (repository *Repository) ListBranchProjections(ctx context.Context, projectID string) ([]BranchProjection, error) {
 	var values []BranchProjection
-	err := repository.orm.WithContext(ctx).Table("execution_branches AS b").Select("b.uuid, p.uuid AS project_uuid, b.title, root_node.uuid AS root_uuid, forked_node.uuid AS forked_uuid, head_node.uuid AS head_uuid, current_node.uuid AS current_uuid, b.created_by, b.created_at").Joins("JOIN projects AS p ON p.id = b.project_id").Joins("LEFT JOIN execution_contracts AS root_node ON root_node.id = b.root_contract_id").Joins("LEFT JOIN execution_contracts AS forked_node ON forked_node.id = b.forked_from_contract_id").Joins("LEFT JOIN execution_contracts AS head_node ON head_node.id = b.head_contract_id").Joins("LEFT JOIN execution_contracts AS current_node ON current_node.id = b.current_contract_id").Where("p.uuid = ?", projectID).Order("b.created_at ASC").Scan(&values).Error
+	err := repository.orm.WithContext(ctx).Table("execution_branches AS b").Select("b.uuid, p.uuid AS project_uuid, b.title, root_node.uuid AS root_uuid, forked_node.uuid AS forked_uuid, head_node.uuid AS head_uuid, current_node.uuid AS current_uuid, creator.user_id AS created_by_user_id, b.created_at").Joins("JOIN projects AS p ON p.id = b.project_id").Joins("LEFT JOIN users AS creator ON creator.id = b.created_by").Joins("LEFT JOIN execution_contracts AS root_node ON root_node.id = b.root_contract_id").Joins("LEFT JOIN execution_contracts AS forked_node ON forked_node.id = b.forked_from_contract_id").Joins("LEFT JOIN execution_contracts AS head_node ON head_node.id = b.head_contract_id").Joins("LEFT JOIN execution_contracts AS current_node ON current_node.id = b.current_contract_id").Where("p.uuid = ?", projectID).Order("b.created_at ASC").Scan(&values).Error
 	return values, err
 }
 

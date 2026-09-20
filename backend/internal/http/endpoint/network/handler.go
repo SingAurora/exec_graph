@@ -19,10 +19,11 @@ func New(service *applicationnetwork.Service) *Handler {
 	return &Handler{service: service}
 }
 
-func (h *Handler) Explore(w http.ResponseWriter, r *http.Request, currentUserID *uint64) error {
+// GetPublicCollaborationNetwork 返回公开项目、成果和参与者组成的协作网络。
+func (h *Handler) GetPublicCollaborationNetwork(w http.ResponseWriter, r *http.Request, currentUserID *uint64) error {
 	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	graph, err := h.service.Explore(ctx, currentUserID)
+	graph, err := h.service.GetPublicCollaborationNetwork(ctx, currentUserID)
 	if err != nil {
 		return fault.Wrap(fault.Internal, "读取执行网络失败", err)
 	}

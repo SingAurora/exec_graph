@@ -64,7 +64,8 @@ func (h *Handler) Health(w http.ResponseWriter, _ *http.Request) error {
 	return nil
 }
 
-func (h *Handler) SendCode(w http.ResponseWriter, r *http.Request) error {
+// SendVerificationCode 发送注册、改邮箱、改密码或重置密码所需的验证码。
+func (h *Handler) SendVerificationCode(w http.ResponseWriter, r *http.Request) error {
 	var request emailRequest
 	if err := decodeJSON(r, &request); err != nil {
 		return err
@@ -85,7 +86,8 @@ func (h *Handler) SendCode(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (h *Handler) Register(w http.ResponseWriter, r *http.Request) error {
+// RegisterAccount 使用邮箱验证码创建账号和登录会话。
+func (h *Handler) RegisterAccount(w http.ResponseWriter, r *http.Request) error {
 	var request registerRequest
 	if err := decodeJSON(r, &request); err != nil {
 		return err
@@ -98,7 +100,8 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (h *Handler) Login(w http.ResponseWriter, r *http.Request) error {
+// LoginWithPassword 校验邮箱和密码并创建登录会话。
+func (h *Handler) LoginWithPassword(w http.ResponseWriter, r *http.Request) error {
 	var request loginRequest
 	if err := decodeJSON(r, &request); err != nil {
 		return err
@@ -111,7 +114,8 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) error {
+// LogoutCurrentSession 销毁当前访问令牌对应的登录会话。
+func (h *Handler) LogoutCurrentSession(w http.ResponseWriter, r *http.Request) error {
 	if token := endpointcommon.BearerToken(r); token != "" {
 		ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.SessionLogoutTimeout)
 		defer cancel()
@@ -123,7 +127,8 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (h *Handler) Me(w http.ResponseWriter, r *http.Request) error {
+// GetCurrentSession 返回当前访问令牌对应的用户身份。
+func (h *Handler) GetCurrentSession(w http.ResponseWriter, r *http.Request) error {
 	user, err := h.currentUser(r)
 	if err != nil {
 		return err
@@ -132,7 +137,8 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (h *Handler) ChangeEmail(w http.ResponseWriter, r *http.Request) error {
+// ChangeLoginEmail 修改当前账号用于登录的邮箱。
+func (h *Handler) ChangeLoginEmail(w http.ResponseWriter, r *http.Request) error {
 	user, err := h.currentUser(r)
 	if err != nil {
 		return err
@@ -149,7 +155,8 @@ func (h *Handler) ChangeEmail(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) error {
+// ChangeLoginPassword 修改当前账号的登录密码。
+func (h *Handler) ChangeLoginPassword(w http.ResponseWriter, r *http.Request) error {
 	user, err := h.currentUser(r)
 	if err != nil {
 		return err
@@ -165,7 +172,8 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) error {
+// ResetLoginPassword 使用邮箱验证码重置未登录账号的密码。
+func (h *Handler) ResetLoginPassword(w http.ResponseWriter, r *http.Request) error {
 	var request resetPasswordRequest
 	if err := decodeJSON(r, &request); err != nil {
 		return err
