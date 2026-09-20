@@ -2,7 +2,7 @@ import { Bot, Copy, LoaderCircle, Send, ShieldCheck } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState, type TextareaHTMLAttributes } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { showErrorToast, showSuccessToast } from '../lib/notifications'
-import { parseJSONResponse } from '../lib/api'
+import { requestJSON } from '../lib/api'
 import { useExecStore } from '../store/useExecStore'
 import type { AIConfigSnapshot, DraftReview, ExecutionContract } from '../types'
 
@@ -95,12 +95,7 @@ const toDraftText = (draft: ActionDraft) => [
 ].join('\n')
 
 async function requestConversation<T>(token: string, path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, {
-	method: 'POST',
-    ...init,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(init?.headers ?? {}) },
-  })
-	return parseJSONResponse<T>(response)
+  return requestJSON<T>(path, { ...init, accessToken: token })
 }
 
 type PlanningConversationProps = {

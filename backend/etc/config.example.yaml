@@ -8,7 +8,8 @@ app:
 database:
   host: 127.0.0.1
   port: 3306
-  name: exec_graph
+  # MySQL schema/database name used by the application.
+  schema: exec_graph
   user: root
   password: replace-with-local-password
   # MySQL 连接字符集；建议保持 utf8mb4，以支持完整 Unicode。

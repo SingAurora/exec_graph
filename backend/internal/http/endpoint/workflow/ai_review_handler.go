@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	aikeypersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/aikey"
+	applicationaikey "github.com/singaurora/exec-graph/backend/internal/application/aikey"
 	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
 )
 
@@ -745,14 +745,14 @@ func validateReviewNodeDraftRequest(request reviewNodeDraftRequest) error {
 }
 
 func (h *Handler) loadProjectAIKey(ctx context.Context, userID uint64, projectID string) (aiStoredKey, error) {
-	stored, err := h.aiKeyStore.FindProjectReviewKey(ctx, userID, projectID)
+	stored, err := h.aiKey.FindProjectReviewKey(ctx, userID, projectID)
 	if err != nil {
-		if errors.Is(err, aikeypersistence.ErrNotFound) {
+		if errors.Is(err, applicationaikey.ErrNotFound) {
 			return aiStoredKey{}, sql.ErrNoRows
 		}
 		return aiStoredKey{}, err
 	}
-	return aiStoredKey{UUID: stored.UUID, Provider: stored.Provider, Label: stored.Label, APIKey: stored.KeyCiphertext, BaseURL: stored.BaseURL, Model: stored.Model}, nil
+	return aiStoredKey{UUID: stored.ID, Provider: stored.Provider, Label: stored.Label, APIKey: stored.APIKey, BaseURL: stored.BaseURL, Model: stored.Model}, nil
 }
 
 func (h *Handler) loadProjectAIConfig(ctx context.Context, userID uint64, projectID string) (aiConfigSnapshot, error) {

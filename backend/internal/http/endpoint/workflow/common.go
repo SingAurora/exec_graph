@@ -5,11 +5,11 @@ import (
 	"database/sql"
 	"net/http"
 
+	applicationaikey "github.com/singaurora/exec-graph/backend/internal/application/aikey"
 	applicationcollaboration "github.com/singaurora/exec-graph/backend/internal/application/collaboration"
 	applicationidentity "github.com/singaurora/exec-graph/backend/internal/application/identity"
 	applicationproject "github.com/singaurora/exec-graph/backend/internal/application/project"
 	endpointcommon "github.com/singaurora/exec-graph/backend/internal/http/endpoint/common"
-	aikeypersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/aikey"
 	collaborationpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/collaboration"
 	conversationpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/conversation"
 	reviewpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/review"
@@ -23,7 +23,7 @@ type RequireUserFunc func(http.ResponseWriter, *http.Request) (applicationidenti
 type Handler struct {
 	project            *applicationproject.Service
 	collaboration      *applicationcollaboration.Service
-	aiKeyStore         aikeypersistence.AIKeyRepository
+	aiKey              *applicationaikey.Service
 	reviews            *reviewpersistence.Repository
 	conversations      *conversationpersistence.Repository
 	collaborationStore *collaborationpersistence.Repository
@@ -34,7 +34,7 @@ type Handler struct {
 type Dependencies struct {
 	Project            *applicationproject.Service
 	Collaboration      *applicationcollaboration.Service
-	AIKeyStore         aikeypersistence.AIKeyRepository
+	AIKey              *applicationaikey.Service
 	Reviews            *reviewpersistence.Repository
 	Conversations      *conversationpersistence.Repository
 	CollaborationStore *collaborationpersistence.Repository
@@ -46,7 +46,7 @@ func New(dependencies Dependencies) *Handler {
 	return &Handler{
 		project:            dependencies.Project,
 		collaboration:      dependencies.Collaboration,
-		aiKeyStore:         dependencies.AIKeyStore,
+		aiKey:              dependencies.AIKey,
 		reviews:            dependencies.Reviews,
 		conversations:      dependencies.Conversations,
 		collaborationStore: dependencies.CollaborationStore,
@@ -57,14 +57,6 @@ func New(dependencies Dependencies) *Handler {
 
 func (h *Handler) requireUser(w http.ResponseWriter, r *http.Request) (applicationidentity.User, bool) {
 	return h.requireUserFunc(w, r)
-}
-
-func (h *Handler) CreateExecutionNode(w http.ResponseWriter, r *http.Request, userID uint64, projectID string) error {
-	return h.createExecutionNode(w, r, userID, projectID)
-}
-
-func (h *Handler) LockExecutionNode(w http.ResponseWriter, r *http.Request, userID uint64, projectID, nodeID string) error {
-	return h.lockExecutionNode(w, r, userID, projectID, nodeID)
 }
 
 func (h *Handler) CreateCollaborationCall(w http.ResponseWriter, r *http.Request, userID uint64, projectID string) {

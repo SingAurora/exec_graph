@@ -6,7 +6,6 @@ import (
 
 	applicationidentity "github.com/singaurora/exec-graph/backend/internal/application/identity"
 	endpointcommon "github.com/singaurora/exec-graph/backend/internal/http/endpoint/common"
-	identitypersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/identity"
 	infrastructurestorage "github.com/singaurora/exec-graph/backend/internal/infrastructure/storage"
 )
 
@@ -15,22 +14,22 @@ type CacheSessionFunc func(context.Context, string, applicationidentity.User) er
 
 // Handler 负责当前用户资料和媒体上传接口。
 type Handler struct {
-	identityStore   identitypersistence.IdentityRepository
+	identity        *applicationidentity.Service
 	storage         infrastructurestorage.ObjectStorage
 	requireUserFunc RequireUserFunc
 	cacheSession    CacheSessionFunc
 }
 
 type Dependencies struct {
-	IdentityStore identitypersistence.IdentityRepository
-	Storage       infrastructurestorage.ObjectStorage
-	RequireUser   RequireUserFunc
-	CacheSession  CacheSessionFunc
+	Identity     *applicationidentity.Service
+	Storage      infrastructurestorage.ObjectStorage
+	RequireUser  RequireUserFunc
+	CacheSession CacheSessionFunc
 }
 
 func New(dependencies Dependencies) *Handler {
 	return &Handler{
-		identityStore:   dependencies.IdentityStore,
+		identity:        dependencies.Identity,
 		storage:         dependencies.Storage,
 		requireUserFunc: dependencies.RequireUser,
 		cacheSession:    dependencies.CacheSession,

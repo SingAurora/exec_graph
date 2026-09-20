@@ -122,10 +122,10 @@ func (s *Server) Endpoints() Endpoints {
 			return s.projectEndpoints.Graph(w, r, user.ID, requestParameter(r, "projectID"))
 		}),
 		CreateNode: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.workflowEndpoints.CreateExecutionNode(w, r, user.ID, requestParameter(r, "projectID"))
+			return s.executionEndpoints.CreateNode(w, r, user.ID, requestParameter(r, "projectID"))
 		}),
 		LockNode: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
-			return s.workflowEndpoints.LockExecutionNode(w, r, user.ID, requestParameter(r, "projectID"), requestParameter(r, "nodeID"))
+			return s.executionEndpoints.LockNode(w, r, user.ID, requestParameter(r, "projectID"), requestParameter(r, "nodeID"))
 		}),
 		CreateCall: s.withAuthenticatedUser(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) {
 			s.workflowEndpoints.CreateCollaborationCall(w, r, user.ID, requestParameter(r, "projectID"))

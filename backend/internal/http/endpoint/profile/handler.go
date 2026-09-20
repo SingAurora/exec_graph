@@ -105,7 +105,7 @@ func (h *Handler) UpdateCurrentUser(w http.ResponseWriter, r *http.Request, user
 
 	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	err = h.identityStore.UpdateUser(ctx, user.ID, map[string]any{"username": username, "user_id": userID, "bio": bio, "gender": request.Gender, "custom_profile_enabled": request.CustomProfileEnabled, "custom_profile_markdown": customProfileMarkdown})
+	err = h.identity.UpdateProfile(ctx, user.ID, applicationidentity.UpdateProfileInput{Username: username, UserID: userID, Bio: bio, Gender: request.Gender, CustomProfileEnabled: request.CustomProfileEnabled, CustomProfileMarkdown: customProfileMarkdown})
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "duplicate") {
 			writeError(w, http.StatusConflict, "该用户 ID 已被使用")
@@ -202,7 +202,7 @@ func (h *Handler) uploadAvatar(w http.ResponseWriter, r *http.Request, user appl
 		writeError(w, http.StatusBadGateway, "头像上传失败，请稍后重试")
 		return
 	}
-	if err := h.identityStore.UpdateUser(ctx, user.ID, map[string]any{"avatar_url": newObjectKey}); err != nil {
+	if err := h.identity.SetAvatarObjectKey(ctx, user.ID, newObjectKey); err != nil {
 		_ = h.storage.DeleteObject(ctx, newObjectKey)
 		writeError(w, http.StatusInternalServerError, "保存头像失败")
 		return
@@ -275,7 +275,7 @@ func (h *Handler) uploadProfileBackground(w http.ResponseWriter, r *http.Request
 		writeError(w, http.StatusBadGateway, "背景图片上传失败，请稍后重试")
 		return
 	}
-	if err := h.identityStore.UpdateUser(ctx, user.ID, map[string]any{"profile_background_url": newObjectKey}); err != nil {
+	if err := h.identity.SetProfileBackgroundObjectKey(ctx, user.ID, newObjectKey); err != nil {
 		_ = h.storage.DeleteObject(ctx, newObjectKey)
 		writeError(w, http.StatusInternalServerError, "保存背景图片失败")
 		return
@@ -367,29 +367,20 @@ func resizeProfileBackgroundDimensions(width, height, maxWidth, maxHeight int) (
 func (h *Handler) loadUserProfile(requestContext context.Context, userID uint64) (userProfileResponse, error) {
 	ctx, cancel := context.WithTimeout(requestContext, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	stored, err := h.identityStore.FindUserByID(ctx, userID)
+	stored, err := h.identity.GetProfile(ctx, userID)
 	if err != nil {
 		return userProfileResponse{}, err
 	}
-	profile := userProfileResponse{ID: stored.ID, Username: stored.Username, UserID: stored.UserID, Email: stored.Email, CustomProfileEnabled: stored.CustomProfileEnabled}
-	if stored.Bio != nil {
-		profile.Bio = *stored.Bio
-	}
-	if stored.Gender != nil {
-		profile.Gender = *stored.Gender
-	}
-	if stored.CustomProfileMarkdown != nil {
-		profile.CustomProfileMarkdown = *stored.CustomProfileMarkdown
-	}
-	if stored.AvatarURL != nil && *stored.AvatarURL != "" && h.storage != nil && h.storage.IsManagedObjectKey(*stored.AvatarURL) {
-		avatarURL, err := h.storage.SignedObjectURL(ctx, *stored.AvatarURL, 24*time.Hour)
+	profile := userProfileResponse{ID: stored.ID, Username: stored.Username, UserID: stored.UserID, Email: stored.Email, Bio: stored.Bio, Gender: stored.Gender, CustomProfileEnabled: stored.CustomProfileEnabled, CustomProfileMarkdown: stored.CustomProfileMarkdown}
+	if stored.AvatarObjectKey != "" && h.storage != nil && h.storage.IsManagedObjectKey(stored.AvatarObjectKey) {
+		avatarURL, err := h.storage.SignedObjectURL(ctx, stored.AvatarObjectKey, 24*time.Hour)
 		if err != nil {
 			return profile, fmt.Errorf("sign avatar URL: %w", err)
 		}
 		profile.AvatarURL = &avatarURL
 	}
-	if stored.ProfileBackgroundURL != nil && *stored.ProfileBackgroundURL != "" && h.storage != nil && h.storage.IsManagedObjectKey(*stored.ProfileBackgroundURL) {
-		backgroundURL, err := h.storage.SignedObjectURL(ctx, *stored.ProfileBackgroundURL, 24*time.Hour)
+	if stored.ProfileBackgroundKey != "" && h.storage != nil && h.storage.IsManagedObjectKey(stored.ProfileBackgroundKey) {
+		backgroundURL, err := h.storage.SignedObjectURL(ctx, stored.ProfileBackgroundKey, 24*time.Hour)
 		if err != nil {
 			return profile, fmt.Errorf("sign profile background URL: %w", err)
 		}
@@ -399,25 +390,25 @@ func (h *Handler) loadUserProfile(requestContext context.Context, userID uint64)
 }
 
 func (h *Handler) loadAvatarObjectKey(ctx context.Context, userID uint64) (string, error) {
-	stored, err := h.identityStore.FindUserByID(ctx, userID)
+	stored, err := h.identity.GetProfile(ctx, userID)
 	if err != nil {
 		return "", err
 	}
-	if stored.AvatarURL == nil || !h.storage.IsManagedObjectKey(*stored.AvatarURL) {
+	if stored.AvatarObjectKey == "" || !h.storage.IsManagedObjectKey(stored.AvatarObjectKey) {
 		return "", nil
 	}
-	return *stored.AvatarURL, nil
+	return stored.AvatarObjectKey, nil
 }
 
 func (h *Handler) loadProfileBackgroundObjectKey(ctx context.Context, userID uint64) (string, error) {
-	stored, err := h.identityStore.FindUserByID(ctx, userID)
+	stored, err := h.identity.GetProfile(ctx, userID)
 	if err != nil {
 		return "", err
 	}
-	if stored.ProfileBackgroundURL == nil || !h.storage.IsManagedObjectKey(*stored.ProfileBackgroundURL) {
+	if stored.ProfileBackgroundKey == "" || !h.storage.IsManagedObjectKey(stored.ProfileBackgroundKey) {
 		return "", nil
 	}
-	return *stored.ProfileBackgroundURL, nil
+	return stored.ProfileBackgroundKey, nil
 }
 
 func avatarExtension(contentType string) (string, bool) {

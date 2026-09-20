@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 import { AuthLayout } from '../components/AuthLayout'
-import { parseJSONResponse } from '../lib/api'
+import { postJSON } from '../lib/api'
 import { useExecStore } from '../store/useExecStore'
 
 const loginSchema = z.object({
@@ -22,7 +22,6 @@ const testAccount = {
 
 export function LoginPage() {
   const navigate = useNavigate()
-  const registerAccount = useExecStore((state) => state.registerAccount)
   const setAccessToken = useExecStore((state) => state.setAccessToken)
   const refreshWorkspace = useExecStore((state) => state.refreshWorkspace)
   const [authError, setAuthError] = useState('')
@@ -39,15 +38,9 @@ export function LoginPage() {
   const onSubmit = async (values: LoginForm) => {
     setAuthError('')
     try {
-      const response = await fetch('/api/commands/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) })
-      const data = await parseJSONResponse<{ accessToken?: string; user?: { username?: string; userId?: string } }>(response)
+      const data = await postJSON<{ accessToken?: string }>('/api/commands/auth/login', values)
       if (!data.accessToken) {
         setAuthError('邮箱或密码不正确。')
-        return
-      }
-      const result = registerAccount(data.user?.username ?? values.email.split('@')[0], data.user?.userId ?? values.email.split('@')[0], values.email, values.password)
-      if (!result.success) {
-        setAuthError(result.message ?? '登录失败，请稍后重试。')
         return
       }
       setAccessToken(data.accessToken)

@@ -27,23 +27,19 @@ func (s *Service) Update(ctx context.Context, userID uint64, projectID, title, d
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
 	if visibility == "private" {
-		var adopted int
-		if err := s.execution.Row(ctx, `SELECT COUNT(*) FROM collaboration_submissions s JOIN completion_records r ON r.id = s.source_record_id JOIN projects p ON p.id = r.project_id WHERE p.uuid = ? AND s.status = 'adopted'`, projectID).Scan(&adopted); err != nil {
+		adopted, err := s.projects.HasAdoptedContributions(ctx, projectID)
+		if err != nil {
 			return err
 		}
-		if adopted > 0 {
+		if adopted {
 			return ErrAdoptedContent
 		}
 	}
-	result, err := s.execution.Execute(ctx, `UPDATE projects SET title = ?, description = ?, visibility = ? WHERE uuid = ? AND owner_id = ? AND archived_at IS NULL`, title, description, visibility, projectID, userID)
+	updated, err := s.projects.UpdateActive(ctx, userID, projectID, title, description, visibility)
 	if err != nil {
 		return err
 	}
-	count, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if count == 0 {
+	if !updated {
 		return ErrNotFound
 	}
 	return nil
@@ -52,15 +48,11 @@ func (s *Service) Update(ctx context.Context, userID uint64, projectID, title, d
 func (s *Service) Archive(ctx context.Context, userID uint64, projectID string) error {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	result, err := s.execution.Execute(ctx, `UPDATE projects SET archived_at = NOW() WHERE uuid = ? AND owner_id = ? AND archived_at IS NULL`, projectID, userID)
+	archived, err := s.projects.Archive(ctx, userID, projectID)
 	if err != nil {
 		return err
 	}
-	count, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if count == 0 {
+	if !archived {
 		return ErrAlreadyArchived
 	}
 	return nil
@@ -69,15 +61,11 @@ func (s *Service) Archive(ctx context.Context, userID uint64, projectID string) 
 func (s *Service) Unarchive(ctx context.Context, userID uint64, projectID string) error {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	result, err := s.execution.Execute(ctx, `UPDATE projects SET archived_at = NULL WHERE uuid = ? AND owner_id = ? AND archived_at IS NOT NULL`, projectID, userID)
+	restored, err := s.projects.Unarchive(ctx, userID, projectID)
 	if err != nil {
 		return err
 	}
-	count, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if count == 0 {
+	if !restored {
 		return ErrNotArchived
 	}
 	return nil
@@ -86,15 +74,11 @@ func (s *Service) Unarchive(ctx context.Context, userID uint64, projectID string
 func (s *Service) SetAIKey(ctx context.Context, userID uint64, projectID, keyID string) error {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	result, err := s.execution.Execute(ctx, `UPDATE projects p JOIN ai_api_keys k ON k.uuid = ? AND k.user_id = p.owner_id SET p.default_ai_key_id = k.id WHERE p.uuid = ? AND p.owner_id = ? AND p.archived_at IS NULL`, keyID, projectID, userID)
+	updated, err := s.projects.SetAIKey(ctx, userID, projectID, keyID)
 	if err != nil {
 		return err
 	}
-	count, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if count == 0 {
+	if !updated {
 		return ErrAIKeyUnavailable
 	}
 	return nil

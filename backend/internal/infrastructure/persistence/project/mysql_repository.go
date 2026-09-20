@@ -113,6 +113,55 @@ func (repository ProjectRepository) FindForOwner(ctx context.Context, userID uin
 	return project, err
 }
 
+// HasAdoptedContributions reports whether a project's published work has been
+// adopted by another collaboration. Such a project cannot become private.
+func (repository ProjectRepository) HasAdoptedContributions(ctx context.Context, projectID string) (bool, error) {
+	var count int64
+	err := repository.db.WithContext(ctx).
+		Table("collaboration_submissions AS s").
+		Joins("JOIN completion_records AS r ON r.id = s.source_record_id").
+		Joins("JOIN projects AS p ON p.id = r.project_id").
+		Where("p.uuid = ? AND s.status = ?", projectID, "adopted").
+		Count(&count).Error
+	return count > 0, err
+}
+
+// UpdateActive updates editable project metadata. Archived projects remain
+// immutable until explicitly restored.
+func (repository ProjectRepository) UpdateActive(ctx context.Context, userID uint64, projectID, title, description, visibility string) (bool, error) {
+	result := repository.db.WithContext(ctx).
+		Model(&Project{}).
+		Where("uuid = ? AND owner_id = ? AND archived_at IS NULL", projectID, userID).
+		Updates(map[string]any{"title": title, "description": description, "visibility": visibility})
+	return result.RowsAffected > 0, result.Error
+}
+
+func (repository ProjectRepository) Archive(ctx context.Context, userID uint64, projectID string) (bool, error) {
+	result := repository.db.WithContext(ctx).
+		Model(&Project{}).
+		Where("uuid = ? AND owner_id = ? AND archived_at IS NULL", projectID, userID).
+		Update("archived_at", time.Now())
+	return result.RowsAffected > 0, result.Error
+}
+
+func (repository ProjectRepository) Unarchive(ctx context.Context, userID uint64, projectID string) (bool, error) {
+	result := repository.db.WithContext(ctx).
+		Model(&Project{}).
+		Where("uuid = ? AND owner_id = ? AND archived_at IS NOT NULL", projectID, userID).
+		Update("archived_at", nil)
+	return result.RowsAffected > 0, result.Error
+}
+
+// SetAIKey updates a project only when the selected key belongs to its owner.
+func (repository ProjectRepository) SetAIKey(ctx context.Context, userID uint64, projectID, keyID string) (bool, error) {
+	result := repository.db.WithContext(ctx).
+		Table("projects AS p").
+		Joins("JOIN ai_api_keys AS k ON k.uuid = ? AND k.user_id = p.owner_id", keyID).
+		Where("p.uuid = ? AND p.owner_id = ? AND p.archived_at IS NULL", projectID, userID).
+		Update("p.default_ai_key_id", gorm.Expr("k.id"))
+	return result.RowsAffected > 0, result.Error
+}
+
 func (repository ProjectRepository) ListContractRevisions(ctx context.Context, projectID string) ([]ProjectContractRevision, error) {
 	var revisions []ProjectContractRevision
 	err := repository.db.WithContext(ctx).

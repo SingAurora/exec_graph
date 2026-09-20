@@ -28,7 +28,7 @@ type AppConfig struct {
 type DatabaseConfig struct {
 	Host     string `yaml:"host"`
 	Port     int    `yaml:"port"`
-	Name     string `yaml:"name"`
+	Schema   string `yaml:"schema"`
 	User     string `yaml:"user"`
 	Password string `yaml:"password"`
 	Charset  string `yaml:"charset"`
@@ -98,7 +98,7 @@ func validate(config Config) error {
 
 	requireText("database.host", config.Database.Host)
 	requirePort("database.port", config.Database.Port)
-	requireText("database.name", config.Database.Name)
+	requireText("database.schema", config.Database.Schema)
 	requireText("database.user", config.Database.User)
 	requireText("database.password", config.Database.Password)
 	requireText("database.charset", config.Database.Charset)

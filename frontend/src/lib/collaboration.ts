@@ -1,5 +1,5 @@
 import type { AcceptanceCriterion, AIReview } from '../types'
-import { parseJSONResponse } from './api'
+import { requestJSON } from './api'
 
 export type CollaborationTarget = {
   id: string
@@ -95,14 +95,7 @@ export type PublicNetworkEdge = {
 export type PublicNetwork = { nodes: PublicNetworkNode[]; edges: PublicNetworkEdge[] }
 
 async function request<T>(token: string | undefined, path: string, init?: RequestInit): Promise<T> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json', ...(init?.headers as Record<string, string> ?? {}) }
-  if (token) headers.Authorization = `Bearer ${token}`
-  const response = await fetch(path, {
-	method: 'POST',
-    ...init,
-    headers,
-  })
-	return parseJSONResponse<T>(response)
+  return requestJSON<T>(path, { ...init, accessToken: token })
 }
 
 export const getExploreProjects = (token?: string) => request<{ projects: ExploreProject[] }>(token, '/api/commands/explore/projects/list', { method: 'GET' })

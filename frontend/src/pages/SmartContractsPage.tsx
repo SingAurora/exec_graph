@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import { Link } from 'react-router-dom'
 import { z } from 'zod'
 import { MarkdownContent } from '../components/MarkdownContent'
-import { parseJSONResponse } from '../lib/api'
+import { getJSON } from '../lib/api'
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../components/ui/dialog'
 import { useExecStore } from '../store/useExecStore'
 import type { SmartContractDefinition, SmartContractSource } from '../types'
@@ -64,8 +64,7 @@ export function SmartContractsPage({ compact = false }: { compact?: boolean }) {
     let cancelled = false
     const loadEvents = async () => {
       try {
-		const response = await fetch('/api/commands/contracts/history', { method: 'GET', headers: { Authorization: `Bearer ${accessToken}` } })
-		const data = await parseJSONResponse<{ events?: SmartContractEvent[] }>(response)
+		const data = await getJSON<{ events?: SmartContractEvent[] }>('/api/commands/contracts/history', accessToken)
 		if (!cancelled) setEvents(data.events ?? [])
       } catch {
         // The active contract library remains usable if the history request fails.

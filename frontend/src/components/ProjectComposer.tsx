@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { z } from 'zod'
 import { getCall, type CollaborationCall } from '../lib/collaboration'
-import { parseJSONResponse } from '../lib/api'
+import { getJSON } from '../lib/api'
 import { useExecStore } from '../store/useExecStore'
 
 const formalContractIDs = new Set(['smart-contract-general', 'skill-general-contract'])
@@ -89,8 +89,7 @@ export function ProjectComposer() {
     const loadAIKeys = async () => {
       setIsLoadingAIKeys(true)
       try {
-		const response = await fetch('/api/commands/ai-keys/list', { method: 'GET', headers: { Authorization: `Bearer ${accessToken}` } })
-		const data = await parseJSONResponse<{ keys?: AIKeyOption[] }>(response)
+		const data = await getJSON<{ keys?: AIKeyOption[] }>('/api/commands/ai-keys/list', accessToken)
 		if (!cancelled) setAIKeys(data.keys ?? [])
       } finally {
         if (!cancelled) setIsLoadingAIKeys(false)

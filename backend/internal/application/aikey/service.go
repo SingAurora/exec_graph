@@ -86,6 +86,21 @@ func (s *Service) Test(ctx context.Context, provider, label, apiKey, baseURL, mo
 	defer cancel()
 	return probe(ctx, provider, apiKey, baseURL, model)
 }
+
+// FindProjectReviewKey 返回项目配置的审查密钥，供需要调用模型的应用用例使用。
+func (s *Service) FindProjectReviewKey(ctx context.Context, userID uint64, projectID string) (Key, error) {
+	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
+	defer cancel()
+	item, err := s.repository.FindProjectReviewKey(ctx, userID, projectID)
+	if errors.Is(err, aikeypersistence.ErrNotFound) {
+		return Key{}, ErrNotFound
+	}
+	if err != nil {
+		return Key{}, err
+	}
+	return fromRecord(item), nil
+}
+
 func (s *Service) Delete(ctx context.Context, userID uint64, keyID string) error {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()

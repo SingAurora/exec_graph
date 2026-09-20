@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 import { AuthLayout } from '../components/AuthLayout'
-import { parseJSONResponse } from '../lib/api'
+import { postJSON } from '../lib/api'
 import { useExecStore } from '../store/useExecStore'
 
 const registerSchema = z.object({
@@ -19,7 +19,6 @@ type RegisterForm = z.infer<typeof registerSchema>
 
 export function RegisterPage() {
   const navigate = useNavigate()
-  const registerAccount = useExecStore((state) => state.registerAccount)
   const setAccessToken = useExecStore((state) => state.setAccessToken)
   const refreshWorkspace = useExecStore((state) => state.refreshWorkspace)
   const [authError, setAuthError] = useState('')
@@ -50,12 +49,7 @@ export function RegisterPage() {
 
     setIsSendingCode(true)
     try {
-      const response = await fetch('/api/commands/auth/send-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: getValues('email') }),
-      })
-      const data = await parseJSONResponse<{ message?: string }>(response)
+      const data = await postJSON<{ message?: string }>('/api/commands/auth/send-code', { email: getValues('email') })
       setCountdown(60)
       setNotice(data.message ?? '验证码已发送，请查收邮件。')
     } catch (error) {
@@ -69,12 +63,7 @@ export function RegisterPage() {
     setAuthError('')
     setNotice('')
     try {
-      const response = await fetch('/api/commands/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
-      })
-      const data = await parseJSONResponse<{ accessToken?: string; user?: { username?: string; userId?: string } }>(response)
+      const data = await postJSON<{ accessToken?: string; user?: { userId?: string } }>('/api/commands/auth/register', values)
       if (!data.accessToken) {
         setAuthError('账号已创建，但登录会话创建失败，请稍后重试。')
         return
@@ -82,11 +71,6 @@ export function RegisterPage() {
 
       if (!data.user?.userId) {
         setAuthError('账号已创建，但用户 ID 生成失败，请稍后重新登录。')
-        return
-      }
-      const result = registerAccount(data.user.username ?? values.username, data.user.userId, values.email, values.password)
-      if (!result.success) {
-        setAuthError(result.message ?? '创建失败，请稍后重试。')
         return
       }
       setAccessToken(data.accessToken)

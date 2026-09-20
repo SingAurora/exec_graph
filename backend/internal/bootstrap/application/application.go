@@ -5,12 +5,29 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
+	applicationaikey "github.com/singaurora/exec-graph/backend/internal/application/aikey"
+	applicationcollaboration "github.com/singaurora/exec-graph/backend/internal/application/collaboration"
+	applicationconversation "github.com/singaurora/exec-graph/backend/internal/application/conversation"
+	applicationidentity "github.com/singaurora/exec-graph/backend/internal/application/identity"
+	applicationnetwork "github.com/singaurora/exec-graph/backend/internal/application/network"
+	applicationproject "github.com/singaurora/exec-graph/backend/internal/application/project"
 	bootstrapconfig "github.com/singaurora/exec-graph/backend/internal/bootstrap/config"
 	httpendpoint "github.com/singaurora/exec-graph/backend/internal/http/endpoint"
 	httpapirouter "github.com/singaurora/exec-graph/backend/internal/http/router"
 	infrastructuremail "github.com/singaurora/exec-graph/backend/internal/infrastructure/mail"
+	aikeypersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/aikey"
+	collaborationpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/collaboration"
+	contractpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/contract"
+	conversationpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/conversation"
+	executionpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/execution"
+	identitypersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/identity"
 	persistencemysql "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/mysql"
+	networkpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/network"
+	projectpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/project"
+	reviewpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/review"
+	workoverviewpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/workoverview"
 	infrastructureredis "github.com/singaurora/exec-graph/backend/internal/infrastructure/redis"
 	infrastructurestorage "github.com/singaurora/exec-graph/backend/internal/infrastructure/storage"
 	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
@@ -50,7 +67,41 @@ func Run() error {
 		_ = redisStore.Close()
 	}()
 
-	apiServer := httpendpoint.NewServer(httpendpoint.Dependencies{ORM: orm, Mailer: mailer, Storage: storage, Redis: redisStore, Config: config})
+	// bootstrap 是唯一的组合根：创建基础设施、仓储和 application service，
+	// 再把已组装的依赖交给 HTTP 层。
+	identityStore := identitypersistence.NewIdentityRepository(orm)
+	aiKeyStore := aikeypersistence.NewAIKeyRepository(orm)
+	contractStore := contractpersistence.NewSmartContractRepository(orm)
+	executionStore := executionpersistence.NewRepository(orm)
+	collaborationStore := collaborationpersistence.NewRepository(orm)
+	conversationStore := conversationpersistence.NewRepository(orm)
+
+	identityService := applicationidentity.New(applicationidentity.Dependencies{
+		Repository: identityStore,
+		Contracts:  contractStore,
+		Mailer:     mailer,
+		Sessions:   redisStore,
+		CodeTTL:    time.Duration(config.Mail.CodeTTLMinutes) * time.Minute,
+		SessionTTL: time.Duration(config.App.SessionTTLHours) * time.Hour,
+	})
+	projectService := applicationproject.New(projectpersistence.NewProjectRepository(orm), contractStore, executionStore)
+	networkService := applicationnetwork.New(networkpersistence.NewRepository(orm))
+	aiKeyService := applicationaikey.New(aiKeyStore)
+	collaborationService := applicationcollaboration.New(collaborationStore)
+
+	apiServer := httpendpoint.NewServer(httpendpoint.Dependencies{
+		Reviews:            reviewpersistence.NewRepository(orm),
+		Conversations:      conversationStore,
+		Conversation:       applicationconversation.New(conversationStore),
+		CollaborationStore: collaborationStore,
+		WorkOverview:       workoverviewpersistence.NewRepository(orm),
+		Storage:            storage,
+		Identity:           identityService,
+		Project:            projectService,
+		Network:            networkService,
+		AIKey:              aiKeyService,
+		Collaboration:      collaborationService,
+	})
 	address := fmt.Sprintf("%s:%d", config.App.Host, config.App.Port)
 	log.Printf("exec_graph backend listening on %s", address)
 	return (&http.Server{

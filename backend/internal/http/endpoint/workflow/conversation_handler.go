@@ -612,38 +612,3 @@ func conversationToLegacyMessages(messages []conversationMessageResponse, pendin
 	result = append(result, map[string]any{"id": "pending-ai", "speaker": "ai", "body": pendingAssistant, "createdAt": time.Now()})
 	return result
 }
-
-// A frozen node keeps its planning exchange in the public node ledger as well as in its source conversation.
-func (h *Handler) copyPlanningConversationToNodeMessages(ctx context.Context, conversationID, nodeID string, userID uint64) {
-	rows, err := h.conversations.Rows(ctx, `SELECT m.uuid, m.role, m.body, m.created_at FROM node_conversation_messages m JOIN node_conversations c ON c.id = m.conversation_id WHERE c.uuid = ? AND c.owner_id = ? ORDER BY m.created_at ASC, m.uuid ASC`, conversationID, userID)
-	if err != nil {
-		return
-	}
-	defer rows.Close()
-	messages := make([]map[string]any, 0)
-	for rows.Next() {
-		var id, role, body string
-		var createdAt time.Time
-		if rows.Scan(&id, &role, &body, &createdAt) != nil {
-			return
-		}
-		speaker := "user"
-		if role == "assistant" {
-			speaker = "ai"
-		}
-		messages = append(messages, map[string]any{"id": id, "speaker": speaker, "body": body, "createdAt": createdAt})
-	}
-	if rows.Err() != nil {
-		return
-	}
-	messageID, err := newOpaqueID("message")
-	if err != nil {
-		return
-	}
-	messages = append(messages, map[string]any{"id": messageID, "speaker": "ai", "body": "目标对话已完成，节点草案通过冻结审核，目标、验收标准和证据要求已冻结。", "createdAt": time.Now()})
-	encoded, err := jsonValue(messages)
-	if err != nil {
-		return
-	}
-	_, _ = h.conversations.Execute(ctx, `UPDATE execution_contracts SET review_messages_json = ? WHERE uuid = ?`, encoded, nodeID)
-}

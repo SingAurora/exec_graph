@@ -8,6 +8,30 @@ type User struct {
 	Email    string `json:"email"`
 }
 
+// Profile 是个人资料用例返回的视图，不包含密码和验证码等敏感字段。
+type Profile struct {
+	ID                    uint64
+	Username              string
+	UserID                string
+	Email                 string
+	Bio                   string
+	Gender                string
+	AvatarObjectKey       string
+	ProfileBackgroundKey  string
+	CustomProfileEnabled  bool
+	CustomProfileMarkdown string
+}
+
+// UpdateProfileInput 是更新个人资料用例的输入。
+type UpdateProfileInput struct {
+	Username              string
+	UserID                string
+	Bio                   string
+	Gender                string
+	CustomProfileEnabled  bool
+	CustomProfileMarkdown string
+}
+
 // SendCodeInput 是发送邮箱验证码用例的输入。
 type SendCodeInput struct {
 	Email       string

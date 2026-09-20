@@ -11,7 +11,7 @@ import { SmartContractsPage } from './SmartContractsPage'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../components/ui/dialog'
 import { CustomProfileCodeEditor } from '../components/CustomProfileCodeEditor'
 import { CustomProfileContent } from '../components/CustomProfileContent'
-import { parseJSONResponse } from '../lib/api'
+import { getJSON, postJSON, requestFormData } from '../lib/api'
 import type { Gender } from '../types'
 
 const profileSchema = z.object({
@@ -495,12 +495,7 @@ export function SettingsPage() {
     try {
       const formData = new FormData()
       formData.append('avatar', file)
-      const response = await fetch('/api/commands/users/me/upload-avatar', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${accessToken}` },
-        body: formData,
-      })
-      const data = await parseJSONResponse<{ avatarUrl?: string }>(response)
+      const data = await requestFormData<{ avatarUrl?: string }>('/api/commands/users/me/upload-avatar', formData, accessToken)
       if (!data.avatarUrl) throw new Error('头像上传失败，请稍后重试。')
       setAvatarUrl(data.avatarUrl)
       updateProfile({ ...getProfileValues(), avatarUrl: data.avatarUrl })
@@ -532,12 +527,7 @@ export function SettingsPage() {
     try {
       const formData = new FormData()
       formData.append('background', file)
-      const response = await fetch('/api/commands/users/me/upload-background', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${accessToken}` },
-        body: formData,
-      })
-      const data = await parseJSONResponse<{ profileBackgroundUrl?: string }>(response)
+      const data = await requestFormData<{ profileBackgroundUrl?: string }>('/api/commands/users/me/upload-background', formData, accessToken)
       if (!data.profileBackgroundUrl) throw new Error('背景图片上传失败，请稍后重试。')
       setProfileBackgroundUrl(data.profileBackgroundUrl)
       updateProfile({ ...getProfileValues(), avatarUrl: avatarUrl || undefined, profileBackgroundUrl: data.profileBackgroundUrl })
@@ -567,12 +557,7 @@ export function SettingsPage() {
     setAvatarError('')
     setProfileSaved(false)
     try {
-      const response = await fetch('/api/commands/users/me/update', {
-		method: 'POST',
-        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
-      })
-      const data = await parseJSONResponse<{ user?: { username?: string; userId?: string; bio?: string; gender?: Gender; avatarUrl?: string; profileBackgroundUrl?: string; customProfileEnabled?: boolean; customProfileMarkdown?: string } }>(response)
+      const data = await postJSON<{ user?: { username?: string; userId?: string; bio?: string; gender?: Gender; avatarUrl?: string; profileBackgroundUrl?: string; customProfileEnabled?: boolean; customProfileMarkdown?: string } }>('/api/commands/users/me/update', values, accessToken)
       if (!data.user?.username || !data.user.userId) {
         setAvatarError('保存公开资料失败。')
         return
@@ -614,8 +599,7 @@ export function SettingsPage() {
     }
     setIsLoadingAIKeys(true)
     try {
-		const response = await fetch('/api/commands/ai-keys/list', { method: 'GET', headers: { Authorization: `Bearer ${accessToken}` } })
-      const data = await parseJSONResponse<{ keys?: AIKey[] }>(response)
+      const data = await getJSON<{ keys?: AIKey[] }>('/api/commands/ai-keys/list', accessToken)
       setAIKeys(data.keys ?? [])
     } catch (error) {
       setAIKeyMessage(error instanceof Error ? error.message : '无法连接服务，请确认后端已启动。')
@@ -666,12 +650,7 @@ export function SettingsPage() {
     if (!validateAIKeyDraft('保存')) return
     setIsSavingAIKey(true)
     try {
-      const response = await fetch('/api/commands/ai-keys/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify(getAIKeyDraft()),
-      })
-      const data = await parseJSONResponse<AIKey>(response)
+      const data = await postJSON<AIKey>('/api/commands/ai-keys/create', getAIKeyDraft(), accessToken)
       setAIKeys((keys) => [...keys, data])
       setAIKeyValue('')
       setAIKeyLabel('')
@@ -692,12 +671,7 @@ export function SettingsPage() {
     if (!validateAIKeyDraft('测试')) return
     setIsTestingAIKey(true)
     try {
-      const response = await fetch('/api/commands/ai-keys/test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify(getAIKeyDraft()),
-      })
-      const data = await parseJSONResponse<{ message?: string }>(response)
+      const data = await postJSON<{ message?: string }>('/api/commands/ai-keys/test', getAIKeyDraft(), accessToken)
       const message = data.message ?? '测试通过。'
       setAIKeyMessage(message)
       showSuccessToast(message)
@@ -715,12 +689,7 @@ export function SettingsPage() {
     setAIKeyMessage('')
     setBusyAIKeyID(key.id)
     try {
-      const response = await fetch(action === 'delete' ? '/api/commands/ai-keys/delete' : '/api/commands/ai-keys/verify', {
-		method: 'POST',
-		headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-		body: JSON.stringify({ keyId: key.id }),
-      })
-      const data = await parseJSONResponse<{ message?: string; lastVerifiedAt?: string }>(response)
+      const data = await postJSON<{ message?: string; lastVerifiedAt?: string }>(action === 'delete' ? '/api/commands/ai-keys/delete' : '/api/commands/ai-keys/verify', { keyId: key.id }, accessToken)
       if (action === 'delete') {
         setAIKeys((keys) => keys.filter((item) => item.id !== key.id))
       } else {
@@ -739,12 +708,7 @@ export function SettingsPage() {
   }
 
   const sendVerificationCode = async (purpose: 'change_email' | 'change_password', email?: string) => {
-    const response = await fetch('/api/commands/auth/send-code', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ purpose, ...(email ? { email } : {}) }),
-    })
-    const data = await parseJSONResponse<{ message?: string }>(response)
+    const data = await postJSON<{ message?: string }>('/api/commands/auth/send-code', { purpose, ...(email ? { email } : {}) }, accessToken)
     return data.message ?? '验证码已发送，请查收邮件。'
   }
 
@@ -792,13 +756,8 @@ export function SettingsPage() {
       return
     }
     try {
-      const response = await fetch('/api/commands/auth/change-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify(values),
-      })
-      await parseJSONResponse(response)
-      const result = updateAccountEmail(values.email, values.currentPassword)
+      await postJSON('/api/commands/auth/change-email', values, accessToken)
+      const result = updateAccountEmail(values.email)
       setEmailMessage(result.success ? '邮箱已更新' : result.message ?? '邮箱更新失败。')
       if (result.success) resetEmail({ email: values.email.trim().toLowerCase(), currentPassword: '', code: '' })
     } catch (error) {
@@ -813,13 +772,8 @@ export function SettingsPage() {
       return
     }
     try {
-      const response = await fetch('/api/commands/auth/change-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify(values),
-      })
-      await parseJSONResponse(response)
-      const result = updateAccountPassword(values.currentPassword, values.nextPassword)
+      await postJSON('/api/commands/auth/change-password', values, accessToken)
+      const result = updateAccountPassword()
       setPasswordMessage(result.success ? '密码已更新' : result.message ?? '密码更新失败。')
       if (result.success) resetPassword()
     } catch (error) {
