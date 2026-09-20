@@ -1,6 +1,6 @@
 import { ArrowLeft, FolderPlus } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { ProjectComposer } from '../components/ProjectComposer'
+import { ProjectComposer } from '@/features/project/ui/ProjectComposer'
 
 export function NewProjectPage() {
   return (

@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
-import { AuthLayout } from '../components/AuthLayout'
-import { postJSON } from '../lib/api'
-import { useExecStore } from '../store/useExecStore'
+import { AuthLayout } from '@/widgets/auth-layout/ui/AuthLayout'
+import { postJSON } from '@/shared/api/client'
+import { useWorkspaceStore } from '@/features/workspace/model/useWorkspaceStore'
 
 const registerSchema = z.object({
   username: z.string().min(2, '请输入至少两个字符的用户名。').max(64, '用户名不能超过 64 个字符。'),
@@ -19,8 +19,8 @@ type RegisterForm = z.infer<typeof registerSchema>
 
 export function RegisterPage() {
   const navigate = useNavigate()
-  const setAccessToken = useExecStore((state) => state.setAccessToken)
-  const refreshWorkspace = useExecStore((state) => state.refreshWorkspace)
+  const setAccessToken = useWorkspaceStore((state) => state.setAccessToken)
+  const refreshWorkspace = useWorkspaceStore((state) => state.refreshWorkspace)
   const [authError, setAuthError] = useState('')
   const [notice, setNotice] = useState('')
   const [countdown, setCountdown] = useState(0)

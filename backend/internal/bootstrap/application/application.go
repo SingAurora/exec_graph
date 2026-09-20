@@ -13,6 +13,7 @@ import (
 	applicationidentity "github.com/singaurora/exec-graph/backend/internal/application/identity"
 	applicationnetwork "github.com/singaurora/exec-graph/backend/internal/application/network"
 	applicationproject "github.com/singaurora/exec-graph/backend/internal/application/project"
+	applicationworkoverview "github.com/singaurora/exec-graph/backend/internal/application/workoverview"
 	bootstrapconfig "github.com/singaurora/exec-graph/backend/internal/bootstrap/config"
 	httpendpoint "github.com/singaurora/exec-graph/backend/internal/http/endpoint"
 	httpapirouter "github.com/singaurora/exec-graph/backend/internal/http/router"
@@ -75,6 +76,7 @@ func Run() error {
 	executionStore := executionpersistence.NewRepository(orm)
 	collaborationStore := collaborationpersistence.NewRepository(orm)
 	conversationStore := conversationpersistence.NewRepository(orm)
+	workOverviewStore := workoverviewpersistence.NewRepository(orm)
 
 	identityService := applicationidentity.New(applicationidentity.Dependencies{
 		Repository: identityStore,
@@ -90,17 +92,16 @@ func Run() error {
 	collaborationService := applicationcollaboration.New(collaborationStore)
 
 	apiServer := httpendpoint.NewServer(httpendpoint.Dependencies{
-		Reviews:            reviewpersistence.NewRepository(orm),
-		Conversations:      conversationStore,
-		Conversation:       applicationconversation.New(conversationStore),
-		CollaborationStore: collaborationStore,
-		WorkOverview:       workoverviewpersistence.NewRepository(orm),
-		Storage:            storage,
-		Identity:           identityService,
-		Project:            projectService,
-		Network:            networkService,
-		AIKey:              aiKeyService,
-		Collaboration:      collaborationService,
+		Reviews:       reviewpersistence.NewRepository(orm),
+		Conversations: conversationStore,
+		Conversation:  applicationconversation.New(conversationStore),
+		WorkOverview:  applicationworkoverview.New(workOverviewStore),
+		Storage:       storage,
+		Identity:      identityService,
+		Project:       projectService,
+		Network:       networkService,
+		AIKey:         aiKeyService,
+		Collaboration: collaborationService,
 	})
 	address := fmt.Sprintf("%s:%d", config.App.Host, config.App.Port)
 	log.Printf("exec_graph backend listening on %s", address)

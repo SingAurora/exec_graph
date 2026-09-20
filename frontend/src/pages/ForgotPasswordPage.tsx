@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
-import { AuthLayout } from '../components/AuthLayout'
-import { postJSON } from '../lib/api'
+import { AuthLayout } from '@/widgets/auth-layout/ui/AuthLayout'
+import { postJSON } from '@/shared/api/client'
 
 const forgotPasswordSchema = z
   .object({

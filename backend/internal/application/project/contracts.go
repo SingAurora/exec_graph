@@ -2,7 +2,6 @@ package project
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"time"
@@ -56,23 +55,7 @@ func (s *Service) CreateContract(ctx context.Context, userID uint64, name, descr
 	if err != nil {
 		return Contract{}, err
 	}
-	tx, err := s.execution.Begin(ctx)
-	if err != nil {
-		return Contract{}, err
-	}
-	defer tx.Rollback()
-	result, err := tx.Execute(ctx, `INSERT INTO smart_contracts (uuid, name, source, version, description, body, created_by) VALUES (?, ?, 'custom', '1.0.0', ?, ?, ?)`, id, name, description, body, userID)
-	if err != nil {
-		return Contract{}, err
-	}
-	internalID, err := result.LastInsertId()
-	if err != nil {
-		return Contract{}, err
-	}
-	if _, err := tx.Execute(ctx, `INSERT INTO smart_contract_events (uuid, contract_id, actor_id, event_type, contract_snapshot_json, created_at) VALUES (?, ?, ?, 'created', ?, ?)`, eventID, internalID, userID, snapshot, created); err != nil {
-		return Contract{}, err
-	}
-	if err := tx.Commit(); err != nil {
+	if err := s.contracts.CreateCustom(ctx, contractpersistence.CreateCustomInput{ID: id, EventID: eventID, Name: name, Description: description, Body: body, Snapshot: string(snapshot), OwnerID: userID, CreatedAt: created}); err != nil {
 		return Contract{}, err
 	}
 	return contract, nil
@@ -81,26 +64,12 @@ func (s *Service) CreateContract(ctx context.Context, userID uint64, name, descr
 func (s *Service) DeleteContract(ctx context.Context, userID uint64, contractID string) error {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	tx, err := s.execution.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	var internalID uint64
-	var contract Contract
-	err = tx.Row(ctx, `SELECT id, uuid, name, source, version, description, body, created_at FROM smart_contracts WHERE uuid = ? AND created_by = ? AND source = 'custom' AND deleted_at IS NULL FOR UPDATE`, contractID, userID).Scan(&internalID, &contract.ID, &contract.Name, &contract.Source, &contract.Version, &contract.Description, &contract.Body, &contract.CreatedAt)
-	if errors.Is(err, sql.ErrNoRows) {
+	contract, err := s.contracts.FindVisible(ctx, userID, contractID)
+	if errors.Is(err, contractpersistence.ErrNotFound) {
 		return ErrContractNotFound
 	}
 	if err != nil {
 		return err
-	}
-	var active int
-	if err := tx.Row(ctx, `SELECT COUNT(*) FROM projects p JOIN project_contract_revisions r ON r.id = p.active_contract_revision_id WHERE p.owner_id = ? AND r.smart_contract_id = ?`, userID, internalID).Scan(&active); err != nil {
-		return err
-	}
-	if active > 0 {
-		return ErrContractInUse
 	}
 	snapshot, err := json.Marshal(contract)
 	if err != nil {
@@ -111,34 +80,30 @@ func (s *Service) DeleteContract(ctx context.Context, userID uint64, contractID 
 		return err
 	}
 	deleted := time.Now()
-	if _, err := tx.Execute(ctx, `UPDATE smart_contracts SET deleted_at = ?, deleted_by = ? WHERE uuid = ?`, deleted, userID, contractID); err != nil {
+	if err := s.contracts.DeleteCustom(ctx, userID, contractID, eventID, string(snapshot), deleted); errors.Is(err, contractpersistence.ErrNotFound) {
+		return ErrContractNotFound
+	} else if errors.Is(err, contractpersistence.ErrInUse) {
+		return ErrContractInUse
+	} else {
 		return err
 	}
-	if _, err := tx.Execute(ctx, `INSERT INTO smart_contract_events (uuid, contract_id, actor_id, event_type, contract_snapshot_json, created_at) VALUES (?, ?, ?, 'deleted', ?, ?)`, eventID, internalID, userID, snapshot, deleted); err != nil {
-		return err
-	}
-	return tx.Commit()
 }
 
 func (s *Service) ContractEvents(ctx context.Context, userID uint64) ([]ContractEvent, error) {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	rows, err := s.execution.Rows(ctx, `SELECT e.uuid, c.uuid, e.event_type, e.contract_snapshot_json, e.created_at FROM smart_contract_events e JOIN smart_contracts c ON c.id = e.contract_id WHERE e.actor_id = ? ORDER BY e.created_at DESC`, userID)
+	rows, err := s.contracts.ListEvents(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 	events := make([]ContractEvent, 0)
-	for rows.Next() {
+	for _, row := range rows {
 		var event ContractEvent
-		var snapshot string
-		if err := rows.Scan(&event.ID, &event.ContractID, &event.EventType, &snapshot, &event.CreatedAt); err != nil {
-			return nil, err
-		}
-		if err := json.Unmarshal([]byte(snapshot), &event.Contract); err != nil {
+		event.ID, event.ContractID, event.EventType, event.CreatedAt = row.ID, row.ContractID, row.EventType, row.CreatedAt
+		if err := contractpersistence.DecodeEventContract(row.SnapshotJSON, &event.Contract); err != nil {
 			return nil, err
 		}
 		events = append(events, event)
 	}
-	return events, rows.Err()
+	return events, nil
 }

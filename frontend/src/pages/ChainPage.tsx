@@ -1,10 +1,10 @@
 import { Eye, GitBranch, GitFork, LockKeyhole, Network } from 'lucide-react'
 import { useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ProjectGraph } from '../components/ProjectGraph'
-import { StatusBadge } from '../components/StatusBadge'
-import { useExecStore } from '../store/useExecStore'
-import type { ExecutionBranch, ExecutionContract, ExecutionEdge } from '../types'
+import { ProjectGraph } from '@/widgets/project/ui/ProjectGraph'
+import { StatusBadge } from '@/entities/execution-node/ui/StatusBadge'
+import { useWorkspaceStore as useExecStore } from '@/features/workspace/model/useWorkspaceStore'
+import type { ExecutionBranch, ExecutionContract, ExecutionEdge } from '@/entities/execution-node/model/types'
 
 type LinkedContract = { contract: ExecutionContract; edgeType?: ExecutionEdge['type'] }
 

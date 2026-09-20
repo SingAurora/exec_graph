@@ -88,3 +88,43 @@ type SubmitInput struct {
 	MappingText    string
 	Note           string
 }
+
+// ReviewContext 是组合审查所需的项目、节点和规则上下文。
+type ReviewContext struct {
+	ProjectTitle       string
+	ProjectDescription string
+	ProjectRules       string
+	OriginalIntent     string
+	SmartContractID    string
+	SmartContractName  string
+	SmartContractDesc  string
+	SmartContractBody  string
+}
+
+// CreateReviewBatchInput 是保存一次 AI 组合审查的输入。
+type CreateReviewBatchInput struct {
+	UserID        uint64
+	BatchID       string
+	CallID        string
+	SubmissionIDs []string
+	ReviewJSON    string
+	Status        string
+}
+
+// AdoptReviewInput 是采纳一批已通过审查投稿的输入。
+type AdoptReviewInput struct {
+	UserID  uint64
+	BatchID string
+}
+
+type ContributionSource struct {
+	ID           string `json:"id"`
+	Title        string `json:"title"`
+	Summary      string `json:"summary"`
+	ProjectTitle string `json:"projectTitle"`
+}
+
+type ContributionActivity struct {
+	Submission Submission `json:"submission"`
+	Call       Call       `json:"call"`
+}

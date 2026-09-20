@@ -8,6 +8,7 @@ import (
 	applicationidentity "github.com/singaurora/exec-graph/backend/internal/application/identity"
 	applicationnetwork "github.com/singaurora/exec-graph/backend/internal/application/network"
 	applicationproject "github.com/singaurora/exec-graph/backend/internal/application/project"
+	applicationworkoverview "github.com/singaurora/exec-graph/backend/internal/application/workoverview"
 	aikeyendpoint "github.com/singaurora/exec-graph/backend/internal/http/endpoint/aikey"
 	executionendpoint "github.com/singaurora/exec-graph/backend/internal/http/endpoint/execution"
 	identityendpoint "github.com/singaurora/exec-graph/backend/internal/http/endpoint/identity"
@@ -15,24 +16,21 @@ import (
 	profileendpoint "github.com/singaurora/exec-graph/backend/internal/http/endpoint/profile"
 	projectendpoint "github.com/singaurora/exec-graph/backend/internal/http/endpoint/project"
 	workflowendpoint "github.com/singaurora/exec-graph/backend/internal/http/endpoint/workflow"
-	collaborationpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/collaboration"
 	conversationpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/conversation"
 	reviewpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/review"
-	workoverviewpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/workoverview"
 	infrastructurestorage "github.com/singaurora/exec-graph/backend/internal/infrastructure/storage"
 )
 
 // Dependencies 是已经完成组装的 HTTP 依赖。具体仓储、服务和外部客户端只在
 // bootstrap 层创建；endpoint 不持有 GORM 连接，也不决定使用哪种基础设施实现。
 type Dependencies struct {
-	// 下面四个仓储仍服务于 workflow 中尚未完成领域化的旧流程。
-	// 它们后续应分别迁移为 review、conversation、collaboration 和 workoverview service。
-	Reviews            *reviewpersistence.Repository
-	Conversations      *conversationpersistence.Repository
-	Conversation       *applicationconversation.Service
-	CollaborationStore *collaborationpersistence.Repository
-	WorkOverview       *workoverviewpersistence.Repository
-	Storage            infrastructurestorage.ObjectStorage
+	// 下面两个仓储仍服务于 workflow 中尚未完成领域化的旧审查和对话流程。
+	// 协作和工作总览已经通过 application service 进入 HTTP 层。
+	Reviews       *reviewpersistence.Repository
+	Conversations *conversationpersistence.Repository
+	Conversation  *applicationconversation.Service
+	WorkOverview  *applicationworkoverview.Service
+	Storage       infrastructurestorage.ObjectStorage
 
 	Identity      *applicationidentity.Service
 	Project       *applicationproject.Service
@@ -72,14 +70,13 @@ func NewServer(dependencies Dependencies) *Server {
 		Conversation: dependencies.Conversation,
 	})
 	server.workflowEndpoints = workflowendpoint.New(workflowendpoint.Dependencies{
-		Project:            dependencies.Project,
-		Collaboration:      dependencies.Collaboration,
-		AIKey:              dependencies.AIKey,
-		Reviews:            dependencies.Reviews,
-		Conversations:      dependencies.Conversations,
-		CollaborationStore: dependencies.CollaborationStore,
-		WorkOverview:       dependencies.WorkOverview,
-		RequireUser:        server.requireUser,
+		Project:       dependencies.Project,
+		Collaboration: dependencies.Collaboration,
+		AIKey:         dependencies.AIKey,
+		Reviews:       dependencies.Reviews,
+		Conversations: dependencies.Conversations,
+		WorkOverview:  dependencies.WorkOverview,
+		RequireUser:   server.requireUser,
 	})
 	return server
 }

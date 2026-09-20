@@ -2,15 +2,15 @@ package workflow
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
-	"sort"
 	"strings"
 	"time"
 
+	applicationaikey "github.com/singaurora/exec-graph/backend/internal/application/aikey"
+	applicationworkoverview "github.com/singaurora/exec-graph/backend/internal/application/workoverview"
 	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
 )
 
@@ -113,7 +113,7 @@ func (h *Handler) handleDailyWorkReview(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 	key, err := h.loadWorkOverviewAIKey(ctx, userID)
-	if errors.Is(err, sql.ErrNoRows) {
+	if errors.Is(err, applicationaikey.ErrNotFound) {
 		writeError(w, http.StatusBadRequest, "请先为至少一个未归档项目选择审查 AI")
 		return
 	}
@@ -131,7 +131,7 @@ func (h *Handler) handleDailyWorkReview(w http.ResponseWriter, r *http.Request, 
 		writeError(w, http.StatusInternalServerError, "保存日结分析失败")
 		return
 	}
-	_, _ = h.workOverview.Execute(ctx, `UPDATE ai_api_keys SET last_used_at = NOW() WHERE uuid = ? AND user_id = ?`, key.UUID, userID)
+	_ = h.aiKey.MarkUsed(ctx, userID, key.UUID)
 	writeJSON(w, http.StatusOK, map[string]any{"review": review})
 }
 
@@ -148,157 +148,38 @@ func parseOverviewMonth(value string) (time.Time, error) {
 }
 
 func (h *Handler) loadDailyWorkDays(ctx context.Context, userID uint64, start, end time.Time) ([]dailyWorkDayResponse, error) {
-	byDate := map[string]*dailyWorkDayResponse{}
-	add := func(activity dailyWorkActivityResponse) {
-		date := activity.CreatedAt.In(time.Local).Format("2006-01-02")
-		day := byDate[date]
-		if day == nil {
-			day = &dailyWorkDayResponse{Date: date, Activities: make([]dailyWorkActivityResponse, 0)}
-			byDate[date] = day
-		}
-		day.Activities = append(day.Activities, activity)
-	}
-
-	nodes, err := h.workOverview.Rows(ctx, `
-		SELECT n.uuid, p.uuid, p.title, n.title, n.verifiable_goal, n.created_at, n.started_at, n.ended_at
-		FROM execution_contracts n
-		JOIN projects p ON p.id = n.project_id
-		WHERE n.actor_id = ? AND p.owner_id = ? AND COALESCE(n.started_at, n.created_at) >= ? AND COALESCE(n.started_at, n.created_at) < ?
-		ORDER BY n.created_at ASC`, userID, userID, start, end)
+	days, err := h.workOverview.ListDays(ctx, userID, start, end)
 	if err != nil {
 		return nil, err
 	}
-	for nodes.Next() {
-		var activity dailyWorkActivityResponse
-		var startedAt, endedAt sql.NullTime
-		if err := nodes.Scan(&activity.ID, &activity.ProjectID, &activity.ProjectTitle, &activity.Title, &activity.Detail, &activity.CreatedAt, &startedAt, &endedAt); err != nil {
-			nodes.Close()
-			return nil, err
+	result := make([]dailyWorkDayResponse, 0, len(days))
+	for _, day := range days {
+		responseDay := dailyWorkDayResponse{Date: day.Date, Activities: make([]dailyWorkActivityResponse, 0, len(day.Activities))}
+		for _, activity := range day.Activities {
+			responseDay.Activities = append(responseDay.Activities, dailyWorkActivityResponse{ID: activity.ID, Kind: activity.Kind, ProjectID: activity.ProjectID, ProjectTitle: activity.ProjectTitle, NodeID: activity.NodeID, Title: activity.Title, Detail: activity.Detail, CreatedAt: activity.CreatedAt, StartedAt: activity.StartedAt, EndedAt: activity.EndedAt})
 		}
-		activity.Kind = "started"
-		activity.NodeID = activity.ID
-		if startedAt.Valid {
-			activity.StartedAt = &startedAt.Time
-			activity.CreatedAt = startedAt.Time
+		if day.Review != nil {
+			var config aiConfigSnapshot
+			_ = json.Unmarshal([]byte(day.Review.AIConfig), &config)
+			responseDay.Review = &dailyWorkReviewResponse{ID: day.Review.ID, Date: day.Review.Date, Summary: day.Review.Summary, Momentum: day.Review.Momentum, Highlights: day.Review.Highlights, Friction: day.Review.Friction, NextStep: day.Review.NextStep, AIConfig: config, CreatedAt: day.Review.CreatedAt, UpdatedAt: day.Review.UpdatedAt}
 		}
-		if endedAt.Valid {
-			activity.EndedAt = &endedAt.Time
-		}
-		activity.ID = "node:" + activity.ID
-		add(activity)
+		result = append(result, responseDay)
 	}
-	if err := nodes.Err(); err != nil {
-		nodes.Close()
-		return nil, err
-	}
-	nodes.Close()
-
-	records, err := h.workOverview.Rows(ctx, `
-		SELECT r.uuid, p.uuid, p.title, n.uuid, r.title, r.summary, r.record_kind, r.created_at
-		FROM completion_records r
-		JOIN projects p ON p.id = r.project_id
-		JOIN execution_contracts n ON n.id = r.closing_contract_id
-		WHERE p.owner_id = ? AND r.created_at >= ? AND r.created_at < ?
-		ORDER BY r.created_at ASC`, userID, start, end)
-	if err != nil {
-		return nil, err
-	}
-	for records.Next() {
-		var activity dailyWorkActivityResponse
-		var recordKind string
-		if err := records.Scan(&activity.ID, &activity.ProjectID, &activity.ProjectTitle, &activity.NodeID, &activity.Title, &activity.Detail, &recordKind, &activity.CreatedAt); err != nil {
-			records.Close()
-			return nil, err
-		}
-		if recordKind == "sealed" {
-			activity.Kind = "sealed"
-		} else {
-			activity.Kind = "completed"
-		}
-		add(activity)
-	}
-	if err := records.Err(); err != nil {
-		records.Close()
-		return nil, err
-	}
-	records.Close()
-
-	reviews, err := h.loadDailyWorkReviews(ctx, userID, start, end)
-	if err != nil {
-		return nil, err
-	}
-	for date, review := range reviews {
-		day := byDate[date]
-		if day == nil {
-			day = &dailyWorkDayResponse{Date: date, Activities: make([]dailyWorkActivityResponse, 0)}
-			byDate[date] = day
-		}
-		day.Review = &review
-	}
-
-	days := make([]dailyWorkDayResponse, 0, len(byDate))
-	for _, day := range byDate {
-		sort.Slice(day.Activities, func(left, right int) bool {
-			return day.Activities[left].CreatedAt.Before(day.Activities[right].CreatedAt)
-		})
-		days = append(days, *day)
-	}
-	sort.Slice(days, func(left, right int) bool { return days[left].Date < days[right].Date })
-	return days, nil
-}
-
-func (h *Handler) loadDailyWorkReviews(ctx context.Context, userID uint64, start, end time.Time) (map[string]dailyWorkReviewResponse, error) {
-	rows, err := h.workOverview.Rows(ctx, `
-		SELECT uuid, DATE_FORMAT(review_date, '%Y-%m-%d'), review_json, ai_config_json, created_at, updated_at
-		FROM daily_work_reviews
-		WHERE user_id = ? AND review_date >= ? AND review_date < ?`, userID, start, end)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	reviews := map[string]dailyWorkReviewResponse{}
-	for rows.Next() {
-		var review dailyWorkReviewResponse
-		var date string
-		var reviewJSON, configJSON string
-		if err := rows.Scan(&review.ID, &date, &reviewJSON, &configJSON, &review.CreatedAt, &review.UpdatedAt); err != nil {
-			return nil, err
-		}
-		if json.Unmarshal([]byte(reviewJSON), &review) != nil || json.Unmarshal([]byte(configJSON), &review.AIConfig) != nil {
-			continue
-		}
-		review.Date = date
-		reviews[date] = review
-	}
-	return reviews, rows.Err()
+	return result, nil
 }
 
 func (h *Handler) loadWorkOverviewAIKey(ctx context.Context, userID uint64) (aiStoredKey, error) {
-	var projectID string
-	err := h.workOverview.Row(ctx, `
-		SELECT uuid FROM projects
-		WHERE owner_id = ? AND archived_at IS NULL AND default_ai_key_id IS NOT NULL
-		ORDER BY updated_at DESC LIMIT 1`, userID).Scan(&projectID)
+	key, err := h.aiKey.FindLatestProjectReviewKey(ctx, userID)
 	if err != nil {
 		return aiStoredKey{}, err
 	}
-	return h.loadProjectAIKey(ctx, userID, projectID)
+	return aiStoredKey{UUID: key.ID, Provider: key.Provider, Label: key.Label, APIKey: key.APIKey, BaseURL: key.BaseURL, Model: key.Model}, nil
 }
 
 func analyzeDailyWork(ctx context.Context, key aiStoredKey, date string, activities []dailyWorkActivityResponse) (dailyWorkReviewModelOutput, error) {
 	var output dailyWorkReviewModelOutput
 	system := "你是 ExecG 的私人日结分析助手。仅根据当天已经记录的工作活动，概括推进情况和下一步。不得把未记录的工作当事实，不做人格判断、道德评价或量化评分，不得改变节点验收、冻结或完成结论。momentum 只能是：稳步推进、集中完成、起步探索、受阻待续。highlights 和 friction 最多各三条；没有阻碍时 friction 为空数组。只返回 JSON。"
-	payload := map[string]any{
-		"date":       date,
-		"activities": activities,
-		"requiredJSONResponse": map[string]any{
-			"summary":    "基于记录的中文日结摘要",
-			"momentum":   "稳步推进|集中完成|起步探索|受阻待续",
-			"highlights": []string{"不超过三条具体已记录事实"},
-			"friction":   []string{"不超过三条已记录的阻碍，可为空"},
-			"nextStep":   "一项具体、可开始的下一步",
-		},
-	}
+	payload := map[string]any{"date": date, "activities": activities, "requiredJSONResponse": map[string]any{"summary": "基于记录的中文日结摘要", "momentum": "稳步推进|集中完成|起步探索|受阻待续", "highlights": []string{"不超过三条具体已记录事实"}, "friction": []string{"不超过三条已记录的阻碍，可为空"}, "nextStep": "一项具体、可开始的下一步"}}
 	if err := callConversationModel(ctx, key, system, payload, &output); err != nil {
 		return output, fmt.Errorf("AI 日结分析失败：%w", err)
 	}
@@ -314,33 +195,13 @@ func analyzeDailyWork(ctx context.Context, key aiStoredKey, date string, activit
 }
 
 func (h *Handler) saveDailyWorkReview(ctx context.Context, userID uint64, date time.Time, config aiConfigSnapshot, output dailyWorkReviewModelOutput) (dailyWorkReviewResponse, error) {
-	dateValue := date.Format("2006-01-02")
-	var reviewID string
-	var createdAt time.Time
-	err := h.workOverview.Row(ctx, `SELECT uuid, created_at FROM daily_work_reviews WHERE user_id = ? AND review_date = ?`, userID, dateValue).Scan(&reviewID, &createdAt)
-	if errors.Is(err, sql.ErrNoRows) {
-		var idErr error
-		reviewID, idErr = newOpaqueID("daily-review")
-		if idErr != nil {
-			return dailyWorkReviewResponse{}, idErr
-		}
-		createdAt = time.Now()
-	} else if err != nil {
-		return dailyWorkReviewResponse{}, err
-	}
-	now := time.Now()
-	review := dailyWorkReviewResponse{ID: reviewID, Date: dateValue, Summary: output.Summary, Momentum: output.Momentum, Highlights: output.Highlights, Friction: output.Friction, NextStep: output.NextStep, AIConfig: config, CreatedAt: createdAt, UpdatedAt: now}
-	reviewJSON, err := json.Marshal(review)
-	if err != nil {
-		return dailyWorkReviewResponse{}, err
-	}
 	configJSON, err := json.Marshal(config)
 	if err != nil {
 		return dailyWorkReviewResponse{}, err
 	}
-	_, err = h.workOverview.Execute(ctx, `
-		INSERT INTO daily_work_reviews (uuid, user_id, review_date, review_json, ai_config_json)
-		VALUES (?, ?, ?, ?, ?)
-		ON DUPLICATE KEY UPDATE review_json = VALUES(review_json), ai_config_json = VALUES(ai_config_json)`, reviewID, userID, dateValue, reviewJSON, configJSON)
-	return review, err
+	review, err := h.workOverview.SaveReview(ctx, applicationworkoverview.SaveReviewInput{UserID: userID, Date: date, Summary: output.Summary, Momentum: output.Momentum, Highlights: output.Highlights, Friction: output.Friction, NextStep: output.NextStep, AIConfig: string(configJSON)})
+	if err != nil {
+		return dailyWorkReviewResponse{}, err
+	}
+	return dailyWorkReviewResponse{ID: review.ID, Date: review.Date, Summary: review.Summary, Momentum: review.Momentum, Highlights: review.Highlights, Friction: review.Friction, NextStep: review.NextStep, AIConfig: config, CreatedAt: review.CreatedAt, UpdatedAt: review.UpdatedAt}, nil
 }

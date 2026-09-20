@@ -9,7 +9,10 @@ import (
 	"gorm.io/gorm"
 )
 
-var ErrNotFound = errors.New("project not found")
+var (
+	ErrNotFound = errors.New("project not found")
+	ErrInvalid  = errors.New("invalid project contract")
+)
 
 type Project struct {
 	ID                             uint64     `gorm:"column:id;primaryKey"`
@@ -61,6 +64,24 @@ type InitialProjectSpec struct {
 type ProjectRepository struct {
 	db *gorm.DB
 }
+
+// CreateProjectInput describes the immutable facts needed to create a project.
+type CreateProjectInput struct {
+	UUID, RevisionUUID, Title, Description, ProjectType, ProjectRules, Visibility, SmartContractUUID, AIKeyUUID, ContributionCallUUID, OriginSnapshot string
+	OwnerID                                                                                                                                           uint64
+}
+
+// SetContractInput describes a project contract revision change.
+type SetContractInput struct {
+	ProjectID, ContractID, RevisionUUID string
+	OwnerID                             uint64
+}
+
+// ContributionOriginProjection is the handoff context for an open contribution call.
+type ContributionOriginProjection struct{ CallID, ProjectID, ProjectTitle, CallTitle, Status, TargetTitle, Goal, CriteriaJSON, EvidenceRequirement string }
+
+// ContributionSourceProjection is an existing contribution source.
+type ContributionSourceProjection struct{ Title, ProjectTitle, MappingText, Status string }
 
 func NewProjectRepository(db *gorm.DB) ProjectRepository {
 	return ProjectRepository{db: db}
@@ -179,3 +200,139 @@ func (repository ProjectRepository) ListContractRevisions(ctx context.Context, p
 		Scan(&revisions).Error
 	return revisions, err
 }
+
+// UUIDByInternalID resolves a public UUID for a supported project-owned table.
+func (repository ProjectRepository) UUIDByInternalID(ctx context.Context, table string, id uint64) (string, error) {
+	var value struct {
+		UUID string `gorm:"column:uuid"`
+	}
+	if err := repository.db.WithContext(ctx).Table(table).Select("uuid").Where("id = ?", id).First(&value).Error; err != nil {
+		return "", err
+	}
+	return value.UUID, nil
+}
+
+// FindContributionOrigin loads a call and its available non-withdrawn sources.
+func (repository ProjectRepository) FindContributionOrigin(ctx context.Context, callID string) (ContributionOriginProjection, []ContributionSourceProjection, error) {
+	var origin ContributionOriginProjection
+	result := repository.db.WithContext(ctx).Table("collaboration_calls AS c").Select("c.uuid AS call_id, p.uuid AS project_id, p.title AS project_title, c.title AS call_title, c.status, n.title AS target_title, n.verifiable_goal AS goal, n.acceptance_criteria_json AS criteria_json, n.evidence_requirement").Joins("JOIN projects AS p ON p.id = c.project_id").Joins("JOIN execution_contracts AS n ON n.id = c.target_contract_id").Where("c.uuid = ?", callID).Scan(&origin)
+	err := result.Error
+	if err == nil && result.RowsAffected == 0 {
+		return origin, nil, ErrNotFound
+	}
+	if err != nil {
+		return origin, nil, err
+	}
+	var sources []ContributionSourceProjection
+	err = repository.db.WithContext(ctx).Table("collaboration_submissions AS s").Select("r.title, p.title AS project_title, s.mapping_text, s.status").Joins("JOIN completion_records AS r ON r.id = s.source_record_id").Joins("JOIN projects AS p ON p.id = r.project_id").Joins("JOIN collaboration_calls AS c ON c.id = s.call_id").Where("c.uuid = ? AND s.status <> ?", callID, "withdrawn").Order("s.created_at ASC").Scan(&sources).Error
+	return origin, sources, err
+}
+
+// CreateProject creates a project and its initial contract revision atomically.
+func (repository ProjectRepository) CreateProject(ctx context.Context, input CreateProjectInput) error {
+	return repository.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var contract contractpersistence.SmartContract
+		if err := tx.Where("uuid = ? AND deleted_at IS NULL AND (source = ? OR created_by = ?)", input.SmartContractUUID, "official", input.OwnerID).First(&contract).Error; err != nil {
+			return err
+		}
+		var key struct {
+			ID uint64 `gorm:"column:id"`
+		}
+		if err := tx.Table("ai_api_keys").Select("id").Where("uuid = ? AND user_id = ?", input.AIKeyUUID, input.OwnerID).First(&key).Error; err != nil {
+			return err
+		}
+		var callID *uint64
+		if input.ContributionCallUUID != "" {
+			var call struct {
+				ID, OwnerID uint64
+				Status      string
+				Stage       string
+			}
+			if err := tx.Table("collaboration_calls AS c").Select("c.id, p.owner_id, c.status, n.stage").Joins("JOIN projects AS p ON p.id = c.project_id").Joins("JOIN execution_contracts AS n ON n.id = c.target_contract_id").Where("c.uuid = ?", input.ContributionCallUUID).First(&call).Error; err != nil {
+				return err
+			}
+			if call.OwnerID == input.OwnerID || call.Status != "open" || call.Stage != "frozen" {
+				return gorm.ErrInvalidData
+			}
+			callID = &call.ID
+		}
+		project := Project{UUID: input.UUID, OwnerID: input.OwnerID, Title: input.Title, Description: input.Description, ProjectType: input.ProjectType, ProjectRules: &input.ProjectRules, Visibility: input.Visibility, IsDefault: false, DefaultAIKeyID: &key.ID, ContributionOriginSnapshotJSON: nil}
+		if input.OriginSnapshot != "" {
+			project.ContributionOriginSnapshotJSON = &input.OriginSnapshot
+		}
+		project.ContributionCallID = callID
+		if err := tx.Create(&project).Error; err != nil {
+			return err
+		}
+		revision := ProjectContractRevision{UUID: input.RevisionUUID, ProjectID: project.ID, SmartContractID: contract.ID, SmartContractUUID: contract.UUID, SmartContractVersion: contract.Version, Reason: "项目创建时的基础审查规则", SmartContractName: contract.Name, SmartContractDescription: contract.Description, SmartContractBody: contract.Body}
+		if err := tx.Create(&revision).Error; err != nil {
+			return err
+		}
+		return tx.Model(&project).Update("active_contract_revision_id", revision.ID).Error
+	})
+}
+
+// SetContract changes an autonomous project's active contract revision atomically.
+func (repository ProjectRepository) SetContract(ctx context.Context, input SetContractInput) error {
+	return repository.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var project Project
+		if err := tx.Where("uuid = ? AND owner_id = ? AND archived_at IS NULL", input.ProjectID, input.OwnerID).First(&project).Error; err != nil {
+			return err
+		}
+		if project.ProjectType != "autonomous" || project.ContributionCallID != nil {
+			return ErrInvalid
+		}
+		var contract contractpersistence.SmartContract
+		if err := tx.Where("uuid = ? AND deleted_at IS NULL AND (source = ? OR (source = ? AND created_by = ?))", input.ContractID, "official", "custom", input.OwnerID).First(&contract).Error; err != nil {
+			return err
+		}
+		revision := ProjectContractRevision{UUID: input.RevisionUUID, ProjectID: project.ID, SmartContractID: contract.ID, SmartContractUUID: contract.UUID, SmartContractVersion: contract.Version, Reason: "项目设置更换智能合约", SmartContractName: contract.Name, SmartContractDescription: contract.Description, SmartContractBody: contract.Body}
+		if err := tx.Create(&revision).Error; err != nil {
+			return err
+		}
+		return tx.Model(&project).Update("active_contract_revision_id", revision.ID).Error
+	})
+}
+
+// DeleteProject permanently removes a project and its execution data when no adopted contribution exists.
+func (repository ProjectRepository) DeleteProject(ctx context.Context, userID uint64, projectID string) (bool, error) {
+	returnValue := false
+	err := repository.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var project Project
+		if err := tx.Where("uuid = ? AND owner_id = ?", projectID, userID).First(&project).Error; err != nil {
+			return err
+		}
+		var adopted int64
+		if err := tx.Table("collaboration_submissions AS s").Joins("JOIN completion_records AS r ON r.id = s.source_record_id").Where("r.project_id = ? AND s.status = ?", project.ID, "adopted").Count(&adopted).Error; err != nil {
+			return err
+		}
+		if adopted > 0 {
+			return ErrAdopted
+		}
+		var nodeIDs []uint64
+		if err := tx.Table("execution_contracts").Where("project_id = ?", project.ID).Pluck("id", &nodeIDs).Error; err != nil {
+			return err
+		}
+		if len(nodeIDs) > 0 {
+			if err := tx.Exec("DELETE FROM execution_edges WHERE source_contract_id IN ? OR target_contract_id IN ?", nodeIDs, nodeIDs).Error; err != nil {
+				return err
+			}
+		}
+		if err := tx.Exec("DELETE m FROM node_conversation_messages m JOIN node_conversations c ON c.id = m.conversation_id WHERE c.project_id = ?", project.ID).Error; err != nil {
+			return err
+		}
+		for _, table := range []string{"node_conversations", "completion_records", "execution_branches", "execution_contracts", "project_contract_revisions"} {
+			if err := tx.Exec("DELETE FROM "+table+" WHERE project_id = ?", project.ID).Error; err != nil {
+				return err
+			}
+		}
+		if err := tx.Delete(&project).Error; err != nil {
+			return err
+		}
+		returnValue = true
+		return nil
+	})
+	return returnValue, err
+}
+
+var ErrAdopted = errors.New("project contains adopted content")

@@ -25,26 +25,17 @@ func New(repository *conversationpersistence.Repository) *Service {
 func (s *Service) CopyPlanningMessagesToNode(ctx context.Context, conversationID, nodeID string, userID uint64) error {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	rows, err := s.repository.Rows(ctx, `SELECT m.uuid, m.role, m.body, m.created_at FROM node_conversation_messages m JOIN node_conversations c ON c.id = m.conversation_id WHERE c.uuid = ? AND c.owner_id = ? ORDER BY m.created_at ASC, m.uuid ASC`, conversationID, userID)
+	rows, err := s.repository.ListPlanningMessages(ctx, conversationID, userID)
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
 	messages := make([]map[string]any, 0)
-	for rows.Next() {
-		var id, role, body string
-		var createdAt time.Time
-		if err := rows.Scan(&id, &role, &body, &createdAt); err != nil {
-			return err
-		}
+	for _, row := range rows {
 		speaker := "user"
-		if role == "assistant" {
+		if row.Role == "assistant" {
 			speaker = "ai"
 		}
-		messages = append(messages, map[string]any{"id": id, "speaker": speaker, "body": body, "createdAt": createdAt})
-	}
-	if err := rows.Err(); err != nil {
-		return err
+		messages = append(messages, map[string]any{"id": row.UUID, "speaker": speaker, "body": row.Body, "createdAt": row.CreatedAt})
 	}
 	messageID, err := sharedid.Opaque("message")
 	if err != nil {
@@ -55,7 +46,7 @@ func (s *Service) CopyPlanningMessagesToNode(ctx context.Context, conversationID
 	if err != nil {
 		return err
 	}
-	if _, err := s.repository.Execute(ctx, `UPDATE execution_contracts SET review_messages_json = ? WHERE uuid = ?`, string(encoded), nodeID); err != nil {
+	if err := s.repository.UpdateReviewMessages(ctx, nodeID, string(encoded)); err != nil {
 		return err
 	}
 	return nil

@@ -106,3 +106,28 @@ func (repository AIKeyRepository) FindProjectReviewKey(ctx context.Context, user
 	}
 	return key, nil
 }
+
+func (repository AIKeyRepository) FindLatestProjectReviewKey(ctx context.Context, userID uint64) (AIKey, error) {
+	var key AIKey
+	err := repository.db.WithContext(ctx).
+		Table("projects AS p").
+		Select("k.id, k.uuid, k.user_id, k.provider, k.label, k.key_ciphertext, k.key_hint, k.base_url, k.model, k.last_verified_at, k.last_used_at, k.created_at").
+		Joins("JOIN ai_api_keys AS k ON k.id = p.default_ai_key_id").
+		Where("p.owner_id = ? AND p.archived_at IS NULL AND p.default_ai_key_id IS NOT NULL", userID).
+		Order("p.updated_at DESC").
+		Limit(1).
+		Scan(&key).Error
+	if err != nil {
+		return AIKey{}, err
+	}
+	if key.ID == 0 {
+		return AIKey{}, ErrNotFound
+	}
+	return key, nil
+}
+
+func (repository AIKeyRepository) MarkUsed(ctx context.Context, userID uint64, keyID string, usedAt time.Time) error {
+	return repository.db.WithContext(ctx).Model(&AIKey{}).
+		Where("uuid = ? AND user_id = ?", keyID, userID).
+		Update("last_used_at", usedAt).Error
+}

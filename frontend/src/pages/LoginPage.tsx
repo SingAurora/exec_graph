@@ -4,9 +4,9 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
-import { AuthLayout } from '../components/AuthLayout'
-import { postJSON } from '../lib/api'
-import { useExecStore } from '../store/useExecStore'
+import { AuthLayout } from '@/widgets/auth-layout/ui/AuthLayout'
+import { postJSON } from '@/shared/api/client'
+import { useWorkspaceStore } from '@/features/workspace/model/useWorkspaceStore'
 
 const loginSchema = z.object({
   email: z.string().email('请输入有效邮箱。'),
@@ -22,8 +22,8 @@ const testAccount = {
 
 export function LoginPage() {
   const navigate = useNavigate()
-  const setAccessToken = useExecStore((state) => state.setAccessToken)
-  const refreshWorkspace = useExecStore((state) => state.refreshWorkspace)
+  const setAccessToken = useWorkspaceStore((state) => state.setAccessToken)
+  const refreshWorkspace = useWorkspaceStore((state) => state.refreshWorkspace)
   const [authError, setAuthError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const {

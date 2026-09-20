@@ -1,11 +1,12 @@
 import { Archive, ArrowRight, Bot, CheckCircle2, Eye, FileCheck2, FolderKanban, FolderPlus, type LucideIcon } from 'lucide-react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
-import { SectionHeader } from '../components/SectionHeader'
-import { StatusBadge } from '../components/StatusBadge'
-import { WorkMonthView } from '../components/WorkMonthView'
-import { currentContractIDs, isAcceptedRecord, isReadyToProgress, isReviewInProgress, needsReviewDecision, nextActionLabel } from '../lib/execution'
-import { useExecStore } from '../store/useExecStore'
-import type { ExecutionContract, Project } from '../types'
+import { SectionHeader } from '@/shared/ui/SectionHeader'
+import { StatusBadge } from '@/entities/execution-node/ui/StatusBadge'
+import { WorkMonthView } from '@/widgets/work-overview/ui/WorkMonthView'
+import { currentContractIDs, isAcceptedRecord, isReadyToProgress, isReviewInProgress, needsReviewDecision, nextActionLabel } from '@/entities/execution-node/model/selectors'
+import { useWorkspaceStore as useExecStore } from '@/features/workspace/model/useWorkspaceStore'
+import type { ExecutionContract } from '@/entities/execution-node/model/types'
+import type { Project } from '@/entities/project/model/types'
 
 type QueueKind = 'reviewing' | 'awaiting' | 'progress'
 

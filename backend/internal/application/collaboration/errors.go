@@ -10,4 +10,5 @@ var (
 	ErrCallExists          = errors.New("open call already exists")
 	ErrSubmissionInvalid   = errors.New("invalid submission")
 	ErrDuplicateSubmission = errors.New("duplicate submission")
+	ErrUnauthorized        = errors.New("collaboration operation is not authorized")
 )

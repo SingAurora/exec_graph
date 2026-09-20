@@ -4,11 +4,11 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link } from 'react-router-dom'
 import { z } from 'zod'
-import { MarkdownContent } from '../components/MarkdownContent'
-import { getJSON } from '../lib/api'
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../components/ui/dialog'
-import { useExecStore } from '../store/useExecStore'
-import type { SmartContractDefinition, SmartContractSource } from '../types'
+import { MarkdownContent } from '@/shared/ui/MarkdownContent'
+import { getJSON } from '@/shared/api/client'
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/shared/ui/dialog'
+import { useWorkspaceStore as useExecStore } from '@/features/workspace/model/useWorkspaceStore'
+import type { SmartContractDefinition, SmartContractSource } from '@/entities/smart-contract/model/types'
 
 const contractSchema = z.object({
   name: z.string().trim().min(3, '请输入至少三个字符的合约名称。').max(32, '合约名称最多 32 个字符。'),

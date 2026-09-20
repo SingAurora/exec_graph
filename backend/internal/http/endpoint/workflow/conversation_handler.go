@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	conversationpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/conversation"
 	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
 )
 
@@ -87,15 +88,12 @@ func (h *Handler) createPlanningConversation(w http.ResponseWriter, r *http.Requ
 		writeError(w, http.StatusInternalServerError, "读取项目审查 AI 失败")
 		return
 	}
-	var projectInternalID uint64
-	var title, description, rules string
-	var contributionCallID sql.NullInt64
-	var archived sql.NullTime
-	if err := h.conversations.Row(ctx, `SELECT id, title, description, COALESCE(project_rules, ''), contribution_call_id, archived_at FROM projects WHERE uuid = ? AND owner_id = ?`, projectID, userID).Scan(&projectInternalID, &title, &description, &rules, &contributionCallID, &archived); err != nil {
+	project, err := h.conversations.FindProjectContext(ctx, userID, projectID)
+	if err != nil {
 		writeError(w, http.StatusNotFound, "项目不存在")
 		return
 	}
-	if archived.Valid {
+	if project.ArchivedAt != nil {
 		writeError(w, http.StatusBadRequest, "项目已归档，不能创建推进")
 		return
 	}
@@ -106,12 +104,12 @@ func (h *Handler) createPlanningConversation(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	conversationContext := map[string]any{
-		"project":  map[string]string{"title": title, "description": description, "rules": rules},
+		"project":  map[string]string{"title": project.Title, "description": project.Description, "rules": project.Rules},
 		"relation": input,
 		"sources":  sources,
 	}
-	if contributionCallID.Valid {
-		callID, err := publicUUID(ctx, h.conversations, "collaboration_calls", uint64(contributionCallID.Int64))
+	if project.ContributionCallID != nil {
+		callID, err := h.conversations.FindCallUUID(ctx, *project.ContributionCallID)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "读取协作交接上下文失败")
 			return
@@ -124,13 +122,12 @@ func (h *Handler) createPlanningConversation(w http.ResponseWriter, r *http.Requ
 		conversationContext["contributionOrigin"] = origin
 	}
 	contextJSON, _ := jsonValue(conversationContext)
-	var existing string
-	err = h.conversations.Row(ctx, `SELECT uuid FROM node_conversations WHERE project_id = ? AND owner_id = ? AND phase = 'planning' AND status IN ('active', 'ready_for_freeze') AND context_json = ? ORDER BY updated_at DESC LIMIT 1`, projectInternalID, userID, contextJSON).Scan(&existing)
+	existing, err := h.conversations.FindPlanningConversation(ctx, userID, projectID, contextJSON)
 	if err == nil {
-		h.getConversation(w, r, userID, existing)
+		h.getConversation(w, r, userID, existing.UUID)
 		return
 	}
-	if !errors.Is(err, sql.ErrNoRows) {
+	if !errors.Is(err, conversationpersistence.ErrNotFound) {
 		writeError(w, http.StatusInternalServerError, "读取目标对话失败")
 		return
 	}
@@ -139,7 +136,7 @@ func (h *Handler) createPlanningConversation(w http.ResponseWriter, r *http.Requ
 		writeError(w, http.StatusInternalServerError, "创建对话失败")
 		return
 	}
-	if _, err := h.conversations.Execute(ctx, `INSERT INTO node_conversations (uuid, project_id, owner_id, phase, status, context_json) VALUES (?, ?, ?, 'planning', 'active', ?)`, id, projectInternalID, userID, contextJSON); err != nil {
+	if err := h.conversations.CreatePlanningConversation(ctx, id, userID, projectID, contextJSON); err != nil {
 		writeError(w, http.StatusInternalServerError, "创建对话失败")
 		return
 	}
@@ -151,25 +148,20 @@ func (h *Handler) createPlanningConversation(w http.ResponseWriter, r *http.Requ
 func (h *Handler) loadPlanningSourceContext(ctx context.Context, projectID string, sourceIDs []string) ([]map[string]any, error) {
 	sources := make([]map[string]any, 0, len(sourceIDs))
 	for _, sourceID := range sourceIDs {
-		var title, goal, evidence, stage string
-		var claim, evidenceText sql.NullString
-		var reviewJSON sql.NullString
-		err := h.conversations.Row(ctx, `
-			SELECT title, verifiable_goal, evidence_requirement, stage, completion_claim, evidence_text, ai_review_json
-			FROM execution_contracts n JOIN projects p ON p.id = n.project_id WHERE n.uuid = ? AND p.uuid = ?`, sourceID, projectID).
-			Scan(&title, &goal, &evidence, &stage, &claim, &evidenceText, &reviewJSON)
-		if err == sql.ErrNoRows {
-			continue
-		}
+		values, err := h.conversations.ListSourceContexts(ctx, projectID, []string{sourceID})
 		if err != nil {
 			return nil, err
 		}
-		source := map[string]any{
-			"id": sourceID, "title": title, "verifiableGoal": goal, "evidenceRequirement": evidence,
-			"stage": stage, "completionClaim": nullableString(claim), "evidenceText": nullableString(evidenceText),
+		if len(values) == 0 {
+			continue
 		}
-		if reviewJSON.Valid {
-			source["latestReview"] = decodeJSONValue(reviewJSON.String, nil)
+		value := values[0]
+		source := map[string]any{
+			"id": sourceID, "title": value.Title, "verifiableGoal": value.Goal, "evidenceRequirement": value.EvidenceRequirement,
+			"stage": value.Stage, "completionClaim": value.CompletionClaim, "evidenceText": value.EvidenceText,
+		}
+		if value.ReviewJSON != nil {
+			source["latestReview"] = decodeJSONValue(*value.ReviewJSON, nil)
 		}
 		sources = append(sources, source)
 	}
@@ -179,13 +171,12 @@ func (h *Handler) loadPlanningSourceContext(ctx context.Context, projectID strin
 func (h *Handler) createCompletionConversation(w http.ResponseWriter, r *http.Request, userID uint64, projectID, nodeID string) {
 	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.ConversationSetupTimeout)
 	defer cancel()
-	var existing string
-	err := h.conversations.Row(ctx, `SELECT c.uuid FROM node_conversations c JOIN projects p ON p.id = c.project_id JOIN execution_contracts n ON n.id = c.node_id WHERE p.uuid = ? AND n.uuid = ? AND c.owner_id = ? AND c.phase = 'completion' AND c.status = 'active' ORDER BY c.updated_at DESC LIMIT 1`, projectID, nodeID, userID).Scan(&existing)
+	conversation, err := h.conversations.FindCompletionConversation(ctx, userID, projectID, nodeID)
 	if err == nil {
-		h.getConversation(w, r, userID, existing)
+		h.getConversation(w, r, userID, conversation.UUID)
 		return
 	}
-	if !errors.Is(err, sql.ErrNoRows) {
+	if !errors.Is(err, conversationpersistence.ErrNotFound) {
 		writeError(w, http.StatusInternalServerError, "读取审查对话失败")
 		return
 	}
@@ -194,30 +185,24 @@ func (h *Handler) createCompletionConversation(w http.ResponseWriter, r *http.Re
 		writeError(w, http.StatusBadRequest, "请先为项目选择审查 AI")
 		return
 	}
-	var title, goal, evidence, criteriaJSON, projectTitle, projectDescription, rules string
-	var stage string
-	err = h.conversations.Row(ctx, `SELECT n.title, n.verifiable_goal, n.evidence_requirement, n.acceptance_criteria_json, n.stage, p.title, p.description, COALESCE(p.project_rules, '') FROM execution_contracts n JOIN projects p ON p.id = n.project_id WHERE n.uuid = ? AND p.uuid = ? AND p.owner_id = ?`, nodeID, projectID, userID).Scan(&title, &goal, &evidence, &criteriaJSON, &stage, &projectTitle, &projectDescription, &rules)
+	contextValue, err := h.conversations.FindCompletionContext(ctx, userID, projectID, nodeID)
 	if err != nil {
 		writeError(w, http.StatusNotFound, "节点不存在")
 		return
 	}
-	if stage == "completed" || stage == "sealed" {
+	if contextValue.Stage == "completed" || contextValue.Stage == "sealed" {
 		writeError(w, http.StatusBadRequest, "节点已锁定，不能继续审查")
 		return
 	}
-	contextJSON, _ := jsonValue(map[string]any{"project": map[string]string{"title": projectTitle, "description": projectDescription, "rules": rules}, "node": map[string]any{"title": title, "verifiableGoal": goal, "acceptanceCriteria": json.RawMessage(criteriaJSON), "evidenceRequirement": evidence}})
+	contextJSON, _ := jsonValue(map[string]any{"project": map[string]string{"title": contextValue.ProjectTitle, "description": contextValue.ProjectDescription, "rules": contextValue.Rules}, "node": map[string]any{"title": contextValue.NodeTitle, "verifiableGoal": contextValue.Goal, "acceptanceCriteria": json.RawMessage(contextValue.AcceptanceCriteriaJSON), "evidenceRequirement": contextValue.EvidenceRequirement}})
 	id, err := newOpaqueID("conversation")
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "创建审查对话失败")
 		return
 	}
 	configJSON, _ := jsonValue(key.snapshot())
-	if _, err := h.conversations.Execute(ctx, `INSERT INTO node_conversations (uuid, project_id, node_id, owner_id, phase, status, context_json, ai_config_json) SELECT ?, p.id, n.id, ?, 'completion', 'active', ?, ? FROM projects p JOIN execution_contracts n ON n.project_id = p.id WHERE p.uuid = ? AND n.uuid = ?`, id, userID, contextJSON, configJSON, projectID, nodeID); err != nil {
+	if err := h.conversations.CreateCompletionConversation(ctx, id, userID, projectID, nodeID, contextJSON, configJSON); err != nil {
 		writeError(w, http.StatusInternalServerError, "创建审查对话失败")
-		return
-	}
-	if _, err := h.conversations.Execute(ctx, `UPDATE execution_contracts n JOIN node_conversations c ON c.uuid = ? SET n.completion_conversation_id = c.id WHERE n.uuid = ?`, id, nodeID); err != nil {
-		writeError(w, http.StatusInternalServerError, "关联审查对话失败")
 		return
 	}
 	h.getConversation(w, r, userID, id)
@@ -227,7 +212,7 @@ func (h *Handler) getConversation(w http.ResponseWriter, r *http.Request, userID
 	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.ConversationSetupTimeout)
 	defer cancel()
 	conversation, err := h.loadConversation(ctx, userID, id)
-	if errors.Is(err, sql.ErrNoRows) {
+	if errors.Is(err, conversationpersistence.ErrNotFound) {
 		writeError(w, http.StatusNotFound, "对话不存在")
 		return
 	}
@@ -240,53 +225,49 @@ func (h *Handler) getConversation(w http.ResponseWriter, r *http.Request, userID
 
 func (h *Handler) loadConversation(ctx context.Context, userID uint64, id string) (conversationResponse, error) {
 	var result conversationResponse
-	var nodeID, draft, review, config sql.NullString
-	var contextJSON string
-	err := h.conversations.Row(ctx, `SELECT c.uuid, p.uuid, n.uuid, c.phase, c.status, c.context_json, c.current_draft_json, c.latest_review_json, c.ai_config_json, c.created_at, c.updated_at FROM node_conversations c JOIN projects p ON p.id = c.project_id LEFT JOIN execution_contracts n ON n.id = c.node_id WHERE c.uuid = ? AND c.owner_id = ?`, id, userID).Scan(&result.ID, &result.ProjectID, &nodeID, &result.Phase, &result.Status, &contextJSON, &draft, &review, &config, &result.CreatedAt, &result.UpdatedAt)
+	view, err := h.conversations.FindConversation(ctx, userID, id)
 	if err != nil {
 		return result, err
 	}
-	result.NodeID = nullableString(nodeID)
-	result.Context = decodeJSONValue(contextJSON, map[string]any{})
-	if draft.Valid {
+	conversation := view.Conversation
+	result.ID = conversation.UUID
+	result.ProjectID = view.ProjectID
+	result.NodeID = view.NodeID
+	result.Phase = conversation.Phase
+	result.Status = conversation.Status
+	result.Context = decodeJSONValue(conversation.ContextJSON, map[string]any{})
+	result.CreatedAt = conversation.CreatedAt
+	result.UpdatedAt = conversation.UpdatedAt
+	if conversation.CurrentDraftJSON != nil {
 		var value actionDraft
-		if json.Unmarshal([]byte(draft.String), &value) == nil {
+		if json.Unmarshal([]byte(*conversation.CurrentDraftJSON), &value) == nil {
 			result.CurrentDraft = &value
 		}
 	}
-	if review.Valid {
-		result.LatestReview = decodeJSONValue(review.String, nil)
+	if conversation.LatestReviewJSON != nil {
+		result.LatestReview = decodeJSONValue(*conversation.LatestReviewJSON, nil)
 	}
-	if config.Valid {
+	if conversation.AIConfigJSON != nil {
 		var value aiConfigSnapshot
-		if json.Unmarshal([]byte(config.String), &value) == nil {
+		if json.Unmarshal([]byte(*conversation.AIConfigJSON), &value) == nil {
 			result.AIConfig = &value
 		}
 	}
-	rows, err := h.conversations.Rows(ctx, `SELECT m.uuid, m.role, m.body, m.structured_payload_json, m.ai_config_json, m.created_at FROM node_conversation_messages m JOIN node_conversations c ON c.id = m.conversation_id WHERE c.uuid = ? ORDER BY m.created_at ASC, m.id ASC`, id)
-	if err != nil {
-		return result, err
-	}
-	defer rows.Close()
 	result.Messages = []conversationMessageResponse{}
-	for rows.Next() {
-		var item conversationMessageResponse
-		var payload, messageConfig sql.NullString
-		if err := rows.Scan(&item.ID, &item.Role, &item.Body, &payload, &messageConfig, &item.CreatedAt); err != nil {
-			return result, err
+	for _, stored := range view.Messages {
+		item := conversationMessageResponse{ID: stored.UUID, Role: stored.Role, Body: stored.Body, CreatedAt: stored.CreatedAt}
+		if stored.StructuredPayloadJSON != nil {
+			item.StructuredPayload = decodeJSONValue(*stored.StructuredPayloadJSON, nil)
 		}
-		if payload.Valid {
-			item.StructuredPayload = decodeJSONValue(payload.String, nil)
-		}
-		if messageConfig.Valid {
+		if stored.AIConfigJSON != nil {
 			var value aiConfigSnapshot
-			if json.Unmarshal([]byte(messageConfig.String), &value) == nil {
+			if json.Unmarshal([]byte(*stored.AIConfigJSON), &value) == nil {
 				item.AIConfig = &value
 			}
 		}
 		result.Messages = append(result.Messages, item)
 	}
-	return result, rows.Err()
+	return result, nil
 }
 
 func (h *Handler) sendConversationMessage(w http.ResponseWriter, r *http.Request, userID uint64, conversationID string, freezeReview bool) {
@@ -306,7 +287,7 @@ func (h *Handler) sendConversationMessage(w http.ResponseWriter, r *http.Request
 	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.ConversationReviewTimeout)
 	defer cancel()
 	conversation, err := h.loadConversation(ctx, userID, conversationID)
-	if errors.Is(err, sql.ErrNoRows) {
+	if errors.Is(err, conversationpersistence.ErrNotFound) {
 		writeError(w, http.StatusNotFound, "对话不存在")
 		return
 	}
@@ -328,7 +309,7 @@ func (h *Handler) sendConversationMessage(w http.ResponseWriter, r *http.Request
 		writeError(w, http.StatusInternalServerError, "保存消息失败")
 		return
 	}
-	if _, err := h.conversations.Execute(ctx, `INSERT INTO node_conversation_messages (uuid, conversation_id, role, body) SELECT ?, id, 'user', ? FROM node_conversations WHERE uuid = ?`, userMessageID, input.Body, conversationID); err != nil {
+	if err := h.conversations.AddUserMessage(ctx, userMessageID, userID, conversationID, input.Body); err != nil {
 		writeError(w, http.StatusInternalServerError, "保存消息失败")
 		return
 	}
@@ -348,11 +329,12 @@ func (h *Handler) sendConversationMessage(w http.ResponseWriter, r *http.Request
 		if output.ReadyForFreeze {
 			status = "ready_for_freeze"
 		}
-		if err := h.persistAssistantConversationMessage(ctx, conversationID, output.Reply, payloadJSON, key.snapshot()); err != nil {
+		assistantMessageID, err := newOpaqueID("message")
+		if err != nil {
 			writeError(w, http.StatusInternalServerError, "保存 AI 回复失败")
 			return
 		}
-		if _, err := h.conversations.Execute(ctx, `UPDATE node_conversations SET status = ?, current_draft_json = ?, ai_config_json = ? WHERE uuid = ?`, status, draftJSON, mustJSON(key.snapshot()), conversationID); err != nil {
+		if err := h.conversations.UpdatePlanningConversation(ctx, userID, conversationID, status, draftJSON, assistantMessageID, output.Reply, payloadJSON, mustJSON(key.snapshot())); err != nil {
 			writeError(w, http.StatusInternalServerError, "保存对话状态失败")
 			return
 		}
@@ -386,7 +368,7 @@ func (h *Handler) sendConversationMessage(w http.ResponseWriter, r *http.Request
 			return
 		}
 	}
-	_, _ = h.conversations.Execute(ctx, `UPDATE ai_api_keys SET last_used_at = NOW() WHERE uuid = ? AND user_id = ?`, key.UUID, userID)
+	_ = h.aiKey.MarkUsed(ctx, userID, key.UUID)
 	h.getConversation(w, r, userID, conversationID)
 }
 
@@ -398,58 +380,17 @@ func (h *Handler) persistCompletionReview(ctx context.Context, userID uint64, co
 	if conversation.NodeID == nil {
 		return errConversationNoLongerMutable
 	}
-	tx, err := h.conversations.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	var status string
-	if err := tx.Row(ctx, `SELECT status FROM node_conversations WHERE uuid = ? AND owner_id = ? FOR UPDATE`, conversationID, userID).Scan(&status); err != nil {
-		return errConversationNoLongerMutable
-	}
-	if status != "active" {
-		return errConversationNoLongerMutable
-	}
-	var nodeStage string
-	var linkedConversation sql.NullString
-	if err := tx.Row(ctx, `SELECT n.stage, linked.uuid FROM execution_contracts n LEFT JOIN node_conversations linked ON linked.id = n.completion_conversation_id WHERE n.uuid = ? FOR UPDATE`, *conversation.NodeID).Scan(&nodeStage, &linkedConversation); err != nil {
-		return errConversationNoLongerMutable
-	}
-	if (nodeStage != "frozen" && nodeStage != "verified" && nodeStage != "needs_supplement") || !linkedConversation.Valid || linkedConversation.String != conversationID {
-		return errConversationNoLongerMutable
-	}
 	messageID, err := newOpaqueID("message")
 	if err != nil {
-		return err
-	}
-	if _, err := tx.Execute(ctx, `INSERT INTO node_conversation_messages (uuid, conversation_id, role, body, structured_payload_json, ai_config_json) SELECT ?, id, 'assistant', ?, ?, ? FROM node_conversations WHERE uuid = ?`, messageID, output.Reply, mustJSON(output), mustJSON(config), conversationID); err != nil {
-		return err
-	}
-	if _, err := tx.Execute(ctx, `UPDATE node_conversations SET latest_review_json = ?, ai_config_json = ? WHERE uuid = ? AND status = 'active'`, reviewJSON, mustJSON(config), conversationID); err != nil {
 		return err
 	}
 	messagesJSON, _ := jsonValue(conversationToLegacyMessages(conversation.Messages, output.Reply))
 	// Completion conversations are for clarification after a formal submission.
 	// Preserve the original claim and evidence when an older client sends a message here.
-	result, err := tx.Execute(ctx, `UPDATE execution_contracts n JOIN node_conversations c ON c.id = n.completion_conversation_id SET n.stage = ?, n.completion_claim = COALESCE(n.completion_claim, ?), n.evidence_text = COALESCE(n.evidence_text, ?), n.ai_review_json = ?, n.completion_review_ai_config_json = ?, n.review_messages_json = ? WHERE n.uuid = ? AND c.uuid = ? AND n.stage IN ('frozen', 'verified', 'needs_supplement')`, stage, claim, claim, reviewJSON, mustJSON(config), messagesJSON, *conversation.NodeID, conversationID)
-	if err != nil {
-		return err
-	}
-	updated, _ := result.RowsAffected()
-	if updated != 1 {
+	if err := h.conversations.PersistCompletionReview(ctx, userID, conversationID, *conversation.NodeID, claim, stage, reviewJSON, mustJSON(config), messagesJSON, mustJSON(output), output.Reply, messageID); err != nil {
 		return errConversationNoLongerMutable
 	}
-	return tx.Commit()
-}
-
-func (h *Handler) persistAssistantConversationMessage(ctx context.Context, conversationID, body, payload string, config aiConfigSnapshot) error {
-	id, err := newOpaqueID("message")
-	if err != nil {
-		return err
-	}
-	_, err = h.conversations.Execute(ctx, `INSERT INTO node_conversation_messages (uuid, conversation_id, role, body, structured_payload_json, ai_config_json) SELECT ?, id, 'assistant', ?, ?, ? FROM node_conversations WHERE uuid = ?`, id, body, payload, mustJSON(config), conversationID)
-	return err
+	return nil
 }
 
 func mustJSON(value any) string { result, _ := jsonValue(value); return result }

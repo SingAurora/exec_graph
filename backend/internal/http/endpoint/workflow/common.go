@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"context"
 	"database/sql"
 	"net/http"
 
@@ -9,11 +8,10 @@ import (
 	applicationcollaboration "github.com/singaurora/exec-graph/backend/internal/application/collaboration"
 	applicationidentity "github.com/singaurora/exec-graph/backend/internal/application/identity"
 	applicationproject "github.com/singaurora/exec-graph/backend/internal/application/project"
+	applicationworkoverview "github.com/singaurora/exec-graph/backend/internal/application/workoverview"
 	endpointcommon "github.com/singaurora/exec-graph/backend/internal/http/endpoint/common"
-	collaborationpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/collaboration"
 	conversationpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/conversation"
 	reviewpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/review"
-	workoverviewpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/workoverview"
 )
 
 type RequireUserFunc func(http.ResponseWriter, *http.Request) (applicationidentity.User, bool)
@@ -21,37 +19,34 @@ type RequireUserFunc func(http.ResponseWriter, *http.Request) (applicationidenti
 // Handler 聚合旧执行流接口。这里先把高度互相依赖的规划、审查、协作、
 // 工作总览放在同一领域包中，后续 application 服务继续成熟后再细分。
 type Handler struct {
-	project            *applicationproject.Service
-	collaboration      *applicationcollaboration.Service
-	aiKey              *applicationaikey.Service
-	reviews            *reviewpersistence.Repository
-	conversations      *conversationpersistence.Repository
-	collaborationStore *collaborationpersistence.Repository
-	workOverview       *workoverviewpersistence.Repository
-	requireUserFunc    RequireUserFunc
+	project         *applicationproject.Service
+	collaboration   *applicationcollaboration.Service
+	aiKey           *applicationaikey.Service
+	reviews         *reviewpersistence.Repository
+	conversations   *conversationpersistence.Repository
+	workOverview    *applicationworkoverview.Service
+	requireUserFunc RequireUserFunc
 }
 
 type Dependencies struct {
-	Project            *applicationproject.Service
-	Collaboration      *applicationcollaboration.Service
-	AIKey              *applicationaikey.Service
-	Reviews            *reviewpersistence.Repository
-	Conversations      *conversationpersistence.Repository
-	CollaborationStore *collaborationpersistence.Repository
-	WorkOverview       *workoverviewpersistence.Repository
-	RequireUser        RequireUserFunc
+	Project       *applicationproject.Service
+	Collaboration *applicationcollaboration.Service
+	AIKey         *applicationaikey.Service
+	Reviews       *reviewpersistence.Repository
+	Conversations *conversationpersistence.Repository
+	WorkOverview  *applicationworkoverview.Service
+	RequireUser   RequireUserFunc
 }
 
 func New(dependencies Dependencies) *Handler {
 	return &Handler{
-		project:            dependencies.Project,
-		collaboration:      dependencies.Collaboration,
-		aiKey:              dependencies.AIKey,
-		reviews:            dependencies.Reviews,
-		conversations:      dependencies.Conversations,
-		collaborationStore: dependencies.CollaborationStore,
-		workOverview:       dependencies.WorkOverview,
-		requireUserFunc:    dependencies.RequireUser,
+		project:         dependencies.Project,
+		collaboration:   dependencies.Collaboration,
+		aiKey:           dependencies.AIKey,
+		reviews:         dependencies.Reviews,
+		conversations:   dependencies.Conversations,
+		workOverview:    dependencies.WorkOverview,
+		requireUserFunc: dependencies.RequireUser,
 	}
 }
 
@@ -153,9 +148,3 @@ func decodeJSONValue(value string, fallback any) any {
 	return endpointcommon.DecodeJSONValue(value, fallback)
 }
 func uniqueNonEmpty(values []string) []string { return endpointcommon.UniqueNonEmpty(values) }
-func internalID(ctx context.Context, db endpointcommon.IDLookup, entity, uuid string) (uint64, error) {
-	return endpointcommon.InternalID(ctx, db, entity, uuid)
-}
-func publicUUID(ctx context.Context, db endpointcommon.IDLookup, entity string, id uint64) (string, error) {
-	return endpointcommon.PublicUUID(ctx, db, entity, id)
-}

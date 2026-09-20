@@ -3,7 +3,6 @@ package project
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 
 	contractpersistence "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/contract"
@@ -88,61 +87,18 @@ func (s *Service) SetAIKey(ctx context.Context, userID uint64, projectID, keyID 
 func (s *Service) SetContract(ctx context.Context, userID uint64, projectID, contractID string) (ProjectView, error) {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	tx, err := s.execution.Begin(ctx)
-	if err != nil {
-		return ProjectView{}, err
-	}
-	defer tx.Rollback()
-
-	var projectInternalID uint64
-	var projectType string
-	var contributionCallID sql.NullInt64
-	err = tx.Row(ctx, `
-		SELECT id, project_type, contribution_call_id
-		FROM projects WHERE uuid = ? AND owner_id = ? AND archived_at IS NULL FOR UPDATE`, projectID, userID).
-		Scan(&projectInternalID, &projectType, &contributionCallID)
-	if errors.Is(err, sql.ErrNoRows) {
-		return ProjectView{}, ErrNotFound
-	}
-	if err != nil {
-		return ProjectView{}, err
-	}
-	if projectType != "autonomous" || contributionCallID.Valid {
-		return ProjectView{}, ErrInvalidContract
-	}
-
-	var contractInternalID uint64
-	var name, description, version, body string
-	err = tx.Row(ctx, `
-		SELECT id, name, description, version, body
-		FROM smart_contracts
-		WHERE uuid = ? AND deleted_at IS NULL AND (source = 'official' OR (source = 'custom' AND created_by = ?))`, contractID, userID).
-		Scan(&contractInternalID, &name, &description, &version, &body)
-	if errors.Is(err, sql.ErrNoRows) {
-		return ProjectView{}, ErrContractUnavailable
-	}
-	if err != nil {
-		return ProjectView{}, err
-	}
 	revisionID, err := sharedid.Opaque("project-revision")
 	if err != nil {
 		return ProjectView{}, err
 	}
-	result, err := tx.Execute(ctx, `
-		INSERT INTO project_contract_revisions
-			(uuid, project_id, smart_contract_id, smart_contract_version, reason, smart_contract_name, smart_contract_description, smart_contract_body)
-		VALUES (?, ?, ?, ?, '项目设置更换智能合约', ?, ?, ?)`, revisionID, projectInternalID, contractInternalID, version, name, description, body)
+	err = s.projects.SetContract(ctx, projectpersistence.SetContractInput{ProjectID: projectID, ContractID: contractID, RevisionUUID: revisionID, OwnerID: userID})
+	if errors.Is(err, projectpersistence.ErrNotFound) {
+		return ProjectView{}, ErrNotFound
+	}
+	if errors.Is(err, projectpersistence.ErrInvalid) {
+		return ProjectView{}, ErrInvalidContract
+	}
 	if err != nil {
-		return ProjectView{}, err
-	}
-	revisionInternalID, err := result.LastInsertId()
-	if err != nil {
-		return ProjectView{}, err
-	}
-	if _, err := tx.Execute(ctx, `UPDATE projects SET active_contract_revision_id = ? WHERE id = ? AND owner_id = ?`, revisionInternalID, projectInternalID, userID); err != nil {
-		return ProjectView{}, err
-	}
-	if err := tx.Commit(); err != nil {
 		return ProjectView{}, err
 	}
 	return s.Get(ctx, userID, projectID)
@@ -151,52 +107,18 @@ func (s *Service) SetContract(ctx context.Context, userID uint64, projectID, con
 func (s *Service) Delete(ctx context.Context, userID uint64, projectID string) error {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	tx, err := s.execution.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	var internalID uint64
-	if err := tx.Row(ctx, `SELECT id FROM projects WHERE uuid = ? AND owner_id = ?`, projectID, userID).Scan(&internalID); errors.Is(err, sql.ErrNoRows) {
+	deleted, err := s.projects.DeleteProject(ctx, userID, projectID)
+	if errors.Is(err, projectpersistence.ErrNotFound) {
 		return ErrNotFound
-	} else if err != nil {
-		return err
 	}
-	var adopted int
-	if err := tx.Row(ctx, `SELECT COUNT(*) FROM collaboration_submissions s JOIN completion_records r ON r.id = s.source_record_id WHERE r.project_id = ? AND s.status = 'adopted'`, internalID).Scan(&adopted); err != nil {
-		return err
-	}
-	if adopted > 0 {
+	if errors.Is(err, projectpersistence.ErrAdopted) {
 		return ErrAdoptedContent
 	}
-	statements := []string{
-		`DELETE FROM execution_edges WHERE source_contract_id IN (SELECT id FROM execution_contracts WHERE project_id = ?) OR target_contract_id IN (SELECT id FROM execution_contracts WHERE project_id = ?)`,
-		`DELETE m FROM node_conversation_messages m JOIN node_conversations c ON c.id = m.conversation_id WHERE c.project_id = ?`,
-		`DELETE FROM node_conversations WHERE project_id = ?`,
-		`DELETE FROM completion_records WHERE project_id = ?`,
-		`DELETE FROM execution_branches WHERE project_id = ?`,
-		`DELETE FROM execution_contracts WHERE project_id = ?`,
-		`DELETE FROM project_contract_revisions WHERE project_id = ?`,
-	}
-	for i, statement := range statements {
-		args := []any{internalID}
-		if i == 0 {
-			args = []any{internalID, internalID}
-		}
-		if _, err := tx.Execute(ctx, statement, args...); err != nil {
-			return err
-		}
-	}
-	result, err := tx.Execute(ctx, `DELETE FROM projects WHERE uuid = ? AND owner_id = ?`, projectID, userID)
 	if err != nil {
 		return err
 	}
-	count, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if count == 0 {
+	if !deleted {
 		return ErrNotFound
 	}
-	return tx.Commit()
+	return nil
 }

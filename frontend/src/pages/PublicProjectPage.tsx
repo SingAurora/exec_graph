@@ -1,8 +1,8 @@
 import { ArrowRight, CheckCircle2, Compass, GitFork, ListChecks, Send, Sparkles } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { adoptContributionReview, getCall, getContributionSources, getExploreProject, reviewContributions, submitContribution, type CollaborationCall, type CollaborationReviewBatch, type CollaborationSubmission, type ContributionSource, type ExploreProject } from '../lib/collaboration'
-import { useExecStore } from '../store/useExecStore'
+import { adoptContributionReview, getCall, getContributionSources, getExploreProject, reviewContributions, submitContribution, type CollaborationCall, type CollaborationReviewBatch, type CollaborationSubmission, type ContributionSource, type ExploreProject } from '@/features/collaboration/api/client'
+import { useWorkspaceStore as useExecStore } from '@/features/workspace/model/useWorkspaceStore'
 
 type CallDetails = { call: CollaborationCall; submissions: CollaborationSubmission[] }
 

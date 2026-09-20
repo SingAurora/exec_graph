@@ -1,6 +1,6 @@
 import { ArrowRight, CheckCircle2, Compass, FolderKanban } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
-import { CompletionHeatmap } from '../components/CompletionHeatmap'
+import { CompletionHeatmap } from '@/entities/account/ui/CompletionHeatmap'
 import { memberInitials, publicCompletions, publicMember, publicProjects } from '../data/explore'
 
 const shortDate = (value: string) => new Intl.DateTimeFormat('zh-CN', { month: 'numeric', day: 'numeric' }).format(new Date(value))

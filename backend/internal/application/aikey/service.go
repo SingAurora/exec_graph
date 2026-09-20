@@ -101,6 +101,25 @@ func (s *Service) FindProjectReviewKey(ctx context.Context, userID uint64, proje
 	return fromRecord(item), nil
 }
 
+func (s *Service) FindLatestProjectReviewKey(ctx context.Context, userID uint64) (Key, error) {
+	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
+	defer cancel()
+	item, err := s.repository.FindLatestProjectReviewKey(ctx, userID)
+	if errors.Is(err, aikeypersistence.ErrNotFound) {
+		return Key{}, ErrNotFound
+	}
+	if err != nil {
+		return Key{}, err
+	}
+	return fromRecord(item), nil
+}
+
+func (s *Service) MarkUsed(ctx context.Context, userID uint64, keyID string) error {
+	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
+	defer cancel()
+	return s.repository.MarkUsed(ctx, userID, keyID, time.Now())
+}
+
 func (s *Service) Delete(ctx context.Context, userID uint64, keyID string) error {
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()

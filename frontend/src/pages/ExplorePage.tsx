@@ -1,9 +1,9 @@
 import { ArrowRight, Compass, Network, Search, UsersRound } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { PublicNetworkGraph, type PublicNetworkView } from '../components/PublicNetworkGraph'
-import { getExploreNetwork, getExploreProjects, type CollaborationCall, type ExploreProject, type PublicNetwork } from '../lib/collaboration'
-import { useExecStore } from '../store/useExecStore'
+import { PublicNetworkGraph, type PublicNetworkView } from '@/widgets/explore/ui/PublicNetworkGraph'
+import { getExploreNetwork, getExploreProjects, type CollaborationCall, type ExploreProject, type PublicNetwork } from '@/features/collaboration/api/client'
+import { useWorkspaceStore as useExecStore } from '@/features/workspace/model/useWorkspaceStore'
 
 export function ExplorePage() {
   const token = useExecStore((state) => state.accessToken)

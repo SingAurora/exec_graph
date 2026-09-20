@@ -2,7 +2,6 @@ package project
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -58,21 +57,21 @@ func (s *Service) Get(ctx context.Context, userID uint64, projectID string) (Pro
 		item.ProjectRules = *stored.ProjectRules
 	}
 	if stored.DefaultAIKeyID != nil {
-		value, err := publicUUID(ctx, s.execution, "ai_api_keys", *stored.DefaultAIKeyID)
+		value, err := s.projects.UUIDByInternalID(ctx, "ai_api_keys", *stored.DefaultAIKeyID)
 		if err != nil {
 			return ProjectView{}, err
 		}
 		item.ReviewAIKeyID = &value
 	}
 	if stored.CurrentContractID != nil {
-		value, err := publicUUID(ctx, s.execution, "execution_contracts", *stored.CurrentContractID)
+		value, err := s.projects.UUIDByInternalID(ctx, "execution_contracts", *stored.CurrentContractID)
 		if err != nil {
 			return ProjectView{}, err
 		}
 		item.CurrentContractID = &value
 	}
 	if stored.ActiveContractRevisionID != nil {
-		value, err := publicUUID(ctx, s.execution, "project_contract_revisions", *stored.ActiveContractRevisionID)
+		value, err := s.projects.UUIDByInternalID(ctx, "project_contract_revisions", *stored.ActiveContractRevisionID)
 		if err != nil {
 			return ProjectView{}, err
 		}
@@ -86,7 +85,7 @@ func (s *Service) Get(ctx context.Context, userID uint64, projectID string) (Pro
 		}
 	}
 	if item.ContributionOrigin == nil && stored.ContributionCallID != nil {
-		callID, err := publicUUID(ctx, s.execution, "collaboration_calls", *stored.ContributionCallID)
+		callID, err := s.projects.UUIDByInternalID(ctx, "collaboration_calls", *stored.ContributionCallID)
 		if err != nil {
 			return ProjectView{}, err
 		}
@@ -158,31 +157,6 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (ProjectView, e
 
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	tx, err := s.execution.Begin(ctx)
-	if err != nil {
-		return ProjectView{}, err
-	}
-	defer tx.Rollback()
-
-	var contractInternalID uint64
-	var contractName, contractDescription, contractVersion, contractBody string
-	err = tx.Row(ctx, `
-		SELECT id, name, description, version, body FROM smart_contracts
-		WHERE uuid = ? AND deleted_at IS NULL AND (source = 'official' OR created_by = ?)`,
-		input.SmartContractID, input.OwnerID).Scan(&contractInternalID, &contractName, &contractDescription, &contractVersion, &contractBody)
-	if errors.Is(err, sql.ErrNoRows) {
-		return ProjectView{}, ErrContractUnavailable
-	}
-	if err != nil {
-		return ProjectView{}, err
-	}
-	var aiKeyInternalID uint64
-	if err := tx.Row(ctx, `SELECT id FROM ai_api_keys WHERE uuid = ? AND user_id = ?`, input.AIKeyID, input.OwnerID).Scan(&aiKeyInternalID); errors.Is(err, sql.ErrNoRows) {
-		return ProjectView{}, ErrAIKeyUnavailable
-	} else if err != nil {
-		return ProjectView{}, err
-	}
-
 	projectID, err := sharedid.Opaque("project")
 	if err != nil {
 		return ProjectView{}, err
@@ -191,29 +165,10 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (ProjectView, e
 	if err != nil {
 		return ProjectView{}, err
 	}
-	var contributionCallInternalID *uint64
 	if input.ContributionCallID != "" {
-		var callID, ownerID uint64
-		var status, stage string
-		err := tx.Row(ctx, `
-			SELECT c.id, p.owner_id, c.status, n.stage
-			FROM collaboration_calls c
-			JOIN projects p ON p.id = c.project_id
-			JOIN execution_contracts n ON n.id = c.target_contract_id
-			WHERE c.uuid = ? FOR UPDATE`, input.ContributionCallID).Scan(&callID, &ownerID, &status, &stage)
-		if errors.Is(err, sql.ErrNoRows) {
-			return ProjectView{}, ErrCallUnavailable
-		}
-		if err != nil {
-			return ProjectView{}, err
-		}
-		if ownerID == input.OwnerID || status != "open" || stage != "frozen" {
-			return ProjectView{}, ErrCallUnavailable
-		}
 		input.Visibility = "public"
 		input.ProjectType = "autonomous"
 		input.ProjectRules = ""
-		contributionCallInternalID = &callID
 	}
 	var snapshot string
 	if input.ContributionCallID != "" {
@@ -227,35 +182,14 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (ProjectView, e
 		}
 		snapshot = string(encoded)
 	}
-	result, err := tx.Execute(ctx, `
-		INSERT INTO projects
-			(uuid, owner_id, title, description, project_type, project_rules, is_default, visibility, default_ai_key_id, contribution_call_id, contribution_origin_snapshot_json)
-		VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, NULLIF(?, ''))`,
-		projectID, input.OwnerID, input.Title, input.Description, input.ProjectType, input.ProjectRules,
-		input.Visibility, aiKeyInternalID, contributionCallInternalID, snapshot)
+	err = s.projects.CreateProject(ctx, projectpersistence.CreateProjectInput{UUID: projectID, RevisionUUID: revisionID, OwnerID: input.OwnerID, Title: input.Title, Description: input.Description, ProjectType: input.ProjectType, ProjectRules: input.ProjectRules, Visibility: input.Visibility, SmartContractUUID: input.SmartContractID, AIKeyUUID: input.AIKeyID, ContributionCallUUID: input.ContributionCallID, OriginSnapshot: snapshot})
+	if errors.Is(err, projectpersistence.ErrNotFound) {
+		return ProjectView{}, ErrContractUnavailable
+	}
+	if errors.Is(err, projectpersistence.ErrInvalid) {
+		return ProjectView{}, ErrCallUnavailable
+	}
 	if err != nil {
-		return ProjectView{}, err
-	}
-	projectInternalID, err := result.LastInsertId()
-	if err != nil {
-		return ProjectView{}, err
-	}
-	revisionResult, err := tx.Execute(ctx, `
-		INSERT INTO project_contract_revisions
-			(uuid, project_id, smart_contract_id, smart_contract_version, reason, smart_contract_name, smart_contract_description, smart_contract_body)
-		VALUES (?, ?, ?, ?, '项目创建时的基础审查规则', ?, ?, ?)`,
-		revisionID, projectInternalID, contractInternalID, contractVersion, contractName, contractDescription, contractBody)
-	if err != nil {
-		return ProjectView{}, err
-	}
-	revisionInternalID, err := revisionResult.LastInsertId()
-	if err != nil {
-		return ProjectView{}, err
-	}
-	if _, err := tx.Execute(ctx, `UPDATE projects SET active_contract_revision_id = ? WHERE id = ?`, revisionInternalID, projectInternalID); err != nil {
-		return ProjectView{}, err
-	}
-	if err := tx.Commit(); err != nil {
 		return ProjectView{}, err
 	}
 	return s.Get(ctx, input.OwnerID, projectID)
@@ -263,52 +197,17 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (ProjectView, e
 
 // ContributionOrigin 返回开放缺口交接给贡献者所需的上下文和已有来源。
 func (s *Service) ContributionOrigin(ctx context.Context, callID string) (ContributionOrigin, error) {
+	stored, sources, err := s.projects.FindContributionOrigin(ctx, callID)
+	if err != nil {
+		return ContributionOrigin{}, err
+	}
 	var origin ContributionOrigin
-	var criteriaJSON string
-	err := s.execution.Row(ctx, `
-		SELECT c.uuid, p.uuid, p.title, c.title, c.status,
-		       n.title, n.verifiable_goal, n.acceptance_criteria_json, n.evidence_requirement
-		FROM collaboration_calls c
-		JOIN projects p ON p.id = c.project_id
-		JOIN execution_contracts n ON n.id = c.target_contract_id
-		WHERE c.uuid = ?`, callID).Scan(
-		&origin.CallID, &origin.ProjectID, &origin.ProjectTitle, &origin.CallTitle, &origin.Status,
-		&origin.TargetTitle, &origin.VerifiableGoal, &criteriaJSON, &origin.EvidenceRequirement)
-	if err != nil {
-		return origin, err
+	origin.CallID, origin.ProjectID, origin.ProjectTitle, origin.CallTitle, origin.Status = stored.CallID, stored.ProjectID, stored.ProjectTitle, stored.CallTitle, stored.Status
+	origin.TargetTitle, origin.VerifiableGoal, origin.EvidenceRequirement = stored.TargetTitle, stored.Goal, stored.EvidenceRequirement
+	_ = json.Unmarshal([]byte(stored.CriteriaJSON), &origin.AcceptanceCriteria)
+	origin.AvailableSources = make([]ContributionOriginSource, 0, len(sources))
+	for _, source := range sources {
+		origin.AvailableSources = append(origin.AvailableSources, ContributionOriginSource{Title: source.Title, ProjectTitle: source.ProjectTitle, MappingText: source.MappingText, Status: source.Status})
 	}
-	_ = json.Unmarshal([]byte(criteriaJSON), &origin.AcceptanceCriteria)
-	rows, err := s.execution.Rows(ctx, `
-		SELECT r.title, p.title, s.mapping_text, s.status
-		FROM collaboration_submissions s
-		JOIN completion_records r ON r.id = s.source_record_id
-		JOIN projects p ON p.id = r.project_id
-		JOIN collaboration_calls c ON c.id = s.call_id
-		WHERE c.uuid = ? AND s.status <> 'withdrawn'
-		ORDER BY s.created_at ASC`, callID)
-	if err != nil {
-		return origin, err
-	}
-	defer rows.Close()
-	origin.AvailableSources = make([]ContributionOriginSource, 0)
-	for rows.Next() {
-		var source ContributionOriginSource
-		if err := rows.Scan(&source.Title, &source.ProjectTitle, &source.MappingText, &source.Status); err != nil {
-			return origin, err
-		}
-		origin.AvailableSources = append(origin.AvailableSources, source)
-	}
-	return origin, rows.Err()
-}
-
-func publicUUID(ctx context.Context, db queryer, entity string, id uint64) (string, error) {
-	table, ok := publicIDTables[entity]
-	if !ok {
-		return "", errors.New("unsupported public id entity")
-	}
-	var uuid string
-	if err := db.Row(ctx, "SELECT uuid FROM "+table+" WHERE id = ?", id).Scan(&uuid); err != nil {
-		return "", err
-	}
-	return uuid, nil
+	return origin, nil
 }

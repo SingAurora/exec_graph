@@ -38,9 +38,14 @@
 
 ## 前端
 
-- 所有 HTTP 请求通过 `frontend/src/lib/api.ts`，不在页面、组件或 store 中直接调用 `fetch`。
-- store 只保存会话和 UI 状态；工作区、项目、节点等服务端事实必须由 API 刷新。不得加入运行时假数据、离线写入或持久化明文密码。
-- 保持前端类型与后端公开 DTO 的字段语义一致。修改 API 时同步检查调用点。
+- 前端按 `app -> pages -> widgets -> features -> entities -> shared` 分层。只能从高层依赖低层；`shared` 不得依赖任何业务层，`entities` 不得依赖 `features`、`widgets` 或 `pages`。
+- `app` 放路由、全局 Provider、应用级样式和启动配置；`pages` 只读取路由参数并编排 widget，不直接实现业务流程。
+- `widgets` 是可复用的大块界面；`features` 是用户可触发的一项明确业务动作；`entities` 放项目、节点、合约、账户等稳定业务对象的类型、选择器和读取能力。
+- 每个 feature 或 entity 按需使用 `api/`、`model/`、`ui/`、`lib/` 子目录。稳定业务类型放所属实体的 `model/types.ts`，不要再向根目录添加全局类型文件。
+- 新增代码必须直接从所属的 `entities`、`features` 或 `shared` 导入。不要重新创建根目录 `types.ts` 或 `lib/` 作为跨领域杂物桶。
+- 所有 HTTP 请求通过 `shared/api/client.ts`。页面、UI 组件和 store 不直接调用 `fetch`，也不直接拼接 API URL；领域 API 放在对应 feature/entity 的 `api/` 内。
+- Zustand 只保存会话和必要的跨页面客户端状态。工作区、项目、节点等服务端事实必须由 API 刷新；组件的弹窗、筛选和表单草稿优先使用局部状态。不得加入运行时假数据、离线写入或持久化明文密码。
+- 保持前端类型与后端公开 DTO 的字段语义一致。修改 API 时同步检查调用点；稳定的 API 输入和输出必须定义 TypeScript 类型，避免 `any` 和无语义的对象字面量。
 
 ## 验证
 

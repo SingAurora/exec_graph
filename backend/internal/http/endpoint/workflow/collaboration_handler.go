@@ -3,7 +3,6 @@ package workflow
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -152,48 +151,6 @@ func (h *Handler) handleExploreProject(w http.ResponseWriter, r *http.Request, p
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"project": project})
 }
-func (h *Handler) loadProjectCollaborationCalls(ctx context.Context, projectID string) ([]collaborationCallResponse, error) {
-	rows, err := h.collaborationStore.Rows(ctx, `SELECT c.uuid FROM collaboration_calls c JOIN projects p ON p.id = c.project_id WHERE p.uuid = ? ORDER BY c.status = 'open' DESC, c.created_at DESC`, projectID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	calls := make([]collaborationCallResponse, 0)
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		call, err := h.loadCollaborationCall(ctx, id)
-		if err != nil {
-			return nil, err
-		}
-		calls = append(calls, call)
-	}
-	return calls, rows.Err()
-}
-
-func (h *Handler) loadCollaborationCall(ctx context.Context, id string) (collaborationCallResponse, error) {
-	var call collaborationCallResponse
-	var criteriaJSON string
-	err := h.collaborationStore.Row(ctx, `
-		SELECT c.uuid, p.uuid, p.title, u.username, u.user_id, c.created_by, c.title, c.status, c.max_submissions, c.created_at,
-		       n.uuid, n.title, n.verifiable_goal, n.acceptance_criteria_json, n.evidence_requirement, n.stage,
-		       (SELECT COUNT(*) FROM collaboration_submissions s WHERE h.call_id = c.id AND h.status <> 'withdrawn')
-		FROM collaboration_calls c
-		JOIN projects p ON p.id = c.project_id
-		JOIN users u ON u.id = p.owner_id
-		JOIN execution_contracts n ON n.id = c.target_contract_id
-		WHERE c.uuid = ?`, id).
-		Scan(&call.ID, &call.ProjectID, &call.ProjectTitle, &call.OwnerName, &call.OwnerUserID, &call.CreatedBy, &call.Title, &call.Status, &call.MaxSubmissions, &call.CreatedAt,
-			&call.Target.ID, &call.Target.Title, &call.Target.VerifiableGoal, &criteriaJSON, &call.Target.EvidenceRequirement, &call.Target.Stage, &call.SubmissionCount)
-	if err != nil {
-		return call, err
-	}
-	_ = json.Unmarshal([]byte(criteriaJSON), &call.Target.AcceptanceCriteria)
-	return call, nil
-}
-
 func (h *Handler) getCollaborationCall(w http.ResponseWriter, r *http.Request, callID string) {
 	details, err := h.collaboration.GetCallDetails(r.Context(), callID)
 	if errors.Is(err, applicationcollaboration.ErrNotFound) {
@@ -206,31 +163,6 @@ func (h *Handler) getCollaborationCall(w http.ResponseWriter, r *http.Request, c
 	}
 	writeJSON(w, http.StatusOK, details)
 }
-func (h *Handler) loadCollaborationSubmissions(ctx context.Context, callID string) ([]collaborationSubmissionResponse, error) {
-	rows, err := h.collaborationStore.Rows(ctx, `
-		SELECT h.uuid, c.uuid, r.uuid, r.title, r.summary, source_project.title,
-		       h.contributor_id, u.username, u.user_id, h.mapping_text, COALESCE(h.note, ''), h.status, h.created_at
-		FROM collaboration_submissions s
-		JOIN completion_records r ON r.id = h.source_record_id
-		JOIN projects source_project ON source_project.id = r.project_id
-		JOIN collaboration_calls c ON c.id = h.call_id
-		JOIN users u ON u.id = h.contributor_id
-		WHERE c.uuid = ? ORDER BY h.created_at DESC`, callID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := make([]collaborationSubmissionResponse, 0)
-	for rows.Next() {
-		var item collaborationSubmissionResponse
-		if err := rows.Scan(&item.ID, &item.CallID, &item.SourceRecordID, &item.SourceTitle, &item.SourceSummary, &item.SourceProjectTitle, &item.ContributorID, &item.ContributorName, &item.ContributorUserID, &item.MappingText, &item.Note, &item.Status, &item.CreatedAt); err != nil {
-			return nil, err
-		}
-		items = append(items, item)
-	}
-	return items, rows.Err()
-}
-
 func (h *Handler) createCollaborationSubmission(w http.ResponseWriter, r *http.Request, userID uint64, callID string) {
 	var input createCollaborationSubmissionRequest
 	if !bindJSON(w, r, &input) {
@@ -270,8 +202,8 @@ func (h *Handler) reviewCollaborationSubmissions(w http.ResponseWriter, r *http.
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.ConversationReviewTimeout)
 	defer cancel()
-	call, err := h.loadCollaborationCall(ctx, callID)
-	if errors.Is(err, sql.ErrNoRows) {
+	call, err := h.collaboration.GetCall(ctx, callID)
+	if errors.Is(err, applicationcollaboration.ErrNotFound) {
 		writeError(w, http.StatusNotFound, "开放缺口不存在")
 		return
 	}
@@ -287,7 +219,7 @@ func (h *Handler) reviewCollaborationSubmissions(w http.ResponseWriter, r *http.
 		writeError(w, http.StatusBadRequest, "这个开放缺口已经关闭或目标状态已变化")
 		return
 	}
-	submissions, err := h.loadSelectedCollaborationSubmissions(ctx, callID, input.SubmissionIDs)
+	submissions, err := h.collaboration.ListSubmissions(ctx, callID, input.SubmissionIDs)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "读取待审查贡献失败")
 		return
@@ -322,96 +254,49 @@ func (h *Handler) reviewCollaborationSubmissions(w http.ResponseWriter, r *http.
 		writeError(w, http.StatusInternalServerError, "创建组合审查失败")
 		return
 	}
-	internalSubmissionIDs := make([]uint64, 0, len(input.SubmissionIDs))
-	for _, submissionID := range input.SubmissionIDs {
-		submissionInternalID, err := internalID(ctx, h.collaborationStore, "collaboration_submissions", submissionID)
-		if err != nil {
-			writeError(w, http.StatusBadRequest, "待审查贡献不存在")
-			return
-		}
-		internalSubmissionIDs = append(internalSubmissionIDs, submissionInternalID)
+	reviewJSON, err := jsonValue(review)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "保存组合审查失败")
+		return
 	}
-	idsJSON, _ := jsonValue(internalSubmissionIDs)
-	reviewJSON, _ := jsonValue(review)
 	status := "reviewed_gap"
 	if review.Verdict == "pass" {
 		status = "reviewed_pass"
 	}
-	callInternalID, err := internalID(ctx, h.collaborationStore, "collaboration_calls", callID)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "读取开放缺口失败")
-		return
-	}
-	projectInternalID, err := internalID(ctx, h.collaborationStore, "projects", call.ProjectID)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "读取项目失败")
-		return
-	}
-	targetInternalID, err := internalID(ctx, h.collaborationStore, "execution_contracts", call.Target.ID)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "读取目标节点失败")
-		return
-	}
-	if _, err := h.collaborationStore.Execute(ctx, `INSERT INTO collaboration_review_batches (uuid, call_id, project_id, target_contract_id, created_by, submission_ids_json, ai_review_json, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, batchID, callInternalID, projectInternalID, targetInternalID, userID, idsJSON, reviewJSON, status); err != nil {
+	if err := h.collaboration.CreateReviewBatch(ctx, applicationcollaboration.CreateReviewBatchInput{
+		UserID: userID, BatchID: batchID, CallID: callID, SubmissionIDs: input.SubmissionIDs,
+		ReviewJSON: reviewJSON, Status: status,
+	}); err != nil {
 		writeError(w, http.StatusInternalServerError, "保存组合审查失败")
 		return
 	}
-	_, _ = h.collaborationStore.Execute(ctx, `UPDATE ai_api_keys SET last_used_at = NOW() WHERE uuid = ? AND user_id = ?`, key.UUID, userID)
+	_ = h.aiKey.MarkUsed(ctx, userID, key.UUID)
 	writeJSON(w, http.StatusOK, map[string]any{"batch": collaborationReviewBatchResponse{ID: batchID, CallID: callID, SubmissionIDs: input.SubmissionIDs, Review: review, Status: status, CreatedAt: time.Now()}})
 }
 
-func (h *Handler) loadSelectedCollaborationSubmissions(ctx context.Context, callID string, ids []string) ([]collaborationSubmissionResponse, error) {
-	placeholders := strings.TrimRight(strings.Repeat("?,", len(ids)), ",")
-	args := make([]any, 0, len(ids)+1)
-	args = append(args, callID)
-	for _, id := range ids {
-		args = append(args, id)
-	}
-	query := fmt.Sprintf(`
-		SELECT h.uuid, c.uuid, r.uuid, r.title, r.summary, source_project.title,
-		       h.contributor_id, u.username, u.user_id, h.mapping_text, COALESCE(h.note, ''), h.status, h.created_at
-		FROM collaboration_submissions s
-		JOIN completion_records r ON r.id = h.source_record_id
-		JOIN projects source_project ON source_project.id = r.project_id
-		JOIN collaboration_calls c ON c.id = h.call_id
-		JOIN users u ON u.id = h.contributor_id
-		WHERE c.uuid = ? AND h.status = 'submitted' AND h.uuid IN (%s)`, placeholders)
-	rows, err := h.collaborationStore.Rows(ctx, query, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := make([]collaborationSubmissionResponse, 0, len(ids))
-	for rows.Next() {
-		var item collaborationSubmissionResponse
-		if err := rows.Scan(&item.ID, &item.CallID, &item.SourceRecordID, &item.SourceTitle, &item.SourceSummary, &item.SourceProjectTitle, &item.ContributorID, &item.ContributorName, &item.ContributorUserID, &item.MappingText, &item.Note, &item.Status, &item.CreatedAt); err != nil {
-			return nil, err
-		}
-		items = append(items, item)
-	}
-	return items, rows.Err()
-}
-
-func (h *Handler) loadCollaborationReviewRequest(ctx context.Context, call collaborationCallResponse, submissions []collaborationSubmissionResponse) (reviewExecutionNodeRequest, error) {
+func (h *Handler) loadCollaborationReviewRequest(ctx context.Context, call applicationcollaboration.Call, submissions []applicationcollaboration.Submission) (reviewExecutionNodeRequest, error) {
 	var request reviewExecutionNodeRequest
 	request.NodeID = call.Target.ID
 	request.Title = call.Target.Title
 	request.VerifiableGoal = call.Target.VerifiableGoal
-	request.AcceptanceCriteria = call.Target.AcceptanceCriteria
+	request.AcceptanceCriteria = make([]reviewCriterionRequest, 0, len(call.Target.AcceptanceCriteria))
+	for _, criterion := range call.Target.AcceptanceCriteria {
+		request.AcceptanceCriteria = append(request.AcceptanceCriteria, reviewCriterionRequest{ID: criterion.ID, Text: criterion.Text, RequiredEvidence: criterion.RequiredEvidence})
+	}
 	request.EvidenceRequirement = call.Target.EvidenceRequirement
-	var smartContractBody string
-	err := h.collaborationStore.Row(ctx, `
-		SELECT p.title, p.description, COALESCE(p.project_rules, ''), n.original_intent, n.smart_contract_id,
-		       COALESCE(sc.name, ''), COALESCE(sc.description, ''), COALESCE(sc.body, '')
-		FROM projects p JOIN execution_contracts n ON n.uuid = ? AND n.project_id = p.id
-		LEFT JOIN smart_contracts sc ON sc.id = n.smart_contract_id
-		WHERE p.uuid = ?`, call.Target.ID, call.ProjectID).
-		Scan(&request.Project.Title, &request.Project.Description, &request.Project.ProjectRules, &request.OriginalIntent, &request.SmartContract.ID, &request.SmartContract.Name, &request.SmartContract.Description, &smartContractBody)
+	context, err := h.collaboration.ReviewContext(ctx, call.ProjectID, call.Target.ID)
 	if err != nil {
 		return request, err
 	}
+	request.Project.Title = context.ProjectTitle
+	request.Project.Description = context.ProjectDescription
+	request.Project.ProjectRules = context.ProjectRules
+	request.OriginalIntent = context.OriginalIntent
+	request.SmartContract.ID = context.SmartContractID
+	request.SmartContract.Name = context.SmartContractName
+	request.SmartContract.Description = context.SmartContractDesc
+	request.SmartContract.Body = context.SmartContractBody
 	request.Project.ID = call.ProjectID
-	request.SmartContract.Body = smartContractBody
 	request.CompletionClaim = fmt.Sprintf("项目维护者选择了 %d 份外部已锁定成果，申请作为「%s」的组合证据。", len(submissions), call.Target.Title)
 	parts := make([]string, 0, len(submissions))
 	for _, submission := range submissions {
@@ -424,86 +309,19 @@ func (h *Handler) loadCollaborationReviewRequest(ctx context.Context, call colla
 func (h *Handler) adoptCollaborationReview(w http.ResponseWriter, r *http.Request, userID uint64, batchID string) {
 	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.DatabaseOperationTimeout)
 	defer cancel()
-	tx, err := h.collaborationStore.Begin(ctx)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "采纳贡献失败")
-		return
-	}
-	defer tx.Rollback()
-	var callID, projectID, targetID, status, callStatus, idsJSON, reviewJSON string
-	var ownerID uint64
-	err = tx.Row(ctx, `SELECT c.uuid, p.uuid, target.uuid, b.status, c.status, b.submission_ids_json, b.ai_review_json, p.owner_id FROM collaboration_review_batches b JOIN projects p ON p.id = b.project_id JOIN collaboration_calls c ON c.id = b.call_id JOIN execution_contracts target ON target.id = b.target_contract_id WHERE b.uuid = ? FOR UPDATE`, batchID).Scan(&callID, &projectID, &targetID, &status, &callStatus, &idsJSON, &reviewJSON, &ownerID)
-	if errors.Is(err, sql.ErrNoRows) {
-		writeError(w, http.StatusNotFound, "组合审查不存在")
-		return
-	}
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "读取组合审查失败")
-		return
-	}
-	if ownerID != userID {
-		writeError(w, http.StatusForbidden, "只有项目维护者可以采纳贡献")
-		return
-	}
-	if status != "reviewed_pass" || callStatus != "open" {
-		writeError(w, http.StatusBadRequest, "只有 AI 通过的贡献组合可以采纳")
-		return
-	}
-	var targetStage string
-	if err := tx.Row(ctx, `SELECT n.stage FROM execution_contracts n JOIN projects p ON p.id = n.project_id WHERE n.uuid = ? AND p.uuid = ? FOR UPDATE`, targetID, projectID).Scan(&targetStage); err != nil || targetStage != "frozen" {
-		writeError(w, http.StatusBadRequest, "目标节点已经变化，不能采纳这批贡献")
-		return
-	}
-	var ids []uint64
-	if err := json.Unmarshal([]byte(idsJSON), &ids); err != nil || len(ids) == 0 {
-		writeError(w, http.StatusInternalServerError, "组合审查范围损坏")
-		return
-	}
-	placeholders := strings.TrimRight(strings.Repeat("?,", len(ids)), ",")
-	callInternalID, err := internalID(ctx, tx, "collaboration_calls", callID)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "读取开放缺口失败")
-		return
-	}
-	args := make([]any, 0, len(ids)+1)
-	args = append(args, callInternalID)
-	for _, id := range ids {
-		args = append(args, id)
-	}
-	result, err := tx.Execute(ctx, fmt.Sprintf(`UPDATE collaboration_submissions SET status = 'adopted' WHERE call_id = ? AND status = 'submitted' AND id IN (%s)`, placeholders), args...)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "采纳贡献失败")
-		return
-	}
-	updated, _ := result.RowsAffected()
-	if updated != int64(len(ids)) {
-		writeError(w, http.StatusBadRequest, "部分贡献状态已经变化，请重新审查")
-		return
-	}
-	claim := fmt.Sprintf("项目维护者确认采纳 %d 份外部已锁定成果，作为当前节点的组合证据。", len(ids))
-	publicSubmissionIDs := make([]string, 0, len(ids))
-	for _, submissionID := range ids {
-		publicID, err := publicUUID(ctx, tx, "collaboration_submissions", submissionID)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "读取贡献失败")
+	if err := h.collaboration.AdoptReview(ctx, applicationcollaboration.AdoptReviewInput{UserID: userID, BatchID: batchID}); err != nil {
+		if errors.Is(err, applicationcollaboration.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "组合审查不存在")
 			return
 		}
-		publicSubmissionIDs = append(publicSubmissionIDs, publicID)
-	}
-	evidence := "已采纳协作来源：" + strings.Join(publicSubmissionIDs, "、")
-	if _, err := tx.Execute(ctx, `UPDATE execution_contracts n JOIN projects p ON p.id = n.project_id SET n.stage = 'verified', n.completion_claim = ?, n.evidence_text = ?, n.ai_review_json = ? WHERE n.uuid = ? AND p.uuid = ? AND n.stage = 'frozen'`, claim, evidence, reviewJSON, targetID, projectID); err != nil {
-		writeError(w, http.StatusInternalServerError, "写入目标节点审查结果失败")
-		return
-	}
-	if _, err := tx.Execute(ctx, `UPDATE collaboration_review_batches SET status = 'adopted', adopted_at = NOW() WHERE uuid = ?`, batchID); err != nil {
-		writeError(w, http.StatusInternalServerError, "保存采纳记录失败")
-		return
-	}
-	if _, err := tx.Execute(ctx, `UPDATE collaboration_calls SET status = 'adopted' WHERE uuid = ?`, callID); err != nil {
-		writeError(w, http.StatusInternalServerError, "关闭开放缺口失败")
-		return
-	}
-	if err := tx.Commit(); err != nil {
+		if errors.Is(err, applicationcollaboration.ErrUnauthorized) {
+			writeError(w, http.StatusForbidden, "只有项目维护者可以采纳贡献")
+			return
+		}
+		if errors.Is(err, applicationcollaboration.ErrInvalidRequest) {
+			writeError(w, http.StatusBadRequest, "目标节点或贡献状态已经变化，不能采纳这批贡献")
+			return
+		}
 		writeError(w, http.StatusInternalServerError, "采纳贡献失败")
 		return
 	}
@@ -515,34 +333,10 @@ func (h *Handler) handleContributionSources(w http.ResponseWriter, r *http.Reque
 	if !ok {
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.DatabaseOperationTimeout)
-	defer cancel()
-	rows, err := h.collaborationStore.Rows(ctx, `
-		SELECT r.uuid, r.title, r.summary, p.title
-		FROM completion_records r
-		JOIN projects p ON p.id = r.project_id
-		JOIN execution_contracts n ON n.id = r.closing_contract_id
-		WHERE r.record_kind = 'accepted' AND p.visibility = 'public' AND n.actor_id = ?
-		ORDER BY r.created_at DESC`, user.ID)
+	sources, err := h.collaboration.ListContributionSources(r.Context(), user.ID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "读取可提交成果失败")
 		return
-	}
-	defer rows.Close()
-	type source struct {
-		ID           string `json:"id"`
-		Title        string `json:"title"`
-		Summary      string `json:"summary"`
-		ProjectTitle string `json:"projectTitle"`
-	}
-	sources := make([]source, 0)
-	for rows.Next() {
-		var item source
-		if err := rows.Scan(&item.ID, &item.Title, &item.Summary, &item.ProjectTitle); err != nil {
-			writeError(w, http.StatusInternalServerError, "读取可提交成果失败")
-			return
-		}
-		sources = append(sources, item)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"sources": sources})
 }
@@ -552,39 +346,8 @@ func (h *Handler) handleMyContributions(w http.ResponseWriter, r *http.Request) 
 	if !ok {
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.DatabaseOperationTimeout)
-	defer cancel()
-	rows, err := h.collaborationStore.Rows(ctx, `SELECT h.uuid, c.uuid FROM collaboration_submissions s JOIN collaboration_calls c ON c.id = h.call_id WHERE h.contributor_id = ? AND h.status <> 'withdrawn' ORDER BY h.updated_at DESC`, user.ID)
+	items, err := h.collaboration.ListContributionActivities(r.Context(), user.ID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "读取协作回流失败")
-		return
-	}
-	defer rows.Close()
-	items := make([]contributionActivityResponse, 0)
-	for rows.Next() {
-		var submissionID, callID string
-		if err := rows.Scan(&submissionID, &callID); err != nil {
-			writeError(w, http.StatusInternalServerError, "读取协作回流失败")
-			return
-		}
-		call, err := h.loadCollaborationCall(ctx, callID)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "读取协作回流失败")
-			return
-		}
-		submissions, err := h.loadCollaborationSubmissions(ctx, callID)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "读取协作回流失败")
-			return
-		}
-		for _, submission := range submissions {
-			if submission.ID == submissionID {
-				items = append(items, contributionActivityResponse{Submission: submission, Call: call})
-				break
-			}
-		}
-	}
-	if err := rows.Err(); err != nil {
 		writeError(w, http.StatusInternalServerError, "读取协作回流失败")
 		return
 	}
