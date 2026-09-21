@@ -26,6 +26,12 @@
 go run ./cmd/api
 ```
 
+需要填充公开探索页的演示网络时，显式执行一次演示数据命令。命令只创建或更新标记为测试账号的 `demo-*` 数据，不会自动运行，也不会删除普通用户数据；密码通过环境变量传入，不写入代码：
+
+```bash
+EXEC_GRAPH_ALLOW_DEMO_SEED=1 EXEC_GRAPH_DEMO_PASSWORD='本地测试密码' go run ./cmd/demo-seed -allow
+```
+
 ## API 基础约定
 
 登录或注册返回 `accessToken`，后续需要登录的请求使用：
@@ -55,7 +61,7 @@ Authorization: Bearer <accessToken>
 
 头像使用 COS 私有对象：数据库保存对象键，接口返回有效期 24 小时的签名访问链接。
 
-开发期的账号密码和 AI 密钥按用户隔离，以明文保存在数据库中；AI 密钥接口可直接返回原始密钥，方便本地调试。
+账号密码使用 bcrypt 哈希保存，AI 密钥按用户隔离并使用 AES-256-GCM 加密保存。接口只返回服务商、模型和掩码提示，不返回原始 AI 密钥。
 
 Redis 连接配置在 `redis` 段。Redis 是唯一登录会话来源：Redis 未配置、无法连接或运行中不可用时，API 不会回退到 MySQL 会话。
 ## 凭据部署

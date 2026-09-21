@@ -164,7 +164,7 @@ export function ExecutionSettingsPanel(props: ExecutionSettingsPanelProps) {
                 autoComplete="off"
                 value={aiKeyValue}
                 onChange={(event) => setAIKeyValue(event.target.value)}
-                placeholder="开发期以明文保存"
+                placeholder="保存后仅显示掩码"
                 className={`${controlClass} w-full pr-11 font-mono`}
                 disabled={!accessToken || isSavingAIKey}
               />

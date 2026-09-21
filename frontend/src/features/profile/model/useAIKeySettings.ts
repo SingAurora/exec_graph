@@ -10,6 +10,10 @@ function getAIProviderOption(provider: AIKey['provider']) {
   return aiProviderOptions.find((option) => option.id === provider) ?? aiProviderOptions[0]
 }
 
+function getAIKeyErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : '请求失败，请稍后重试。'
+}
+
 export function useAIKeySettings(accessToken: string) {
   const [aiKeys, setAIKeys] = useState<AIKey[]>([])
   const [aiKeyProvider, setAIKeyProvider] = useState<AIProvider>('deepseek')
@@ -92,8 +96,8 @@ export function useAIKeySettings(accessToken: string) {
       setIsAIKeyDialogOpen(false)
       setAIKeyMessage('AI 密钥已保存。')
       showSuccessToast('AI 密钥已保存。')
-    } catch {
-      const message = '无法连接服务，请确认后端已启动。'
+    } catch (error) {
+      const message = getAIKeyErrorMessage(error)
       setAIKeyMessage(message)
       showErrorToast(message)
     } finally {
@@ -109,8 +113,8 @@ export function useAIKeySettings(accessToken: string) {
       const message = data.message ?? '测试通过。'
       setAIKeyMessage(message)
       showSuccessToast(message)
-    } catch {
-      const message = '无法连接服务，请确认后端已启动。'
+    } catch (error) {
+      const message = getAIKeyErrorMessage(error)
       setAIKeyMessage(message)
       showErrorToast(message)
     } finally {
@@ -135,8 +139,8 @@ export function useAIKeySettings(accessToken: string) {
         setAIKeyMessage(message)
         showSuccessToast(message)
       }
-    } catch {
-      const message = '无法连接服务，请确认后端已启动。'
+    } catch (error) {
+      const message = getAIKeyErrorMessage(error)
       setAIKeyMessage(message)
       if (action === 'verify') showErrorToast(message)
     } finally {
@@ -151,4 +155,3 @@ export function useAIKeySettings(accessToken: string) {
     onAIKeyTest, updateAIKey, setAIKeyLabel, setAIKeyValue, setAIKeyBaseURL, setAIKeyModel,
   }
 }
-

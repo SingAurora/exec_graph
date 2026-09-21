@@ -13,7 +13,6 @@ import (
 	"net/netip"
 	"net/url"
 	"strings"
-	"time"
 
 	applicationaigateway "github.com/singaurora/exec-graph/backend/internal/application/aigateway"
 	aiprotocol "github.com/singaurora/exec-graph/backend/internal/infrastructure/ai/protocol"
@@ -37,7 +36,7 @@ type ProviderClient struct {
 func NewProviderClient() *ProviderClient {
 	return &ProviderClient{
 		resolver: net.DefaultResolver,
-		dialer:   &net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second},
+		dialer:   &net.Dialer{Timeout: sharedconstants.AIProviderDialTimeout, KeepAlive: sharedconstants.AIProviderKeepAliveTimeout},
 	}
 }
 
@@ -151,9 +150,9 @@ func (client *ProviderClient) httpClient() *http.Client {
 		Proxy:                 nil,
 		DialContext:           client.dialContext,
 		ForceAttemptHTTP2:     true,
-		TLSHandshakeTimeout:   10 * time.Second,
+		TLSHandshakeTimeout:   sharedconstants.AIProviderTLSHandshakeTimeout,
 		ResponseHeaderTimeout: sharedconstants.AIKeyProbeHTTPTimeout,
-		IdleConnTimeout:       30 * time.Second,
+		IdleConnTimeout:       sharedconstants.AIProviderIdleConnTimeout,
 	}
 	return &http.Client{
 		Transport: transport,

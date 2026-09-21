@@ -41,6 +41,14 @@ const (
 	AIKeyTestTimeout = 30 * time.Second
 	// AIKeyProbeHTTPTimeout 限制向 AI 服务商发起探测的请求时间。
 	AIKeyProbeHTTPTimeout = 20 * time.Second
+	// AIProviderDialTimeout 限制连接 AI 服务商的 TCP 建连时间。
+	AIProviderDialTimeout = 10 * time.Second
+	// AIProviderKeepAliveTimeout 限制 AI 服务商连接的 keep-alive 时间。
+	AIProviderKeepAliveTimeout = 30 * time.Second
+	// AIProviderTLSHandshakeTimeout 限制与 AI 服务商完成 TLS 握手的时间。
+	AIProviderTLSHandshakeTimeout = 10 * time.Second
+	// AIProviderIdleConnTimeout 限制 AI 服务商空闲连接在连接池中的保留时间。
+	AIProviderIdleConnTimeout = 30 * time.Second
 
 	// CompletionReviewTimeout 覆盖完成审查或补充说明审查的总时间。
 	CompletionReviewTimeout = 110 * time.Second
@@ -54,4 +62,6 @@ const (
 	WorkOverviewTimeout = 10 * time.Second
 	// DailyWorkReviewTimeout 覆盖日结模型调用和审查结果保存的总时间。
 	DailyWorkReviewTimeout = 100 * time.Second
+	// DemoSeedTimeout 限制一次演示数据导入的总时间。
+	DemoSeedTimeout = 2 * time.Minute
 )
