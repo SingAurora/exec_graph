@@ -1,14 +1,11 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { needsReviewDecision } from '@/entities/execution-node/model/selectors'
-import type { CompletionRecord, DraftReview, ExecutionBranch, ExecutionContract, ExecutionEdge } from '@/entities/execution-node/model/types'
+import type { CompletionRecord, ExecutionBranch, ExecutionContract, ExecutionEdge } from '@/entities/execution-node/model/types'
 import type { Actor } from '@/entities/account/model/types'
 import type { Project } from '@/entities/project/model/types'
 import type { SmartContractDefinition } from '@/entities/smart-contract/model/types'
-import { getCurrentUserProfile } from '@/entities/account/api/client'
-import { reviewNodeClarification as requestNodeClarificationReview, reviewNodeCompletion as requestNodeCompletionReview, reviewNodeDraft as requestNodeDraftReview } from '@/entities/execution-node/api/client'
-import { createExecutionNode, confirmNodeCompletion as requestConfirmNodeCompletion, getProjectExecutionGraph, listOwnedProjects } from '@/entities/project/api/client'
-import { listAvailableSmartContracts } from '@/entities/smart-contract/api/client'
+import { reviewNodeDraft as requestNodeDraftReview } from '@/entities/execution-node/api/client'
+import { createExecutionNode } from '@/entities/project/api/client'
 import type { WorkspaceState } from './dto'
 import { buildDraftReview } from './draftReview'
 import {
@@ -17,11 +14,11 @@ import {
   currentRevision,
   isCurrentContract,
   mergeProjectState,
-  normalizeExecutionContract,
-  normalizeProject,
 } from './projectState'
 import { createProjectActions } from './projectActions'
 import { createSmartContractActions } from './smartContractActions'
+import { createCompletionActions } from './completionActions'
+import { createSessionActions } from './sessionActions'
 
 const now = () => new Date().toISOString()
 
@@ -388,249 +385,8 @@ export const useWorkspaceStore = create<WorkspaceState>()(
           }
         }
       },
-      reviewNodeCompletion: async (contractUuid, input) => {
-        const state = get()
-        const contract = state.contracts.find((item) => item.uuid === contractUuid)
-        const project = state.projects.find((item) => item.uuid === contract?.projectUuid)
-        if (
-          !contract ||
-          !project ||
-          project.archivedAt ||
-          contract.stage !== 'frozen' ||
-          !isCurrentContract(project, contract, state.contracts, state.branches)
-        ) {
-          return { success: false, message: '当前节点不能提交审查。' }
-        }
-        if (!state.accessToken) {
-          return { success: false, message: '请先登录，并为项目选择审查 AI。' }
-        }
-
-        try {
-          await requestNodeCompletionReview(state.accessToken, contract, input)
-          const snapshot = await getProjectExecutionGraph(state.accessToken, project.uuid)
-          set((latestState) => mergeProjectState(latestState, snapshot))
-          return { success: true }
-        } catch (error) {
-          return {
-            success: false,
-            message: error instanceof Error ? error.message : 'AI 审查失败，请稍后重试。',
-          }
-        }
-      },
-      reviewNodeClarification: async (contractUuid, input) => {
-        const state = get()
-        const contract = state.contracts.find((item) => item.uuid === contractUuid)
-        const project = state.projects.find((item) => item.uuid === contract?.projectUuid)
-        const canReview = Boolean(contract && needsReviewDecision(contract))
-        if (
-          !contract ||
-          !project ||
-          project.archivedAt ||
-          !contract.aiReview ||
-          !canReview ||
-          !isCurrentContract(project, contract, state.contracts, state.branches)
-        ) {
-          return { success: false, message: '当前节点不能补充审查说明。' }
-        }
-        if (!input.criterionIds.length || (input.explanation.trim().length < 4 && (input.evidenceAddition?.trim().length ?? 0) < 20)) {
-          return {
-            success: false,
-            message: '请选择需复审的验收标准，并补充说明或提交前已存在的证据。',
-          }
-        }
-        if (!state.accessToken) return { success: false, message: '请先登录，并为项目选择审查 AI。' }
-
-        try {
-          await requestNodeClarificationReview(state.accessToken, contract, input)
-          const snapshot = await getProjectExecutionGraph(state.accessToken, project.uuid)
-          set((latestState) => mergeProjectState(latestState, snapshot))
-          return { success: true }
-        } catch (error) {
-          return {
-            success: false,
-            message: error instanceof Error ? error.message : '补充审查失败，请稍后重试。',
-          }
-        }
-      },
-      confirmNodeCompletion: async (contractUuid) => {
-        const source = get().contracts.find((contract) => contract.uuid === contractUuid)
-        const project = get().projects.find((item) => item.uuid === source?.projectUuid)
-        const canLockStage = Boolean(source && needsReviewDecision(source))
-        if (
-          !source ||
-          !project ||
-          project.archivedAt ||
-          !isCurrentContract(project, source, get().contracts, get().branches) ||
-          !canLockStage ||
-          !source.aiReview
-        ) {
-          return { success: false, message: '当前节点不能锁定。' }
-        }
-        if (!get().accessToken) return { success: false, message: '请先登录后再锁定节点。' }
-        try {
-          const snapshot = await requestConfirmNodeCompletion(get().accessToken, project.uuid, source.uuid)
-          set((state) => mergeProjectState(state, snapshot))
-          return { success: true }
-        } catch (error) {
-          return {
-            success: false,
-            message: error instanceof Error ? error.message : '锁定节点失败，请稍后重试。',
-          }
-        }
-      },
-      createSupplementExecutionNode: async (contractUuid) => {
-        const source = get().contracts.find((contract) => contract.uuid === contractUuid)
-        const project = get().projects.find((item) => item.uuid === source?.projectUuid)
-        if (
-          !source ||
-          !project ||
-          project.archivedAt ||
-          !isCurrentContract(project, source, get().contracts, get().branches) ||
-          source.stage !== 'needs_supplement' ||
-          !source.aiReview?.suggestedSupplementTitle
-        )
-          return { success: false, message: '当前节点不能生成补足推进。' }
-        const existing = get().contracts.find((contract) => contract.supplementOfContractUuid === source.uuid)
-        if (existing) return { success: false, message: '这项节点已经有补足推进。' }
-        if (!get().accessToken) return { success: false, message: '请先登录后再生成补足推进。' }
-
-        const unmetCriteria = source.acceptanceCriteria.filter((criterion) =>
-          source.aiReview?.criterionReviews.some((review) => review.criterionId === criterion.id && review.result !== 'met'),
-        )
-        const criteria = unmetCriteria.length > 0 ? unmetCriteria : source.acceptanceCriteria
-        const title = source.aiReview.suggestedSupplementTitle
-        const evidenceRequirement = '提交能直接补足上述冻结标准缺口的结果，并按 C1、C2… 逐条标明证据位置。'
-        const draftReview: DraftReview = {
-          uuid: crypto.randomUUID(),
-          verdict: 'pass',
-          summary: '补足推进由上一节点的 AI 审查缺口生成，继承原节点冻结的规则。',
-          missingRequirements: [],
-          createdAt: now(),
-        }
-        const originalIntent = `智能合约对原行为「${source.title}」的审查未通过。本补足行为只处理被标记的缺口。`
-        try {
-          const snapshot = await createExecutionNode(get().accessToken, {
-              projectUuid: source.projectUuid,
-              draft: originalIntent,
-              draftReview,
-              title,
-              verifiableGoal: title,
-              acceptanceCriteria: criteria.map((criterion, index) => ({
-                ...criterion,
-                id: `c${index + 1}`,
-                requiredEvidence: `C${index + 1}：${criterion.requiredEvidence}`,
-              })),
-              evidenceRequirement,
-              parentContractUuid: source.uuid,
-              sourceContractUuids: [source.uuid],
-              branchUuid: source.branchUuid,
-              fork: false,
-              supplementOfContractUuid: source.uuid,
-          })
-          set((state) => mergeProjectState(state, snapshot))
-          return { success: true }
-        } catch (error) {
-          return {
-            success: false,
-            message: error instanceof Error ? error.message : '生成补足推进失败。',
-          }
-        }
-      },
-      setAccessToken: (token) => set({ accessToken: token, isAuthenticated: Boolean(token) }),
-      refreshWorkspace: async () => {
-        const accessToken = get().accessToken
-        if (!accessToken) return { success: false, message: '当前没有登录会话。' }
-        try {
-          const [profileData, projectData, smartContractData] = await Promise.all([
-            getCurrentUserProfile(accessToken),
-            listOwnedProjects(accessToken),
-            listAvailableSmartContracts(accessToken),
-          ])
-          if (!profileData.user?.userId || !projectData.projects || !smartContractData.smartContracts) {
-            throw new Error('读取账户工作区失败。')
-          }
-          const snapshots = await Promise.all(projectData.projects.map((project) => getProjectExecutionGraph(accessToken, project.uuid)))
-          const profileUser = profileData.user
-          const actorId = profileUser.userId ?? ''
-          const actor: Actor = {
-            id: actorId,
-            name: profileUser.username ?? profileUser.userId ?? '未命名用户',
-            handle: `@${profileUser.userId ?? actorId}`,
-            role: '成员',
-            bio: profileUser.bio ?? '',
-            gender: profileUser.gender ?? 'undisclosed',
-            avatarUrl: profileUser.avatarUrl,
-            profileBackgroundUrl: profileUser.profileBackgroundUrl,
-            customProfileEnabled: profileUser.customProfileEnabled,
-            customProfileMarkdown: profileUser.customProfileMarkdown,
-          }
-          set({
-            currentActorId: actorId,
-            actors: [actor],
-            projects: projectData.projects.map(normalizeProject),
-            smartContracts: smartContractData.smartContracts,
-            contracts: snapshots.flatMap((snapshot) => snapshot.nodes.map(normalizeExecutionContract)),
-            branches: snapshots.flatMap((snapshot) => snapshot.branches),
-            completionRecords: snapshots.flatMap((snapshot) => snapshot.completionRecords),
-            edges: snapshots.flatMap((snapshot) => snapshot.edges),
-          })
-          return { success: true }
-        } catch (error) {
-          set({
-            actors: [],
-            currentActorId: '',
-            projects: [],
-            smartContracts: [],
-            branches: [],
-            contracts: [],
-            completionRecords: [],
-            edges: [],
-          })
-          return {
-            success: false,
-            message: error instanceof Error ? error.message : '读取账户工作区失败。',
-          }
-        }
-      },
-      signOut: () =>
-        set({
-          isAuthenticated: false,
-          accessToken: '',
-          accountEmail: '',
-          actors: [],
-          currentActorId: '',
-          projects: [],
-          smartContracts: [],
-          branches: [],
-          contracts: [],
-          completionRecords: [],
-          edges: [],
-        }),
-      updateProfile: (input) => {
-        const normalizedUserID = input.userId.trim().replace(/^@+/, '')
-        set((state) => ({
-          actors: state.actors.map((actor) =>
-            actor.id === state.currentActorId
-              ? {
-                  ...actor,
-                  name: input.username.trim(),
-                  handle: `@${normalizedUserID}`,
-                  bio: input.bio.trim(),
-                  gender: input.gender,
-                  avatarUrl: input.avatarUrl ?? actor.avatarUrl,
-                  profileBackgroundUrl: input.profileBackgroundUrl ?? actor.profileBackgroundUrl,
-                  customProfileEnabled: input.customProfileEnabled,
-                  customProfileMarkdown: input.customProfileMarkdown,
-                }
-              : actor,
-          ),
-        }))
-      },
-      updateAccountEmail: (email) => {
-        set({ accountEmail: email.trim().toLowerCase() })
-        return { success: true }
-      },
-      updateAccountPassword: () => ({ success: true }),
+      ...createCompletionActions(set, get),
+      ...createSessionActions(set, get),
     }),
     {
       name: 'exec-graph-session',
