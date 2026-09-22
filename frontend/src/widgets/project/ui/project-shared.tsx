@@ -23,12 +23,12 @@ export const projectTabFrom = (value: string | null): ProjectTab =>
 
 export const currentNodeCopy = (contract: { stage: string }): CurrentNodeCopy => {
   if (contract.stage === 'verified') {
-    return { icon: CheckCircle2, eyebrow: '待确认 AI 结果', title: '确认 AI 审查结果', description: 'AI 已通过审查。确认后会生成一条可接续的已验收成果。', actionLabel: '确认验收' }
+    return { icon: CheckCircle2, eyebrow: '待确认行动记录', title: '确认当前现实状态', description: 'AI 已整理这次行动记录。请确认它是否如实反映当前情况；这不代表 AI 已证明最终效果。', actionLabel: '确认并保存' }
   }
   if (contract.stage === 'needs_supplement') {
-    return { icon: GitBranchPlus, eyebrow: '有缺口', title: '补足缺口或封存行动', description: 'AI 指出了未满足项。继续补足会保留这次行动的上下文；封存只保留记录，不会成为已验收成果。', actionLabel: '处理缺口' }
+    return { icon: GitBranchPlus, eyebrow: '记录有缺口', title: '补充记录或继续行动', description: 'AI 指出了尚未记录或确认的部分。你可以补充当前记录、继续观察，或创建下一步行动。', actionLabel: '处理记录' }
   }
-  return { icon: FileCheck2, eyebrow: '待推进', title: '提交这次推进结果', description: '这条节点已经准备好推进。提交结果后，会进入待确认 AI 结果。', actionLabel: '提交结果' }
+  return { icon: FileCheck2, eyebrow: '待推进', title: '记录这次行动', description: '这条行动已经准备好推进。完成后记录实际发生的事情，再请 AI 帮你整理。', actionLabel: '记录行动' }
 }
 
 export const recordDate = (record: { createdAt: string }) =>

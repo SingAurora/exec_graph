@@ -10,7 +10,7 @@ import (
 	sharedid "github.com/singaurora/exec-graph/backend/internal/shared/id"
 )
 
-// CreateExecutionNode 在草案审查通过后创建冻结的执行节点。
+// CreateExecutionNode 在行动草案被 AI 判定足够清楚后创建待推进节点。
 func (s *Service) CreateExecutionNode(ctx context.Context, input CreateNodeInput) (CreateNodeResult, error) {
 	input.Title = strings.TrimSpace(input.Title)
 	input.Draft = strings.TrimSpace(input.Draft)
@@ -19,14 +19,14 @@ func (s *Service) CreateExecutionNode(ctx context.Context, input CreateNodeInput
 	input.RetryOfContractID = strings.TrimSpace(input.RetryOfContractID)
 	input.SupplementOfNodeID = strings.TrimSpace(input.SupplementOfNodeID)
 	if input.DraftReviewVerdict != "pass" {
-		return CreateNodeResult{}, &ValidationError{"节点草案必须先通过 AI 审核"}
+		return CreateNodeResult{}, &ValidationError{"行动草案需要先经过 AI 辅助检查"}
 	}
 	if input.Title == "" || input.VerifiableGoal == "" || input.EvidenceRequirement == "" || input.Draft == "" || len(input.AcceptanceCriteria) == 0 {
-		return CreateNodeResult{}, &ValidationError{"节点的目标、验收标准或证据要求不完整"}
+		return CreateNodeResult{}, &ValidationError{"行动的目标、做到位清单或记录要求不完整"}
 	}
 	for _, criterion := range input.AcceptanceCriteria {
 		if strings.TrimSpace(criterion.ID) == "" || strings.TrimSpace(criterion.Text) == "" || strings.TrimSpace(criterion.RequiredEvidence) == "" {
-			return CreateNodeResult{}, &ValidationError{"节点验收标准不完整"}
+			return CreateNodeResult{}, &ValidationError{"行动做到位清单不完整"}
 		}
 	}
 	ctx, cancel := context.WithTimeout(ctx, sharedconstants.DatabaseOperationTimeout)
@@ -48,7 +48,7 @@ func (s *Service) CreateExecutionNode(ctx context.Context, input CreateNodeInput
 	if err != nil {
 		return CreateNodeResult{}, err
 	}
-	messagesJSON, _ := json.Marshal([]map[string]any{{"uuid": messageID, "speaker": "ai", "body": "推进节点已通过 AI 草案审核，目标、验收标准和证据要求已冻结。", "createdAt": time.Now()}})
+	messagesJSON, _ := json.Marshal([]map[string]any{{"uuid": messageID, "speaker": "ai", "body": "行动草案已经足够清楚，目标、做到位清单和记录要求已保存。接下来请记录现实中的推进。", "createdAt": time.Now()}})
 	project, err := s.GetOwnedProject(ctx, input.OwnerID, input.ProjectID)
 	if err != nil {
 		return CreateNodeResult{}, err

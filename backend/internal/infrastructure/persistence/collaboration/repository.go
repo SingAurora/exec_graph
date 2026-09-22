@@ -278,8 +278,9 @@ func (repository *Repository) CreateSubmission(ctx context.Context, submission *
 func (repository *Repository) FindReviewContext(ctx context.Context, projectUUID, targetUUID string) (ReviewContext, error) {
 	var review ReviewContext
 	err := repository.db.WithContext(ctx).Table("projects AS p").
-		Select("p.title AS project_title, p.description AS project_description, COALESCE(p.project_rules, '') AS project_rules, n.original_intent, sc.uuid AS smart_contract_id, COALESCE(sc.name, '') AS smart_contract_name, COALESCE(sc.description, '') AS smart_contract_description, COALESCE(sc.body, '') AS smart_contract_body").
+		Select("p.title AS project_title, p.description AS project_description, COALESCE(p.project_rules, '') AS project_rules, n.original_intent, sc.uuid AS smart_contract_id, COALESCE(revision.smart_contract_name, '') AS smart_contract_name, COALESCE(revision.smart_contract_description, '') AS smart_contract_description, COALESCE(revision.smart_contract_body, '') AS smart_contract_body").
 		Joins("JOIN execution_contracts AS n ON n.project_id = p.id AND n.uuid = ?", targetUUID).
+		Joins("JOIN project_contract_revisions AS revision ON revision.id = n.project_contract_revision_id").
 		Joins("LEFT JOIN smart_contracts AS sc ON sc.id = n.smart_contract_id").
 		Where("p.uuid = ?", projectUUID).Scan(&review).Error
 	if review.ProjectTitle == "" {

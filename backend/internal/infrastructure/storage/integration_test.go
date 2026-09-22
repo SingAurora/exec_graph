@@ -14,7 +14,7 @@ func TestObjectStorageConnection(t *testing.T) {
 	if os.Getenv("EXEC_GRAPH_STORAGE_CHECK") != "1" {
 		t.Skip("set EXEC_GRAPH_STORAGE_CHECK=1 to run the object storage integration check")
 	}
-	config, err := bootstrapconfig.Load("../../../../etc/config.local.yaml")
+	config, err := bootstrapconfig.Load("../../../etc/config.local.yaml")
 	if err != nil {
 		t.Fatalf("load local config: %v", err)
 	}

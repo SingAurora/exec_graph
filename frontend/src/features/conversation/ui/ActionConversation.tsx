@@ -72,9 +72,9 @@ function AutoGrowingTextarea({ className = '', onInput, value, ...props }: Texta
 const toDraftText = (draft: ActionDraft) => [
   `契约标题：${draft.title}`,
   `可验证目标：${draft.verifiableGoal}`,
-  '验收标准:',
+  '做到位清单:',
   ...draft.acceptanceCriteria.map((item) => `- ${item}`),
-  `证据要求：${draft.evidenceRequirement}`,
+  `记录要求：${draft.evidenceRequirement}`,
 ].join('\n')
 
 type PlanningConversationProps = {
@@ -93,7 +93,7 @@ function conversationTranscript(messages: ConversationMessage[], draft?: ActionD
   const entries = messages.map((message) => `## ${message.role === 'assistant' ? 'AI' : '你'}\n\n${message.body.trim()}`).join('\n\n')
   const transcript = `# 节点目标对话\n\n${entries}`
   if (!draft) return transcript
-  return `${transcript}\n\n# 当前行动契约草案\n\n## ${draft.title}\n\n**可验证目标**\n\n${draft.verifiableGoal}\n\n**验收标准**\n\n${draft.acceptanceCriteria.map((item) => `- ${item}`).join('\n')}\n\n**证据要求**\n\n${draft.evidenceRequirement}`
+  return `${transcript}\n\n# 当前行动草案\n\n## ${draft.title}\n\n**目标**\n\n${draft.verifiableGoal}\n\n**做到位清单**\n\n${draft.acceptanceCriteria.map((item) => `- ${item}`).join('\n')}\n\n**记录要求**\n\n${draft.evidenceRequirement}`
 }
 
 export function PlanningConversation({ projectUuid, parentContractUuid, sourceContractUuids, branchUuid, fork, closureSourceUuids, supplementOfContractUuid, retryOfContractUuid, onCreate }: PlanningConversationProps) {
@@ -139,7 +139,7 @@ export function PlanningConversation({ projectUuid, parentContractUuid, sourceCo
       const draftReview: DraftReview = {
         uuid: crypto.randomUUID(),
         verdict: 'pass',
-        summary: '目标对话已完成，节点草案通过冻结审核。',
+        summary: '目标对话已完成，行动草案已经足够清楚，可以保存为一次推进。',
         missingRequirements: [],
         createdAt: conversation.updatedAt ?? new Date().toISOString(),
         aiConfig: conversation.aiConfig,
@@ -172,7 +172,7 @@ export function PlanningConversation({ projectUuid, parentContractUuid, sourceCo
               <div className="font-mono text-xs font-semibold text-signal">{message.role === 'assistant' ? 'AI' : '你'}</div>
               <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-graphite">{message.body}</p>
             </div>
-          )) : <p className="text-sm text-graphite">描述你想推进的事情。AI 会逐步把它整理为可冻结的行动契约。</p>}
+          )) : <p className="text-sm text-graphite">描述你想推进的事情。AI 会逐步把它整理为可执行的行动。</p>}
           {busy ? <div className="flex items-center gap-2 text-sm text-graphite"><LoaderCircle size={16} className="animate-spin text-signal" />AI 正在整理本轮对话</div> : null}
         </div>
         <div className="mt-4 flex gap-3">
@@ -182,9 +182,9 @@ export function PlanningConversation({ projectUuid, parentContractUuid, sourceCo
         {error ? <p className="mt-3 text-sm font-semibold text-clay">{error}</p> : null}
       </div>
       <aside className="rounded-md border border-rail bg-shell p-5">
-        <div className="font-mono text-xs font-semibold uppercase text-signal">行动契约草案</div>
-        {draft ? <div className="mt-4 space-y-4 text-sm leading-6"><div><div className="font-semibold text-ink">{draft.title || '待定义标题'}</div><p className="mt-1 text-graphite">{draft.verifiableGoal || '待明确可验证目标'}</p></div><div><div className="font-semibold text-ink">验收标准</div><ul className="mt-1 list-disc space-y-1 pl-5 text-graphite">{draft.acceptanceCriteria.map((item) => <li key={item}>{item}</li>)}</ul></div><div><div className="font-semibold text-ink">证据要求</div><p className="mt-1 text-graphite">{draft.evidenceRequirement}</p></div></div> : <p className="mt-4 text-sm leading-6 text-graphite">对话后，AI 会在这里持续更新草案。</p>}
-        {conversation?.status === 'ready_for_freeze' ? <button type="button" onClick={freeze} disabled={Boolean(busy)} className="mt-6 inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-moss px-4 text-sm font-semibold text-white"><ShieldCheck size={17} />冻结为推进节点</button> : <button type="button" onClick={() => send(true)} disabled={Boolean(busy) || !draft} className="mt-6 inline-flex h-11 w-full items-center justify-center border border-rail bg-surface px-4 text-sm font-semibold text-ink disabled:opacity-50">提交冻结审核</button>}
+        <div className="font-mono text-xs font-semibold uppercase text-signal">行动草案</div>
+        {draft ? <div className="mt-4 space-y-4 text-sm leading-6"><div><div className="font-semibold text-ink">{draft.title || '待定义标题'}</div><p className="mt-1 text-graphite">{draft.verifiableGoal || '待明确目标'}</p></div><div><div className="font-semibold text-ink">做到位清单</div><ul className="mt-1 list-disc space-y-1 pl-5 text-graphite">{draft.acceptanceCriteria.map((item) => <li key={item}>{item}</li>)}</ul></div><div><div className="font-semibold text-ink">记录要求</div><p className="mt-1 text-graphite">{draft.evidenceRequirement}</p></div></div> : <p className="mt-4 text-sm leading-6 text-graphite">对话后，AI 会在这里持续更新行动草案。</p>}
+        {conversation?.status === 'ready_for_freeze' ? <button type="button" onClick={freeze} disabled={Boolean(busy)} className="mt-6 inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-moss px-4 text-sm font-semibold text-white"><ShieldCheck size={17} />保存为推进节点</button> : <button type="button" onClick={() => send(true)} disabled={Boolean(busy) || !draft} className="mt-6 inline-flex h-11 w-full items-center justify-center border border-rail bg-surface px-4 text-sm font-semibold text-ink disabled:opacity-50">请求 AI 检查行动</button>}
       </aside>
     </section>
   )
@@ -249,7 +249,7 @@ export function CompletionConversation({ contract }: { contract: ExecutionContra
   }
   return (
     <section className="rounded-md border border-rail bg-surface/72 p-5">
-      <div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal"><Bot size={15} />提交与验收</div>
+      <div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal"><Bot size={15} />记录与分析</div>
       <h2 className="mt-2 font-display text-2xl font-semibold">提交这次行动的结果</h2>
       <p className="mt-3 text-sm leading-6 text-graphite">完成后填写事实和证据。开始、结束时间是可选的，填入后会出现在工作总览的日时间轴。</p>
       <div className="mt-5 grid gap-5 border-y border-rail py-5">
@@ -257,7 +257,7 @@ export function CompletionConversation({ contract }: { contract: ExecutionContra
           <label className="grid gap-2"><span className="text-sm font-semibold text-ink">开始时间（可选）</span><input type="datetime-local" value={startedAt} onChange={(event) => setStartedAt(event.target.value)} disabled={Boolean(busy) || isSubmitted} className="h-11 rounded-md border border-rail bg-paper px-3 text-sm outline-none focus:border-signal" /></label>
           <label className="grid gap-2"><span className="text-sm font-semibold text-ink">结束时间（可选）</span><input type="datetime-local" value={endedAt} onChange={(event) => setEndedAt(event.target.value)} disabled={Boolean(busy) || isSubmitted} className="h-11 rounded-md border border-rail bg-paper px-3 text-sm outline-none focus:border-signal" /></label>
         </div>
-        {isSubmitted ? <div className="border-l-2 border-signal py-2 pl-3 text-sm leading-6 text-graphite">本轮提交已固定。AI 结论与后续澄清会显示在下方；新增工作请建立补足行动。</div> : <div className="grid gap-3"><label className="grid gap-2"><span className="text-sm font-semibold text-ink">完成说明</span><AutoGrowingTextarea value={claim} onChange={(event) => setClaim(event.target.value)} disabled={Boolean(busy)} className="min-h-24 w-full rounded-md border border-rail bg-paper px-3 py-2 text-sm leading-6 outline-none focus:border-signal" placeholder="这次实际完成了什么？" /></label><label className="grid gap-2"><span className="text-sm font-semibold text-ink">证据或补充说明</span><AutoGrowingTextarea value={evidence} onChange={(event) => setEvidence(event.target.value)} disabled={Boolean(busy)} className="min-h-24 w-full rounded-md border border-rail bg-paper px-3 py-2 text-sm leading-6 outline-none focus:border-signal" placeholder="逐条说明验收标准对应的事实；简单行动可以直接写完成情况。" /></label><button type="button" onClick={submit} disabled={Boolean(busy) || !claim.trim() || !evidence.trim()} className="inline-flex h-10 w-fit items-center gap-2 bg-signal px-3 text-sm font-semibold text-white disabled:opacity-50"><Bot size={16} />{busy === 'review' ? 'AI 正在审查' : '提交给 AI 验收'}</button></div>}
+        {isSubmitted ? <div className="border-l-2 border-signal py-2 pl-3 text-sm leading-6 text-graphite">本轮行动记录已固定。AI 的整理结果与后续说明会显示在下方；新的工作请建立下一步行动。</div> : <div className="grid gap-3"><label className="grid gap-2"><span className="text-sm font-semibold text-ink">实际行动说明</span><AutoGrowingTextarea value={claim} onChange={(event) => setClaim(event.target.value)} disabled={Boolean(busy)} className="min-h-24 w-full rounded-md border border-rail bg-paper px-3 py-2 text-sm leading-6 outline-none focus:border-signal" placeholder="这次实际做了什么？" /></label><label className="grid gap-2"><span className="text-sm font-semibold text-ink">观察与材料</span><AutoGrowingTextarea value={evidence} onChange={(event) => setEvidence(event.target.value)} disabled={Boolean(busy)} className="min-h-24 w-full rounded-md border border-rail bg-paper px-3 py-2 text-sm leading-6 outline-none focus:border-signal" placeholder="记录实际发生的变化、关键细节、阻碍或仍未知的部分。" /></label><button type="button" onClick={submit} disabled={Boolean(busy) || !claim.trim() || !evidence.trim()} className="inline-flex h-10 w-fit items-center gap-2 bg-signal px-3 text-sm font-semibold text-white disabled:opacity-50"><Bot size={16} />{busy === 'review' ? 'AI 正在整理' : '请求 AI 辅助分析'}</button></div>}
       </div>
       {error ? <p className="mt-3 text-sm font-semibold text-clay">{error}</p> : null}
     </section>

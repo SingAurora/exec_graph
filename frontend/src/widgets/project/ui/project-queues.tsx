@@ -72,10 +72,10 @@ function QueueList({ title, eyebrow, count, icon: Icon, children, empty }: Queue
 
 function QueueNodeRow({ contract, mode }: { contract: ExecutionContract; mode: 'pending' | 'confirmation' | 'reviewing' }) {
   const reviewHint = mode === 'reviewing'
-    ? '已提交推进结果 · 等待 AI 返回结论'
+    ? '已提交行动记录 · 等待 AI 整理'
     : mode === 'confirmation'
-      ? contract.aiReview?.verdict === 'pass' ? 'AI 已通过 · 等待确认' : 'AI 未通过 · 等待确认'
-      : '打开节点提交这次推进结果'
+      ? contract.aiReview?.verdict === 'pass' ? '记录较完整 · 等待你确认' : '记录仍有缺口 · 等待你处理'
+      : '打开节点记录这次行动'
   return (
     <Link to={`/contracts/${contract.uuid}`} className="group grid gap-3 px-4 py-4 transition hover:bg-shell focus:outline-none focus-visible:shadow-focusline sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
       <span className="min-w-0">
@@ -114,7 +114,7 @@ export function ProjectRecords({ records, contracts }: { records: CompletionReco
                 </div>
                 <div className="text-xs leading-5 text-graphite">
                   <div className="font-semibold text-ink">覆盖 {record.coveredContractUuids.length} 个推进节点</div>
-                  <div className={`mt-1 font-semibold ${isAccepted ? 'text-moss' : 'text-graphite'}`}>{isAccepted ? 'AI 审查通过 · 用户确认' : 'AI 有缺口 · 已封存'}</div>
+                  <div className={`mt-1 font-semibold ${isAccepted ? 'text-moss' : 'text-graphite'}`}>{isAccepted ? '行动记录 · 用户确认' : '记录有缺口 · 已保存'}</div>
                   <div className="mt-1 truncate">收束节点：{closingNode?.title ?? '推进节点'}</div>
                 </div>
                 <ArrowRight size={17} className="mt-1 shrink-0 text-signal transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
@@ -126,5 +126,4 @@ export function ProjectRecords({ records, contracts }: { records: CompletionReco
     </section>
   )
 }
-
 

@@ -40,9 +40,9 @@ export function NodePage() {
   if (!contract) {
     return (
       <div className="rounded-md border border-rail bg-surface/72 p-6">
-        <h1 className="font-display text-3xl font-semibold">智能合约不存在</h1>
+        <h1 className="font-display text-3xl font-semibold">行动不存在</h1>
         <Link className="mt-4 inline-block text-sm font-semibold text-signal" to="/">
-          返回智能合约
+          返回行动
         </Link>
       </div>
     )
@@ -139,7 +139,7 @@ export function NodePage() {
         <div className="border-l-2 border-ink bg-shell p-5">
           <div className="flex items-center gap-2 font-mono text-xs font-semibold text-signal">
             <Bot size={15} aria-hidden="true" />
-            智能合约
+            行动规则
           </div>
           <div className="mt-3 text-lg font-semibold">{smartContract?.name}</div>
           <div className="mt-1 text-sm text-graphite">{smartContract?.source === 'official' ? '平台提供' : '用户自定义'} · 项目智能合约</div>
@@ -161,7 +161,7 @@ export function NodePage() {
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-3">
                 <h2 className="font-display text-2xl font-semibold">
-                  {contract.draftReview.verdict === 'pass' ? 'AI 已通过这项节点草案' : 'AI 未通过这项节点草案'}
+                  {contract.draftReview.verdict === 'pass' ? 'AI 认为行动草案足够清楚' : 'AI 认为行动草案仍需补充'}
                 </h2>
                 <span className="font-mono text-xs font-semibold text-graphite">
                   {new Intl.DateTimeFormat('zh-CN', {
@@ -190,7 +190,7 @@ export function NodePage() {
                 <Scale size={15} aria-hidden="true" />
                 Frozen rules
               </div>
-              <h2 className="mt-3 font-display text-2xl font-semibold">这项任务的验收规则</h2>
+              <h2 className="mt-3 font-display text-2xl font-semibold">这项行动的做到位清单</h2>
               <p className="mt-3 text-sm leading-6 text-graphite">{contract.verifiableGoal}</p>
               <div className="mt-5 grid gap-3">
                 {contract.acceptanceCriteria.map((criterion, index) => (
@@ -206,9 +206,9 @@ export function NodePage() {
             <aside className="rounded-md border border-rail bg-shell p-5">
               <div className="font-mono text-xs font-semibold uppercase text-signal">任务原始说明</div>
               <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-graphite">{contract.originalIntent}</p>
-              <div className="mt-5 font-mono text-xs font-semibold uppercase text-signal">证据要求</div>
+              <div className="mt-5 font-mono text-xs font-semibold uppercase text-signal">记录要求</div>
               <p className="mt-3 text-sm leading-6 text-graphite">{contract.evidenceRequirement}</p>
-              <div className="mt-5 border-t border-rail pt-4 text-xs leading-5 text-graphite">规则已冻结。不能修改目标、验收标准或证据要求来迁就结果。</div>
+              <div className="mt-5 border-t border-rail pt-4 text-xs leading-5 text-graphite">行动规则已保存。不能修改目标或做到位清单来掩盖已经发生的记录。</div>
             </aside>
           </section>
 
@@ -254,11 +254,11 @@ export function NodePage() {
             <section className="border-l-2 border-signal bg-surface/50 py-3 pl-5">
               <div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal">
                 <Bot size={15} aria-hidden="true" />
-                智能合约正在审核
+                AI 正在整理行动记录
               </div>
-              <h2 className="mt-2 font-display text-2xl font-semibold">等待智能合约返回审查结果</h2>
+              <h2 className="mt-2 font-display text-2xl font-semibold">等待 AI 整理行动记录</h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-graphite">
-                推进结果已经提交，正在按照冻结的验收标准处理。审查完成后，这个节点会进入待确认 AI 结果。
+                行动记录已经提交，AI 正在按照做到位清单整理覆盖情况。完成后请确认记录是否如实反映当前现实状态。
               </p>
             </section>
           ) : null}
@@ -335,8 +335,8 @@ export function NodePage() {
                 <div className={`mt-5 rounded-md border p-4 ${aiReviewPassed ? 'border-moss/30 bg-moss/8' : 'border-clay/30 bg-clay/8'}`}>
                   <p className="text-sm leading-6 text-graphite">
                     {aiReviewPassed
-                      ? 'AI 已通过审查。你确认后，这次推进会生成阶段完成记录。'
-                      : 'AI 指出了尚未满足的验收项。你可以继续补足；若决定在此结束，这次行动会被封存，不能作为已验收成果接续。'}
+                      ? 'AI 认为当前记录覆盖了做到位清单。请确认记录是否如实反映当前情况；现实结果仍需你自己观察。'
+                      : 'AI 指出了尚未记录或确认的部分。你可以补充记录、继续观察，或创建下一步行动。'}
                   </p>
                   <button
                     type="button"

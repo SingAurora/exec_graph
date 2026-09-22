@@ -11,9 +11,9 @@ import (
 
 func (service *Service) requestPlanningConversation(ctx context.Context, credential applicationaigateway.Credential, conversation View, freezeReview bool) (planningConversationOutput, error) {
 	var output planningConversationOutput
-	system := "你是 ExecG 的行动契约协作者。通过多轮中文对话把用户模糊想法收敛为一次真实推进。契约必须有标题、可验证目标、至少两条可审查验收标准、证据要求。不要假装用户已经完成。规则引导型项目必须遵从项目规则；其他项目只帮助澄清。回应友好、简洁，指出下一步需要补什么。只返回 JSON。"
+	system := "你是 ExecG 的行动规划协作者。通过多轮中文对话把用户模糊想法收敛为一次真实、可执行的推进。草案必须有标题、目标、做到位清单和记录要求。不要假装用户已经完成，也不要承诺 AI 能证明现实结果。规则引导型项目必须遵从项目规则；其他项目只帮助澄清。回应友好、简洁，指出下一步需要补什么。只返回 JSON。"
 	if freezeReview {
-		system += "当前用户明确请求冻结审核。只有草案完整且每条标准可独立审核时，readyForFreezeReview 才能为 true。"
+		system += "当前用户明确请求保存为推进。只有草案完整且每条做到位清单可独立观察时，readyForFreezeReview 才能为 true。"
 	}
 	payload := struct {
 		Context              any                        `json:"context"`
@@ -32,7 +32,7 @@ func (service *Service) requestPlanningConversation(ctx context.Context, credent
 
 func (service *Service) requestCompletionConversation(ctx context.Context, credential applicationaigateway.Credential, conversation View) (completionConversationOutput, error) {
 	var output completionConversationOutput
-	system := "你是 ExecG 的行动证据审查员。对话围绕已经冻结的任务规则展开，逐轮检查用户提交的证据和解释。不能修改目标、验收标准或证据要求，不能把新工作补写为旧证据；发现新工作应指出需要另建补充节点。每次都逐条作出当前结论。只返回 JSON。"
+	system := "你是 ExecG 的行动记录辅助者。对话围绕已经保存的行动规则展开，逐轮检查用户提交的行动记录和解释。不能修改目标、做到位清单或记录要求，不能把计划补写成已经发生；发现新工作应指出需要另建下一步行动。每次都逐条说明当前记录覆盖了什么、哪些仍需观察。只返回 JSON。"
 	payload := struct {
 		Context              any                          `json:"context"`
 		Messages             []MessageView                `json:"messages"`

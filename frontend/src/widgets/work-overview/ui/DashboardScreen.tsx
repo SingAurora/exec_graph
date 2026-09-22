@@ -156,7 +156,7 @@ function ProjectCard({ project }: { project: Project }) {
         <FolderKanban size={18} className="shrink-0 text-signal" aria-hidden="true" />
       </div>
       <div className="text-xs leading-5 text-graphite">
-        <div className="font-semibold text-ink">{project.projectType === 'guided' ? '规则引导 · AI 动态出具行动合约' : '自主推进 · 平台基础规则'}</div>
+        <div className="font-semibold text-ink">{project.projectType === 'guided' ? '规则引导 · AI 协助整理行动' : '自主推进 · 平台基础规则'}</div>
         <div className="mt-1">{projectRecords.length} 条验收成果 · {pendingContracts} 个当前待处理节点</div>
       </div>
       <div className="flex items-center justify-between gap-3 text-sm font-semibold text-ink">

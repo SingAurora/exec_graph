@@ -10,8 +10,8 @@ export type CompiledDraft = {
 const sectionLabels = {
   title: /^(?:契约标题|任务标题|标题)\s*(?:[:：]\s*(.*))?$/,
   goal: /^(?:(?:可验证)?目标|任务说明)\s*(?:[:：]\s*(.*))?$/,
-  criteria: /^(?:验收标准|验收要求|完成标准)\s*(?:[:：]\s*(.*))?$/,
-  evidence: /^(?:证据要求|证明要求|证据)\s*(?:[:：]\s*(.*))?$/,
+  criteria: /^(?:做到位清单|验收标准|验收要求|完成标准)\s*(?:[:：]\s*(.*))?$/,
+  evidence: /^(?:记录要求|证据要求|证明要求|证据)\s*(?:[:：]\s*(.*))?$/,
 } as const
 
 const stripListMarker = (line: string) => line.replace(/^\s*(?:[-*]|\d+[.)、])\s*/, '').trim()
@@ -57,16 +57,16 @@ export const buildDraftReview = (draft: string): { review: DraftReview; compiled
   const compiled = compileDraft(draft)
   const missingRequirements: string[] = []
 
-  if (compiled.title.length < 4) missingRequirements.push('需要使用“契约标题：”给出一个明确的标题。')
-  if (compiled.verifiableGoal.length < 16) missingRequirements.push('需要使用“可验证目标：”写出可以判断是否达成的结果。')
+  if (compiled.title.length < 4) missingRequirements.push('需要使用“标题：”给出一个明确的行动标题。')
+  if (compiled.verifiableGoal.length < 16) missingRequirements.push('需要使用“目标：”写出希望推进和改变的事情。')
   if (compiled.acceptanceCriteria.length < 2) {
-    missingRequirements.push('需要在“验收标准：”下至少列出两条独立、可审查的标准。')
+    missingRequirements.push('需要在“做到位清单：”下至少列出两条独立、可观察的关注点。')
   }
   if (compiled.acceptanceCriteria.some((criterion) => criterion.length < 10)) {
-    missingRequirements.push('每条验收标准需要具体到可以判定，而不是只写“完成”或“做好”。')
+    missingRequirements.push('每条做到位清单需要具体到可以记录和观察，而不是只写“完成”或“做好”。')
   }
   if (compiled.evidenceRequirement.length < 16) {
-    missingRequirements.push('需要使用“证据要求：”说明提交什么结果可以支撑验收。')
+    missingRequirements.push('需要使用“记录要求：”说明要记录哪些行动、变化或仍未知的部分。')
   }
 
   const verdict = missingRequirements.length === 0 ? 'pass' : 'fail'
@@ -77,8 +77,8 @@ export const buildDraftReview = (draft: string): { review: DraftReview; compiled
       verdict,
       summary:
         verdict === 'pass'
-          ? '节点草案审核通过。这个行动将遵循项目规则，并冻结目标、验收标准和证据要求。'
-          : '节点草案审核未通过。此草案尚不能成为项目中的推进节点，请按平台规则补全后再提交。',
+          ? '行动草案已经足够清楚，可以保存为一次推进。'
+          : '行动草案仍需补充，先把目标、做到位清单或记录要求说清楚。',
       missingRequirements,
       createdAt: new Date().toISOString(),
     },

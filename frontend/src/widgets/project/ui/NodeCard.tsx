@@ -11,9 +11,9 @@ type NodeCardProps = {
 }
 
 const verdictLabel = {
-  pass: 'AI: 通过',
-  partial: 'AI: 有缺口',
-  fail: 'AI: 未关闭',
+  pass: '记录较完整',
+  partial: '记录有缺口',
+  fail: '仍需补充',
 }
 
 export function NodeCard({ node, compact = false, actionLabel = '查看节点' }: NodeCardProps) {

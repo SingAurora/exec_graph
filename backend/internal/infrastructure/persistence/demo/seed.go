@@ -17,15 +17,24 @@ import (
 const (
 	generalContractUUID = "smart-contract-general"
 
-	generalContractBody = `## 执行规则
+	generalContractBody = `## 这份规则做什么
 
-- 必须写明可验证目标
-- 必须至少列出两条验收标准
-- 必须说明每条标准所需的证据
+把一个较大的目标拆成当前可以推进的一小步，并持续记录实际发生的事情。
 
-## AI 审查原则
+## 行动关注点
 
-只判断用户提交的完成说明和证据是否满足冻结的验收标准，不临时提高标准。`
+- 目标要说明想改变什么，以及这一步服务于哪个更大的方向
+- 行动要具体到用户今天可以开始做什么
+- 列出关键前提、可能阻碍和需要观察的现实变化
+- 将计划、已经做过的行动、观察到的结果分开记录
+- 说明下一步如何继续，而不是只追求一次性结束
+
+## AI 辅助原则
+
+AI 只能分析用户提供的目标、行动记录和材料，不能知道现实中是否真的发生，也不能替用户证明最终效果。
+“做到位清单”用于帮助用户提前想清楚需要关注什么，不是 AI 对现实完成情况的裁判标准。
+AI 应指出记录覆盖了什么、哪些仍然未知、哪里存在偏差，以及下一步可以怎么做。
+不要把用户的计划改写成已经完成，也不要因为记录不完整就把行动判定为失败。`
 )
 
 type userSpec struct {
@@ -124,8 +133,8 @@ func ensureGeneralContract(ctx context.Context, tx *gorm.DB) (uint64, string, er
 			Columns:   []clause.Column{{Name: "uuid"}},
 			DoUpdates: clause.AssignmentColumns([]string{"name", "source", "version", "description", "body", "deleted_at", "deleted_by"}),
 		}).Create(map[string]any{
-			"uuid": generalContractUUID, "name": "正式项目规则", "source": "official", "version": "1.0.0",
-			"description": "适合长期目标、复杂工作和多人协作。", "body": generalContractBody,
+			"uuid": generalContractUUID, "name": "长期行动指南", "source": "official", "version": "1.1.0",
+			"description": "适合长期目标、复杂工作和多人协作，帮助把想法拆成行动并记录现实反馈。", "body": generalContractBody,
 		}).Error; err != nil {
 			return 0, "", fmt.Errorf("create general smart contract: %w", err)
 		}
@@ -136,7 +145,7 @@ func ensureGeneralContract(ctx context.Context, tx *gorm.DB) (uint64, string, er
 		return 0, "", fmt.Errorf("load general smart contract: %w", result.Error)
 	}
 	if err := tx.WithContext(ctx).Table("smart_contracts").Where("id = ?", contract.ID).Updates(map[string]any{
-		"name": "正式项目规则", "source": "official", "version": "1.0.0", "description": "适合长期目标、复杂工作和多人协作。", "body": generalContractBody,
+		"name": "长期行动指南", "source": "official", "version": "1.1.0", "description": "适合长期目标、复杂工作和多人协作，帮助把想法拆成行动并记录现实反馈。", "body": generalContractBody,
 		"created_by": nil, "deleted_at": nil, "deleted_by": nil,
 	}).Error; err != nil {
 		return 0, "", fmt.Errorf("refresh general smart contract: %w", err)

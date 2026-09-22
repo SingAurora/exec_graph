@@ -11,7 +11,7 @@ type NodeTab = 'task' | 'completion' | 'events'
 export function NodeTabs({ contractUuid, activeTab }: { contractUuid: string; activeTab: NodeTab }) {
   const tabs: Array<{ id: NodeTab; label: string }> = [
     { id: 'task', label: '行动目标' },
-    { id: 'completion', label: '提交与验收' },
+    { id: 'completion', label: '记录与分析' },
     { id: 'events', label: '完整记录' },
   ]
 
@@ -108,12 +108,12 @@ export function NodeEventLog({ contract, projectTitle }: { contract: ExecutionCo
           contract.reviewMessages.map((message) => (
             <div key={message.uuid} className="relative border-b border-rail py-4 pl-5 last:border-b-0">
               <span className={`absolute -left-[5px] top-5 size-2 rounded-full ${message.speaker === 'ai' ? 'bg-amber' : 'bg-signal'}`} aria-hidden="true" />
-              <div className="font-mono text-xs font-semibold text-signal">{message.speaker === 'ai' ? 'AI 审查' : '用户提交'}</div>
+              <div className="font-mono text-xs font-semibold text-signal">{message.speaker === 'ai' ? 'AI 行动分析' : '用户行动记录'}</div>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-graphite">{message.body}</p>
             </div>
           ))
         ) : (
-          <p className="pl-5 text-sm leading-6 text-graphite">行为开始、提交结果、智能合约审查和本人确认都会记录在这里。</p>
+          <p className="pl-5 text-sm leading-6 text-graphite">行动开始、实际记录、AI 辅助分析和本人确认都会记录在这里。</p>
         )}
       </div>
     </section>
@@ -168,8 +168,8 @@ export function ReviewClarificationDialog({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl grid-rows-[auto_minmax(0,1fr)]">
         <DialogHeader>
-          <DialogTitle>补充审查材料</DialogTitle>
-          <DialogDescription>冻结任务和原始提交不会被改写。可澄清原材料，或补交首次提交前已存在但遗漏附上的证据。</DialogDescription>
+          <DialogTitle>补充行动记录</DialogTitle>
+          <DialogDescription>已保存的行动目标和原始记录不会被改写。你可以澄清已有材料，或补充首次记录前已经存在但遗漏的内容。</DialogDescription>
         </DialogHeader>
         <div className="min-h-0 overflow-y-auto px-6 py-5">
           <fieldset className="grid gap-3">
@@ -231,7 +231,7 @@ export function ReviewClarificationDialog({
           ) : (
             <div className="mt-6 grid gap-5">
               <fieldset className="grid gap-2">
-                <legend className="text-sm font-semibold text-ink">AI 可能误解的验收标准</legend>
+                <legend className="text-sm font-semibold text-ink">AI 可能误解的做到位清单</legend>
                 {contract.acceptanceCriteria.map((criterion, index) => (
                   <label key={criterion.id} className="flex cursor-pointer gap-3 border border-rail bg-surface p-3 text-sm leading-6 text-graphite">
                     <input
@@ -356,8 +356,8 @@ function buildReviewTranscript(contract: ExecutionContract, projectTitle: string
     '## 冻结可验证目标',
     contract.verifiableGoal,
     '',
-    '## 验收标准',
-    ...contract.acceptanceCriteria.flatMap((criterion, index) => [`### C${index + 1}`, criterion.text, `证据要求：${criterion.requiredEvidence}`, '']),
+    '## 做到位清单',
+    ...contract.acceptanceCriteria.flatMap((criterion, index) => [`### C${index + 1}`, criterion.text, `记录要求：${criterion.requiredEvidence}`, '']),
     '## 原始完成说明',
     contract.completionClaim ?? '未提交。',
     '',
@@ -440,7 +440,7 @@ export function CompletionRecordSummary({
       <p className="mt-3 text-sm leading-6 text-graphite">{record.summary}</p>
       <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold text-graphite">
         <span>覆盖 {record.coveredContractUuids.length} 个推进节点</span>
-        <span className={isAccepted ? 'text-moss' : 'text-graphite'}>{isAccepted ? 'AI 审查通过 · 用户确认' : 'AI 有缺口 · 用户封存'}</span>
+        <span className={isAccepted ? 'text-moss' : 'text-graphite'}>{isAccepted ? '行动记录 · 用户确认' : '记录有缺口 · 用户保存'}</span>
         <span>
           {new Intl.DateTimeFormat('zh-CN', {
             year: 'numeric',

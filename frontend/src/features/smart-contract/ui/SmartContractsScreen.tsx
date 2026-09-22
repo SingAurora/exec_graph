@@ -118,7 +118,7 @@ export function SmartContractsScreen({ compact = false }: { compact?: boolean })
         <DialogContent className="grid-rows-[auto_minmax(0,1fr)] max-w-3xl">
           <DialogHeader>
             <DialogTitle>新建自定义智能合约</DialogTitle>
-            <DialogDescription>用 Markdown 编写部署规则和 AI 审查原则。</DialogDescription>
+              <DialogDescription>用 Markdown 编写行动规则和 AI 辅助原则。</DialogDescription>
           </DialogHeader>
           <form className="grid max-h-[calc(100dvh-12rem)] gap-5 overflow-y-auto px-6 py-6 xl:grid-cols-2" onSubmit={handleSubmit(onSubmit)}>
             <label className="grid gap-2">
@@ -138,7 +138,7 @@ export function SmartContractsScreen({ compact = false }: { compact?: boolean })
               </span>
               <textarea
                 className="min-h-72 rounded-md border border-rail bg-paper px-3 py-3 font-mono text-sm leading-6 outline-none focus:border-signal focus:shadow-focusline"
-                placeholder={'## 部署规则\n\n- 写明可验证目标\n- 列出验收标准和证据要求\n\n## AI 审查原则\n\n只按冻结的验收标准审查，不临时提高标准。'}
+                placeholder={'## 行动规则\n\n- 写明目标和做到位清单\n- 说明需要记录的现实变化\n\n## AI 辅助原则\n\nAI 不能证明现实结果，只帮助整理记录和下一步。'}
                 {...register('body')}
               />
               {errors.body?.message ? <span className="text-sm font-medium text-clay">{errors.body.message}</span> : null}

@@ -31,3 +31,13 @@ go run ./cmd/mysql-deploy -file deploy/mysql/20260917_internalize_relationship_i
 ## `20260917_add_internal_id_comments.sql`
 
 在内部关系 ID 迁移后执行，为新建的数字关系字段补齐中文注释。
+
+## `20260922_update_official_contract_guidance.sql`
+
+将三份平台默认规则更新为 AI 辅助行动模式，并将版本提升到 `1.1.0`。它只更新 `smart_contracts` 中的平台规则库，不回写已经保存的项目规则修订、推进节点或阶段记录快照。
+
+执行前应确认应用已经使用项目规则快照读取历史节点；本仓库当前的节点审查和协作分析会读取节点所属项目规则修订中的快照。
+
+```bash
+go run ./cmd/mysql-deploy -file deploy/mysql/20260922_update_official_contract_guidance.sql -apply
+```

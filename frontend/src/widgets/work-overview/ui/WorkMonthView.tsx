@@ -6,7 +6,7 @@ const weekdayLabels = ['一', '二', '三', '四', '五', '六', '日']
 
 const activityCopy: Record<DailyActivity['kind'], { label: string; icon: typeof CircleDotDashed; className: string }> = {
   started: { label: '开始行动', icon: CircleDotDashed, className: 'text-amber' },
-  completed: { label: '验收完成', icon: CheckCircle2, className: 'text-moss' },
+  completed: { label: '已确认记录', icon: CheckCircle2, className: 'text-moss' },
   sealed: { label: '封存记录', icon: LockKeyhole, className: 'text-graphite' },
 }
 
@@ -100,7 +100,7 @@ export function WorkMonthView({ accessToken }: { accessToken: string }) {
         <div>
           <div className="font-mono text-xs font-semibold uppercase text-signal">个人工作记录</div>
           <h2 id="work-month-title" className="mt-1 font-display text-2xl font-semibold text-ink">月度行动</h2>
-          <p className="mt-1 text-sm text-graphite">{activeDays} 个有记录的工作日 · {acceptedCount} 条验收完成</p>
+          <p className="mt-1 text-sm text-graphite">{activeDays} 个有记录的工作日 · {acceptedCount} 条已确认记录</p>
         </div>
         <div className="flex items-center gap-1" aria-label="切换月份">
           <button type="button" onClick={() => setMonth((value) => new Date(value.getFullYear(), value.getMonth() - 1, 1))} className="grid size-9 place-items-center rounded-md border border-rail text-graphite transition hover:border-signal hover:text-signal focus:outline-none focus-visible:shadow-focusline" aria-label="上个月" title="上个月"><ChevronLeft size={17} aria-hidden="true" /></button>
@@ -130,7 +130,7 @@ export function WorkMonthView({ accessToken }: { accessToken: string }) {
 
       <div className="min-h-48 px-5 py-5">
         {loading ? <div className="flex items-center gap-2 text-sm text-graphite"><LoaderCircle size={16} className="animate-spin" aria-hidden="true" />读取月度记录</div> : null}
-        {!loading && !selectedDay ? <div><div className="font-mono text-xs font-semibold uppercase text-graphite">{selectedDate}</div><h3 className="mt-2 text-lg font-semibold text-ink">当天没有记录</h3><p className="mt-1 text-sm leading-6 text-graphite">记录推进、开始行动或完成验收后，会显示在这里。</p></div> : null}
+        {!loading && !selectedDay ? <div><div className="font-mono text-xs font-semibold uppercase text-graphite">{selectedDate}</div><h3 className="mt-2 text-lg font-semibold text-ink">当天没有记录</h3><p className="mt-1 text-sm leading-6 text-graphite">记录推进、开始行动或确认当前状态后，会显示在这里。</p></div> : null}
         {!loading && selectedDay ? <DailyDetail day={selectedDay} reviewing={reviewing} onReview={reviewDay} /> : null}
         {error ? <p className="mt-4 border-l-2 border-clay pl-3 text-sm leading-6 text-clay">{error}</p> : null}
       </div>

@@ -40,7 +40,7 @@ export function ContractComposer({ projectUuid, lockProject = false, parentContr
         {isFirstNode ? 'First action' : 'New action'}
       </div>
       <h2 className="mt-2 font-display text-2xl font-semibold">{isFirstNode ? '创建第一项推进' : retryOfContractUuid ? '根据上次经验重新尝试' : supplementOfContractUuid ? '开始补足行动' : isClosure ? '创建补齐并收束节点' : '开始一项推进'}</h2>
-      <p className="mt-3 text-sm leading-6 text-graphite">先和 AI 把本次行动收敛为可验证的契约；只有通过冻结审核，才会写入节点链。</p>
+      <p className="mt-3 text-sm leading-6 text-graphite">先和 AI 把本次行动收敛为清楚的目标、做到位清单和记录要求，再保存到行动路径。</p>
 
       <div className="mt-5 grid gap-4">
         {lockProject && selectedProject ? (

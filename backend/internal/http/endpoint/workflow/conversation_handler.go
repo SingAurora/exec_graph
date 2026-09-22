@@ -81,7 +81,7 @@ func (h *Handler) RequestPlanningDraftFreezeReview(w http.ResponseWriter, r *htt
 	if err := bindJSON(r, &input); err != nil {
 		return err
 	}
-	body := "请基于当前对话和草案进行冻结审核；只在全部字段清晰、可验证且证据要求充分时允许冻结。"
+	body := "请基于当前对话和草案检查行动是否足够清楚；只有目标、做到位清单和记录要求充分时，才允许保存为推进。"
 	return h.sendConversationMessage(w, r, userID, input.ConversationUUID, body, true)
 }
 

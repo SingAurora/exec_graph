@@ -116,16 +116,16 @@ func normalizeDraft(output DraftModelOutput) (DraftResult, error) {
 		}
 	}
 	if verdict == "fail" && len(missing) == 0 {
-		missing = append(missing, "请补充可验证目标、验收标准或证据要求。")
+		missing = append(missing, "请补充目标、做到位清单或记录要求。")
 	}
 	if verdict == "pass" {
 		missing = []string{}
 	}
 	summary := strings.TrimSpace(output.Summary)
 	if summary == "" && verdict == "pass" {
-		summary = "节点草案审核通过。这个推进节点符合项目规则，可以冻结。"
+		summary = "行动草案已经足够清楚，可以保存为一次推进；这不代表行动已经发生。"
 	} else if summary == "" {
-		summary = "节点草案审核未通过。当前描述还不足以支撑后续完成审查。"
+		summary = "行动草案仍有需要澄清的地方；可以补充后再保存，或先保留当前想法。"
 	}
 	return DraftResult{ID: id, Verdict: verdict, Summary: summary, MissingRequirements: missing, CreatedAt: time.Now()}, nil
 }
@@ -150,7 +150,7 @@ func normalizeCompletion(id string, createdAt time.Time, request CompletionReque
 	for _, criterion := range request.AcceptanceCriteria {
 		review, ok := byCriterion[criterion.ID]
 		if !ok {
-			review = CriterionResult{CriterionID: criterion.ID, Result: "unclear", Reason: "AI 没有覆盖这条验收标准，暂按证据不足处理。"}
+			review = CriterionResult{CriterionID: criterion.ID, Result: "unclear", Reason: "AI 没有覆盖这条做到位清单，当前记录仍需观察或补充。"}
 		}
 		if review.Result == "met" {
 			metCount++
@@ -177,9 +177,9 @@ func normalizeCompletion(id string, createdAt time.Time, request CompletionReque
 	}
 	summary := strings.TrimSpace(output.Summary)
 	if summary == "" && verdict == "pass" {
-		summary = "智能合约审查通过。这次推进满足冻结验收标准，等待用户确认后锁定。"
+		summary = "行动记录覆盖了当前做到位清单，可以由你确认并保存这次推进；现实结果仍需你自己观察。"
 	} else if summary == "" {
-		summary = "智能合约审查未通过。当前证据仍有缺口，可以继续补足或带着该结论锁定。"
+		summary = "行动记录还有未覆盖或尚未确认的部分；这不代表行动失败，可以补充记录、继续观察或创建下一步行动。"
 	}
 	supplementTitle := strings.TrimSpace(output.SuggestedSupplementTitle)
 	if verdict != "pass" && supplementTitle == "" {

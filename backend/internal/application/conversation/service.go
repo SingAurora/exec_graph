@@ -53,7 +53,7 @@ func (s *Service) CopyPlanningMessagesToNode(ctx context.Context, conversationID
 	if err != nil {
 		return err
 	}
-	messages = append(messages, map[string]any{"uuid": messageID, "speaker": "ai", "body": "目标对话已完成，节点草案通过冻结审核，目标、验收标准和证据要求已冻结。", "createdAt": time.Now()})
+	messages = append(messages, map[string]any{"uuid": messageID, "speaker": "ai", "body": "目标对话已完成，行动草案已经足够清楚；目标、做到位清单和记录要求已保存。", "createdAt": time.Now()})
 	encoded, err := json.Marshal(messages)
 	if err != nil {
 		return err
