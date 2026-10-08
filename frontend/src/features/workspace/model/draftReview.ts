@@ -1,4 +1,5 @@
 import type { DraftReview } from '@/entities/execution-node/model/types'
+import { quickActionSmartContractUuid } from '@/entities/smart-contract/model/constants'
 
 export type CompiledDraft = {
   title: string
@@ -53,20 +54,27 @@ export const compileDraft = (draft: string): CompiledDraft => {
   }
 }
 
-export const buildDraftReview = (draft: string): { review: DraftReview; compiled: CompiledDraft } => {
+export const buildDraftReview = (draft: string, smartContractUuid?: string): { review: DraftReview; compiled: CompiledDraft } => {
   const compiled = compileDraft(draft)
+  const quickAction = smartContractUuid === quickActionSmartContractUuid
   const missingRequirements: string[] = []
 
-  if (compiled.title.length < 4) missingRequirements.push('需要使用“标题：”给出一个明确的行动标题。')
-  if (compiled.verifiableGoal.length < 16) missingRequirements.push('需要使用“目标：”写出希望推进和改变的事情。')
-  if (compiled.acceptanceCriteria.length < 2) {
-    missingRequirements.push('需要在“做到位清单：”下至少列出两条独立、可观察的关注点。')
+  const titleMinimum = quickAction ? 1 : 4
+  const goalMinimum = quickAction ? 1 : 16
+  if (compiled.title.length < titleMinimum) missingRequirements.push('需要使用“标题：”给出一个明确的行动标题。')
+  if (compiled.verifiableGoal.length < goalMinimum) missingRequirements.push('需要使用“目标：”写出希望推进和改变的事情。')
+  if (compiled.acceptanceCriteria.length < (quickAction ? 1 : 2)) {
+    missingRequirements.push(`需要在“做到位清单：”下至少列出${quickAction ? '一条' : '两条'}独立、可观察的关注点。`)
   }
-  if (compiled.acceptanceCriteria.some((criterion) => criterion.length < 10)) {
+  if (compiled.acceptanceCriteria.some((criterion) => criterion.length < (quickAction ? 2 : 10))) {
     missingRequirements.push('每条做到位清单需要具体到可以记录和观察，而不是只写“完成”或“做好”。')
   }
-  if (compiled.evidenceRequirement.length < 16) {
+  if (!quickAction && compiled.evidenceRequirement.length < 16) {
     missingRequirements.push('需要使用“记录要求：”说明要记录哪些行动、变化或仍未知的部分。')
+  }
+
+  if (quickAction && compiled.evidenceRequirement.length === 0) {
+    compiled.evidenceRequirement = '记录实际做了什么、最重要的变化，以及仍需观察的地方。'
   }
 
   const verdict = missingRequirements.length === 0 ? 'pass' : 'fail'

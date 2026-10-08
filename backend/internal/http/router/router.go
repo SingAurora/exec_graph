@@ -100,6 +100,8 @@ func New(endpoints httpendpoint.Endpoints, config Config) http.Handler {
 	projects.POST("/open-planning-conversation", endpoints.OpenPlanningConversation)
 	// 开始节点完成证据的审查对话。
 	projects.POST("/open-completion-review-conversation", endpoints.OpenCompletionReviewConversation)
+	// 开始通过 AI 修改当前行动要求的对话；新的要求确认前不改变节点。
+	projects.POST("/open-task-requirement-revision-conversation", endpoints.OpenTaskRequirementRevisionConversation)
 	// 为项目设置后续 AI 审查要使用的已验证密钥。
 	projects.POST("/set-project-review-ai", endpoints.SetProjectReviewAI)
 	// 为项目切换后续节点采用的规则模板。
@@ -175,6 +177,8 @@ func New(endpoints httpendpoint.Endpoints, config Config) http.Handler {
 
 	// 工作总览读取当前用户的每日行动日历；每日审查调用选定 AI 生成并保存日结。
 	workOverview := commands.Group("/work-overview", endpoints.RequireAuthentication)
+	// 读取今天、近七天或近三十天内已经记录的行动事实，不生成评分。
+	workOverview.GET("/get-action-state", endpoints.GetActionState)
 	// 按 month 读取当前用户每日推进、完成和锁定记录。
 	workOverview.GET("/get-monthly-work-overview", endpoints.GetMonthlyWorkOverview)
 	// 对某个已有工作记录的日期生成并保存 AI 日结。
@@ -184,10 +188,16 @@ func New(endpoints httpendpoint.Endpoints, config Config) http.Handler {
 	conversations := commands.Group("/conversations", endpoints.RequireAuthentication)
 	// 按 conversationUuid 读取规划或完成审查对话全文。
 	conversations.GET("/get-ai-conversation", endpoints.GetAIConversation)
+	// 清空尚未结束的规划或完成审查对话，保留项目与节点上下文。
+	conversations.POST("/clear-ai-conversation", endpoints.ClearAIConversation)
 	// 向规划或完成审查对话发送一条用户消息并获得 AI 回复。
 	conversations.POST("/send-conversation-message", endpoints.SendConversationMessage)
 	// 请求 AI 对当前对话草案执行冻结审核并返回可执行结论。
 	conversations.POST("/request-planning-draft-freeze-review", endpoints.RequestPlanningDraftFreezeReview)
+	// 结束完成审查对话，生成并保存包含验收覆盖度的最终结论。
+	conversations.POST("/finalize-completion-review-conversation", endpoints.FinalizeCompletionReviewConversation)
+	// 确认 AI 整理出的新行动要求，并清除旧完成对话及其消息。
+	conversations.POST("/finalize-task-requirement-revision-conversation", endpoints.FinalizeTaskRequirementRevisionConversation)
 
 	return router
 }

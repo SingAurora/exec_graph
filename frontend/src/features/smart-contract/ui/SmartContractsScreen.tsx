@@ -138,7 +138,7 @@ export function SmartContractsScreen({ compact = false }: { compact?: boolean })
               </span>
               <textarea
                 className="min-h-72 rounded-md border border-rail bg-paper px-3 py-3 font-mono text-sm leading-6 outline-none focus:border-signal focus:shadow-focusline"
-                placeholder={'## 行动规则\n\n- 写明目标和做到位清单\n- 说明需要记录的现实变化\n\n## AI 辅助原则\n\nAI 不能证明现实结果，只帮助整理记录和下一步。'}
+                placeholder={'# 规则名称\n\n说明这套规则适用于什么工作或行动。\n\n## 行动原则\n\n写下你希望遵循的重点。\n\n## AI 辅助原则\n\n说明 AI 应该如何帮助你，以及哪些事情不应由 AI 代替判断。'}
                 {...register('body')}
               />
               {errors.body?.message ? <span className="text-sm font-medium text-clay">{errors.body.message}</span> : null}

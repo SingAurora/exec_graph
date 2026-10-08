@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ContractStageRail } from '@/entities/execution-node/ui/ContractStageRail'
 import { CompletionConversation } from '@/features/conversation/ui/ActionConversation'
+import { RequirementRevisionConversation } from '@/features/conversation/ui/RequirementRevisionConversation'
 import { EvidenceCoverage } from '@/entities/execution-node/ui/EvidenceCoverage'
 import { RelayRail } from '@/entities/execution-node/ui/RelayRail'
 import { StatusBadge } from '@/entities/execution-node/ui/StatusBadge'
@@ -11,6 +12,8 @@ import { NodeEventLog, NodeTabs, ReviewAIIdentity, ReviewClarificationDialog, Co
 import { useWorkspaceStore as useExecStore } from '@/features/workspace/model/useWorkspaceStore'
 import type { ExecutionContract } from '@/entities/execution-node/model/types'
 import { criterionText, verdictText } from '@/entities/execution-node/model/reviewCopy'
+import { SmartContractDocument } from '@/entities/smart-contract/ui/SmartContractDocument'
+import { quickActionSmartContractUuid } from '@/entities/smart-contract/model/constants'
 
 type NodeTab = 'task' | 'completion' | 'events'
 
@@ -36,6 +39,8 @@ export function NodePage() {
   const [clarificationMode, setClarificationMode] = useState<'existing' | 'existing-evidence' | 'new-work'>('existing')
   const [clarificationMessage, setClarificationMessage] = useState('')
   const [isClarifying, setIsClarifying] = useState(false)
+  const [isRevisionOpen, setIsRevisionOpen] = useState(false)
+  const refreshWorkspace = useExecStore((state) => state.refreshWorkspace)
 
   if (!contract) {
     return (
@@ -87,10 +92,12 @@ export function NodePage() {
   const currentContract = allContracts.find((item) => item.uuid === (branch ? branch.currentContractUuid : project?.currentContractUuid))
   const isReviewing = isReviewInProgress(contract)
   const canSubmit = isCurrent && contract.stage === 'frozen' && !isReviewing
-  const canUseCompletionConversation = isCurrent && !isArchived && contract.stage !== 'completed' && contract.stage !== 'sealed'
+  const canUseCompletionConversation = isCurrent && !isArchived && contract.stage === 'frozen'
+  const canReviseRequirements = isCurrent && !isArchived && contract.stage === 'frozen' && !contract.completionClaim && !contract.completionRecordUuid
   const aiReviewPassed = contract.aiReview?.verdict === 'pass'
+  const isQuickAction = contract.smartContractUuid === quickActionSmartContractUuid
   const canLock = isCurrent && needsReviewDecision(contract) && Boolean(contract.aiReview)
-  const canClarify = canLock && !contract.completionRecordUuid
+  const canClarify = canLock && !isQuickAction && !contract.completionRecordUuid
   const supplement = allContracts.find((item) => item.supplementOfContractUuid === contract.uuid)
   const sourceIds = contract.sourceContractUuids ?? (contract.parentContractUuid ? [contract.parentContractUuid] : [])
   const sourceContracts = sourceIds
@@ -106,7 +113,7 @@ export function NodePage() {
     if (!localCriterionId) return contract.acceptanceCriteria.find((item) => item.id === criterionId)
     return allContracts.find((item) => item.uuid === nodeUuid)?.acceptanceCriteria.find((item) => item.id === localCriterionId)
   }
-  const canSupplement = isCurrent && contract.stage === 'needs_supplement' && Boolean(contract.aiReview?.suggestedSupplementTitle) && !supplement
+  const canSupplement = !isQuickAction && isCurrent && contract.stage === 'needs_supplement' && Boolean(contract.aiReview?.suggestedSupplementTitle) && !supplement
   const completionRecord = completionRecordForContract(completionRecords, contract)
   const canContinue =
     !isArchived &&
@@ -136,14 +143,12 @@ export function NodePage() {
           {branch ? <p className="mt-2 text-sm font-semibold text-graphite">行为路径 · {branch.title}</p> : null}
         </div>
 
-        <div className="border-l-2 border-ink bg-shell p-5">
-          <div className="flex items-center gap-2 font-mono text-xs font-semibold text-signal">
-            <Bot size={15} aria-hidden="true" />
-            行动规则
-          </div>
-          <div className="mt-3 text-lg font-semibold">{smartContract?.name}</div>
-          <div className="mt-1 text-sm text-graphite">{smartContract?.source === 'official' ? '平台提供' : '用户自定义'} · 项目智能合约</div>
-          <p className="mt-4 text-sm leading-6 text-graphite">{smartContract?.description}</p>
+          <div className="border-l-2 border-ink bg-shell p-5">
+            <div className="flex items-center gap-2 font-mono text-xs font-semibold text-signal">
+              <Bot size={15} aria-hidden="true" />
+              智能合约
+            </div>
+          {smartContract ? <div className="mt-4 max-h-64 overflow-y-auto pr-2"><SmartContractDocument contract={smartContract} bodyClassName="text-[13px]" /></div> : <p className="mt-4 text-sm leading-6 text-graphite">当前行动没有找到对应的智能合约正文。</p>}
         </div>
       </section>
 
@@ -188,27 +193,20 @@ export function NodePage() {
             <div className="rounded-md border border-rail bg-surface/72 p-5">
               <div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal">
                 <Scale size={15} aria-hidden="true" />
-                Frozen rules
+                行动上下文
               </div>
-              <h2 className="mt-3 font-display text-2xl font-semibold">这项行动的做到位清单</h2>
-              <p className="mt-3 text-sm leading-6 text-graphite">{contract.verifiableGoal}</p>
-              <div className="mt-5 grid gap-3">
-                {contract.acceptanceCriteria.map((criterion, index) => (
-                  <div key={criterion.id} className="rounded-md border border-rail bg-paper p-4">
-                    <div className="font-mono text-xs font-semibold text-signal">C{index + 1}</div>
-                    <div className="mt-2 text-sm font-semibold text-ink">{criterion.text}</div>
-                    <p className="mt-2 text-sm leading-6 text-graphite">{criterion.requiredEvidence}</p>
-                  </div>
-                ))}
+              <h2 className="mt-3 font-display text-2xl font-semibold">本次行动说明</h2>
+              <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-graphite">{contract.verifiableGoal}</p>
+              <div className="mt-5 border-t border-rail pt-4">
+                <div className="font-mono text-xs font-semibold uppercase text-signal">本次记录提示</div>
+                <p className="mt-2 text-sm leading-6 text-graphite">{contract.evidenceRequirement}</p>
               </div>
             </div>
 
             <aside className="rounded-md border border-rail bg-shell p-5">
-              <div className="font-mono text-xs font-semibold uppercase text-signal">任务原始说明</div>
+              <div className="font-mono text-xs font-semibold uppercase text-signal">行动原始说明</div>
               <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-graphite">{contract.originalIntent}</p>
-              <div className="mt-5 font-mono text-xs font-semibold uppercase text-signal">记录要求</div>
-              <p className="mt-3 text-sm leading-6 text-graphite">{contract.evidenceRequirement}</p>
-              <div className="mt-5 border-t border-rail pt-4 text-xs leading-5 text-graphite">行动规则已保存。不能修改目标或做到位清单来掩盖已经发生的记录。</div>
+              <div className="mt-5 border-t border-rail pt-4 text-xs leading-5 text-graphite">智能合约正文是当前行动的规则上下文；本次行动说明只记录你决定推进的具体事情。</div>
             </aside>
           </section>
 
@@ -216,7 +214,7 @@ export function NodePage() {
             <section className="flex flex-wrap items-center justify-between gap-4 border-l-2 border-signal py-2 pl-5">
               <div>
                 <div className="font-mono text-xs font-semibold uppercase text-signal">下一步</div>
-                <p className="mt-1 text-sm text-graphite">任务规则已确定，可以提交本次推进结果。</p>
+                <p className="mt-1 text-sm text-graphite">行动规则已确定，可以提交本次推进结果。</p>
               </div>
               <Link
                 to={`/contracts/${contract.uuid}?tab=completion`}
@@ -226,6 +224,14 @@ export function NodePage() {
               </Link>
             </section>
           ) : null}
+          {canReviseRequirements && !isRevisionOpen ? (
+            <section className="border-l-2 border-clay py-2 pl-5">
+              <div className="font-mono text-xs font-semibold uppercase text-clay">任务要求仍可调整</div>
+              <p className="mt-1 text-sm text-graphite">如果行动要求需要改变，请通过 AI 重新整理；确认后旧完成说明会被删除。</p>
+              <button type="button" onClick={() => setIsRevisionOpen(true)} className="mt-3 inline-flex h-10 items-center justify-center border border-clay/40 bg-surface px-3 text-sm font-semibold text-clay transition hover:border-clay">通过 AI 修改任务要求</button>
+            </section>
+          ) : null}
+          {isRevisionOpen ? <RequirementRevisionConversation projectUuid={contract.projectUuid} nodeUuid={contract.uuid} onSaved={async () => { await refreshWorkspace(); setIsRevisionOpen(false) }} /> : null}
         </div>
       ) : activeTab === 'completion' ? (
         <div className="space-y-7">
@@ -258,7 +264,7 @@ export function NodePage() {
               </div>
               <h2 className="mt-2 font-display text-2xl font-semibold">等待 AI 整理行动记录</h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-graphite">
-                行动记录已经提交，AI 正在按照做到位清单整理覆盖情况。完成后请确认记录是否如实反映当前现实状态。
+                行动记录已经提交，AI 正在按照本次行动关注点整理记录。完成后请确认记录是否如实反映当前现实状态。
               </p>
             </section>
           ) : null}
@@ -297,13 +303,13 @@ export function NodePage() {
 
           {contract.aiReview ? (
             <section className={`rounded-md border p-5 ${aiReviewPassed ? 'border-moss/30 bg-moss/5' : 'border-clay/30 bg-clay/5'}`}>
-              <div className={`font-mono text-xs font-semibold uppercase ${aiReviewPassed ? 'text-moss' : 'text-clay'}`}>AI review</div>
+              <div className={`font-mono text-xs font-semibold uppercase ${aiReviewPassed || isQuickAction ? 'text-moss' : 'text-clay'}`}>AI review</div>
               <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
                 <h2 className="font-display text-2xl font-semibold">AI 审查：{verdictText[contract.aiReview.verdict]}</h2>
                 <div className="flex flex-wrap items-center gap-2">
                   <CopyReviewStateButton contract={contract} projectTitle={project?.title ?? ''} />
                   <span
-                    className={`rounded-full border bg-surface/70 px-3 py-1 font-mono text-xs font-semibold ${aiReviewPassed ? 'border-moss/30 text-moss' : 'border-clay/30 text-clay'}`}
+                    className={`rounded-full border bg-surface/70 px-3 py-1 font-mono text-xs font-semibold ${aiReviewPassed || isQuickAction ? 'border-moss/30 text-moss' : 'border-clay/30 text-clay'}`}
                   >
                     AI 结论不可改写
                   </span>
@@ -334,17 +340,19 @@ export function NodePage() {
               {canLock ? (
                 <div className={`mt-5 rounded-md border p-4 ${aiReviewPassed ? 'border-moss/30 bg-moss/8' : 'border-clay/30 bg-clay/8'}`}>
                   <p className="text-sm leading-6 text-graphite">
-                    {aiReviewPassed
-                      ? 'AI 认为当前记录覆盖了做到位清单。请确认记录是否如实反映当前情况；现实结果仍需你自己观察。'
-                      : 'AI 指出了尚未记录或确认的部分。你可以补充记录、继续观察，或创建下一步行动。'}
+                    {isQuickAction
+                      ? 'AI 已整理这次行动覆盖的重点。请确认记录是否如实反映当前情况；未明确的部分可以留作后续观察。'
+                      : aiReviewPassed
+                        ? 'AI 认为当前记录覆盖了行动关注点。请确认记录是否如实反映当前情况；现实结果仍需你自己观察。'
+                        : 'AI 指出了尚未记录或确认的部分。你可以补充记录、继续观察，或创建下一步行动。'}
                   </p>
                   <button
                     type="button"
                     onClick={onConfirmCompletion}
-                    className={`mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold text-white transition focus:outline-none focus-visible:shadow-focusline ${aiReviewPassed ? 'bg-moss hover:bg-mossStrong' : 'bg-clay hover:bg-clayStrong'}`}
+                    className={`mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold text-white transition focus:outline-none focus-visible:shadow-focusline ${aiReviewPassed || isQuickAction ? 'bg-moss hover:bg-mossStrong' : 'bg-clay hover:bg-clayStrong'}`}
                   >
                     <Check size={17} aria-hidden="true" />
-                    {aiReviewPassed ? '确认并生成验收记录' : '封存这次行动'}
+                    {isQuickAction || aiReviewPassed ? '确认并保存行动记录' : '封存这次行动'}
                   </button>
                 </div>
               ) : null}

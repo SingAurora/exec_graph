@@ -55,6 +55,68 @@ type monthlyWorkOverviewQuery struct {
 	Month string
 }
 
+type actionStateResponse struct {
+	Window           string                        `json:"window"`
+	Range            actionStateRangeResponse      `json:"range"`
+	Coverage         actionStateCoverageResponse   `json:"coverage"`
+	Facts            actionStateFactsResponse      `json:"facts"`
+	Comparison       actionStateComparisonResponse `json:"comparison"`
+	RecentActivities []dailyWorkActivityResponse   `json:"recentActivities"`
+}
+
+type actionStateRangeResponse struct {
+	Start    time.Time `json:"start"`
+	End      time.Time `json:"end"`
+	Timezone string    `json:"timezone"`
+	Partial  bool      `json:"partial"`
+}
+
+type actionStateCoverageResponse struct {
+	WindowDays   int    `json:"windowDays"`
+	ActiveDays   int    `json:"activeDays"`
+	ReviewedDays int    `json:"reviewedDays"`
+	Confidence   string `json:"confidence"`
+}
+
+type actionStateFactsResponse struct {
+	Activities       int `json:"activities"`
+	Started          int `json:"started"`
+	ConfirmedRecords int `json:"confirmedRecords"`
+	SealedRecords    int `json:"sealedRecords"`
+}
+
+type actionStateComparisonResponse struct {
+	PreviousActivities int    `json:"previousActivities"`
+	PreviousActiveDays int    `json:"previousActiveDays"`
+	ActivityChange     int    `json:"activityChange"`
+	ActiveDaysChange   int    `json:"activeDaysChange"`
+	Conclusion         string `json:"conclusion"`
+}
+
+// GetActionState 返回今天、近七天或近三十天内已经记录的行动事实。
+func (h *Handler) GetActionState(w http.ResponseWriter, r *http.Request, userID uint64) error {
+	window := strings.TrimSpace(r.URL.Query().Get("window"))
+	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.WorkOverviewTimeout)
+	defer cancel()
+	state, err := h.workOverview.GetActionState(ctx, userID, window, time.Now())
+	if err != nil {
+		return err
+	}
+	activities := make([]dailyWorkActivityResponse, 0, len(state.RecentActivities))
+	for _, activity := range state.RecentActivities {
+		activities = append(activities, dailyWorkActivityResponse{ID: activity.ID, Kind: activity.Kind, ProjectID: activity.ProjectID, ProjectTitle: activity.ProjectTitle, NodeID: activity.NodeID, Title: activity.Title, Detail: activity.Detail, CreatedAt: activity.CreatedAt, StartedAt: activity.StartedAt, EndedAt: activity.EndedAt})
+	}
+	writeJSON(w, http.StatusOK, actionStateResponse{
+		Window:           state.Window,
+		Range:            actionStateRangeResponse{Start: state.Range.Start, End: state.Range.End, Timezone: state.Range.Timezone, Partial: state.Range.Partial},
+		Coverage:         actionStateCoverageResponse{WindowDays: state.Coverage.WindowDays, ActiveDays: state.Coverage.ActiveDays, ReviewedDays: state.Coverage.ReviewedDays, Confidence: state.Coverage.Confidence},
+		Facts:            actionStateFactsResponse{Activities: state.Facts.Activities, Started: state.Facts.Started, ConfirmedRecords: state.Facts.ConfirmedRecords, SealedRecords: state.Facts.SealedRecords},
+		Comparison:       actionStateComparisonResponse{PreviousActivities: state.Comparison.PreviousActivities, PreviousActiveDays: state.Comparison.PreviousActiveDays, ActivityChange: state.Comparison.ActivityChange, ActiveDaysChange: state.Comparison.ActiveDaysChange, Conclusion: state.Comparison.Conclusion},
+		RecentActivities: activities,
+	})
+	return nil
+}
+
 // GetMonthlyWorkOverview 返回当前用户指定月份内按日分组的行动记录。
 func (h *Handler) GetMonthlyWorkOverview(w http.ResponseWriter, r *http.Request, userID uint64) error {
 	query := monthlyWorkOverviewQuery{Month: strings.TrimSpace(r.URL.Query().Get("month"))}

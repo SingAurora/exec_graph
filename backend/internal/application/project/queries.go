@@ -10,11 +10,7 @@ import (
 	sharedid "github.com/singaurora/exec-graph/backend/internal/shared/id"
 )
 
-const (
-	generalSmartContractID = "smart-contract-general"
-	quickActionContractID  = "smart-contract-quick-action"
-	dailyRoutineContractID = "smart-contract-daily-routine"
-)
+const defaultSmartContractID = sharedconstants.QuickActionSmartContractID
 
 // ListOwnedProjects 返回当前用户的项目摘要。项目详情由同一个领域服务统一组装。
 func (s *Service) ListOwnedProjects(ctx context.Context, userID uint64) ([]ProjectView, error) {
@@ -144,10 +140,9 @@ func (s *Service) CreateProject(ctx context.Context, input CreateInput) (Project
 		return ProjectView{}, ErrInvalidProject
 	}
 	if input.SmartContractID == "" || input.ProjectType == "guided" || input.ContributionCallID != "" {
-		input.SmartContractID = generalSmartContractID
+		input.SmartContractID = defaultSmartContractID
 	}
-	lightweight := input.SmartContractID == quickActionContractID || input.SmartContractID == dailyRoutineContractID
-	if input.ProjectType == "guided" && input.ContributionCallID == "" && !lightweight && len([]rune(input.ProjectRules)) < 12 {
+	if input.ProjectType == "guided" && input.ContributionCallID == "" && len([]rune(input.ProjectRules)) < 12 {
 		return ProjectView{}, ErrInvalidProject
 	}
 	if input.AIKeyID == "" {

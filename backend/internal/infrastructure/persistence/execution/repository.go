@@ -77,6 +77,23 @@ func (repository *Repository) CreateNode(ctx context.Context, input CreateNodePa
 		if input.DraftReviewKeyID != "" && input.DraftReviewKeyID != key.UUID {
 			return fmt.Errorf("项目审查 AI 已变更，请重新审核节点草案")
 		}
+		var planningConversationInternal any
+		if input.PlanningConversationID != "" {
+			var conversation struct {
+				ID     uint64
+				NodeID *uint64 `gorm:"column:node_id"`
+			}
+			if err := tx.Table("node_conversations").
+				Select("id, node_id").
+				Where("uuid = ? AND project_id = ? AND owner_id = ? AND phase = ?", input.PlanningConversationID, project.ID, input.OwnerID, "planning").
+				First(&conversation).Error; err != nil {
+				return fmt.Errorf("规划对话不存在")
+			}
+			if conversation.NodeID != nil {
+				return fmt.Errorf("规划对话已经保存为推进节点")
+			}
+			planningConversationInternal = conversation.ID
+		}
 		var revision struct {
 			ID         uint64
 			ContractID uint64 `gorm:"column:contract_id"`
@@ -120,18 +137,22 @@ func (repository *Repository) CreateNode(ctx context.Context, input CreateNodePa
 		}
 		var supplementInternal, retryInternal any
 		if input.SupplementID != "" {
-			var id uint64
-			if err := tx.Table("execution_contracts").Select("id").Where("uuid = ? AND project_id = ?", input.SupplementID, project.ID).First(&id).Error; err != nil {
+			var node struct {
+				ID uint64
+			}
+			if err := tx.Table("execution_contracts").Select("id").Where("uuid = ? AND project_id = ?", input.SupplementID, project.ID).First(&node).Error; err != nil {
 				return fmt.Errorf("补足节点不存在")
 			}
-			supplementInternal = id
+			supplementInternal = node.ID
 		}
 		if input.RetryID != "" {
-			var id uint64
-			if err := tx.Table("execution_contracts").Select("id").Where("uuid = ? AND project_id = ?", input.RetryID, project.ID).First(&id).Error; err != nil {
+			var node struct {
+				ID uint64
+			}
+			if err := tx.Table("execution_contracts").Select("id").Where("uuid = ? AND project_id = ?", input.RetryID, project.ID).First(&node).Error; err != nil {
 				return fmt.Errorf("重试节点不存在")
 			}
-			retryInternal = id
+			retryInternal = node.ID
 		}
 		branchID := input.BranchID
 		var branchInternal any
@@ -162,20 +183,25 @@ func (repository *Repository) CreateNode(ctx context.Context, input CreateNodePa
 			if err := tx.Table("execution_branches").Create(map[string]any{"uuid": branchID, "project_id": project.ID, "title": input.Title, "created_by": input.OwnerID}).Error; err != nil {
 				return err
 			}
-			var id uint64
-			if err := tx.Table("execution_branches").Select("id").Where("uuid = ?", branchID).First(&id).Error; err != nil {
+			var branch struct {
+				ID uint64
+			}
+			if err := tx.Table("execution_branches").Select("id").Where("uuid = ?", branchID).First(&branch).Error; err != nil {
 				return err
 			}
-			branchInternal = id
+			branchInternal = branch.ID
 		}
 		internalSourceJSON, _ := json.Marshal(sourceInternal)
-		if err := tx.Table("execution_contracts").Create(map[string]any{"uuid": input.NodeID, "project_id": project.ID, "branch_id": branchInternal, "project_contract_revision_id": revision.ID, "parent_contract_id": parentInternal, "source_contract_ids_json": internalSourceJSON, "supplement_of_contract_id": supplementInternal, "retry_of_contract_id": retryInternal, "actor_id": input.OwnerID, "title": input.Title, "stage": "frozen", "original_intent": input.Draft, "smart_contract_id": revision.ContractID, "smart_contract_version": revision.Version, "verifiable_goal": input.Goal, "acceptance_criteria_json": input.CriteriaJSON, "evidence_requirement": input.EvidenceRequirement, "draft_review_json": input.DraftReviewJSON, "draft_review_ai_config_json": input.DraftAIConfigJSON, "review_messages_json": input.MessagesJSON}).Error; err != nil {
+		if err := tx.Table("execution_contracts").Create(map[string]any{"uuid": input.NodeID, "project_id": project.ID, "branch_id": branchInternal, "project_contract_revision_id": revision.ID, "parent_contract_id": parentInternal, "source_contract_ids_json": internalSourceJSON, "supplement_of_contract_id": supplementInternal, "retry_of_contract_id": retryInternal, "actor_id": input.OwnerID, "title": input.Title, "stage": "frozen", "original_intent": input.Draft, "smart_contract_id": revision.ContractID, "smart_contract_version": revision.Version, "verifiable_goal": input.Goal, "acceptance_criteria_json": input.CriteriaJSON, "evidence_requirement": input.EvidenceRequirement, "draft_review_json": input.DraftReviewJSON, "draft_review_ai_config_json": input.DraftAIConfigJSON, "review_messages_json": input.MessagesJSON, "planning_conversation_id": planningConversationInternal}).Error; err != nil {
 			return err
 		}
-		var nodeID uint64
-		if err := tx.Table("execution_contracts").Select("id").Where("uuid = ?", input.NodeID).First(&nodeID).Error; err != nil {
+		var node struct {
+			ID uint64
+		}
+		if err := tx.Table("execution_contracts").Select("id").Where("uuid = ?", input.NodeID).First(&node).Error; err != nil {
 			return err
 		}
+		nodeID := node.ID
 		for _, sourceID := range sourceInternal {
 			edgeID, _ := sharedid.UUID()
 			edgeType := input.EdgeType
@@ -314,7 +340,7 @@ func NewRepository(orm *gorm.DB) *Repository { return &Repository{orm: orm} }
 // ListNodeProjections loads nodes belonging to one public project.
 func (repository *Repository) ListNodeProjections(ctx context.Context, projectID string) ([]NodeProjection, error) {
 	var values []NodeProjection
-	err := repository.orm.WithContext(ctx).Table("execution_contracts AS n").Select(`n.uuid, branch.uuid AS branch_uuid, revision.uuid AS revision_uuid, parent.uuid AS parent_uuid, n.source_contract_ids_json AS source_ids, supplement_node.uuid AS supplement_uuid, retry_node.uuid AS retry_uuid, actor.user_id AS actor_user_id, n.title, n.stage, n.original_intent, contract.uuid AS smart_contract_uuid, n.smart_contract_version, n.verifiable_goal, n.acceptance_criteria_json, n.evidence_requirement, n.completion_claim, n.evidence_text, n.started_at, n.ended_at, record.uuid AS record_uuid, n.draft_review_json, n.draft_review_ai_config_json AS draft_ai_json, n.review_messages_json, n.ai_review_json, n.completion_review_ai_config_json AS completion_ai_json, n.completion_review_rounds_json AS review_rounds_json, planning.uuid AS planning_uuid, completion.uuid AS completion_uuid, n.user_verdict_json, n.next_contract_title, n.created_at, n.updated_at`).Joins("JOIN projects AS p ON p.id = n.project_id").Joins("LEFT JOIN users AS actor ON actor.id = n.actor_id").Joins("LEFT JOIN execution_branches AS branch ON branch.id = n.branch_id").Joins("JOIN project_contract_revisions AS revision ON revision.id = n.project_contract_revision_id").Joins("LEFT JOIN execution_contracts AS parent ON parent.id = n.parent_contract_id").Joins("LEFT JOIN execution_contracts AS supplement_node ON supplement_node.id = n.supplement_of_contract_id").Joins("LEFT JOIN execution_contracts AS retry_node ON retry_node.id = n.retry_of_contract_id").Joins("LEFT JOIN smart_contracts AS contract ON contract.id = n.smart_contract_id").Joins("LEFT JOIN completion_records AS record ON record.id = n.completion_record_id").Joins("LEFT JOIN node_conversations AS planning ON planning.id = n.planning_conversation_id").Joins("LEFT JOIN node_conversations AS completion ON completion.id = n.completion_conversation_id").Where("p.uuid = ?", projectID).Order("n.created_at ASC").Scan(&values).Error
+	err := repository.orm.WithContext(ctx).Table("execution_contracts AS n").Select(`n.uuid, branch.uuid AS branch_uuid, revision.uuid AS revision_uuid, parent.uuid AS parent_uuid, n.source_contract_ids_json AS source_ids, supplement_node.uuid AS supplement_uuid, retry_node.uuid AS retry_uuid, actor.user_id AS actor_user_id, n.title, n.stage, n.original_intent, contract.uuid AS smart_contract_uuid, n.smart_contract_version, n.verifiable_goal, n.acceptance_criteria_json, n.evidence_requirement, n.completion_claim, n.evidence_text, n.started_at, n.ended_at, record.uuid AS record_uuid, n.draft_review_json, n.draft_review_ai_config_json AS draft_ai_json, n.review_messages_json, n.ai_review_json, n.completion_review_ai_config_json AS completion_ai_json, n.completion_review_rounds_json AS review_rounds_json, COALESCE(planning.uuid, linked_planning.uuid) AS planning_uuid, completion.uuid AS completion_uuid, n.user_verdict_json, n.next_contract_title, n.created_at, n.updated_at`).Joins("JOIN projects AS p ON p.id = n.project_id").Joins("LEFT JOIN users AS actor ON actor.id = n.actor_id").Joins("LEFT JOIN execution_branches AS branch ON branch.id = n.branch_id").Joins("JOIN project_contract_revisions AS revision ON revision.id = n.project_contract_revision_id").Joins("LEFT JOIN execution_contracts AS parent ON parent.id = n.parent_contract_id").Joins("LEFT JOIN execution_contracts AS supplement_node ON supplement_node.id = n.supplement_of_contract_id").Joins("LEFT JOIN execution_contracts AS retry_node ON retry_node.id = n.retry_of_contract_id").Joins("LEFT JOIN smart_contracts AS contract ON contract.id = n.smart_contract_id").Joins("LEFT JOIN completion_records AS record ON record.id = n.completion_record_id").Joins("LEFT JOIN node_conversations AS planning ON planning.id = n.planning_conversation_id").Joins("LEFT JOIN node_conversations AS linked_planning ON linked_planning.node_id = n.id AND linked_planning.phase = ?", "planning").Joins("LEFT JOIN node_conversations AS completion ON completion.id = n.completion_conversation_id").Where("p.uuid = ?", projectID).Order("n.created_at ASC").Scan(&values).Error
 	return values, err
 }
 

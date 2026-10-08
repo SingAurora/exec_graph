@@ -40,10 +40,14 @@ func (s *Service) ConfirmNodeCompletion(ctx context.Context, userID uint64, proj
 	recordKind, terminalStage := "accepted", "completed"
 	note := "我确认这份行动记录如实反映了当前现实情况，并保存这次推进覆盖的节点。"
 	summary := "行动记录已由本人确认；这条阶段记录覆盖 1 个推进节点。AI 只提供记录分析，不证明现实结果。"
-	if verdict != "pass" {
+	quickAction := node.SmartContractID == sharedconstants.QuickActionSmartContractID
+	if verdict != "pass" && !quickAction {
 		recordKind, terminalStage = "sealed", "sealed"
 		note = "我已看到行动记录中的缺口，决定先保存这次推进；后续情况需要继续观察或另建行动。"
 		summary = "行动记录仍有缺口，本人决定先保存这次推进；保留节点和材料，后续可以继续观察或补充。"
+	} else if quickAction && verdict != "pass" {
+		note = "我已看到 AI 对关键点的提示，并确认这份行动记录如实反映了我这次的实际推进。"
+		summary = "行动记录已由本人确认；AI 只提示重点覆盖情况，不判定现实结果，也不要求把每个细节都补齐。"
 	}
 	verdictJSON, err := json.Marshal(map[string]any{"result": map[bool]string{true: "confirmed_complete", false: "sealed_with_ai_gap"}[verdict == "pass"], "note": note, "createdAt": now})
 	if err != nil {

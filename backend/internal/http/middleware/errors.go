@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -28,7 +29,25 @@ func ErrorBoundary(logger *slog.Logger) gin.HandlerFunc {
 			return
 		}
 		err := context.Errors.Last().Err
-		logger.ErrorContext(context.Request.Context(), "http request failed", "request_id", RequestIDFromContext(context), "method", context.Request.Method, "path", context.Request.URL.Path, "error", err)
+		logger.ErrorContext(
+			context.Request.Context(),
+			"http request failed",
+			"request_id", RequestIDFromContext(context),
+			"method", context.Request.Method,
+			"path", context.Request.URL.Path,
+			"error", err,
+			"cause", rootCause(err),
+		)
 		httpresponse.WriteFault(context.Writer, err)
+	}
+}
+
+func rootCause(err error) error {
+	for {
+		cause := errors.Unwrap(err)
+		if cause == nil {
+			return err
+		}
+		err = cause
 	}
 }

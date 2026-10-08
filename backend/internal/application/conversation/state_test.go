@@ -22,7 +22,7 @@ func (repository *lateResponseRepository) FindConversation(context.Context, uint
 		Conversation: ConversationRecord{UUID: "conversation-1", Phase: "completion", Status: "active", ContextJSON: contextJSON},
 		ProjectID:    "project-1",
 		NodeID:       &nodeID,
-		Messages:     []MessageRecord{},
+		Messages:     []MessageRecord{{UUID: "user-1", Role: "user", Body: "我已经完成了这项行动"}},
 	}, nil
 }
 
@@ -30,7 +30,7 @@ func (repository *lateResponseRepository) AddUserMessage(context.Context, string
 	return nil
 }
 
-func (repository *lateResponseRepository) PersistCompletionReview(context.Context, uint64, string, string, string, string, string, string, string, string, string, string) error {
+func (repository *lateResponseRepository) PersistCompletionReview(context.Context, CompletionReviewSave) error {
 	repository.persistCalled = true
 	return ErrNoLongerMutable
 }
@@ -53,6 +53,16 @@ func (*lateResponseRepository) FindPlanningConversation(context.Context, uint64,
 func (*lateResponseRepository) CreatePlanningConversation(context.Context, string, uint64, string, string) error {
 	return nil
 }
+func (*lateResponseRepository) FindRevisionTarget(context.Context, uint64, string, string) (RevisionTarget, error) {
+	return RevisionTarget{}, ErrNotFound
+}
+func (*lateResponseRepository) FindRevisionConversation(context.Context, uint64, string) (string, error) {
+	return "", ErrNotFound
+}
+func (*lateResponseRepository) CreateRevisionConversation(context.Context, string, uint64, string, string, string) error {
+	return nil
+}
+func (*lateResponseRepository) SaveRevision(context.Context, RevisionSave) error { return nil }
 func (*lateResponseRepository) FindCompletionConversation(context.Context, uint64, string, string) (string, error) {
 	return "", ErrNotFound
 }
@@ -61,6 +71,13 @@ func (*lateResponseRepository) FindCompletionContext(context.Context, uint64, st
 }
 func (*lateResponseRepository) CreateCompletionConversation(context.Context, string, uint64, string, string, string, string) error {
 	return nil
+}
+func (*lateResponseRepository) ClearConversation(context.Context, uint64, string, string) error {
+	return nil
+}
+func (repository *lateResponseRepository) AddAssistantMessage(context.Context, string, uint64, string, string, string, string) error {
+	repository.persistCalled = true
+	return ErrNoLongerMutable
 }
 func (*lateResponseRepository) UpdatePlanningConversation(context.Context, uint64, string, string, string, string, string, string, string) error {
 	return nil
@@ -97,5 +114,26 @@ func TestLateCompletionResponseDoesNotOverwriteLockedNode(t *testing.T) {
 	}
 	if !repository.persistCalled {
 		t.Fatal("expected persistence recheck to run")
+	}
+}
+
+func TestFinalizationRechecksConversationBeforeWritingReview(t *testing.T) {
+	repository := &lateResponseRepository{}
+	service := New(Dependencies{
+		Repository:  repository,
+		Credentials: conversationCredentialStub{},
+		ModelClient: conversationModelStub{},
+		Reviewer:    applicationreview.New(applicationreview.Dependencies{}),
+	})
+	_, err := service.FinalizeCompletionConversation(context.Background(), 7, FinalizeCompletionInput{ConversationUUID: "conversation-1"})
+	if err == nil {
+		t.Fatal("FinalizeCompletionConversation returned nil error")
+	}
+	var businessError *fault.Error
+	if !errors.As(err, &businessError) || businessError.Kind != fault.Conflict {
+		t.Fatalf("error = %v, want conflict", err)
+	}
+	if !repository.persistCalled {
+		t.Fatal("expected final review persistence recheck to run")
 	}
 }

@@ -65,3 +65,21 @@ type OpenCompletionInput struct {
 	ProjectUUID string `json:"projectUuid"`
 	NodeUUID    string `json:"nodeUuid"`
 }
+
+// OpenRevisionInput 指定要通过对话修改要求的当前节点。
+type OpenRevisionInput struct {
+	ProjectUUID string `json:"projectUuid"`
+	NodeUUID    string `json:"nodeUuid"`
+}
+
+// FinalizeRevisionInput 指定已准备好保存的新任务要求对话。
+type FinalizeRevisionInput struct {
+	ConversationUUID string `json:"conversationUuid"`
+}
+
+// FinalizeCompletionInput 指定要结束的完成审查对话及可选的行动时间。
+type FinalizeCompletionInput struct {
+	ConversationUUID string     `json:"conversationUuid"`
+	StartedAt        *time.Time `json:"startedAt,omitempty"`
+	EndedAt          *time.Time `json:"endedAt,omitempty"`
+}

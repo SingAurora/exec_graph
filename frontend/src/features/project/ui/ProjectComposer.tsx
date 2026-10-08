@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowUpRight, Bath, Compass, FolderPlus, ListChecks, Network, Repeat2, ShieldCheck, Zap } from 'lucide-react'
+import { ArrowUpRight, Bath, Compass, FolderPlus, ListChecks, Network, Zap } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
@@ -7,9 +7,9 @@ import { z } from 'zod'
 import { getCollaborationCallDetail, type CollaborationCall } from '@/features/collaboration/api/client'
 import { listAIKeys } from '@/entities/ai-key/api/client'
 import { useWorkspaceStore as useExecStore } from '@/features/workspace/model/useWorkspaceStore'
+import { MarkdownContent } from '@/shared/ui/MarkdownContent'
 
-const formalContractIDs = new Set(['smart-contract-general', 'skill-general-contract'])
-const lightweightContractIDs = new Set(['smart-contract-quick-action', 'smart-contract-daily-routine'])
+const defaultContractID = 'smart-contract-quick-action'
 
 const projectSchema = z.object({
   title: z.string().trim().min(3, '项目名称至少需要 3 个字符'),
@@ -36,14 +36,6 @@ type AIKeyOption = {
   label: string
   model: string
 }
-
-const contractVisuals = {
-  quick: { icon: Zap, eyebrow: '现在就做', examples: '洗澡、刷牙、铺床', accent: 'text-signal' },
-  daily: { icon: Repeat2, eyebrow: '持续做', examples: '每天洗澡、每周整理', accent: 'text-moss' },
-  formal: { icon: ShieldCheck, eyebrow: '完整推进', examples: '长期目标、复杂协作', accent: 'text-clay' },
-} as const
-
-const contractKind = (id: string) => lightweightContractIDs.has(id) ? (id.endsWith('daily-routine') ? 'daily' : 'quick') : 'formal'
 
 export function ProjectComposer() {
   const navigate = useNavigate()
@@ -74,8 +66,8 @@ export function ProjectComposer() {
 
 	useEffect(() => {
 		if (!selectedSmartContractID && smartContracts.length > 0) {
-			const formal = smartContracts.find((contract) => formalContractIDs.has(contract.uuid) && contract.source === 'official')
-			setValue('smartContractUuid', formal?.uuid ?? smartContracts[0].uuid)
+			const official = smartContracts.find((contract) => contract.uuid === defaultContractID && contract.source === 'official')
+			setValue('smartContractUuid', official?.uuid ?? smartContracts[0].uuid)
 		}
 	}, [selectedSmartContractID, setValue, smartContracts])
 
@@ -120,7 +112,7 @@ export function ProjectComposer() {
 			...values,
 			projectType: contributionCall ? 'autonomous' : values.projectType,
 			projectRules: contributionCall ? '' : values.projectRules ?? '',
-			smartContractUuid: contributionCall || values.projectType === 'guided' ? 'smart-contract-general' : values.smartContractUuid ?? 'smart-contract-general',
+			smartContractUuid: contributionCall || values.projectType === 'guided' ? defaultContractID : values.smartContractUuid ?? defaultContractID,
 			visibility: contributionCall ? 'public' : values.visibility,
 			contributionCallUuid: contributionCall?.uuid,
 		})
@@ -163,27 +155,24 @@ export function ProjectComposer() {
 		{!contributionCall && projectType === 'autonomous' ? <fieldset className="grid gap-2">
 		  <legend className="text-sm font-semibold text-ink">行动规则</legend>
 		  <div className="grid gap-3 lg:grid-cols-3">
-			{smartContracts.filter((contract) => contract.source === 'official' && (formalContractIDs.has(contract.uuid) || lightweightContractIDs.has(contract.uuid))).map((contract) => {
-			  const kind = contractKind(contract.uuid)
-			  const visual = contractVisuals[kind]
-			  const Icon = visual.icon
+			{smartContracts.filter((contract) => contract.source === 'official').map((contract) => {
 			  return <label key={contract.uuid} className="cursor-pointer rounded-md border border-rail bg-paper p-4 transition has-[:checked]:border-signal has-[:checked]:bg-surface">
 				<input className="sr-only" type="radio" value={contract.uuid} {...register('smartContractUuid')} />
-				<span className={`flex items-center gap-2 text-sm font-semibold ${visual.accent}`}><Icon size={17} aria-hidden="true" />{contract.name}</span>
-				<span className="mt-2 block text-xs font-semibold text-ink">{visual.eyebrow}</span>
+				<span className="flex items-center gap-2 text-sm font-semibold text-signal"><Zap size={17} aria-hidden="true" />{contract.name}</span>
+				<span className="mt-2 block text-xs font-semibold text-ink">找出当前最重要的关注点</span>
 				<span className="mt-1 block text-sm leading-6 text-graphite">{contract.description}</span>
-				<span className="mt-2 flex items-center gap-1 text-xs text-graphite"><Bath size={13} aria-hidden="true" />{visual.examples}</span>
+				<span className="mt-2 flex items-center gap-1 text-xs text-graphite"><Bath size={13} aria-hidden="true" />洗澡、刷牙、整理、准备一份计划</span>
 			  </label>
 			})}
 		  </div>
 		  {smartContracts.some((contract) => contract.source === 'custom') ? <label className="grid gap-2 sm:max-w-md">
 			<span className="text-xs font-semibold text-graphite">或选择自定义规则</span>
-			<select className="h-10 rounded-md border border-rail bg-paper px-3 text-sm outline-none focus:border-signal focus:shadow-focusline" value={selectedSmartContract?.source === 'custom' ? selectedSmartContractID : ''} onChange={(event) => { setValue('smartContractUuid', event.target.value || [...formalContractIDs][0]) }}>
+			<select className="h-10 rounded-md border border-rail bg-paper px-3 text-sm outline-none focus:border-signal focus:shadow-focusline" value={selectedSmartContract?.source === 'custom' ? selectedSmartContractID : ''} onChange={(event) => { setValue('smartContractUuid', event.target.value || defaultContractID) }}>
 			  <option value="">使用上面的平台规则</option>
 			  {smartContracts.filter((contract) => contract.source === 'custom').map((contract) => <option key={contract.uuid} value={contract.uuid}>{contract.name}</option>)}
 			</select>
 		  </label> : null}
-		  {selectedSmartContract ? <p className="text-xs leading-5 text-graphite">当前选择：<span className="font-semibold text-ink">{selectedSmartContract.name}</span>。它会作为这个项目后续行动的审查基础。</p> : null}
+			  {selectedSmartContract ? <div className="border-l-2 border-signal bg-shell/60 py-3 pl-4 pr-3"><p className="text-xs leading-5 text-graphite">当前选择：<span className="font-semibold text-ink">{selectedSmartContract.name}</span>。下面是这份智能合约的 Markdown 正文，它会作为项目后续行动的规则上下文。</p><div className="mt-3 max-h-48 overflow-y-auto border-t border-rail pt-3"><MarkdownContent content={selectedSmartContract.body} className="grid gap-3 text-[13px]" /></div></div> : null}
 		  {errors.smartContractUuid?.message ? <span className="text-sm font-medium text-clay">{errors.smartContractUuid.message}</span> : null}
 		</fieldset> : null}
 		{!contributionCall ? <fieldset className="grid gap-2">

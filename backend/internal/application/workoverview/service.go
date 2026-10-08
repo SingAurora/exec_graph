@@ -196,7 +196,7 @@ func (s *Service) analyzeDailyWork(ctx context.Context, key applicationaikey.Cre
 		return output, err
 	}
 	credential := applicationaigateway.Credential{Provider: key.Provider, APIKey: key.Secret, BaseURL: key.BaseURL, Model: key.Model}
-	if err := applicationaigateway.GenerateJSON(ctx, s.modelClient, applicationaigateway.GenerateInput{Credential: credential, System: system, User: string(content), MaxTokens: 8192, JSONMode: true}, &output); err != nil {
+	if err := applicationaigateway.GenerateJSON(ctx, s.modelClient, applicationaigateway.GenerateInput{Credential: credential, System: system, User: string(content), MaxTokens: 8192, JSONMode: true, Timeout: sharedconstants.ConversationModelHTTPTimeout}, &output); err != nil {
 		return output, fmt.Errorf("AI 日结分析失败：%w", err)
 	}
 	output.Summary = strings.TrimSpace(output.Summary)

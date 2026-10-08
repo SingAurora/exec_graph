@@ -15,26 +15,45 @@ import (
 )
 
 const (
-	generalContractUUID = "smart-contract-general"
+	focusContractUUID        = "smart-contract-quick-action"
+	focusContractName        = "行动质量指南"
+	focusContractVersion     = "1.3.0"
+	focusContractDescription = "从当前行动中找出决定结果质量的 1～3 个关键关注点，帮助用户把事情做得更好，并在完成后进行简短复盘。"
 
-	generalContractBody = `## 这份规则做什么
+	focusContractBody = `## 这份规则做什么
 
-把一个较大的目标拆成当前可以推进的一小步，并持续记录实际发生的事情。
+帮助你从当前要做的事情中，找出最影响结果质量的少数关键点。
+复杂目标也应拆成多个简单行动，每次只推进眼前最重要的一步。
 
 ## 行动关注点
 
-- 目标要说明想改变什么，以及这一步服务于哪个更大的方向
-- 行动要具体到用户今天可以开始做什么
-- 列出关键前提、可能阻碍和需要观察的现实变化
-- 将计划、已经做过的行动、观察到的结果分开记录
-- 说明下一步如何继续，而不是只追求一次性结束
+- 先理解当前行动要得到的核心结果
+- 最多保留 1～3 个最有价值的关注点，不追求列出所有细节
+- 关注点用于行动时集中注意力，不是完整清单，也不是严格验收条款
+
+## 以点到面
+
+优先从以下内容中选择最有价值的点：
+
+1. 核心效果：这件事做到什么程度，结果才算基本到位。
+2. 关键质量或风险：哪个动作最影响最终效果，或最容易导致明显偏差。
+3. 收尾状态：怎样结束，才能让行动真正完成并顺利进入下一件事。
+
+必要时，可以用最重要的安全风险、容易遗漏的地方或特殊限制替换第二或第三点。
+简单行动可以只有一个关注点，不要为了凑够三个关注点增加无关内容。
 
 ## AI 辅助原则
 
 AI 只能分析用户提供的目标、行动记录和材料，不能知道现实中是否真的发生，也不能替用户证明最终效果。
-“做到位清单”用于帮助用户提前想清楚需要关注什么，不是 AI 对现实完成情况的裁判标准。
-AI 应指出记录覆盖了什么、哪些仍然未知、哪里存在偏差，以及下一步可以怎么做。
-不要把用户的计划改写成已经完成，也不要因为记录不完整就把行动判定为失败。`
+关注点用于帮助用户集中注意力，不是 AI 判断现实完成情况的证明。
+AI 应优先帮助用户明确重点、识别一个最重要的偏差，并给出一个可执行的下一步。
+不要为了补齐形式而追问次要细节，不要求截图、链接或逐条证明，除非事情本身存在明显风险。
+不要把用户的计划改写成已经完成，也不要把记录不完整描述为行动失败。
+
+## 完成记录
+
+完成后，用户可以用自然语言记录：实际做了什么、关键效果是否达到、有没有异常或明显偏差、下次是否需要调整。
+用户可以记录完成、基本完成、部分完成或暂时无法判断，这些都属于有效记录。`
 )
 
 type userSpec struct {
@@ -95,7 +114,7 @@ func Seed(ctx context.Context, db *gorm.DB, demoPassword string) error {
 	}
 
 	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		contractID, contractVersion, err := ensureGeneralContract(ctx, tx)
+		contractID, contractVersion, err := ensureFocusContract(ctx, tx)
 		if err != nil {
 			return err
 		}
@@ -118,12 +137,12 @@ func Seed(ctx context.Context, db *gorm.DB, demoPassword string) error {
 	})
 }
 
-func ensureGeneralContract(ctx context.Context, tx *gorm.DB) (uint64, string, error) {
+func ensureFocusContract(ctx context.Context, tx *gorm.DB) (uint64, string, error) {
 	var contract struct {
 		ID      uint64 `gorm:"column:id"`
 		Version string `gorm:"column:version"`
 	}
-	result := tx.WithContext(ctx).Table("smart_contracts").Where("uuid = ?", generalContractUUID).First(&contract)
+	result := tx.WithContext(ctx).Table("smart_contracts").Where("uuid = ?", focusContractUUID).First(&contract)
 	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		contract = struct {
 			ID      uint64 `gorm:"column:id"`
@@ -133,27 +152,24 @@ func ensureGeneralContract(ctx context.Context, tx *gorm.DB) (uint64, string, er
 			Columns:   []clause.Column{{Name: "uuid"}},
 			DoUpdates: clause.AssignmentColumns([]string{"name", "source", "version", "description", "body", "deleted_at", "deleted_by"}),
 		}).Create(map[string]any{
-			"uuid": generalContractUUID, "name": "长期行动指南", "source": "official", "version": "1.1.0",
-			"description": "适合长期目标、复杂工作和多人协作，帮助把想法拆成行动并记录现实反馈。", "body": generalContractBody,
+			"uuid": focusContractUUID, "name": focusContractName, "source": "official", "version": focusContractVersion,
+			"description": focusContractDescription, "body": focusContractBody,
 		}).Error; err != nil {
-			return 0, "", fmt.Errorf("create general smart contract: %w", err)
+			return 0, "", fmt.Errorf("create focus smart contract: %w", err)
 		}
-		if err := tx.WithContext(ctx).Table("smart_contracts").Where("uuid = ?", generalContractUUID).First(&contract).Error; err != nil {
-			return 0, "", fmt.Errorf("load general smart contract: %w", err)
+		if err := tx.WithContext(ctx).Table("smart_contracts").Where("uuid = ?", focusContractUUID).First(&contract).Error; err != nil {
+			return 0, "", fmt.Errorf("load focus smart contract: %w", err)
 		}
 	} else if result.Error != nil {
-		return 0, "", fmt.Errorf("load general smart contract: %w", result.Error)
+		return 0, "", fmt.Errorf("load focus smart contract: %w", result.Error)
 	}
 	if err := tx.WithContext(ctx).Table("smart_contracts").Where("id = ?", contract.ID).Updates(map[string]any{
-		"name": "长期行动指南", "source": "official", "version": "1.1.0", "description": "适合长期目标、复杂工作和多人协作，帮助把想法拆成行动并记录现实反馈。", "body": generalContractBody,
+		"name": focusContractName, "source": "official", "version": focusContractVersion, "description": focusContractDescription, "body": focusContractBody,
 		"created_by": nil, "deleted_at": nil, "deleted_by": nil,
 	}).Error; err != nil {
-		return 0, "", fmt.Errorf("refresh general smart contract: %w", err)
+		return 0, "", fmt.Errorf("refresh focus smart contract: %w", err)
 	}
-	if contract.Version == "" {
-		return 0, "", errors.New("general smart contract has no version")
-	}
-	return contract.ID, contract.Version, nil
+	return contract.ID, focusContractVersion, nil
 }
 
 func ensureUsers(ctx context.Context, tx *gorm.DB, passwordHash string) (map[string]demoUser, error) {
@@ -250,7 +266,7 @@ func ensureProjects(ctx context.Context, tx *gorm.DB, users map[string]demoUser,
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			if err := tx.WithContext(ctx).Table("project_contract_revisions").Create(map[string]any{
 				"uuid": revisionUUID, "project_id": project.ID, "smart_contract_id": contractID, "smart_contract_version": version,
-				"reason": "演示项目基础规则", "smart_contract_name": "正式项目规则", "smart_contract_description": "演示项目使用的基础审查规则。", "smart_contract_body": generalContractBody,
+				"reason": "演示项目基础规则", "smart_contract_name": focusContractName, "smart_contract_description": focusContractDescription, "smart_contract_body": focusContractBody,
 			}).Error; err != nil {
 				return nil, fmt.Errorf("create demo revision %s: %w", spec.uuid, err)
 			}
@@ -259,6 +275,12 @@ func ensureProjects(ctx context.Context, tx *gorm.DB, users map[string]demoUser,
 			}
 		} else if result.Error != nil {
 			return nil, fmt.Errorf("load demo revision %s: %w", spec.uuid, result.Error)
+		}
+		if err := tx.WithContext(ctx).Table("project_contract_revisions").Where("id = ?", revision.ID).Updates(map[string]any{
+			"smart_contract_id": contractID, "smart_contract_version": version,
+			"smart_contract_name": focusContractName, "smart_contract_description": focusContractDescription, "smart_contract_body": focusContractBody,
+		}).Error; err != nil {
+			return nil, fmt.Errorf("refresh demo revision %s: %w", spec.uuid, err)
 		}
 		if err := tx.WithContext(ctx).Table("projects").Where("id = ?", project.ID).Update("active_contract_revision_id", revision.ID).Error; err != nil {
 			return nil, fmt.Errorf("activate demo revision %s: %w", spec.uuid, err)

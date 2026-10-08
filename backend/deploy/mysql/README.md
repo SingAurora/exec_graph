@@ -34,10 +34,26 @@ go run ./cmd/mysql-deploy -file deploy/mysql/20260917_internalize_relationship_i
 
 ## `20260922_update_official_contract_guidance.sql`
 
-将三份平台默认规则更新为 AI 辅助行动模式，并将版本提升到 `1.1.0`。它只更新 `smart_contracts` 中的平台规则库，不回写已经保存的项目规则修订、推进节点或阶段记录快照。
+将当时的三份平台默认规则更新为 AI 辅助行动模式，并将版本提升到 `1.1.0`。它只更新 `smart_contracts` 中的平台规则库，不回写已经保存的项目规则修订、推进节点或阶段记录快照。
 
 执行前应确认应用已经使用项目规则快照读取历史节点；本仓库当前的节点审查和协作分析会读取节点所属项目规则修订中的快照。
 
 ```bash
 go run ./cmd/mysql-deploy -file deploy/mysql/20260922_update_official_contract_guidance.sql -apply
+```
+
+## `20261007_consolidate_official_action_contract.sql`
+
+将平台默认智能合约收敛为唯一的 `smart-contract-quick-action`，改名为“重点行动指南”并更新到 `1.2.0`。`smart-contract-general` 和 `smart-contract-daily-routine` 只做软删除，历史项目、节点和规则快照不受影响。
+
+```bash
+go run ./cmd/mysql-deploy -file deploy/mysql/20261007_consolidate_official_action_contract.sql -apply
+```
+
+## `20261008_update_action_quality_contract.sql`
+
+将唯一的平台默认智能合约更新为“行动质量指南”并提升到 `1.3.0`。新规则围绕核心效果、关键质量或风险、收尾状态提炼 1～3 个关注点，不再把固定分类作为每次行动的必答项；完成后的记录与复盘保持为可选的自然语言说明。该迁移只更新官方规则库，不回写已有项目、节点或完成记录中的规则快照。
+
+```bash
+go run ./cmd/mysql-deploy -file deploy/mysql/20261008_update_action_quality_contract.sql -apply
 ```

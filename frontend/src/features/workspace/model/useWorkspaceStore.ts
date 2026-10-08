@@ -4,6 +4,7 @@ import type { CompletionRecord, ExecutionBranch, ExecutionContract, ExecutionEdg
 import type { Actor } from '@/entities/account/model/types'
 import type { Project } from '@/entities/project/model/types'
 import type { SmartContractDefinition } from '@/entities/smart-contract/model/types'
+import { quickActionSmartContractUuid } from '@/entities/smart-contract/model/constants'
 import { reviewNodeDraft as requestNodeDraftReview } from '@/entities/execution-node/api/client'
 import { createExecutionNode } from '@/entities/project/api/client'
 import type { WorkspaceState } from './dto'
@@ -13,6 +14,7 @@ import {
   currentContractForProject,
   currentRevision,
   isCurrentContract,
+  latestAcceptedContractForProject,
   mergeProjectState,
 } from './projectState'
 import { createProjectActions } from './projectActions'
@@ -66,7 +68,9 @@ export const useWorkspaceStore = create<WorkspaceState>()(
             },
           }
         }
-        const localReview = buildDraftReview(input.draft)
+        const projectRevision = currentRevision(project)
+        const smartContract = get().smartContracts.find((item) => item.uuid === projectRevision.smartContractUuid) ?? get().smartContracts[0]
+        const localReview = buildDraftReview(input.draft, smartContract?.uuid)
         if (localReview.review.verdict === 'fail') return { draftReview: localReview.review }
         if (!get().accessToken) {
           return {
@@ -79,8 +83,6 @@ export const useWorkspaceStore = create<WorkspaceState>()(
             },
           }
         }
-        const projectRevision = currentRevision(project)
-        const smartContract = get().smartContracts.find((item) => item.uuid === projectRevision.smartContractUuid) ?? get().smartContracts[0]
         if (!smartContract) {
           return {
             draftReview: {
@@ -227,9 +229,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
           } else if (input.fork) {
             shouldCreateBranch = true
           } else {
-            const latestCompleted = projectContracts
-              .filter((contract) => contract.stage === 'completed')
-              .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))[0]
+            const latestCompleted = latestAcceptedContractForProject(project.uuid, projectContracts, get().completionRecords)
             if (projectContracts.length > 0 && !parentContract && !input.retryOfContractUuid) {
               return {
                 draftReview: {
@@ -242,15 +242,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
               }
             }
             if (!isReplacementSource && parentContract && latestCompleted?.uuid !== parentContract.uuid) {
-              return {
-                draftReview: {
-                  uuid: crypto.randomUUID(),
-                  verdict: 'fail',
-                  summary: '主线只能从最近一条已完成记录继续。',
-                  missingRequirements: ['从最新完成记录继续，或明确选择“拆分新路径”。'],
-                  createdAt: now(),
-                },
-              }
+              shouldCreateBranch = true
             }
           }
           if (input.fork && !selectedPrivateBranch) {
@@ -318,7 +310,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
           }
         }
 
-        const localDraft = buildDraftReview(input.draft)
+        const localDraft = buildDraftReview(input.draft, currentRevision(project).smartContractUuid)
         const compiled = localDraft.compiled
         if (localDraft.review.verdict === 'fail') return { draftReview: localDraft.review }
         if (!input.draftReview) {
@@ -359,7 +351,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
                 text: criterion,
                 requiredEvidence: `C${index + 1}：提交能直接证明“${criterion}”的结果、链接、截图说明或前后对比。`,
               })),
-              evidenceRequirement: compiled.evidenceRequirement,
+              evidenceRequirement: compiled.evidenceRequirement || (currentRevision(project).smartContractUuid === quickActionSmartContractUuid ? '记录实际做了什么、最重要的变化，以及仍需观察的地方。' : ''),
               parentContractUuid: parentContract?.uuid,
               sourceContractUuids: sourceIds,
               branchUuid: selectedBranch?.uuid,

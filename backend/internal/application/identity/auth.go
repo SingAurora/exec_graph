@@ -114,7 +114,7 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) (User, stri
 		if databaseUserID == 0 {
 			return errors.New("could not allocate user handle")
 		}
-		contractVersion, err := s.contracts.FindVersionByID(ctx, GeneralSmartContractID)
+		contractVersion, err := s.contracts.FindVersionByID(ctx, DefaultSmartContractID)
 		if err != nil {
 			return err
 		}
@@ -130,7 +130,7 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) (User, stri
 			ProjectUUID:          projectUUID,
 			RevisionUUID:         revisionUUID,
 			OwnerID:              databaseUserID,
-			SmartContractUUID:    GeneralSmartContractID,
+			SmartContractUUID:    DefaultSmartContractID,
 			SmartContractVersion: contractVersion,
 		})
 	})

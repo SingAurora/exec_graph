@@ -4,6 +4,7 @@ package aigateway
 import (
 	"context"
 	"strings"
+	"time"
 )
 
 // ReasoningOnlyError 表示模型只返回了推理内容而没有最终答案。
@@ -29,6 +30,7 @@ type GenerateInput struct {
 	User       string
 	MaxTokens  int
 	JSONMode   bool
+	Timeout    time.Duration
 }
 
 // Client generates model text without exposing provider-specific HTTP details.

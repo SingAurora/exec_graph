@@ -54,6 +54,24 @@ export const isCurrentContract = (
   return branch ? currentContractForBranch(branch, allContracts)?.uuid === contract.uuid : false
 }
 
+export const latestAcceptedContractForProject = (
+  projectUuid: string,
+  allContracts: ExecutionContract[],
+  allCompletionRecords: CompletionRecord[],
+) => {
+  const contractByUuid = new Map(
+    allContracts
+      .filter((contract) => contract.projectUuid === projectUuid)
+      .map((contract) => [contract.uuid, contract]),
+  )
+
+  return allCompletionRecords
+    .filter((record) => record.projectUuid === projectUuid && record.recordKind === 'accepted')
+    .sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt))
+    .map((record) => contractByUuid.get(record.closingContractUuid))
+    .find((contract): contract is ExecutionContract => Boolean(contract))
+}
+
 export const normalizeProject = (project: Project): Project => ({
   ...project,
   visibility: project.visibility ?? 'private',

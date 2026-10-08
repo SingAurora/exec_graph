@@ -2,6 +2,7 @@ import { Archive, ArchiveRestore, Settings2, ShieldCheck, Trash2 } from 'lucide-
 import { useEffect, useState, type FormEvent } from 'react'
 import { useWorkspaceStore as useExecStore } from '@/features/workspace/model/useWorkspaceStore'
 import type { Project } from '@/entities/project/model/types'
+import { SmartContractDocument } from '@/entities/smart-contract/ui/SmartContractDocument'
 
 export function ProjectProfileSettings({
   project,
@@ -71,7 +72,7 @@ function ProjectContractSettings({ project, onUpgrade }: { project: Project; onU
             {customContracts.length > 0 ? <optgroup label="我的自定义规则">{customContracts.map((contract) => <option key={contract.uuid} value={contract.uuid}>{contract.name}</option>)}</optgroup> : null}
           </select>
         </label>
-        {selected ? <p className="border-l-2 border-signal py-2 pl-3 text-sm leading-6 text-graphite"><span className="font-semibold text-ink">{selected.name}</span>：{selected.description}</p> : null}
+        {selected ? <div className="max-h-96 overflow-y-auto border-l-2 border-signal bg-paper py-4 pl-4 pr-3"><SmartContractDocument contract={selected} bodyClassName="text-[13px]" /></div> : null}
         <div className="flex flex-wrap items-center gap-3">
           <button type="button" disabled={isSaving || !selectedID || selectedID === activeRevision?.smartContractUuid} onClick={() => void save()} className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-signal px-3 text-sm font-semibold text-white transition hover:bg-signalStrong disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:shadow-focusline"><ShieldCheck size={16} aria-hidden="true" />{isSaving ? '正在保存' : '保存智能合约'}</button>
           {message ? <span className={`text-sm font-semibold ${message.includes('失败') || message.includes('不能') ? 'text-clay' : 'text-signal'}`}>{message}</span> : null}

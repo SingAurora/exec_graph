@@ -29,7 +29,7 @@ export async function reviewNodeCompletion(accessToken: string, contract: Execut
   const data = await postJSON<NodeCompletionReviewResult>('/api/commands/reviews/review-node-completion', {
     nodeUuid: contract.uuid,
     completionClaim: input.completionClaim.trim(),
-    evidenceText: input.evidenceText.trim(),
+    evidenceText: input.evidenceText?.trim() ?? '',
     startedAt: input.startedAt,
     endedAt: input.endedAt,
   }, accessToken)

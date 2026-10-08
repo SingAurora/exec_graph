@@ -25,12 +25,16 @@ type PlanningMessage struct {
 
 // ProjectContext 是创建规划对话所需的项目事实。
 type ProjectContext struct {
-	UUID               string
-	Title              string
-	Description        string
-	Rules              string
-	ContributionCallID *string
-	ArchivedAt         *time.Time
+	UUID                     string
+	Title                    string
+	Description              string
+	Rules                    string
+	SmartContractID          string
+	SmartContractName        string
+	SmartContractDescription string
+	SmartContractBody        string
+	ContributionCallID       *string
+	ArchivedAt               *time.Time
 }
 
 // SourceContext 是带入规划对话的既有节点事实。
@@ -45,16 +49,49 @@ type SourceContext struct {
 	ReviewJSON          *string
 }
 
+// RevisionTarget 是允许修改要求的当前节点及其原要求。
+type RevisionTarget struct {
+	NodeUUID            string
+	Title               string
+	Goal                string
+	CriteriaJSON        string
+	EvidenceRequirement string
+	Stage               string
+	Current             bool
+	Archived            bool
+	HasCompletionRecord bool
+}
+
+// RevisionSave 是用户确认后原子替换任务要求的内容。
+type RevisionSave struct {
+	UserID              uint64
+	ConversationUUID    string
+	NodeUUID            string
+	Title               string
+	Goal                string
+	CriteriaJSON        string
+	EvidenceRequirement string
+	OriginalIntent      string
+	DraftJSON           string
+	ReviewJSON          string
+	AIConfigJSON        string
+	MessagesJSON        string
+}
+
 // CompletionContext 是创建完成审查对话所需的项目与节点事实。
 type CompletionContext struct {
-	NodeTitle              string
-	Goal                   string
-	EvidenceRequirement    string
-	AcceptanceCriteriaJSON string
-	Stage                  string
-	ProjectTitle           string
-	ProjectDescription     string
-	Rules                  string
+	NodeTitle                string
+	Goal                     string
+	EvidenceRequirement      string
+	AcceptanceCriteriaJSON   string
+	Stage                    string
+	ProjectTitle             string
+	ProjectDescription       string
+	Rules                    string
+	SmartContractID          string
+	SmartContractName        string
+	SmartContractDescription string
+	SmartContractBody        string
 }
 
 // ConversationRecord 是对话仓储返回的持久化记录。
@@ -88,6 +125,25 @@ type ConversationRecordView struct {
 	Messages     []MessageRecord
 }
 
+// CompletionReviewSave 是完成审查对话最终结论的原子保存内容。
+type CompletionReviewSave struct {
+	UserID         uint64
+	ConversationID string
+	NodeID         string
+	Claim          string
+	Evidence       string
+	StartedAt      *time.Time
+	EndedAt        *time.Time
+	Stage          string
+	ReviewJSON     string
+	RoundsJSON     string
+	ConfigJSON     string
+	MessagesJSON   string
+	PayloadJSON    string
+	Reply          string
+	MessageID      string
+}
+
 // Repository 定义规划对话向执行节点交接所需的持久化能力。
 type Repository interface {
 	ListPlanningMessages(ctx context.Context, conversationUUID string, ownerID uint64) ([]PlanningMessage, error)
@@ -96,13 +152,19 @@ type Repository interface {
 	ListSourceContexts(ctx context.Context, projectUUID string, sourceUUIDs []string) ([]SourceContext, error)
 	FindPlanningConversation(ctx context.Context, userID uint64, projectUUID, contextJSON string) (string, error)
 	CreatePlanningConversation(ctx context.Context, conversationUUID string, userID uint64, projectUUID, contextJSON string) error
+	FindRevisionTarget(ctx context.Context, userID uint64, projectUUID, nodeUUID string) (RevisionTarget, error)
+	FindRevisionConversation(ctx context.Context, userID uint64, nodeUUID string) (string, error)
+	CreateRevisionConversation(ctx context.Context, conversationUUID string, userID uint64, projectUUID, nodeUUID, contextJSON string) error
+	SaveRevision(ctx context.Context, input RevisionSave) error
 	FindCompletionConversation(ctx context.Context, userID uint64, projectUUID, nodeUUID string) (string, error)
 	FindCompletionContext(ctx context.Context, userID uint64, projectUUID, nodeUUID string) (CompletionContext, error)
 	CreateCompletionConversation(ctx context.Context, conversationUUID string, userID uint64, projectUUID, nodeUUID, contextJSON, configJSON string) error
 	FindConversation(ctx context.Context, userID uint64, conversationUUID string) (ConversationRecordView, error)
+	ClearConversation(ctx context.Context, userID uint64, conversationUUID, replacementUUID string) error
 	AddUserMessage(ctx context.Context, messageUUID string, userID uint64, conversationUUID, body string) error
+	AddAssistantMessage(ctx context.Context, messageUUID string, userID uint64, conversationUUID, body, payloadJSON, configJSON string) error
 	UpdatePlanningConversation(ctx context.Context, userID uint64, conversationUUID, status, draftJSON, messageUUID, body, payloadJSON, configJSON string) error
-	PersistCompletionReview(ctx context.Context, userID uint64, conversationUUID, nodeUUID, claim, stage, reviewJSON, configJSON, messagesJSON, payloadJSON, reply, messageUUID string) error
+	PersistCompletionReview(ctx context.Context, input CompletionReviewSave) error
 }
 
 // CredentialProvider 提供项目配置的 AI 凭据并记录使用时间。

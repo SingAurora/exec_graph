@@ -11,6 +11,9 @@ import (
 
 type createConversationRequest = applicationconversation.OpenPlanningInput
 type openCompletionReviewConversationRequest = applicationconversation.OpenCompletionInput
+type openTaskRequirementRevisionRequest = applicationconversation.OpenRevisionInput
+type finalizeTaskRequirementRevisionRequest = applicationconversation.FinalizeRevisionInput
+type finalizeCompletionReviewRequest = applicationconversation.FinalizeCompletionInput
 
 type sendConversationMessageRequest struct {
 	ConversationUUID string `json:"conversationUuid"`
@@ -53,12 +56,76 @@ func (h *Handler) OpenCompletionReviewConversation(w http.ResponseWriter, r *htt
 	return nil
 }
 
+// OpenTaskRequirementRevisionConversation 打开通过 AI 修改当前行动要求的对话。
+func (h *Handler) OpenTaskRequirementRevisionConversation(w http.ResponseWriter, r *http.Request, userID uint64) error {
+	var input openTaskRequirementRevisionRequest
+	if err := bindJSON(r, &input); err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.ConversationSetupTimeout)
+	defer cancel()
+	conversation, err := h.conversation.OpenRevisionConversation(ctx, userID, input)
+	if err != nil {
+		return err
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"conversation": conversation})
+	return nil
+}
+
 // GetAIConversation 返回一份规划对话或完成审查对话。
 func (h *Handler) GetAIConversation(w http.ResponseWriter, r *http.Request, userID uint64) error {
 	conversationUUID := strings.TrimSpace(r.URL.Query().Get("conversationUuid"))
 	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.ConversationSetupTimeout)
 	defer cancel()
 	conversation, err := h.conversation.GetConversation(ctx, userID, conversationUUID)
+	if err != nil {
+		return err
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"conversation": conversation})
+	return nil
+}
+
+// ClearAIConversation 清空当前用户尚未结束的规划或完成审查对话。
+func (h *Handler) ClearAIConversation(w http.ResponseWriter, r *http.Request, userID uint64) error {
+	var input conversationCommandRequest
+	if err := bindJSON(r, &input); err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.ConversationSetupTimeout)
+	defer cancel()
+	conversation, err := h.conversation.ClearConversation(ctx, userID, input.ConversationUUID)
+	if err != nil {
+		return err
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"conversation": conversation})
+	return nil
+}
+
+// FinalizeCompletionReviewConversation 结束完成审查对话并保存完整验收结论。
+func (h *Handler) FinalizeCompletionReviewConversation(w http.ResponseWriter, r *http.Request, userID uint64) error {
+	var input finalizeCompletionReviewRequest
+	if err := bindJSON(r, &input); err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.ConversationReviewTimeout)
+	defer cancel()
+	conversation, err := h.conversation.FinalizeCompletionConversation(ctx, userID, input)
+	if err != nil {
+		return err
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"conversation": conversation})
+	return nil
+}
+
+// FinalizeTaskRequirementRevisionConversation 确认新的行动要求并清除旧完成对话。
+func (h *Handler) FinalizeTaskRequirementRevisionConversation(w http.ResponseWriter, r *http.Request, userID uint64) error {
+	var input finalizeTaskRequirementRevisionRequest
+	if err := bindJSON(r, &input); err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), sharedconstants.ConversationSetupTimeout)
+	defer cancel()
+	conversation, err := h.conversation.FinalizeRevisionConversation(ctx, userID, input)
 	if err != nil {
 		return err
 	}

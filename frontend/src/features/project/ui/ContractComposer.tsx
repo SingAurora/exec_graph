@@ -1,7 +1,9 @@
 import { GitBranch, LockKeyhole, ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useWorkspaceStore as useExecStore } from '@/features/workspace/model/useWorkspaceStore'
 import type { DraftReview } from '@/entities/execution-node/model/types'
+import { SmartContractDocument } from '@/entities/smart-contract/ui/SmartContractDocument'
 import { PlanningConversation } from '@/features/conversation/ui/ActionConversation'
 
 type ContractComposerProps = {
@@ -40,7 +42,7 @@ export function ContractComposer({ projectUuid, lockProject = false, parentContr
         {isFirstNode ? 'First action' : 'New action'}
       </div>
       <h2 className="mt-2 font-display text-2xl font-semibold">{isFirstNode ? '创建第一项推进' : retryOfContractUuid ? '根据上次经验重新尝试' : supplementOfContractUuid ? '开始补足行动' : isClosure ? '创建补齐并收束节点' : '开始一项推进'}</h2>
-      <p className="mt-3 text-sm leading-6 text-graphite">先和 AI 把本次行动收敛为清楚的目标、做到位清单和记录要求，再保存到行动路径。</p>
+      <p className="mt-3 text-sm leading-6 text-graphite">先明确这次要推进的事情，再把它保存到行动路径。当前智能合约作为 Markdown 规则正文提供给你和 AI 参考。</p>
 
       <div className="mt-5 grid gap-4">
         {lockProject && selectedProject ? (
@@ -69,14 +71,13 @@ export function ContractComposer({ projectUuid, lockProject = false, parentContr
 
         {selectedProject && selectedContract && activeRevision ? (
           <div className="rounded-md border border-rail bg-paper p-4">
-            <div className="font-mono text-xs font-semibold text-signal">
-              当前项目合约
+            <div className="font-mono text-xs font-semibold text-signal">当前项目智能合约</div>
+            <div className="mt-4 max-h-72 overflow-y-auto pr-2">
+              <SmartContractDocument contract={selectedContract} bodyClassName="text-[13px]" />
             </div>
-            <div className="mt-2 text-sm font-semibold text-ink">{selectedContract.name}</div>
-            <p className="mt-2 text-sm leading-6 text-graphite">{selectedContract.description}</p>
-            <div className="mt-3 flex items-start gap-2 border-t border-rail pt-3 text-xs leading-5 text-graphite">
+            <div className="mt-4 flex items-start gap-2 border-t border-rail pt-3 text-xs leading-5 text-graphite">
               <ShieldCheck size={15} className="mt-0.5 shrink-0 text-signal" aria-hidden="true" />
-              新行为只能使用当前项目合约；要调整审查规则，需要进入项目设置修改合约。
+              新行动会使用当前项目合约；要调整规则正文，需要进入项目设置修改合约。
             </div>
           </div>
         ) : null}
@@ -110,7 +111,7 @@ export function ContractComposer({ projectUuid, lockProject = false, parentContr
           </div>
         ) : null}
 
-        {selectedProject ? <PlanningConversation projectUuid={selectedProject.uuid} parentContractUuid={parentContractUuid} sourceContractUuids={sourceContractUuids} branchUuid={branchUuid} fork={fork} closureSourceUuids={closureSourceUuids} supplementOfContractUuid={supplementOfContractUuid} retryOfContractUuid={retryOfContractUuid} onCreate={onCreate} /> : null}
+        {selectedProject ? selectedProject.reviewAIKeyUuid ? <PlanningConversation projectUuid={selectedProject.uuid} parentContractUuid={parentContractUuid} sourceContractUuids={sourceContractUuids} branchUuid={branchUuid} fork={fork} closureSourceUuids={closureSourceUuids} supplementOfContractUuid={supplementOfContractUuid} retryOfContractUuid={retryOfContractUuid} onCreate={onCreate} /> : <div className="border-l-2 border-clay bg-shell py-3 pl-4 text-sm leading-6 text-graphite"><p className="font-semibold text-ink">当前项目还没有配置审查 AI</p><p className="mt-1">AI 需要使用项目绑定的配置来整理这次推进。配置完成后再回来即可继续。</p><Link to={`/projects/${selectedProject.uuid}?tab=ai`} className="mt-2 inline-block font-semibold text-signal underline underline-offset-2">去项目 AI 设置</Link></div> : null}
       </div>
     </section>
   )

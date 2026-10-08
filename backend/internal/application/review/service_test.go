@@ -30,3 +30,30 @@ func TestNormalizeCompletionDowngradesIncompletePass(t *testing.T) {
 		t.Fatalf("supplement title = %q", result.SuggestedSupplementTitle)
 	}
 }
+
+func TestNormalizeCompletionDoesNotCreateSupplementForQuickAction(t *testing.T) {
+	request := CompletionRequest{
+		SmartContract: SmartContract{ID: "smart-contract-quick-action"},
+		Title:         "整理书桌",
+		AcceptanceCriteria: []Criterion{
+			{ID: "C1", Text: "桌面留下可继续使用的空间"},
+		},
+	}
+	result := normalizeCompletion("review-quick", time.Unix(1, 0), request, ModelOutput{
+		Verdict: "fail",
+		CriterionReviews: []CriterionResult{
+			{CriterionID: "C1", Result: "unclear", Reason: "记录还没有说明变化"},
+		},
+		SuggestedSupplementTitle: "补齐桌面整理",
+	})
+	if result.SuggestedSupplementTitle != "" {
+		t.Fatalf("supplement title = %q, want empty", result.SuggestedSupplementTitle)
+	}
+}
+
+func TestReviewStageQuickActionAlwaysRemainsConfirmable(t *testing.T) {
+	request := CompletionRequest{SmartContract: SmartContract{ID: "smart-contract-quick-action"}}
+	if stage := reviewStage(request, Result{Verdict: "partial"}); stage != "verified" {
+		t.Fatalf("stage = %q, want verified", stage)
+	}
+}

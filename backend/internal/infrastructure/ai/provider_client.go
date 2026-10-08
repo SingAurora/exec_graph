@@ -13,6 +13,7 @@ import (
 	"net/netip"
 	"net/url"
 	"strings"
+	"time"
 
 	applicationaigateway "github.com/singaurora/exec-graph/backend/internal/application/aigateway"
 	aiprotocol "github.com/singaurora/exec-graph/backend/internal/infrastructure/ai/protocol"
@@ -72,16 +73,44 @@ func (client *ProviderClient) Verify(ctx context.Context, provider, apiKey, base
 	} else {
 		request.Header.Set("Authorization", "Bearer "+apiKey)
 	}
-	response, err := client.httpClient().Do(request)
+	response, err := client.httpClient(sharedconstants.AIKeyProbeHTTPTimeout).Do(request)
 	if err != nil {
 		return errors.New("无法连接 AI 服务，请检查地址、模型和网络")
 	}
 	defer response.Body.Close()
-	_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 4096))
+	responseBody, readErr := io.ReadAll(io.LimitReader(response.Body, 16<<10))
+	if readErr != nil {
+		return errors.New("读取 AI 服务响应失败")
+	}
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
-		return errors.New("AI 服务未接受此密钥或模型，请检查 API Key、服务地址和模型名称")
+		if message := providerErrorMessage(responseBody); message != "" {
+			return fmt.Errorf("AI 服务商拒绝请求：%s", message)
+		}
+		return fmt.Errorf("AI 服务商拒绝请求（HTTP %d），请检查 API Key、服务地址和模型名称", response.StatusCode)
 	}
 	return nil
+}
+
+// providerErrorMessage 提取供应商错误中的公开说明，避免把整段响应或凭据回显给用户。
+func providerErrorMessage(body []byte) string {
+	var payload struct {
+		Message string `json:"message"`
+		Error   struct {
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return ""
+	}
+	message := strings.TrimSpace(payload.Error.Message)
+	if message == "" {
+		message = strings.TrimSpace(payload.Message)
+	}
+	message = strings.Join(strings.Fields(message), " ")
+	if len([]rune(message)) > 240 {
+		message = string([]rune(message)[:240]) + "..."
+	}
+	return message
 }
 
 // GenerateContent performs one provider-neutral text generation request.
@@ -123,16 +152,25 @@ func (client *ProviderClient) GenerateContent(ctx context.Context, input applica
 	} else {
 		request.Header.Set("Authorization", "Bearer "+credential.APIKey)
 	}
-	response, err := client.httpClient().Do(request)
+	response, err := client.httpClient(input.Timeout).Do(request)
 	if err != nil {
+		if isTimeoutError(err) {
+			return "", errors.New("AI 服务响应超时，请重试或减少单次提交内容")
+		}
 		return "", errors.New("无法连接 AI 服务，请检查项目 AI 配置和网络")
 	}
 	defer response.Body.Close()
 	responseBody, err := io.ReadAll(io.LimitReader(response.Body, 4<<20))
 	if err != nil {
+		if isTimeoutError(err) {
+			return "", errors.New("AI 服务响应超时，请重试或减少单次提交内容")
+		}
 		return "", errors.New("读取 AI 回复失败")
 	}
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
+		if message := providerErrorMessage(responseBody); message != "" {
+			return "", fmt.Errorf("AI 服务商拒绝请求：%s", message)
+		}
 		return "", fmt.Errorf("AI 服务商返回 HTTP %d", response.StatusCode)
 	}
 	content, err := aiprotocol.ExtractMessageContent(authStyle, responseBody)
@@ -145,18 +183,21 @@ func (client *ProviderClient) GenerateContent(ctx context.Context, input applica
 	return content, err
 }
 
-func (client *ProviderClient) httpClient() *http.Client {
+func (client *ProviderClient) httpClient(timeout time.Duration) *http.Client {
+	if timeout <= 0 {
+		timeout = sharedconstants.AIReviewHTTPTimeout
+	}
 	transport := &http.Transport{
 		Proxy:                 nil,
 		DialContext:           client.dialContext,
 		ForceAttemptHTTP2:     true,
 		TLSHandshakeTimeout:   sharedconstants.AIProviderTLSHandshakeTimeout,
-		ResponseHeaderTimeout: sharedconstants.AIKeyProbeHTTPTimeout,
+		ResponseHeaderTimeout: timeout,
 		IdleConnTimeout:       sharedconstants.AIProviderIdleConnTimeout,
 	}
 	return &http.Client{
 		Transport: transport,
-		Timeout:   sharedconstants.AIKeyProbeHTTPTimeout,
+		Timeout:   timeout,
 		CheckRedirect: func(request *http.Request, via []*http.Request) error {
 			if len(via) >= maximumRedirects {
 				return errors.New("AI 服务重定向次数过多")
@@ -164,6 +205,14 @@ func (client *ProviderClient) httpClient() *http.Client {
 			return client.validateURL(request.Context(), request.URL)
 		},
 	}
+}
+
+func isTimeoutError(err error) bool {
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	var networkError net.Error
+	return errors.As(err, &networkError) && networkError.Timeout()
 }
 
 func (client *ProviderClient) dialContext(ctx context.Context, network, address string) (net.Conn, error) {

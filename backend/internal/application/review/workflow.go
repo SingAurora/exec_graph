@@ -27,8 +27,8 @@ func (service *Service) SubmitCompletion(ctx context.Context, userID uint64, inp
 	input.NodeID = strings.TrimSpace(input.NodeID)
 	input.CompletionClaim = strings.TrimSpace(input.CompletionClaim)
 	input.EvidenceText = strings.TrimSpace(input.EvidenceText)
-	if input.NodeID == "" || input.CompletionClaim == "" || input.EvidenceText == "" {
-		return Result{}, fault.New(fault.InvalidRequest, "请提交节点编号、推进结果和逐条证据")
+	if input.NodeID == "" || input.CompletionClaim == "" {
+		return Result{}, fault.New(fault.InvalidRequest, "请提交节点编号和推进结果")
 	}
 	if input.StartedAt != nil && input.EndedAt != nil && input.EndedAt.Before(*input.StartedAt) {
 		return Result{}, fault.New(fault.InvalidRequest, "结束时间不能早于开始时间")
@@ -63,7 +63,7 @@ func (service *Service) SubmitCompletion(ctx context.Context, userID uint64, inp
 	}
 	updated, err := service.repository.SaveInitialReview(ctx, InitialReviewSave{
 		UserID: userID, NodeID: input.NodeID, CompletionClaim: input.CompletionClaim, EvidenceText: input.EvidenceText,
-		StartedAt: input.StartedAt, EndedAt: input.EndedAt, Stage: reviewStage(review), ReviewJSON: reviewJSON,
+		StartedAt: input.StartedAt, EndedAt: input.EndedAt, Stage: reviewStage(request, review), ReviewJSON: reviewJSON,
 		AIConfigJSON: configJSON, RoundsJSON: roundsJSON, MessagesJSON: messagesJSON,
 	})
 	if err != nil {
@@ -113,7 +113,7 @@ func (service *Service) ReviewClarification(ctx context.Context, userID uint64, 
 		return Result{}, fault.Wrap(fault.Internal, "保存 AI 使用记录失败", err)
 	}
 	updated, err := service.repository.SaveClarificationReview(ctx, ClarificationReviewSave{
-		NodeID: input.NodeID, Stage: reviewStage(review), ReviewJSON: reviewJSON,
+		NodeID: input.NodeID, Stage: reviewStage(request, review), ReviewJSON: reviewJSON,
 		AIConfigJSON: configJSON, RoundsJSON: roundsJSON, MessagesJSON: messagesJSON,
 	})
 	if err != nil {
@@ -320,7 +320,10 @@ func validateCompletionRequest(request CompletionRequest) error {
 	if len(request.AcceptanceCriteria) == 0 {
 		return fmt.Errorf("节点没有验收标准，无法审查")
 	}
-	if strings.TrimSpace(request.CompletionClaim) == "" || strings.TrimSpace(request.EvidenceText) == "" {
+	if strings.TrimSpace(request.CompletionClaim) == "" {
+		return fmt.Errorf("请提交推进结果")
+	}
+	if !isQuickActionContract(request.SmartContract.ID) && strings.TrimSpace(request.EvidenceText) == "" {
 		return fmt.Errorf("请提交推进结果和逐条证据")
 	}
 	if strings.TrimSpace(request.SmartContract.Body) == "" {
@@ -341,7 +344,7 @@ func validateDraftRequest(request DraftRequest) error {
 	if len(request.AcceptanceCriteria) == 0 {
 		return fmt.Errorf("请至少填写一条验收标准")
 	}
-	if strings.TrimSpace(request.EvidenceRequirement) == "" {
+	if !isQuickActionContract(request.SmartContract.ID) && strings.TrimSpace(request.EvidenceRequirement) == "" {
 		return fmt.Errorf("请填写证据要求")
 	}
 	if strings.TrimSpace(request.Draft) == "" {
@@ -442,7 +445,10 @@ func clarificationMessage(input ClarificationInput) string {
 	return body
 }
 
-func reviewStage(review Result) string {
+func reviewStage(request CompletionRequest, review Result) string {
+	if isQuickActionContract(request.SmartContract.ID) {
+		return "verified"
+	}
 	if review.Verdict == "pass" {
 		return "verified"
 	}

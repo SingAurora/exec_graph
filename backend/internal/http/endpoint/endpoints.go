@@ -19,63 +19,68 @@ type authenticatedErrorHandler func(http.ResponseWriter, *http.Request, authenti
 // 这里是 HTTP 适配层与 router 之间的连接点：每个字段对应一个 HTTP 能力，
 // 但不包含 URL、请求方法或路由分组信息。具体业务由下方的领域 endpoint 负责。
 type Endpoints struct {
-	RequireAuthentication              gin.HandlerFunc
-	Health                             gin.HandlerFunc
-	SendVerificationCode               gin.HandlerFunc
-	RegisterAccount                    gin.HandlerFunc
-	LoginWithPassword                  gin.HandlerFunc
-	LogoutCurrentSession               gin.HandlerFunc
-	ResetLoginPassword                 gin.HandlerFunc
-	GetCurrentSession                  gin.HandlerFunc
-	ChangeLoginEmail                   gin.HandlerFunc
-	ChangeLoginPassword                gin.HandlerFunc
-	GetCurrentUserProfile              gin.HandlerFunc
-	UpdateCurrentUserProfile           gin.HandlerFunc
-	UploadCurrentUserAvatar            gin.HandlerFunc
-	UploadCurrentUserProfileBackground gin.HandlerFunc
-	GetPublicUserProfile               gin.HandlerFunc
-	ListOwnedProjects                  gin.HandlerFunc
-	CreateProject                      gin.HandlerFunc
-	GetProjectDetail                   gin.HandlerFunc
-	UpdateProjectProfile               gin.HandlerFunc
-	DeleteProject                      gin.HandlerFunc
-	GetProjectExecutionGraph           gin.HandlerFunc
-	CreateExecutionNode                gin.HandlerFunc
-	ConfirmNodeCompletion              gin.HandlerFunc
-	PublishCollaborationCall           gin.HandlerFunc
-	OpenPlanningConversation           gin.HandlerFunc
-	OpenCompletionReviewConversation   gin.HandlerFunc
-	SetProjectReviewAI                 gin.HandlerFunc
-	SetProjectSmartContract            gin.HandlerFunc
-	ArchiveProject                     gin.HandlerFunc
-	RestoreArchivedProject             gin.HandlerFunc
-	ListPublicProjects                 gin.HandlerFunc
-	GetPublicCollaborationNetwork      gin.HandlerFunc
-	GetPublicProjectDetail             gin.HandlerFunc
-	ListContributionSourceRecords      gin.HandlerFunc
-	ListCurrentUserContributions       gin.HandlerFunc
-	GetCollaborationCallDetail         gin.HandlerFunc
-	SubmitProjectContribution          gin.HandlerFunc
-	ReviewContributionBatch            gin.HandlerFunc
-	AdoptReviewedContributions         gin.HandlerFunc
-	ListAvailableSmartContracts        gin.HandlerFunc
-	CreateSmartContract                gin.HandlerFunc
-	ListSmartContractHistory           gin.HandlerFunc
-	GetSmartContractDetail             gin.HandlerFunc
-	DeleteSmartContract                gin.HandlerFunc
-	ListAIKeys                         gin.HandlerFunc
-	CreateAIKey                        gin.HandlerFunc
-	TestAIKeyConfiguration             gin.HandlerFunc
-	VerifySavedAIKey                   gin.HandlerFunc
-	DeleteAIKey                        gin.HandlerFunc
-	ReviewNodeCompletion               gin.HandlerFunc
-	ReviewNodeClarification            gin.HandlerFunc
-	ReviewNodeDraft                    gin.HandlerFunc
-	GetMonthlyWorkOverview             gin.HandlerFunc
-	ReviewDailyActivity                gin.HandlerFunc
-	GetAIConversation                  gin.HandlerFunc
-	SendConversationMessage            gin.HandlerFunc
-	RequestPlanningDraftFreezeReview   gin.HandlerFunc
+	RequireAuthentication                       gin.HandlerFunc
+	Health                                      gin.HandlerFunc
+	SendVerificationCode                        gin.HandlerFunc
+	RegisterAccount                             gin.HandlerFunc
+	LoginWithPassword                           gin.HandlerFunc
+	LogoutCurrentSession                        gin.HandlerFunc
+	ResetLoginPassword                          gin.HandlerFunc
+	GetCurrentSession                           gin.HandlerFunc
+	ChangeLoginEmail                            gin.HandlerFunc
+	ChangeLoginPassword                         gin.HandlerFunc
+	GetCurrentUserProfile                       gin.HandlerFunc
+	UpdateCurrentUserProfile                    gin.HandlerFunc
+	UploadCurrentUserAvatar                     gin.HandlerFunc
+	UploadCurrentUserProfileBackground          gin.HandlerFunc
+	GetPublicUserProfile                        gin.HandlerFunc
+	ListOwnedProjects                           gin.HandlerFunc
+	CreateProject                               gin.HandlerFunc
+	GetProjectDetail                            gin.HandlerFunc
+	UpdateProjectProfile                        gin.HandlerFunc
+	DeleteProject                               gin.HandlerFunc
+	GetProjectExecutionGraph                    gin.HandlerFunc
+	CreateExecutionNode                         gin.HandlerFunc
+	ConfirmNodeCompletion                       gin.HandlerFunc
+	PublishCollaborationCall                    gin.HandlerFunc
+	OpenPlanningConversation                    gin.HandlerFunc
+	OpenCompletionReviewConversation            gin.HandlerFunc
+	OpenTaskRequirementRevisionConversation     gin.HandlerFunc
+	SetProjectReviewAI                          gin.HandlerFunc
+	SetProjectSmartContract                     gin.HandlerFunc
+	ArchiveProject                              gin.HandlerFunc
+	RestoreArchivedProject                      gin.HandlerFunc
+	ListPublicProjects                          gin.HandlerFunc
+	GetPublicCollaborationNetwork               gin.HandlerFunc
+	GetPublicProjectDetail                      gin.HandlerFunc
+	ListContributionSourceRecords               gin.HandlerFunc
+	ListCurrentUserContributions                gin.HandlerFunc
+	GetCollaborationCallDetail                  gin.HandlerFunc
+	SubmitProjectContribution                   gin.HandlerFunc
+	ReviewContributionBatch                     gin.HandlerFunc
+	AdoptReviewedContributions                  gin.HandlerFunc
+	ListAvailableSmartContracts                 gin.HandlerFunc
+	CreateSmartContract                         gin.HandlerFunc
+	ListSmartContractHistory                    gin.HandlerFunc
+	GetSmartContractDetail                      gin.HandlerFunc
+	DeleteSmartContract                         gin.HandlerFunc
+	ListAIKeys                                  gin.HandlerFunc
+	CreateAIKey                                 gin.HandlerFunc
+	TestAIKeyConfiguration                      gin.HandlerFunc
+	VerifySavedAIKey                            gin.HandlerFunc
+	DeleteAIKey                                 gin.HandlerFunc
+	ReviewNodeCompletion                        gin.HandlerFunc
+	ReviewNodeClarification                     gin.HandlerFunc
+	ReviewNodeDraft                             gin.HandlerFunc
+	GetActionState                              gin.HandlerFunc
+	GetMonthlyWorkOverview                      gin.HandlerFunc
+	ReviewDailyActivity                         gin.HandlerFunc
+	GetAIConversation                           gin.HandlerFunc
+	ClearAIConversation                         gin.HandlerFunc
+	SendConversationMessage                     gin.HandlerFunc
+	RequestPlanningDraftFreezeReview            gin.HandlerFunc
+	FinalizeCompletionReviewConversation        gin.HandlerFunc
+	FinalizeTaskRequirementRevisionConversation gin.HandlerFunc
 }
 
 func (s *Server) Endpoints() Endpoints {
@@ -130,6 +135,9 @@ func (s *Server) Endpoints() Endpoints {
 		}),
 		OpenCompletionReviewConversation: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
 			return s.workflowEndpoints.OpenCompletionReviewConversation(w, r, user.ID)
+		}),
+		OpenTaskRequirementRevisionConversation: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.workflowEndpoints.OpenTaskRequirementRevisionConversation(w, r, user.ID)
 		}),
 		SetProjectReviewAI: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
 			return s.projectEndpoints.SetProjectReviewAI(w, r, user.ID)
@@ -208,6 +216,9 @@ func (s *Server) Endpoints() Endpoints {
 		ReviewNodeDraft: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
 			return s.workflowEndpoints.ReviewNodeDraft(w, r, user.ID)
 		}),
+		GetActionState: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.workflowEndpoints.GetActionState(w, r, user.ID)
+		}),
 		GetMonthlyWorkOverview: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
 			return s.workflowEndpoints.GetMonthlyWorkOverview(w, r, user.ID)
 		}),
@@ -217,11 +228,20 @@ func (s *Server) Endpoints() Endpoints {
 		GetAIConversation: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
 			return s.workflowEndpoints.GetAIConversation(w, r, user.ID)
 		}),
+		ClearAIConversation: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.workflowEndpoints.ClearAIConversation(w, r, user.ID)
+		}),
 		SendConversationMessage: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
 			return s.workflowEndpoints.SendConversationMessage(w, r, user.ID)
 		}),
 		RequestPlanningDraftFreezeReview: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
 			return s.workflowEndpoints.RequestPlanningDraftFreezeReview(w, r, user.ID)
+		}),
+		FinalizeCompletionReviewConversation: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.workflowEndpoints.FinalizeCompletionReviewConversation(w, r, user.ID)
+		}),
+		FinalizeTaskRequirementRevisionConversation: s.withAuthenticatedUserError(func(w http.ResponseWriter, r *http.Request, user authenticatedUser) error {
+			return s.workflowEndpoints.FinalizeTaskRequirementRevisionConversation(w, r, user.ID)
 		}),
 	}
 }

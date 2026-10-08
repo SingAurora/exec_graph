@@ -36,19 +36,21 @@ type Project struct {
 func (Project) TableName() string { return "projects" }
 
 type ProjectContractRevision struct {
-	ID                       uint64    `gorm:"column:id;primaryKey"`
-	UUID                     string    `gorm:"column:uuid"`
-	ProjectID                uint64    `gorm:"column:project_id"`
-	SmartContractID          uint64    `gorm:"column:smart_contract_id"`
-	SmartContractUUID        string    `gorm:"column:smart_contract_uuid"`
+	ID              uint64 `gorm:"column:id;primaryKey"`
+	UUID            string `gorm:"column:uuid"`
+	ProjectID       uint64 `gorm:"column:project_id"`
+	SmartContractID uint64 `gorm:"column:smart_contract_id"`
+	// SmartContractUUID is populated by read projections from smart_contracts.uuid;
+	// the internalized schema stores the relationship through SmartContractID.
+	SmartContractUUID        string    `gorm:"column:smart_contract_uuid;->"`
 	SmartContractVersion     string    `gorm:"column:smart_contract_version"`
 	Reason                   string    `gorm:"column:reason"`
 	ActivatedAt              time.Time `gorm:"column:activated_at"`
 	SmartContractName        string    `gorm:"column:smart_contract_name"`
 	SmartContractDescription string    `gorm:"column:smart_contract_description"`
 	SmartContractBody        string    `gorm:"column:smart_contract_body"`
-	SmartContractSource      string    `gorm:"column:smart_contract_source"`
-	SmartContractCreatedAt   time.Time `gorm:"column:smart_contract_created_at"`
+	SmartContractSource      string    `gorm:"column:smart_contract_source;->"`
+	SmartContractCreatedAt   time.Time `gorm:"column:smart_contract_created_at;->"`
 }
 
 func (ProjectContractRevision) TableName() string { return "project_contract_revisions" }
@@ -88,6 +90,9 @@ func NewProjectRepository(db *gorm.DB) ProjectRepository {
 }
 
 func (repository ProjectRepository) EnsureInitialProject(ctx context.Context, spec InitialProjectSpec) error {
+	if spec.ProjectID == "" || spec.RevisionID == "" {
+		return ErrInvalid
+	}
 	var count int64
 	if err := repository.db.WithContext(ctx).Model(&Project{}).
 		Where("owner_id = ?", spec.OwnerID).
@@ -106,7 +111,7 @@ func (repository ProjectRepository) EnsureInitialProject(ctx context.Context, sp
 	if err := repository.db.WithContext(ctx).First(&contract, "uuid = ?", spec.SmartContractID).Error; err != nil {
 		return err
 	}
-	revision := ProjectContractRevision{UUID: spec.RevisionID, ProjectID: project.ID, SmartContractID: contract.ID, SmartContractVersion: spec.SmartContractVersion, Reason: "项目创建时的基础审查规则"}
+	revision := ProjectContractRevision{UUID: spec.RevisionID, ProjectID: project.ID, SmartContractID: contract.ID, SmartContractVersion: spec.SmartContractVersion, Reason: "项目创建时的基础审查规则", ActivatedAt: time.Now()}
 	if err := repository.db.WithContext(ctx).Create(&revision).Error; err != nil {
 		return err
 	}
@@ -230,6 +235,9 @@ func (repository ProjectRepository) FindContributionOrigin(ctx context.Context, 
 
 // CreateProject creates a project and its initial contract revision atomically.
 func (repository ProjectRepository) CreateProject(ctx context.Context, input CreateProjectInput) error {
+	if input.UUID == "" || input.RevisionUUID == "" {
+		return ErrInvalid
+	}
 	return repository.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var contract contractpersistence.SmartContract
 		if err := tx.Where("uuid = ? AND deleted_at IS NULL AND (source = ? OR created_by = ?)", input.SmartContractUUID, "official", input.OwnerID).First(&contract).Error; err != nil {
@@ -264,7 +272,7 @@ func (repository ProjectRepository) CreateProject(ctx context.Context, input Cre
 		if err := tx.Create(&project).Error; err != nil {
 			return err
 		}
-		revision := ProjectContractRevision{UUID: input.RevisionUUID, ProjectID: project.ID, SmartContractID: contract.ID, SmartContractUUID: contract.UUID, SmartContractVersion: contract.Version, Reason: "项目创建时的基础审查规则", SmartContractName: contract.Name, SmartContractDescription: contract.Description, SmartContractBody: contract.Body}
+		revision := ProjectContractRevision{UUID: input.RevisionUUID, ProjectID: project.ID, SmartContractID: contract.ID, SmartContractVersion: contract.Version, Reason: "项目创建时的基础审查规则", ActivatedAt: time.Now(), SmartContractName: contract.Name, SmartContractDescription: contract.Description, SmartContractBody: contract.Body}
 		if err := tx.Create(&revision).Error; err != nil {
 			return err
 		}
@@ -274,6 +282,9 @@ func (repository ProjectRepository) CreateProject(ctx context.Context, input Cre
 
 // SetContract changes an autonomous project's active contract revision atomically.
 func (repository ProjectRepository) SetContract(ctx context.Context, input SetContractInput) error {
+	if input.RevisionUUID == "" {
+		return ErrInvalid
+	}
 	return repository.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var project Project
 		if err := tx.Where("uuid = ? AND owner_id = ? AND archived_at IS NULL", input.ProjectID, input.OwnerID).First(&project).Error; err != nil {
@@ -286,7 +297,7 @@ func (repository ProjectRepository) SetContract(ctx context.Context, input SetCo
 		if err := tx.Where("uuid = ? AND deleted_at IS NULL AND (source = ? OR (source = ? AND created_by = ?))", input.ContractID, "official", "custom", input.OwnerID).First(&contract).Error; err != nil {
 			return err
 		}
-		revision := ProjectContractRevision{UUID: input.RevisionUUID, ProjectID: project.ID, SmartContractID: contract.ID, SmartContractUUID: contract.UUID, SmartContractVersion: contract.Version, Reason: "项目设置更换智能合约", SmartContractName: contract.Name, SmartContractDescription: contract.Description, SmartContractBody: contract.Body}
+		revision := ProjectContractRevision{UUID: input.RevisionUUID, ProjectID: project.ID, SmartContractID: contract.ID, SmartContractVersion: contract.Version, Reason: "项目设置更换智能合约", ActivatedAt: time.Now(), SmartContractName: contract.Name, SmartContractDescription: contract.Description, SmartContractBody: contract.Body}
 		if err := tx.Create(&revision).Error; err != nil {
 			return err
 		}

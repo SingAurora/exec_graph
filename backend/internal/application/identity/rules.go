@@ -1,8 +1,13 @@
 package identity
 
-import "regexp"
+import (
+	"regexp"
 
-const GeneralSmartContractID = "smart-contract-general"
+	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
+)
+
+// DefaultSmartContractID 是新用户初始项目采用的平台默认行动规则。
+const DefaultSmartContractID = sharedconstants.QuickActionSmartContractID
 
 const (
 	PurposeRegister       = "register"

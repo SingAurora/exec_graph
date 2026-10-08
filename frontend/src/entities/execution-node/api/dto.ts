@@ -17,7 +17,7 @@ export type CreateExecutionNodeInput = {
 }
 
 export type ReviewNodeDraftInput = { projectUuid: string; draft: string }
-export type SubmitCompletionInput = { completionClaim: string; evidenceText: string; startedAt?: string; endedAt?: string }
+export type SubmitCompletionInput = { completionClaim: string; evidenceText?: string; startedAt?: string; endedAt?: string }
 export type ReviewClarificationInput = { criterionIds: string[]; explanation: string; evidenceReferences?: string; evidenceAddition?: string; evidencePredatesSubmission?: boolean }
 export type NodeDraftReviewResult = { review?: DraftReview }
 export type NodeCompletionReviewResult = { review?: AIReview }

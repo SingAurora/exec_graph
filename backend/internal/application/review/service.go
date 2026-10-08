@@ -10,6 +10,7 @@ import (
 	"time"
 
 	applicationaigateway "github.com/singaurora/exec-graph/backend/internal/application/aigateway"
+	sharedconstants "github.com/singaurora/exec-graph/backend/internal/shared/constants"
 	sharedid "github.com/singaurora/exec-graph/backend/internal/shared/id"
 )
 
@@ -38,12 +39,16 @@ func (service *Service) ReviewCompletion(ctx context.Context, config ModelConfig
 	return result, err
 }
 
+func isQuickActionContract(contractID string) bool {
+	return strings.TrimSpace(contractID) == sharedconstants.QuickActionSmartContractID
+}
+
 func (service *Service) ReviewDraft(ctx context.Context, config ModelConfiguration, request DraftRequest) (DraftResult, error) {
 	system, user, err := draftPrompt(request)
 	if err != nil {
 		return DraftResult{}, fmt.Errorf("节点草案审核请求生成失败")
 	}
-	content, err := service.modelClient.GenerateContent(ctx, applicationaigateway.GenerateInput{Credential: config.Credential, System: system, User: user, MaxTokens: 900, JSONMode: true})
+	content, err := service.modelClient.GenerateContent(ctx, applicationaigateway.GenerateInput{Credential: config.Credential, System: system, User: user, MaxTokens: 900, JSONMode: true, Timeout: sharedconstants.AIReviewHTTPTimeout})
 	if err != nil {
 		return DraftResult{}, err
 	}
@@ -61,7 +66,11 @@ func (service *Service) requestCompletion(ctx context.Context, credential applic
 	if err != nil {
 		return ModelOutput{}, fmt.Errorf("AI 审查请求生成失败")
 	}
-	content, err := service.modelClient.GenerateContent(ctx, applicationaigateway.GenerateInput{Credential: credential, System: system, User: user, MaxTokens: 8192, JSONMode: true})
+	maxTokens := 8192
+	if isQuickActionContract(request.SmartContract.ID) {
+		maxTokens = 2048
+	}
+	content, err := service.modelClient.GenerateContent(ctx, applicationaigateway.GenerateInput{Credential: credential, System: system, User: user, MaxTokens: maxTokens, JSONMode: true, Timeout: sharedconstants.AIReviewHTTPTimeout})
 	if err != nil {
 		var reasoningOnly applicationaigateway.ReasoningOnlyError
 		if errors.As(err, &reasoningOnly) {
@@ -81,7 +90,11 @@ func (service *Service) finalizeCompletion(ctx context.Context, credential appli
 	if err != nil {
 		return ModelOutput{}, fmt.Errorf("AI 审查结论恢复请求生成失败")
 	}
-	content, err := service.modelClient.GenerateContent(ctx, applicationaigateway.GenerateInput{Credential: credential, System: system, User: user, MaxTokens: 4096, JSONMode: true})
+	maxTokens := 4096
+	if isQuickActionContract(request.SmartContract.ID) {
+		maxTokens = 2048
+	}
+	content, err := service.modelClient.GenerateContent(ctx, applicationaigateway.GenerateInput{Credential: credential, System: system, User: user, MaxTokens: maxTokens, JSONMode: true, Timeout: sharedconstants.AIReviewFinalizationHTTPTimeout})
 	if err != nil {
 		return ModelOutput{}, fmt.Errorf("AI 只返回了推理过程，未生成最终审查结论；已自动重试一次，请改用可直接输出结果的模型，例如 deepseek-chat")
 	}
@@ -182,7 +195,11 @@ func normalizeCompletion(id string, createdAt time.Time, request CompletionReque
 		summary = "行动记录还有未覆盖或尚未确认的部分；这不代表行动失败，可以补充记录、继续观察或创建下一步行动。"
 	}
 	supplementTitle := strings.TrimSpace(output.SuggestedSupplementTitle)
-	if verdict != "pass" && supplementTitle == "" {
+	if isQuickActionContract(request.SmartContract.ID) {
+		// 行动质量指南只提供重点反馈，不把不确定项自动转成新的补足任务。
+		supplementTitle = ""
+	}
+	if !isQuickActionContract(request.SmartContract.ID) && verdict != "pass" && supplementTitle == "" {
 		supplementTitle = fmt.Sprintf("补齐「%s」", firstUnmetCriterionTitle(request.AcceptanceCriteria, reviews, request.Title))
 	}
 	if verdict == "pass" {

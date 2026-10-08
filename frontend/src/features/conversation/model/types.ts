@@ -15,9 +15,16 @@ export type ActionConversation = {
   phase: 'planning' | 'completion'
   status: string
   currentDraft?: ActionDraft
+  context?: { smartContract?: { uuid?: string } }
   aiConfig?: AIConfigSnapshot
   messages: ConversationMessage[]
   updatedAt: string
+}
+
+export type FinalizeCompletionReviewInput = {
+  conversationUuid: string
+  startedAt?: string
+  endedAt?: string
 }
 
 export type OpenPlanningConversationInput = {
