@@ -18,7 +18,7 @@ export function AuthScreen({ view, onEnter }: AuthScreenProps) {
   const submit = (event: FormEvent) => { event.preventDefault(); setSubmitted(true); if (view !== 'forgot') onEnter() }
 
   return <main className="auth-shell"><section className="auth-visual" aria-hidden="true"><img className="auth-character-image" src={isRegister ? registerImage : accessImage} alt="" /></section><div className="auth-panel">
-    <a className="auth-brand" href="#home"><span className="brand-mark">E</span><span>ExecG</span></a><section className="auth-card" aria-labelledby="auth-title"><h1 id="auth-title">{content.title}</h1><p className="auth-intro">{content.intro}</p>
+    <a className="auth-brand" href="#my"><span className="brand-mark">E</span><span>ExecG</span></a><section className="auth-card" aria-labelledby="auth-title"><h1 id="auth-title">{content.title}</h1><p className="auth-intro">{content.intro}</p>
       <form className="auth-form" onSubmit={submit}>
         {isRegister && <div className="field"><label htmlFor="register-name">昵称</label><input id="register-name" required type="text" placeholder="怎么称呼你" /><span className="field-hint">昵称需唯一，之后会显示在你的行动记录中。</span></div>}
         <div className="field"><label htmlFor="auth-email">邮箱</label><input id="auth-email" required type="email" autoComplete="email" placeholder="you@example.com" /></div>
@@ -29,6 +29,6 @@ export function AuthScreen({ view, onEnter }: AuthScreenProps) {
       {view === 'login' && <p className="auth-switch">还没有账号？ <a href="#register">注册账号</a></p>}
       {view === 'register' && <p className="auth-switch">已经有账号？ <a href="#login">返回登录</a></p>}
       {view === 'forgot' && <p className="auth-switch"><a href="#login">返回登录</a></p>}
-      {view === 'login' && <a className="auth-demo" href="#home">直接进入演示</a>}
+      {view === 'login' && <a className="auth-demo" href="#my">直接进入演示</a>}
     </section></div></main>
 }
