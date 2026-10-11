@@ -7,7 +7,16 @@ export type ActionDraft = {
   evidenceRequirement: string
 }
 
-export type ConversationMessage = { uuid: string; role: 'user' | 'assistant'; body: string; createdAt: string }
+export type CompletionProgressItem = { criterionId: string; status: 'confirmed' | 'unclear' | 'notMentioned' | 'notCompleted'; reason: string }
+export type CompletionProgress = {
+  confirmed: CompletionProgressItem[]
+  unclear: CompletionProgressItem[]
+  notMentioned: CompletionProgressItem[]
+  notCompleted: CompletionProgressItem[]
+}
+export type PlanningReview = { verdict: 'pass' | 'fail'; summary: string; missingRequirements: string[] }
+
+export type ConversationMessage = { uuid: string; role: 'user' | 'assistant'; body: string; structuredPayload?: unknown; createdAt: string }
 
 /** AI 协助制定或验收一项行动的服务端会话。 */
 export type ActionConversation = {
@@ -15,6 +24,8 @@ export type ActionConversation = {
   phase: 'planning' | 'completion'
   status: string
   currentDraft?: ActionDraft
+  currentDraftReview?: PlanningReview
+  currentProgress?: CompletionProgress
   context?: { smartContract?: { uuid?: string } }
   aiConfig?: AIConfigSnapshot
   messages: ConversationMessage[]

@@ -114,6 +114,8 @@ func mapApplicationError(err error) error {
 	switch {
 	case errors.Is(err, ErrNotFound):
 		return applicationproject.ErrProjectRecordNotFound
+	case errors.Is(err, ErrAIKeyNotFound):
+		return applicationproject.ErrAIKeyUnavailable
 	case errors.Is(err, ErrInvalid):
 		return applicationproject.ErrProjectRecordInvalid
 	case errors.Is(err, ErrAdopted):

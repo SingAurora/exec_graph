@@ -22,6 +22,29 @@ type ActionDraft struct {
 	EvidenceRequirement string   `json:"evidenceRequirement"`
 }
 
+// CompletionProgressItem 描述当前对话对一条行动重点的临时判断。
+// confirmed 只表示用户的当前说明已经覆盖该重点，不代表 AI 证明了现实结果。
+type CompletionProgressItem struct {
+	CriterionID string `json:"criterionId"`
+	Status      string `json:"status"`
+	Reason      string `json:"reason"`
+}
+
+// CompletionProgress 是完成说明对话每一轮的结构化覆盖状态。
+type CompletionProgress struct {
+	Confirmed    []CompletionProgressItem `json:"confirmed"`
+	Unclear      []CompletionProgressItem `json:"unclear"`
+	NotMentioned []CompletionProgressItem `json:"notMentioned"`
+	NotCompleted []CompletionProgressItem `json:"notCompleted"`
+}
+
+// PlanningReview 是 AI 对当前行动草案是否可以保存的临时审查结论。
+type PlanningReview struct {
+	Verdict             string   `json:"verdict"`
+	Summary             string   `json:"summary"`
+	MissingRequirements []string `json:"missingRequirements"`
+}
+
 // MessageView 是对外返回的对话消息。
 type MessageView struct {
 	ID                string                              `json:"uuid"`
@@ -34,18 +57,20 @@ type MessageView struct {
 
 // View 是规划或完成审查对话的公开视图。
 type View struct {
-	ID           string                              `json:"uuid"`
-	ProjectID    string                              `json:"projectUuid"`
-	NodeID       *string                             `json:"nodeUuid,omitempty"`
-	Phase        string                              `json:"phase"`
-	Status       string                              `json:"status"`
-	Context      any                                 `json:"context"`
-	CurrentDraft *ActionDraft                        `json:"currentDraft,omitempty"`
-	LatestReview any                                 `json:"latestReview,omitempty"`
-	AIConfig     *applicationreview.AIConfigSnapshot `json:"aiConfig,omitempty"`
-	Messages     []MessageView                       `json:"messages"`
-	CreatedAt    time.Time                           `json:"createdAt"`
-	UpdatedAt    time.Time                           `json:"updatedAt"`
+	ID                 string                              `json:"uuid"`
+	ProjectID          string                              `json:"projectUuid"`
+	NodeID             *string                             `json:"nodeUuid,omitempty"`
+	Phase              string                              `json:"phase"`
+	Status             string                              `json:"status"`
+	Context            any                                 `json:"context"`
+	CurrentDraft       *ActionDraft                        `json:"currentDraft,omitempty"`
+	CurrentDraftReview *PlanningReview                     `json:"currentDraftReview,omitempty"`
+	CurrentProgress    *CompletionProgress                 `json:"currentProgress,omitempty"`
+	LatestReview       any                                 `json:"latestReview,omitempty"`
+	AIConfig           *applicationreview.AIConfigSnapshot `json:"aiConfig,omitempty"`
+	Messages           []MessageView                       `json:"messages"`
+	CreatedAt          time.Time                           `json:"createdAt"`
+	UpdatedAt          time.Time                           `json:"updatedAt"`
 }
 
 // OpenPlanningInput 描述新规划对话与既有执行节点的关系。

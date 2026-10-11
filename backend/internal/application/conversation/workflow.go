@@ -67,9 +67,10 @@ type completionContextPayload struct {
 }
 
 type planningConversationOutput struct {
-	Reply          string      `json:"reply"`
-	Draft          ActionDraft `json:"draft"`
-	ReadyForFreeze bool        `json:"readyForFreezeReview"`
+	Reply          string          `json:"reply"`
+	Draft          ActionDraft     `json:"draft"`
+	ReadyForFreeze bool            `json:"readyForFreezeReview"`
+	Review         *PlanningReview `json:"review,omitempty"`
 }
 
 // OpenRevisionConversation 打开一份通过 AI 修改当前任务要求的对话。
@@ -200,12 +201,14 @@ func (service *Service) FinalizeRevisionConversation(ctx context.Context, userID
 }
 
 type completionConversationReply struct {
-	Reply string `json:"reply"`
+	Reply    string             `json:"reply"`
+	Progress CompletionProgress `json:"progress"`
 }
 
 type completionConversationConclusion struct {
-	Reply  string                        `json:"reply"`
-	Review applicationreview.ModelOutput `json:"review"`
+	Reply    string                        `json:"reply"`
+	Progress CompletionProgress            `json:"progress"`
+	Review   applicationreview.ModelOutput `json:"review"`
 }
 
 // OpenPlanningConversation 返回已有的同上下文规划对话，或创建一份新对话。
@@ -260,6 +263,13 @@ func (service *Service) OpenPlanningConversation(ctx context.Context, userID uin
 		return View{}, fault.Wrap(fault.Internal, "创建对话失败", err)
 	}
 	if err := service.repository.CreatePlanningConversation(ctx, conversationID, userID, input.ProjectUUID, contextJSON); err != nil {
+		if errors.Is(err, ErrConversationAlreadyExists) {
+			existingID, findErr := service.repository.FindPlanningConversation(ctx, userID, input.ProjectUUID, contextJSON)
+			if findErr == nil {
+				return service.GetConversation(ctx, userID, existingID)
+			}
+			return View{}, fault.Wrap(fault.Internal, "读取已存在的规划对话失败", findErr)
+		}
 		if errors.Is(err, ErrNotFound) {
 			return View{}, fault.New(fault.NotFound, "项目不存在或已无法继续推进")
 		}
@@ -313,6 +323,13 @@ func (service *Service) OpenCompletionConversation(ctx context.Context, userID u
 		return View{}, fault.Wrap(fault.Internal, "创建审查对话失败", err)
 	}
 	if err := service.repository.CreateCompletionConversation(ctx, conversationID, userID, input.ProjectUUID, input.NodeUUID, contextJSON, configJSON); err != nil {
+		if errors.Is(err, ErrConversationAlreadyExists) {
+			existingID, findErr := service.repository.FindCompletionConversation(ctx, userID, input.ProjectUUID, input.NodeUUID)
+			if findErr == nil {
+				return service.GetConversation(ctx, userID, existingID)
+			}
+			return View{}, fault.Wrap(fault.Internal, "读取已存在的完成对话失败", findErr)
+		}
 		return View{}, fault.Wrap(fault.Internal, "创建审查对话失败", err)
 	}
 	return service.GetConversation(ctx, userID, conversationID)
@@ -376,7 +393,9 @@ func (service *Service) FinalizeCompletionConversation(ctx context.Context, user
 		return View{}, fault.New(fault.InvalidRequest, "只有完成审查对话可以生成最终结论")
 	}
 	if conversation.Status == "closed" {
-		return View{}, fault.New(fault.Conflict, "完成审查已经生成最终结论")
+		// 客户端可能在请求成功后超时并重试。最终结论已经持久化时，
+		// 返回已有对话即可，避免把一次成功操作显示成失败。
+		return conversation, nil
 	}
 	if !hasUserMessage(conversation.Messages) {
 		return View{}, fault.New(fault.InvalidRequest, "请先说明这次实际做了什么")
@@ -497,9 +516,20 @@ func (service *Service) processPlanningMessage(ctx context.Context, userID uint6
 	if strings.TrimSpace(output.Reply) == "" {
 		output.Reply = "我已更新行动契约草案，请检查右侧内容。"
 	}
+	if !freezeReview {
+		output.ReadyForFreeze = false
+		output.Review = nil
+	}
 	status := "active"
-	if output.ReadyForFreeze || (freezeReview && isQuickActionContext(conversation.Context) && planningDraftReady(output.Draft)) {
-		status = "ready_for_freeze"
+	if freezeReview {
+		ready := planningDraftReady(output.Draft)
+		if !isQuickActionContext(conversation.Context) {
+			ready = ready && output.Review != nil && strings.ToLower(strings.TrimSpace(output.Review.Verdict)) == "pass" && len(output.Review.MissingRequirements) == 0
+		}
+		output.ReadyForFreeze = ready
+		if ready {
+			status = "ready_for_freeze"
+		}
 	}
 	messageID, err := sharedid.UUID()
 	if err != nil {
@@ -604,6 +634,31 @@ func conversationView(stored ConversationRecordView) View {
 		message := MessageView{ID: storedMessage.UUID, Role: storedMessage.Role, Body: storedMessage.Body, CreatedAt: storedMessage.CreatedAt}
 		if storedMessage.StructuredPayloadJSON != nil {
 			message.StructuredPayload = decodeDynamicJSON(*storedMessage.StructuredPayloadJSON, nil)
+			if record.Phase == "planning" && storedMessage.Role == "assistant" {
+				var payload struct {
+					Review *PlanningReview `json:"review"`
+				}
+				if json.Unmarshal([]byte(*storedMessage.StructuredPayloadJSON), &payload) == nil && payload.Review != nil {
+					review := *payload.Review
+					review.Summary = strings.TrimSpace(review.Summary)
+					review.MissingRequirements = uniqueNonEmpty(review.MissingRequirements)
+					result.CurrentDraftReview = &review
+				} else {
+					result.CurrentDraftReview = nil
+				}
+			}
+			if record.Phase == "completion" && storedMessage.Role == "assistant" {
+				var payload struct {
+					Progress CompletionProgress `json:"progress"`
+				}
+				if json.Unmarshal([]byte(*storedMessage.StructuredPayloadJSON), &payload) == nil {
+					normalized := normalizeCompletionProgress(payload.Progress, result.Context)
+					if len(normalized.Confirmed)+len(normalized.Unclear)+len(normalized.NotMentioned)+len(normalized.NotCompleted) > 0 {
+						progress := normalized
+						result.CurrentProgress = &progress
+					}
+				}
+			}
 		}
 		if storedMessage.AIConfigJSON != nil {
 			var configuration applicationreview.AIConfigSnapshot

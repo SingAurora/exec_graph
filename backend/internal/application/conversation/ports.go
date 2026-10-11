@@ -17,6 +17,9 @@ var ErrNotFound = errors.New("conversation resource not found")
 // ErrNoLongerMutable 表示迟到的 AI 结果不能再覆盖已锁定状态。
 var ErrNoLongerMutable = errors.New("conversation no longer mutable")
 
+// ErrConversationAlreadyExists 表示同一业务对象已经有活动对话。
+var ErrConversationAlreadyExists = errors.New("active conversation already exists")
+
 // PlanningMessage 是规划对话中需要复制到节点记录的消息。
 type PlanningMessage struct {
 	UUID, Role, Body string

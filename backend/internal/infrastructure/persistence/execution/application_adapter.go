@@ -25,6 +25,11 @@ func (adapter ApplicationRepository) CreateNode(ctx context.Context, input appli
 	})
 }
 
+// FindNodeByPlanningConversation returns the node already created from a planning conversation.
+func (adapter ApplicationRepository) FindNodeByPlanningConversation(ctx context.Context, userID uint64, projectUUID, conversationUUID string) (string, error) {
+	return adapter.repository.FindNodeByPlanningConversation(ctx, userID, projectUUID, conversationUUID)
+}
+
 func (adapter ApplicationRepository) LockNode(ctx context.Context, input applicationproject.LockNodeRecord) error {
 	return adapter.repository.LockNode(ctx, LockNodeParams{
 		UserID: input.UserID, ProjectID: input.ProjectID, NodeID: input.NodeID, RecordID: input.RecordID,

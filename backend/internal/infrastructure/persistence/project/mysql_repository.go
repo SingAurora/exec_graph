@@ -10,8 +10,9 @@ import (
 )
 
 var (
-	ErrNotFound = errors.New("project not found")
-	ErrInvalid  = errors.New("invalid project contract")
+	ErrNotFound      = errors.New("project not found")
+	ErrAIKeyNotFound = errors.New("AI key not found")
+	ErrInvalid       = errors.New("invalid project contract")
 )
 
 type Project struct {
@@ -241,12 +242,18 @@ func (repository ProjectRepository) CreateProject(ctx context.Context, input Cre
 	return repository.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var contract contractpersistence.SmartContract
 		if err := tx.Where("uuid = ? AND deleted_at IS NULL AND (source = ? OR created_by = ?)", input.SmartContractUUID, "official", input.OwnerID).First(&contract).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrNotFound
+			}
 			return err
 		}
 		var key struct {
 			ID uint64 `gorm:"column:id"`
 		}
 		if err := tx.Table("ai_api_keys").Select("id").Where("uuid = ? AND user_id = ?", input.AIKeyUUID, input.OwnerID).First(&key).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrAIKeyNotFound
+			}
 			return err
 		}
 		var callID *uint64

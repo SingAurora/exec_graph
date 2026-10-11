@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { useWorkspaceStore as useExecStore } from '@/features/workspace/model/useWorkspaceStore'
 import type { DraftReview } from '@/entities/execution-node/model/types'
 import { SmartContractDocument } from '@/entities/smart-contract/ui/SmartContractDocument'
+import { quickActionSmartContractUuid } from '@/entities/smart-contract/model/constants'
 import { PlanningConversation } from '@/features/conversation/ui/ActionConversation'
 
 type ContractComposerProps = {
@@ -31,6 +32,7 @@ export function ContractComposer({ projectUuid, lockProject = false, parentContr
     (revision) => revision.uuid === selectedProject.activeContractRevisionUuid,
   )
   const selectedContract = smartContracts.find((contract) => contract.uuid === activeRevision?.smartContractUuid)
+  const isQuickAction = selectedContract?.uuid === quickActionSmartContractUuid
   const isClosure = Boolean(parentContractUuid && closureSourceUuids?.includes(parentContractUuid))
 
   const onCreate = async ({ draft, draftReview, planningConversationUuid }: { draft: string; draftReview: DraftReview; planningConversationUuid: string }) => createExecutionNode({ projectUuid: selectedProject!.uuid, draft, parentContractUuid, sourceContractUuids, branchUuid, fork, closureSourceUuids, supplementOfContractUuid, retryOfContractUuid, draftReview, planningConversationUuid })
@@ -69,7 +71,12 @@ export function ContractComposer({ projectUuid, lockProject = false, parentContr
           </label>
         )}
 
-        {selectedProject && selectedContract && activeRevision ? (
+        {selectedProject && selectedContract && activeRevision ? isQuickAction ? (
+          <div className="border-l-2 border-signal bg-shell py-3 pl-4 text-sm leading-6 text-graphite">
+            <p className="font-semibold text-ink">日常行动模式</p>
+            <p className="mt-1">直接告诉 AI 想做什么，它会帮你抓住 1～3 个最重要的重点。</p>
+          </div>
+        ) : (
           <div className="rounded-md border border-rail bg-paper p-4">
             <div className="font-mono text-xs font-semibold text-signal">当前项目智能合约</div>
             <div className="mt-4 max-h-72 overflow-y-auto pr-2">

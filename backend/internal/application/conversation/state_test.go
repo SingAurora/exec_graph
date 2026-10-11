@@ -13,13 +13,18 @@ import (
 
 type lateResponseRepository struct {
 	persistCalled bool
+	status        string
 }
 
 func (repository *lateResponseRepository) FindConversation(context.Context, uint64, string) (ConversationRecordView, error) {
 	contextJSON := `{"project":{"uuid":"project-1","title":"项目"},"node":{"title":"节点","verifiableGoal":"完成目标","acceptanceCriteria":[{"id":"C1","text":"完成一项","requiredEvidence":"说明"}],"evidenceRequirement":"提供说明"}}`
 	nodeID := "node-1"
+	status := repository.status
+	if status == "" {
+		status = "active"
+	}
 	return ConversationRecordView{
-		Conversation: ConversationRecord{UUID: "conversation-1", Phase: "completion", Status: "active", ContextJSON: contextJSON},
+		Conversation: ConversationRecord{UUID: "conversation-1", Phase: "completion", Status: status, ContextJSON: contextJSON},
 		ProjectID:    "project-1",
 		NodeID:       &nodeID,
 		Messages:     []MessageRecord{{UUID: "user-1", Role: "user", Body: "我已经完成了这项行动"}},
@@ -135,5 +140,26 @@ func TestFinalizationRechecksConversationBeforeWritingReview(t *testing.T) {
 	}
 	if !repository.persistCalled {
 		t.Fatal("expected final review persistence recheck to run")
+	}
+}
+
+func TestFinalizationReturnsExistingClosedConversation(t *testing.T) {
+	repository := &lateResponseRepository{status: "closed"}
+	service := New(Dependencies{
+		Repository:  repository,
+		Credentials: conversationCredentialStub{},
+		ModelClient: conversationModelStub{},
+		Reviewer:    applicationreview.New(applicationreview.Dependencies{}),
+	})
+
+	conversation, err := service.FinalizeCompletionConversation(context.Background(), 7, FinalizeCompletionInput{ConversationUUID: "conversation-1"})
+	if err != nil {
+		t.Fatalf("FinalizeCompletionConversation returned error for an already closed conversation: %v", err)
+	}
+	if conversation.Status != "closed" {
+		t.Fatalf("status = %q, want closed", conversation.Status)
+	}
+	if repository.persistCalled {
+		t.Fatal("an already closed conversation must not be persisted again")
 	}
 }

@@ -31,7 +31,7 @@ func (s *Service) ConfirmNodeCompletion(ctx context.Context, userID uint64, proj
 	if !ok {
 		return State{}, &ValidationError{"节点没有可锁定的 AI 审查记录"}
 	}
-	reviewID, _ := review["id"].(string)
+	reviewID := reviewUUID(review)
 	verdict, _ := review["verdict"].(string)
 	if reviewID == "" {
 		return State{}, &ValidationError{"节点没有可锁定的 AI 审查记录"}
@@ -74,4 +74,12 @@ func (s *Service) ConfirmNodeCompletion(ctx context.Context, userID uint64, proj
 		return State{}, err
 	}
 	return s.GetProjectExecutionState(ctx, userID, projectID)
+}
+
+func reviewUUID(review map[string]any) string {
+	if id, ok := review["uuid"].(string); ok && id != "" {
+		return id
+	}
+	id, _ := review["id"].(string)
+	return id
 }

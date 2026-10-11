@@ -3,6 +3,7 @@ package project
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"time"
 
@@ -53,6 +54,14 @@ func (s *Service) CreateExecutionNode(ctx context.Context, input CreateNodeInput
 	if err != nil {
 		return CreateNodeResult{}, err
 	}
+	if input.PlanningConversationID != "" {
+		if existingID, findErr := s.execution.FindNodeByPlanningConversation(ctx, input.OwnerID, input.ProjectID, input.PlanningConversationID); findErr == nil {
+			state, stateErr := s.GetProjectExecutionState(ctx, input.OwnerID, input.ProjectID)
+			return CreateNodeResult{NodeID: existingID, State: state}, stateErr
+		} else if !errors.Is(findErr, ErrNotFound) {
+			return CreateNodeResult{}, findErr
+		}
+	}
 	sourceIDs := uniqueNonEmpty(input.SourceContractIDs)
 	if len(sourceIDs) == 0 && input.ParentContractID != "" {
 		sourceIDs = []string{input.ParentContractID}
@@ -60,6 +69,12 @@ func (s *Service) CreateExecutionNode(ctx context.Context, input CreateNodeInput
 	sourceJSON, _ := json.Marshal(sourceIDs)
 	err = s.execution.CreateNode(ctx, CreateNodeRecord{OwnerID: input.OwnerID, ProjectID: input.ProjectID, NodeID: nodeID, Title: input.Title, Draft: input.Draft, Goal: input.VerifiableGoal, CriteriaJSON: string(criteriaJSON), EvidenceRequirement: input.EvidenceRequirement, DraftReviewJSON: string(draftJSON), DraftAIConfigJSON: string(configJSON), MessagesJSON: string(messagesJSON), SourceIDsJSON: string(sourceJSON), ParentID: input.ParentContractID, SupplementID: input.SupplementOfNodeID, RetryID: input.RetryOfContractID, PlanningConversationID: input.PlanningConversationID, BranchID: input.BranchID, EdgeType: "lineage", SourceIDs: sourceIDs, Visibility: project.Visibility, Fork: input.Fork, Closure: input.Closure, Supplement: input.SupplementOfNodeID != "", CreateBranch: input.Fork})
 	if err != nil {
+		if input.PlanningConversationID != "" {
+			if existingID, findErr := s.execution.FindNodeByPlanningConversation(ctx, input.OwnerID, input.ProjectID, input.PlanningConversationID); findErr == nil {
+				state, stateErr := s.GetProjectExecutionState(ctx, input.OwnerID, input.ProjectID)
+				return CreateNodeResult{NodeID: existingID, State: state}, stateErr
+			}
+		}
 		return CreateNodeResult{}, err
 	}
 	state, err := s.GetProjectExecutionState(ctx, input.OwnerID, input.ProjectID)

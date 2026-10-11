@@ -143,23 +143,30 @@ export function NodePage() {
           {branch ? <p className="mt-2 text-sm font-semibold text-graphite">行为路径 · {branch.title}</p> : null}
         </div>
 
-          <div className="border-l-2 border-ink bg-shell p-5">
-            <div className="flex items-center gap-2 font-mono text-xs font-semibold text-signal">
-              <Bot size={15} aria-hidden="true" />
-              智能合约
+          {isQuickAction ? (
+            <div className="border-l-2 border-signal bg-shell p-5">
+              <div className="font-mono text-xs font-semibold text-signal">日常行动</div>
+              <p className="mt-3 text-sm leading-6 text-graphite">只保留这次行动的目标和最重要的几个重点。</p>
             </div>
-          {smartContract ? <div className="mt-4 max-h-64 overflow-y-auto pr-2"><SmartContractDocument contract={smartContract} bodyClassName="text-[13px]" /></div> : <p className="mt-4 text-sm leading-6 text-graphite">当前行动没有找到对应的智能合约正文。</p>}
-        </div>
+          ) : (
+            <div className="border-l-2 border-ink bg-shell p-5">
+              <div className="flex items-center gap-2 font-mono text-xs font-semibold text-signal">
+                <Bot size={15} aria-hidden="true" />
+                智能合约
+              </div>
+              {smartContract ? <div className="mt-4 max-h-64 overflow-y-auto pr-2"><SmartContractDocument contract={smartContract} bodyClassName="text-[13px]" /></div> : <p className="mt-4 text-sm leading-6 text-graphite">当前行动没有找到对应的智能合约正文。</p>}
+            </div>
+          )}
       </section>
 
-        <RelayRail node={contract} contracts={allContracts} edges={allEdges} />
-      <ContractStageRail stage={contract.stage} />
+      {!isQuickAction ? <RelayRail node={contract} contracts={allContracts} edges={allEdges} /> : null}
+      {!isQuickAction ? <ContractStageRail stage={contract.stage} /> : null}
 
       <NodeTabs contractUuid={contract.uuid} activeTab={activeTab} />
 
       {activeTab === 'task' ? (
         <div className="space-y-7">
-          {contract.draftReview ? (
+          {contract.draftReview && !isQuickAction ? (
             <section className={`border-l-2 py-3 pl-5 ${contract.draftReview.verdict === 'pass' ? 'border-moss' : 'border-clay'}`}>
               <div className={`font-mono text-xs font-semibold uppercase ${contract.draftReview.verdict === 'pass' ? 'text-moss' : 'text-clay'}`}>
                 节点创建审核
@@ -189,32 +196,45 @@ export function NodePage() {
             </section>
           ) : null}
 
-          <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
-            <div className="rounded-md border border-rail bg-surface/72 p-5">
+          {isQuickAction ? (
+            <section className="border-l-2 border-signal bg-shell py-4 pl-5">
               <div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal">
                 <Scale size={15} aria-hidden="true" />
-                行动上下文
+                这次要做到
               </div>
-              <h2 className="mt-3 font-display text-2xl font-semibold">本次行动说明</h2>
-              <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-graphite">{contract.verifiableGoal}</p>
-              <div className="mt-5 border-t border-rail pt-4">
-                <div className="font-mono text-xs font-semibold uppercase text-signal">本次记录提示</div>
-                <p className="mt-2 text-sm leading-6 text-graphite">{contract.evidenceRequirement}</p>
+              <p className="mt-3 max-w-3xl whitespace-pre-wrap text-sm leading-6 text-graphite">{contract.verifiableGoal}</p>
+              <ul className="mt-4 grid gap-2 border-t border-rail pt-4 text-sm leading-6 text-graphite">
+                {contract.acceptanceCriteria.map((criterion) => <li key={criterion.id} className="flex gap-2"><span className="text-signal">•</span><span>{criterion.text}</span></li>)}
+              </ul>
+            </section>
+          ) : (
+            <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
+              <div className="rounded-md border border-rail bg-surface/72 p-5">
+                <div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase text-signal">
+                  <Scale size={15} aria-hidden="true" />
+                  行动上下文
+                </div>
+                <h2 className="mt-3 font-display text-2xl font-semibold">本次行动说明</h2>
+                <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-graphite">{contract.verifiableGoal}</p>
+                <div className="mt-5 border-t border-rail pt-4">
+                  <div className="font-mono text-xs font-semibold uppercase text-signal">本次记录提示</div>
+                  <p className="mt-2 text-sm leading-6 text-graphite">{contract.evidenceRequirement}</p>
+                </div>
               </div>
-            </div>
 
-            <aside className="rounded-md border border-rail bg-shell p-5">
-              <div className="font-mono text-xs font-semibold uppercase text-signal">行动原始说明</div>
-              <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-graphite">{contract.originalIntent}</p>
-              <div className="mt-5 border-t border-rail pt-4 text-xs leading-5 text-graphite">智能合约正文是当前行动的规则上下文；本次行动说明只记录你决定推进的具体事情。</div>
-            </aside>
-          </section>
+              <aside className="rounded-md border border-rail bg-shell p-5">
+                <div className="font-mono text-xs font-semibold uppercase text-signal">行动原始说明</div>
+                <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-graphite">{contract.originalIntent}</p>
+                <div className="mt-5 border-t border-rail pt-4 text-xs leading-5 text-graphite">智能合约正文是当前行动的规则上下文；本次行动说明只记录你决定推进的具体事情。</div>
+              </aside>
+            </section>
+          )}
 
           {canSubmit ? (
             <section className="flex flex-wrap items-center justify-between gap-4 border-l-2 border-signal py-2 pl-5">
               <div>
                 <div className="font-mono text-xs font-semibold uppercase text-signal">下一步</div>
-                <p className="mt-1 text-sm text-graphite">行动规则已确定，可以提交本次推进结果。</p>
+                <p className="mt-1 text-sm text-graphite">{isQuickAction ? '做完后记录实际情况即可。' : '行动规则已确定，可以提交本次推进结果。'}</p>
               </div>
               <Link
                 to={`/contracts/${contract.uuid}?tab=completion`}
@@ -235,7 +255,7 @@ export function NodePage() {
         </div>
       ) : activeTab === 'completion' ? (
         <div className="space-y-7">
-          {closureSources.length > 0 ? (
+          {!isQuickAction && closureSources.length > 0 ? (
             <section className="border-l-2 border-moss py-2 pl-5">
               <div className="font-mono text-xs font-semibold uppercase text-moss">收束范围</div>
               <p className="mt-2 text-sm leading-6 text-graphite">本节点提交时，智能合约会同时核验并收束以下未闭合节点：</p>
@@ -294,7 +314,7 @@ export function NodePage() {
 
           {canUseCompletionConversation ? <CompletionConversation contract={contract} /> : null}
 
-          {contract.completionClaim ? (
+          {contract.completionClaim && !isQuickAction ? (
             <section className="grid gap-5 lg:grid-cols-2">
               <InfoBlock title="用户提交的推进结果" body={contract.completionClaim} />
               <InfoBlock title="用户提交的逐条证据" body={contract.evidenceText ?? '未提交。'} />
@@ -303,28 +323,24 @@ export function NodePage() {
 
           {contract.aiReview ? (
             <section className={`rounded-md border p-5 ${aiReviewPassed ? 'border-moss/30 bg-moss/5' : 'border-clay/30 bg-clay/5'}`}>
-              <div className={`font-mono text-xs font-semibold uppercase ${aiReviewPassed || isQuickAction ? 'text-moss' : 'text-clay'}`}>AI review</div>
+              <div className={`font-mono text-xs font-semibold uppercase ${aiReviewPassed || isQuickAction ? 'text-moss' : 'text-clay'}`}>{isQuickAction ? '完成记录' : 'AI review'}</div>
               <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-                <h2 className="font-display text-2xl font-semibold">AI 审查：{verdictText[contract.aiReview.verdict]}</h2>
-                <div className="flex flex-wrap items-center gap-2">
+                <h2 className="font-display text-2xl font-semibold">{isQuickAction ? '这次行动记录好了' : `AI 审查：${verdictText[contract.aiReview.verdict]}`}</h2>
+                {!isQuickAction ? <div className="flex flex-wrap items-center gap-2">
                   <CopyReviewStateButton contract={contract} projectTitle={project?.title ?? ''} />
-                  <span
-                    className={`rounded-full border bg-surface/70 px-3 py-1 font-mono text-xs font-semibold ${aiReviewPassed || isQuickAction ? 'border-moss/30 text-moss' : 'border-clay/30 text-clay'}`}
-                  >
-                    AI 结论不可改写
-                  </span>
-                </div>
+                  <span className={`rounded-full border bg-surface/70 px-3 py-1 font-mono text-xs font-semibold ${aiReviewPassed ? 'border-moss/30 text-moss' : 'border-clay/30 text-clay'}`}>AI 结论不可改写</span>
+                </div> : null}
               </div>
               <p className="mt-3 text-sm leading-6 text-graphite">{contract.aiReview.summary}</p>
-              <ReviewAIIdentity config={contract.completionReviewAIConfig ?? contract.aiReview.aiConfig} />
-              {contract.completionReviewRounds?.length ? (
+              {!isQuickAction ? <ReviewAIIdentity config={contract.completionReviewAIConfig ?? contract.aiReview.aiConfig} /> : null}
+              {!isQuickAction && contract.completionReviewRounds?.length ? (
                 <div className="mt-3 font-mono text-xs font-semibold text-graphite">第 {contract.completionReviewRounds.length} 轮审查 · 最新结论</div>
               ) : null}
               <div className="mt-5 grid gap-3">
                 {contract.aiReview.criterionReviews.map((review) => {
                   const criterion = criterionForReview(review.criterionId)
                   return (
-                    <div key={review.criterionId} className="rounded-md border border-rail bg-surface/72 p-4">
+                    <div key={review.criterionId} className={isQuickAction ? 'border-b border-rail py-3 last:border-b-0' : 'rounded-md border border-rail bg-surface/72 p-4'}>
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="text-sm font-semibold text-ink">{criterion?.text}</div>
                         <span className={`font-mono text-xs font-semibold ${review.result === 'met' ? 'text-moss' : 'text-clay'}`}>
@@ -399,7 +415,7 @@ export function NodePage() {
             </section>
           ) : null}
 
-          {contract.aiReview ? <EvidenceCoverage contract={contract} /> : null}
+          {contract.aiReview && !isQuickAction ? <EvidenceCoverage contract={contract} /> : null}
 
           {completionRecord ? (
             <CompletionRecordSummary

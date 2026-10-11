@@ -12,6 +12,7 @@ import { ProjectQueues, ProjectRecords } from './project-queues'
 import { ConvergenceGate, ProjectCollaborationPublisher, ProjectWorkstation } from './project-actions'
 import { projectTabFrom } from './project-shared'
 import { MarkdownContent } from '@/shared/ui/MarkdownContent'
+import { quickActionSmartContractUuid } from '@/entities/smart-contract/model/constants'
 
 export function ProjectPage() {
   const { projectUuid = '' } = useParams()
@@ -50,6 +51,7 @@ export function ProjectPage() {
   const activeBranchContracts = branches.map((branch) => ({ branch, contract: contracts.find((contract) => contract.uuid === branch.currentContractUuid) })).filter((item): item is { branch: ExecutionBranch; contract: ExecutionContract } => Boolean(item.contract))
   const activeRevision = project.contractRevisions.find((revision) => revision.uuid === project.activeContractRevisionUuid) ?? project.contractRevisions[0]
   const activeSmartContract = smartContracts.find((contract) => contract.uuid === activeRevision?.smartContractUuid) ?? activeRevision?.smartContract
+  const isQuickAction = activeSmartContract?.uuid === quickActionSmartContractUuid
   const publishableCollaborationNodes = [currentContract, ...activeBranchContracts.map((item) => item.contract)].filter((contract): contract is ExecutionContract => Boolean(contract && contract.stage === 'frozen')).filter((contract, index, list) => list.findIndex((item) => item.uuid === contract.uuid) === index)
   const mergeSources = branches.map((branch) => contracts.find((contract) => contract.uuid === branch.headContractUuid && contract.stage === 'completed' && contract.completionRecordUuid)).filter((contract): contract is ExecutionContract => Boolean(contract)).filter((contract, index, list) => list.findIndex((item) => item.uuid === contract.uuid) === index)
   const latestCompleted = latestAcceptedContractForProject(project.uuid, contracts, completionRecords)
@@ -59,8 +61,13 @@ export function ProjectPage() {
     <div className="space-y-9">
       <section className="grid gap-6 border-b border-rail pb-7 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div><div className="flex flex-wrap items-center gap-3 font-mono text-xs font-semibold uppercase text-signal">项目 <ProjectVisibilityBadge visibility={project.visibility} /><ProjectTypeBadge projectType={project.projectType} />{isArchived ? <ProjectArchiveBadge /> : null}</div><h1 className="mt-3 font-display text-4xl font-semibold leading-tight text-ink">{project.title}</h1>{project.description ? <p className="mt-3 max-w-3xl text-base leading-7 text-graphite">{project.description}</p> : null}<div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold text-graphite"><span>{completionRecords.filter(isAcceptedRecord).length} 条已验收成果</span><span>{unlockedContracts.length} 个未闭合行动</span>{branches.length > 0 ? <span>{branches.length} 条行为路径</span> : null}</div></div>
-        <div className="border-l-2 border-ink bg-shell p-5">
-          {activeSmartContract ? (
+        <div className={`border-l-2 ${isQuickAction ? 'border-signal' : 'border-ink'} bg-shell p-5`}>
+          {isQuickAction ? (
+            <>
+              <div className="font-mono text-xs font-semibold uppercase text-signal">日常行动</div>
+              <p className="mt-3 text-sm leading-6 text-graphite">从一件具体的小事开始，AI 只帮你抓住最重要的几个重点。</p>
+            </>
+          ) : activeSmartContract ? (
             <>
               <div className="font-mono text-xs font-semibold uppercase text-signal">当前智能合约</div>
               <div className="mt-3 text-lg font-semibold text-ink">{activeSmartContract.name}</div>

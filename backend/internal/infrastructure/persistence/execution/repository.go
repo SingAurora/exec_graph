@@ -4,9 +4,11 @@ package execution
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
+	applicationproject "github.com/singaurora/exec-graph/backend/internal/application/project"
 	sharedid "github.com/singaurora/exec-graph/backend/internal/shared/id"
 	"gorm.io/gorm"
 )
@@ -226,6 +228,22 @@ func (repository *Repository) CreateNode(ctx context.Context, input CreateNodePa
 		}
 		return nil
 	})
+}
+
+// FindNodeByPlanningConversation returns the node already created from a planning conversation.
+func (repository *Repository) FindNodeByPlanningConversation(ctx context.Context, userID uint64, projectUUID, conversationUUID string) (string, error) {
+	var node struct {
+		UUID string `gorm:"column:uuid"`
+	}
+	err := repository.orm.WithContext(ctx).Table("execution_contracts AS n").Select("n.uuid").
+		Joins("JOIN projects AS p ON p.id = n.project_id").
+		Joins("JOIN node_conversations AS c ON c.node_id = n.id").
+		Where("p.uuid = ? AND p.owner_id = ? AND c.uuid = ? AND c.owner_id = ? AND c.phase = ?", projectUUID, userID, conversationUUID, userID, "planning").
+		First(&node).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return "", applicationproject.ErrNotFound
+	}
+	return node.UUID, err
 }
 
 // EdgeProjection is a public execution edge projection.

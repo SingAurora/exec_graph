@@ -139,6 +139,7 @@ type LockNodeRecord struct {
 
 type ExecutionRepository interface {
 	CreateNode(ctx context.Context, input CreateNodeRecord) error
+	FindNodeByPlanningConversation(ctx context.Context, userID uint64, projectUUID, conversationUUID string) (string, error)
 	LockNode(ctx context.Context, input LockNodeRecord) error
 	ListNodeProjections(ctx context.Context, projectUUID string) ([]NodeRecord, error)
 	ListEdgeProjections(ctx context.Context) ([]EdgeRecord, error)

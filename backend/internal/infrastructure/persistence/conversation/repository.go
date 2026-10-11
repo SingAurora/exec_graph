@@ -8,6 +8,7 @@ import (
 
 	applicationconversation "github.com/singaurora/exec-graph/backend/internal/application/conversation"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // ErrNotFound indicates that a requested conversation or context does not exist.
@@ -186,7 +187,7 @@ func (repository *Repository) ListSourceContexts(ctx context.Context, projectID 
 // FindPlanningConversation finds an existing mutable planning conversation.
 func (repository *Repository) FindPlanningConversation(ctx context.Context, userID uint64, projectID, contextJSON string) (string, error) {
 	var value NodeConversation
-	err := repository.orm.WithContext(ctx).Where("project_id IN (SELECT id FROM projects WHERE uuid = ?) AND owner_id = ? AND phase = ? AND status IN ? AND context_json = ?", projectID, userID, "planning", []string{"active", "ready_for_freeze"}, contextJSON).Order("updated_at DESC").First(&value).Error
+	err := repository.orm.WithContext(ctx).Where("project_id IN (SELECT id FROM projects WHERE uuid = ?) AND owner_id = ? AND phase = ? AND status IN ? AND context_json = ?", projectID, userID, "planning", []string{"active", "ready_for_freeze"}, contextJSON).Order("updated_at DESC, id DESC").First(&value).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return "", applicationconversation.ErrNotFound
 	}
@@ -195,14 +196,26 @@ func (repository *Repository) FindPlanningConversation(ctx context.Context, user
 
 // CreatePlanningConversation creates a planning conversation for an owned project.
 func (repository *Repository) CreatePlanningConversation(ctx context.Context, id string, userID uint64, projectID, contextJSON string) error {
-	var project ProjectContext
-	if err := repository.orm.WithContext(ctx).Table("projects").Where("uuid = ? AND owner_id = ?", projectID, userID).First(&project).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return applicationconversation.ErrNotFound
+	return repository.orm.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var project struct {
+			ID uint64 `gorm:"column:id"`
 		}
-		return err
-	}
-	return repository.orm.WithContext(ctx).Create(&NodeConversation{UUID: id, ProjectID: project.ID, OwnerID: userID, Phase: "planning", Status: "active", ContextJSON: contextJSON}).Error
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Table("projects").Select("id").Where("uuid = ? AND owner_id = ?", projectID, userID).First(&project).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return applicationconversation.ErrNotFound
+			}
+			return err
+		}
+		var existing NodeConversation
+		err := tx.Where("project_id = ? AND owner_id = ? AND phase = ? AND status IN ? AND context_json = ?", project.ID, userID, "planning", []string{"active", "ready_for_freeze"}, contextJSON).Order("updated_at DESC, id DESC").First(&existing).Error
+		if err == nil {
+			return applicationconversation.ErrConversationAlreadyExists
+		}
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+		return tx.Create(&NodeConversation{UUID: id, ProjectID: project.ID, OwnerID: userID, Phase: "planning", Status: "active", ContextJSON: contextJSON}).Error
+	})
 }
 
 // FindRevisionTarget loads the current mutable node and its existing task requirement.
@@ -356,12 +369,27 @@ func (repository *Repository) SaveRevision(ctx context.Context, input applicatio
 
 // FindCompletionConversation finds an active completion conversation.
 func (repository *Repository) FindCompletionConversation(ctx context.Context, userID uint64, projectID, nodeID string) (string, error) {
-	var value NodeConversation
-	err := repository.orm.WithContext(ctx).Table("node_conversations AS c").Joins("JOIN projects AS p ON p.id = c.project_id").Joins("JOIN execution_contracts AS n ON n.id = c.node_id").Where("p.uuid = ? AND n.uuid = ? AND c.owner_id = ? AND c.phase = ? AND c.status = ?", projectID, nodeID, userID, "completion", "active").Order("c.updated_at DESC").First(&value).Error
+	var value struct {
+		ID     uint64 `gorm:"column:id"`
+		UUID   string `gorm:"column:uuid"`
+		NodeID uint64 `gorm:"column:node_id"`
+	}
+	err := repository.orm.WithContext(ctx).Table("node_conversations AS c").Select("c.id, c.uuid, n.id AS node_id").Joins("JOIN projects AS p ON p.id = c.project_id").Joins("JOIN execution_contracts AS n ON n.id = c.node_id").Joins("LEFT JOIN (SELECT conversation_id, MAX(created_at) AS last_message_at FROM node_conversation_messages GROUP BY conversation_id) AS latest_message ON latest_message.conversation_id = c.id").Where("p.uuid = ? AND n.uuid = ? AND c.owner_id = ? AND c.phase = ? AND c.status = ?", projectID, nodeID, userID, "completion", "active").Order("COALESCE(latest_message.last_message_at, c.created_at) DESC, c.updated_at DESC, c.id DESC").First(&value).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return "", applicationconversation.ErrNotFound
 	}
-	return value.UUID, err
+	if err != nil {
+		return "", err
+	}
+	// The selected conversation is the only authoritative active session. This
+	// also repairs nodes created before the idempotent open flow was added.
+	if err := repository.orm.WithContext(ctx).Table("execution_contracts").Where("id = ?", value.NodeID).Update("completion_conversation_id", value.ID).Error; err != nil {
+		return "", err
+	}
+	if err := repository.orm.WithContext(ctx).Table("node_conversations").Where("node_id = ? AND owner_id = ? AND phase = ? AND status = ? AND id <> ?", value.NodeID, userID, "completion", "active", value.ID).Update("status", "closed").Error; err != nil {
+		return "", err
+	}
+	return value.UUID, nil
 }
 
 // FindCompletionContext loads a node and its owning project.
@@ -387,18 +415,31 @@ func (repository *Repository) FindCompletionContext(ctx context.Context, userID 
 // CreateCompletionConversation creates and links a completion conversation atomically.
 func (repository *Repository) CreateCompletionConversation(ctx context.Context, id string, userID uint64, projectID, nodeID, contextJSON, configJSON string) error {
 	return repository.orm.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var project ProjectContext
-		if err := tx.Where("uuid = ? AND owner_id = ?", projectID, userID).First(&project).Error; err != nil {
+		var project struct {
+			ID uint64 `gorm:"column:id"`
+		}
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Table("projects").Select("id").Where("uuid = ? AND owner_id = ?", projectID, userID).First(&project).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return applicationconversation.ErrNotFound
 			}
 			return err
 		}
 		var node ExecutionContract
-		if err := tx.Where("uuid = ? AND project_id = ?", nodeID, project.ID).First(&node).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("uuid = ? AND project_id = ?", nodeID, project.ID).First(&node).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return applicationconversation.ErrNotFound
 			}
+			return err
+		}
+		var existing NodeConversation
+		err := tx.Where("project_id = ? AND node_id = ? AND owner_id = ? AND phase = ? AND status = ?", project.ID, node.ID, userID, "completion", "active").Order("id DESC").First(&existing).Error
+		if err == nil {
+			if err := tx.Model(&node).Update("completion_conversation_id", existing.ID).Error; err != nil {
+				return err
+			}
+			return applicationconversation.ErrConversationAlreadyExists
+		}
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
 		}
 		conversation := NodeConversation{UUID: id, ProjectID: project.ID, NodeID: &node.ID, OwnerID: userID, Phase: "completion", Status: "active", ContextJSON: contextJSON, AIConfigJSON: &configJSON}
@@ -532,14 +573,14 @@ func (repository *Repository) UpdatePlanningConversation(ctx context.Context, us
 func (repository *Repository) PersistCompletionReview(ctx context.Context, input applicationconversation.CompletionReviewSave) error {
 	return repository.orm.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var conversation NodeConversation
-		if err := tx.Where("uuid = ? AND owner_id = ? AND status = ?", input.ConversationID, input.UserID, "active").First(&conversation).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("uuid = ? AND owner_id = ? AND status = ?", input.ConversationID, input.UserID, "active").First(&conversation).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return applicationconversation.ErrNoLongerMutable
 			}
 			return err
 		}
 		var node ExecutionContract
-		if err := tx.Where("uuid = ?", input.NodeID).First(&node).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("uuid = ? AND project_id = ?", input.NodeID, conversation.ProjectID).First(&node).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return applicationconversation.ErrNoLongerMutable
 			}
@@ -554,6 +595,10 @@ func (repository *Repository) PersistCompletionReview(ctx context.Context, input
 		if err := tx.Model(&conversation).Updates(map[string]any{"status": "closed", "latest_review_json": input.ReviewJSON, "ai_config_json": input.ConfigJSON}).Error; err != nil {
 			return err
 		}
-		return tx.Model(&node).Updates(map[string]any{"stage": input.Stage, "completion_claim": input.Claim, "evidence_text": input.Evidence, "started_at": input.StartedAt, "ended_at": input.EndedAt, "ai_review_json": input.ReviewJSON, "completion_review_ai_config_json": input.ConfigJSON, "completion_review_rounds_json": input.RoundsJSON, "review_messages_json": input.MessagesJSON}).Error
+		if err := tx.Model(&node).Updates(map[string]any{"stage": input.Stage, "completion_claim": input.Claim, "evidence_text": input.Evidence, "started_at": input.StartedAt, "ended_at": input.EndedAt, "ai_review_json": input.ReviewJSON, "completion_review_ai_config_json": input.ConfigJSON, "completion_review_rounds_json": input.RoundsJSON, "review_messages_json": input.MessagesJSON}).Error; err != nil {
+			return err
+		}
+		// Close orphaned active sessions left by older non-idempotent open requests.
+		return tx.Table("node_conversations").Where("project_id = ? AND node_id = ? AND owner_id = ? AND phase = ? AND status = ? AND id <> ?", conversation.ProjectID, node.ID, input.UserID, "completion", "active", conversation.ID).Update("status", "closed").Error
 	})
 }
