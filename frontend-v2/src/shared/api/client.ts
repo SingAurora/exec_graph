@@ -3,6 +3,11 @@ type APIErrorBody = {
   msg?: string
 }
 
+export type JSONRequestOptions = {
+  signal?: AbortSignal
+  headers?: HeadersInit
+}
+
 /** Error returned by an HTTP API with its status code preserved. */
 export class APIRequestError extends Error {
   readonly status: number
@@ -15,12 +20,12 @@ export class APIRequestError extends Error {
 }
 
 /** Sends JSON through the shared HTTP boundary and decodes the JSON response. */
-export async function postJSON<TResponse, TBody>(url: string, body: TBody, signal?: AbortSignal): Promise<TResponse> {
+export async function postJSON<TResponse, TBody>(url: string, body: TBody, options: JSONRequestOptions = {}): Promise<TResponse> {
   const response = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...options.headers },
     body: JSON.stringify(body),
-    signal,
+    signal: options.signal,
   })
 
   const payload = await readJSON<TResponse | APIErrorBody>(response)

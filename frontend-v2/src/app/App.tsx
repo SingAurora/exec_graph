@@ -14,7 +14,7 @@ import { SettingsPanel } from '../widgets/settings/SettingsPanel'
 import { AIWorkspace } from '../widgets/ai/AIWorkspace'
 import { TopicPage } from '../widgets/topics/TopicPage'
 
-const currentUser: UserProfile = { id: 'jo', name: '乔', email: 'qiao@example.com', gender: 'unknown', bio: '把想法变成正在发生的事情。', avatar: '', activeDays: 12 }
+const currentUser: UserProfile = { id: 'jo', name: '乔', email: 'qiao@example.com', gender: 'unknown', bio: '把想法变成正在发生的事情。', avatar: '', activeDays: 12, isTestAccount: true }
 const lin: UserProfile = { id: 'lin', name: '林岚', email: 'lin@example.com', gender: 'female', bio: '把手上的事情认真做完。', avatar: '', activeDays: 28 }
 const miao: UserProfile = { id: 'miao', name: 'miao', email: 'miao@example.com', gender: 'unknown', bio: '从生活里找到下一步。', avatar: '', activeDays: 9 }
 

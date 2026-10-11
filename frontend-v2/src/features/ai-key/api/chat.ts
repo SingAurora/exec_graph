@@ -50,7 +50,7 @@ export async function generateAIDocument(input: {
     ],
     temperature: 0.35,
     response_format: { type: 'json_object' },
-  })
+  }, { headers: input.config.apiKey ? { Authorization: `Bearer ${input.config.apiKey}` } : undefined })
   const content = payload.choices?.[0]?.message?.content
   if (!content) throw new Error('AI 没有返回可用内容，请再试一次。')
   return parseDocumentResult(content)

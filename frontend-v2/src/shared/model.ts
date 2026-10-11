@@ -10,6 +10,7 @@ export type UserProfile = {
   bio: string
   avatar: string
   activeDays: number
+  isTestAccount?: boolean
 }
 
 export type ActionTopic = {

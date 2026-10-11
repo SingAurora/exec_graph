@@ -1,7 +1,7 @@
 /** Supported AI service providers. */
 export type AIProvider = 'deepseek' | 'openai' | 'doubao' | 'claude' | 'openai_compatible'
 
-/** Saved AI configuration without the raw API key. */
+/** Saved AI configuration held in the current frontend session. */
 export type AIKeyConfig = {
   id: string
   provider: AIProvider
@@ -9,6 +9,7 @@ export type AIKeyConfig = {
   model: string
   baseUrl: string
   keyHint: string
+  apiKey?: string
   isDefault: boolean
 }
 
