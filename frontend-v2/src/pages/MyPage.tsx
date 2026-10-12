@@ -23,7 +23,7 @@ export function MyPage({ profile, projects, plans, completions, topics, onOpenPr
   const recentCompletions = completions.slice(0, 3)
 
   return <section className="pt-[38px] max-[700px]:pt-7">
-    <header className="flex items-end justify-between gap-6 pb-[27px] max-[700px]:items-stretch max-[700px]:flex-col"><div><h2 className="text-[26px] tracking-[-.04em]">{profile.name}，继续手上的事情</h2><p className="mt-2 text-[13px] leading-[1.7] text-muted">从最近一次互动回来，或者在已有项目里开始一条新计划。</p></div></header>
+    <header className="flex items-end justify-between gap-6 pb-[27px] max-[700px]:items-stretch max-[700px]:flex-col"><div><h2 className="text-[26px] tracking-[-.04em]">{profile.name}，继续手上的事情</h2><p className="mt-2 text-sm leading-[1.7] text-muted">从最近一次互动回来，或者在已有项目里开始一条新计划。</p></div></header>
 
     <section className="grid grid-cols-5 border-y border-line bg-surface max-[700px]:grid-cols-2" aria-label="工作台数据"><Metric value={ownedProjects.length} label="我创建的项目" /><Metric value={joinedProjects.length} label="我参与的项目" /><Metric value={activePlans.length} label="进行中计划" /><Metric value={completions.length} label="完成记录" /><Metric value={profile.activeDays} label="活跃天数" /></section>
 
@@ -45,5 +45,5 @@ export function MyPage({ profile, projects, plans, completions, topics, onOpenPr
 function Metric({ value, label }: { value: number; label: string }) { return <div className="grid gap-[5px] border-r border-line px-5 py-[18px] last:border-r-0 max-[700px]:nth-[2n]:border-r-0 max-[700px]:nth-[-n+4]:border-b max-[700px]:last:col-span-full"><strong className="font-sans text-[27px]">{value}</strong><span className="text-[11px] text-muted">{label}</span></div> }
 
 function DashboardSection({ title, children }: { title: string; children: ReactNode }) {
-  return <section className="pt-[38px]"><div><h2 className="text-[23px] tracking-[-.03em] max-[700px]:text-[21px]">{title}</h2></div>{children}</section>
+  return <section className="pt-[38px]"><div><h2 className="text-[25px] tracking-[-.03em] max-[700px]:text-[22px]">{title}</h2></div>{children}</section>
 }

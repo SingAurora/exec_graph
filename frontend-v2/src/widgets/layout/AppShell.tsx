@@ -28,7 +28,7 @@ export function AppShell({ profile, profileStats, activeView, darkMode, onLogout
     <aside className="sticky top-0 flex h-screen flex-col py-[30px] pb-6 max-[700px]:hidden" aria-label="主导航">
         <a className="inline-flex w-max items-center gap-2.5 font-bold tracking-[-.02em] text-ink" href="#my" aria-label="ExecG 我的工作台"><span className="grid size-[30px] place-items-center rounded-[9px] bg-signal font-sans text-[15px] text-white">E</span><span>ExecG</span></a>
       <nav className="mt-[22px] grid gap-[5px]">
-        {globalNavigation.map(({ view, label, icon: Icon }) => <a className={`flex w-full items-center gap-[13px] rounded-[7px] px-3 py-[11px] text-sm font-semibold text-muted transition duration-150 hover:bg-soft hover:text-ink ${globalView === view ? 'bg-soft text-signal' : ''}`} href={`#${view}`} key={view}>
+        {globalNavigation.map(({ view, label, icon: Icon }) => <a className={`flex w-full items-center gap-[13px] rounded-[7px] px-3 py-[11px] text-[15px] leading-[22px] font-semibold text-muted transition duration-150 hover:bg-soft hover:text-ink ${globalView === view ? 'bg-soft text-signal' : ''}`} href={`#${view}`} key={view}>
           <span className="grid w-[22px] place-items-center"><Icon size={17} strokeWidth={1.8} /></span>{label}
         </a>)}
       </nav>
@@ -44,7 +44,7 @@ export function AppShell({ profile, profileStats, activeView, darkMode, onLogout
     <main className="min-w-0 py-[30px] pb-[100px] max-[700px]:px-[18px] max-[700px]:pb-[70px] max-[700px]:pt-0" id="top">
       <header className="hidden h-[62px] items-center justify-between border-b border-line max-[700px]:flex"><a className="inline-flex w-max items-center gap-2.5 font-bold tracking-[-.02em] text-ink" href="#my"><span className="grid size-[30px] place-items-center rounded-[9px] bg-signal font-sans text-[15px] text-white">E</span><span>ExecG</span></a></header>
       <header className="flex min-h-[66px] items-center justify-between gap-5 border-b border-line max-[700px]:min-h-[58px]"><h1 className="font-sans text-[21px] tracking-[-.03em] max-[700px]:text-[19px]">{pageTitle[activeView]}</h1>{activeView === 'my' && <a className="inline-flex min-h-[34px] items-center gap-[7px] rounded-md border border-line bg-surface px-2.5 py-[7px] text-xs font-bold text-ink transition hover:border-signal hover:text-signal" href="#projects"><FolderKanban size={16} />所有项目</a>}</header>
-      <nav className="hidden grid-cols-3 gap-1 max-[700px]:mt-3 max-[700px]:grid" aria-label="主导航">{globalNavigation.slice(0, 3).map(({ view, label }) => <a className={`flex items-center justify-center rounded-[7px] px-1 py-[9px] text-xs font-semibold text-muted hover:bg-soft hover:text-ink ${globalView === view ? 'bg-soft text-signal' : ''}`} href={`#${view}`} key={view}>{label}</a>)}</nav>
+      <nav className="hidden grid-cols-3 gap-1 max-[700px]:mt-3 max-[700px]:grid" aria-label="主导航">{globalNavigation.slice(0, 3).map(({ view, label }) => <a className={`flex items-center justify-center rounded-[7px] px-1 py-[9px] text-[13px] leading-5 font-semibold text-muted hover:bg-soft hover:text-ink ${globalView === view ? 'bg-soft text-signal' : ''}`} href={`#${view}`} key={view}>{label}</a>)}</nav>
       {children}
     </main>
   </div>
@@ -53,6 +53,6 @@ export function AppShell({ profile, profileStats, activeView, darkMode, onLogout
 export function Avatar({ profile, label, size, tone }: { profile?: UserProfile; label?: string; size: 'small' | 'medium' | 'large'; tone?: 'blue' | 'coral' }) {
   const sizeClass = { small: 'size-8 text-xs', medium: 'size-10 text-sm', large: 'size-[68px] text-2xl' }[size]
   const toneClass = tone === 'coral' ? 'bg-[#f1dfdc] text-coral' : tone === 'blue' ? 'bg-[#dfeaf0] text-[#4d7894]' : 'bg-[#dce9e3] text-signal-dark'
-  const className = `inline-grid size-fit min-w-0 flex-none place-items-center overflow-hidden rounded-[11px] font-bold ${sizeClass} ${toneClass} ${profile?.avatar ? 'bg-cover bg-center bg-no-repeat text-transparent' : ''}`
+  const className = `inline-grid min-w-0 flex-none place-items-center overflow-hidden rounded-[11px] font-bold ${sizeClass} ${toneClass} ${profile?.avatar ? 'bg-cover bg-center bg-no-repeat text-transparent' : ''}`
   return <span className={className} style={profile?.avatar ? { backgroundImage: `url("${profile.avatar}")` } : undefined}>{profile?.avatar ? '' : label ?? profile?.name.slice(0, 1) ?? 'A'}</span>
 }

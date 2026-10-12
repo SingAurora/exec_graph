@@ -33,7 +33,7 @@ export function SettingsPanel({ profile, darkMode, aiConfigs, onSave, onToggleTh
   const update = <K extends keyof UserProfile>(key: K, value: UserProfile[K]) => setDraft((current) => ({ ...current, [key]: value }))
   const saveProfile = (event: FormEvent) => { event.preventDefault(); onSave({ ...draft, name: draft.name.trim() || '乔', bio: draft.bio.trim() || defaultBio }) }
   return <section className="pt-[38px]" aria-labelledby="settings-title">
-    <div><div className="font-sans text-[11px] font-bold uppercase tracking-[.11em] text-signal">调整你的使用方式</div><h2 id="settings-title" className="mt-[7px] text-[23px] tracking-[-.03em]">设置</h2></div>
+    <div><div className="font-sans text-[11px] font-bold uppercase tracking-[.11em] text-signal">调整你的使用方式</div><h2 id="settings-title" className="mt-[7px] text-[25px] tracking-[-.03em] max-[700px]:text-[22px]">设置</h2></div>
     <TabsRoot value={activeTab} onValueChange={(value) => setActiveTab(value as SettingsTab)}>
       <TabsList label="设置分类">
         <TabsTrigger value="profile">个人资料</TabsTrigger>
@@ -44,7 +44,7 @@ export function SettingsPanel({ profile, darkMode, aiConfigs, onSave, onToggleTh
       </TabsList>
 
       <TabsContent value="profile">
-        <div className="mt-5 grid gap-5"><div className="grid items-start gap-5 min-[701px]:grid-cols-[minmax(150px,1fr)_minmax(0,430px)]"><div className="grid gap-[5px]"><strong className="text-sm">个人资料</strong><span className="text-xs text-muted">昵称和个人简介</span></div>
+        <div className="mt-5 grid gap-5"><div className="grid items-start gap-5 min-[701px]:grid-cols-[minmax(150px,1fr)_minmax(0,430px)]"><div className="grid gap-[5px]"><strong className="text-sm">个人资料</strong><span className="text-[13px] text-muted">昵称和个人简介</span></div>
           <form className="grid w-full gap-[9px]" onSubmit={saveProfile}>
             <div className="flex items-start gap-3"><AvatarEditor value={draft.avatar} fallback={draft.name.slice(0, 1)} onChange={(avatar) => update('avatar', avatar)} /><div className="grid gap-[5px]"><span className="text-[11px] text-muted">支持 JPG、PNG 或 WEBP 图片，可在裁剪时调整</span></div></div>
             <label><span className="sr-only">昵称</span><input className="h-9 w-full rounded-md border border-line bg-transparent px-2.5 text-xs text-ink outline-none focus:border-signal" type="text" value={draft.name} onChange={(event) => update('name', event.target.value)} placeholder="昵称" /></label>
