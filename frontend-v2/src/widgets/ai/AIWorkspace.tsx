@@ -11,17 +11,21 @@ type AIWorkspaceProps = {
   profileName: string
   aiConfig?: AIKeyConfig
   plan?: PlanNode
+  contextPlan?: PlanNode
   topicTitle?: string
   initialDocument?: string
+  initialMessages?: ChatMessage[]
+  continuationFromPlan?: boolean
   onBack: () => void
   onStartCompletion?: () => void
-  onConfirm: (markdown: string, details: { title: string; description: string; points: string[]; note: string }) => void
+  onConfirm: (markdown: string, details: { title: string; description: string; points: string[]; note: string }, messages: ChatMessage[]) => void
 }
 
-export function AIWorkspace({ mode, profileName, aiConfig, plan, topicTitle, initialDocument = '', onBack, onStartCompletion, onConfirm }: AIWorkspaceProps) {
+export function AIWorkspace({ mode, profileName, aiConfig, plan, contextPlan, topicTitle, initialDocument = '', initialMessages, continuationFromPlan = false, onBack, onStartCompletion, onConfirm }: AIWorkspaceProps) {
   const isCompletion = mode === 'completion'
   const initialCompletionNote = isCompletion ? readMarkdownSection(initialDocument, '这次实际发生') : ''
-  const [messages, setMessages] = useState<ChatMessage[]>([{ id: 'welcome', speaker: 'ai', body: initialDocument ? isCompletion ? '这是我们最近整理的完成记录。你可以继续补充实际发生的内容。' : '这是我们最近确认的执行计划。你可以继续补充，或者按计划推进。' : isCompletion ? '这次实际发生了什么？不用写得完整，告诉我你记得的部分就好。' : topicTitle ? `你准备以自己的方式完成「${topicTitle}」。先说说你想怎么做。` : '你想推进什么事情？先说说你现在最想开始的一件事。' }])
+  const welcomeMessage: ChatMessage = { id: 'welcome', speaker: 'ai', body: initialDocument ? continuationFromPlan ? '这是上一阶段的计划文档。接下来我们沿着它记录实际发生的事情，并在这份文档上继续整理。' : isCompletion ? '这是我们最近整理的完成记录。你可以继续补充实际发生的内容。' : '这是我们最近确认的执行计划。你可以继续补充，或者按计划推进。' : isCompletion ? '这次实际发生了什么？不用写得完整，告诉我你记得的部分就好。' : contextPlan ? `你正在从「${contextPlan.title}」继续。可以沿着这条路径推进，也可以提出一个不同的方案。先说说你想怎么做。` : topicTitle ? `你准备以自己的方式完成「${topicTitle}」。先说说你想怎么做。` : '你想推进什么事情？先说说你现在最想开始的一件事。' }
+  const [messages, setMessages] = useState<ChatMessage[]>(() => initialMessages?.length ? initialMessages : [welcomeMessage])
   const [input, setInput] = useState('')
   const [document, setDocument] = useState(initialDocument)
   const [documentReady, setDocumentReady] = useState(Boolean(initialDocument))
@@ -50,7 +54,8 @@ export function AIWorkspace({ mode, profileName, aiConfig, plan, topicTitle, ini
         mode,
         turns,
         currentDocument: document,
-        plan: plan ? { title: plan.title, description: plan.description, points: plan.points } : undefined,
+        plan: (plan ?? contextPlan) ? { title: (plan ?? contextPlan)!.title, description: (plan ?? contextPlan)!.description, points: (plan ?? contextPlan)!.points } : undefined,
+        planMarkdown: (plan ?? contextPlan)?.markdown,
       })
       setDraft(result.details)
       setDocument(result.document)
@@ -67,7 +72,7 @@ export function AIWorkspace({ mode, profileName, aiConfig, plan, topicTitle, ini
 
   const confirm = () => {
     if (!documentReady || !document) return
-    onConfirm(document, draft)
+    onConfirm(document, draft, messages.filter((message) => !message.id.startsWith('error-')))
   }
 
   return <section className="pt-[22px]" aria-label={isCompletion ? '生成完成记录' : '生成执行计划'}>

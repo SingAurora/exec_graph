@@ -75,6 +75,7 @@
   .primary-button { @apply inline-flex min-h-[38px] items-center justify-center gap-2 rounded-md border-0 bg-signal px-3.5 py-[9px] text-[13px] font-bold text-white transition hover:bg-signal-dark; }
   .quiet-button { @apply inline-flex items-center justify-center rounded-md border border-line bg-transparent px-3 py-2 text-xs font-semibold text-muted transition hover:border-signal hover:text-signal; }
   .text-button { @apply inline-flex items-center gap-1.5 border-0 bg-transparent px-0 py-2 text-xs font-semibold text-muted hover:text-signal; }
+  .post-summary-clamp { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
 }
 
 .gender-mark { display: inline-flex; align-items: center; justify-content: center; font-family: Arial, sans-serif; font-size: 14px; line-height: 1; }

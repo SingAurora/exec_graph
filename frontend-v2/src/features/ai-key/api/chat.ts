@@ -39,13 +39,14 @@ export async function generateAIDocument(input: {
   turns: AIConversationTurn[]
   currentDocument: string
   plan?: { title: string; description: string; points: string[] }
+  planMarkdown?: string
 }): Promise<AIDocumentResult> {
   if (input.config.provider !== 'deepseek') throw new Error('演示页目前只接入了固定的 DeepSeek 配置。')
 
   const payload = await postJSON<ChatCompletionResponse, ChatCompletionRequest>('/deepseek-api/v1/chat/completions', {
     model: input.config.model,
     messages: [
-      { role: 'system', content: buildSystemPrompt(input.mode, input.currentDocument, input.plan) },
+      { role: 'system', content: buildSystemPrompt(input.mode, input.currentDocument, input.plan, input.planMarkdown) },
       ...input.turns,
     ],
     temperature: 0.35,
@@ -56,15 +57,16 @@ export async function generateAIDocument(input: {
   return parseDocumentResult(content)
 }
 
-function buildSystemPrompt(mode: AIWorkspaceMode, currentDocument: string, plan?: { title: string; description: string; points: string[] }) {
+function buildSystemPrompt(mode: AIWorkspaceMode, currentDocument: string, plan?: { title: string; description: string; points: string[] }, planMarkdown?: string) {
   const task = mode === 'planning'
     ? '帮助用户理清要做的事情，并生成一份可执行的计划 Markdown。你不是裁判，不评价用户是否做得好。'
-    : '帮助用户如实整理实际完成的事情，并生成一份完成记录 Markdown。你不是裁判，不替用户证明完成，也不要把未发生的事情写成已完成。'
+    : '基于计划 Markdown 和前面的连续对话，帮助用户如实整理实际完成的事情，并生成一份完成记录 Markdown。保留计划作为上下文，再补充实际结果、未完成部分和后续观察。你不是裁判，不替用户证明完成，也不要把未发生的事情写成已完成。'
   const shape = mode === 'planning'
     ? '{"reply":"给用户的简短回应","document":"# 标题\\n\\n## 目标...","details":{"title":"标题","description":"目标描述","points":["重点一"],"note":""}}'
     : '{"reply":"给用户的简短回应","document":"# 标题：完成记录\\n\\n## 原计划...","details":{"title":"标题","description":"原计划描述","points":["原计划重点"],"note":"实际发生的事情"}}'
   const context = [
     plan ? `原计划：${JSON.stringify(plan)}` : '',
+    planMarkdown ? `计划 Markdown：\n${planMarkdown}` : '',
     currentDocument ? `当前文档：\n${currentDocument}` : '',
   ].filter(Boolean).join('\n\n')
 

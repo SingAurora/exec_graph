@@ -1,4 +1,4 @@
-export type AppView = 'home' | 'following' | 'publish' | 'my' | 'settings' | 'topic' | 'project' | 'projects'
+export type AppView = 'home' | 'following' | 'publish' | 'my' | 'settings' | 'topic' | 'project' | 'projects' | 'archive'
 
 export type AuthView = 'login' | 'register' | 'forgot'
 
@@ -35,13 +35,22 @@ export type PlanNode = {
   id: string
   topicId: string
   authorId: string
+  parentPlanId?: string
+  branchId?: string
+  branchTitle?: string
   title: string
   description: string
   points: string[]
   markdown: string
+  images?: PostImage[]
+  conversation?: ChatMessage[]
   status: 'draft' | 'active' | 'completed'
   createdAt: string
 }
+
+export type BranchMode = 'continue' | 'fork'
+
+export type ArchiveTab = 'plan' | 'history'
 
 export type CompletionNode = {
   id: string
@@ -50,9 +59,16 @@ export type CompletionNode = {
   authorId: string
   title: string
   markdown: string
+  images?: PostImage[]
+  conversation?: ChatMessage[]
   believeCount: number
   doubtCount: number
   createdAt: string
+}
+
+export type PostImage = {
+  url: string
+  alt: string
 }
 
 export type Reaction = 'believe' | 'doubt' | null

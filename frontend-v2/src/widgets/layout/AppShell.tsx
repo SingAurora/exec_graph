@@ -21,8 +21,8 @@ const globalNavigation: { view: AppView; label: string; icon: typeof Home }[] = 
 ]
 
 export function AppShell({ profile, profileStats, activeView, darkMode, onLogout, onToggleTheme, children }: AppShellProps) {
-  const globalView = activeView === 'publish' || activeView === 'project' || activeView === 'projects' ? 'my' : activeView === 'topic' ? 'home' : activeView
-  const pageTitle: Record<AppView, string> = { my: '首页', following: '关注', home: '发现', settings: '设置', project: '项目详情', projects: '所有项目', publish: 'AI 互动', topic: '行动主题' }
+  const globalView = activeView === 'publish' || activeView === 'project' || activeView === 'projects' || activeView === 'archive' ? 'my' : activeView === 'topic' ? 'home' : activeView
+  const pageTitle: Record<AppView, string> = { my: '首页', following: '关注', home: '发现', settings: '设置', project: '项目详情', projects: '所有项目', publish: 'AI 互动', topic: '行动主题', archive: '楼层资料' }
 
   return <div className="mx-auto grid min-h-screen w-[min(1200px,calc(100%-72px))] grid-cols-[224px_minmax(0,880px)] gap-[62px] max-[1000px]:w-[min(920px,calc(100%-48px))] max-[1000px]:grid-cols-[190px_minmax(0,1fr)] max-[1000px]:gap-[38px] max-[700px]:block max-[700px]:w-full">
     <aside className="sticky top-0 flex h-screen flex-col py-[30px] pb-6 max-[700px]:hidden" aria-label="主导航">
@@ -50,8 +50,8 @@ export function AppShell({ profile, profileStats, activeView, darkMode, onLogout
   </div>
 }
 
-export function Avatar({ profile, label, size, tone }: { profile?: UserProfile; label?: string; size: 'small' | 'medium' | 'large'; tone?: 'blue' | 'coral' }) {
-  const sizeClass = { small: 'size-8 text-xs', medium: 'size-10 text-sm', large: 'size-[68px] text-2xl' }[size]
+export function Avatar({ profile, label, size, tone }: { profile?: UserProfile; label?: string; size: 'tiny' | 'small' | 'medium' | 'large'; tone?: 'blue' | 'coral' }) {
+  const sizeClass = { tiny: 'size-6 rounded-[7px] text-[10px]', small: 'size-8 text-xs', medium: 'size-10 text-sm', large: 'size-[68px] text-2xl' }[size]
   const toneClass = tone === 'coral' ? 'bg-[#f1dfdc] text-coral' : tone === 'blue' ? 'bg-[#dfeaf0] text-[#4d7894]' : 'bg-[#dce9e3] text-signal-dark'
   const className = `inline-grid min-w-0 flex-none place-items-center overflow-hidden rounded-[11px] font-bold ${sizeClass} ${toneClass} ${profile?.avatar ? 'bg-cover bg-center bg-no-repeat text-transparent' : ''}`
   return <span className={className} style={profile?.avatar ? { backgroundImage: `url("${profile.avatar}")` } : undefined}>{profile?.avatar ? '' : label ?? profile?.name.slice(0, 1) ?? 'A'}</span>
