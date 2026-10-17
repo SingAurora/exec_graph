@@ -1,7 +1,7 @@
 import type { AIKeyConfig } from '../../../entities/ai-key/model/types'
 import { postJSON } from '../../../shared/api/client'
 
-export type AIWorkspaceMode = 'planning' | 'completion'
+export type AIWorkspaceMode = 'planning' | 'completion' | 'action'
 
 export type AIConversationTurn = {
   role: 'user' | 'assistant'
@@ -38,6 +38,7 @@ export async function generateAIDocument(input: {
   mode: AIWorkspaceMode
   turns: AIConversationTurn[]
   currentDocument: string
+  contextGuide?: string
   plan?: { title: string; description: string; points: string[] }
   planMarkdown?: string
 }): Promise<AIDocumentResult> {
@@ -46,7 +47,7 @@ export async function generateAIDocument(input: {
   const payload = await postJSON<ChatCompletionResponse, ChatCompletionRequest>('/deepseek-api/v1/chat/completions', {
     model: input.config.model,
     messages: [
-      { role: 'system', content: buildSystemPrompt(input.mode, input.currentDocument, input.plan, input.planMarkdown) },
+      { role: 'system', content: buildSystemPrompt(input.mode, input.currentDocument, input.plan, input.planMarkdown, input.contextGuide) },
       ...input.turns,
     ],
     temperature: 0.35,
@@ -57,17 +58,22 @@ export async function generateAIDocument(input: {
   return parseDocumentResult(content)
 }
 
-function buildSystemPrompt(mode: AIWorkspaceMode, currentDocument: string, plan?: { title: string; description: string; points: string[] }, planMarkdown?: string) {
-  const task = mode === 'planning'
+function buildSystemPrompt(mode: AIWorkspaceMode, currentDocument: string, plan?: { title: string; description: string; points: string[] }, planMarkdown?: string, contextGuide?: string) {
+  const task = mode === 'action'
+    ? '帮助用户如实整理已经发生的一次行动，生成一份简洁、可回看的行动记录 Markdown。不要替用户设定目标，也不要要求行动必须成功。保留过程、结果、失败和观察。'
+    : mode === 'planning'
     ? '帮助用户理清要做的事情，并生成一份可执行的计划 Markdown。你不是裁判，不评价用户是否做得好。'
     : '基于计划 Markdown 和前面的连续对话，帮助用户如实整理实际完成的事情，并生成一份完成记录 Markdown。保留计划作为上下文，再补充实际结果、未完成部分和后续观察。你不是裁判，不替用户证明完成，也不要把未发生的事情写成已完成。'
-  const shape = mode === 'planning'
+  const shape = mode === 'action'
+    ? '{"reply":"给用户的简短回应","document":"# 行动标题\\n\\n行动经过和结果...","details":{"title":"行动标题","description":"行动摘要","points":["实际发生的一点"],"note":"留下的观察"}}'
+    : mode === 'planning'
     ? '{"reply":"给用户的简短回应","document":"# 标题\\n\\n## 目标...","details":{"title":"标题","description":"目标描述","points":["重点一"],"note":""}}'
     : '{"reply":"给用户的简短回应","document":"# 标题：完成记录\\n\\n## 原计划...","details":{"title":"标题","description":"原计划描述","points":["原计划重点"],"note":"实际发生的事情"}}'
   const context = [
     plan ? `原计划：${JSON.stringify(plan)}` : '',
     planMarkdown ? `计划 Markdown：\n${planMarkdown}` : '',
     currentDocument ? `当前文档：\n${currentDocument}` : '',
+    contextGuide ? `行动图指引（只约束整理方向，不得改写用户未表达的事实）：\n${contextGuide}` : '',
   ].filter(Boolean).join('\n\n')
 
   return `${task}\n每轮都要根据完整对话返回更新后的整份文档。只输出合法 JSON，不要使用 Markdown 代码围栏。JSON 结构必须是：${shape}\nreply 应简短自然；document 必须是完整 Markdown；details 必须与 document 内容一致。不要编造用户没有表达的事实。\n\n${context}`

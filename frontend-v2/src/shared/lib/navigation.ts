@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { AppView, AuthView } from '../model'
 
-const appViews: AppView[] = ['home', 'following', 'publish', 'my', 'settings', 'topic', 'project', 'projects', 'archive']
+const appViews: AppView[] = ['home', 'following', 'publish', 'my', 'settings', 'topic', 'project', 'projects', 'action-archive']
 const authViews: AuthView[] = ['login', 'register', 'forgot']
 
 export function isAppView(value: string): value is AppView {

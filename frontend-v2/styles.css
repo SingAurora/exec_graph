@@ -31,6 +31,8 @@
   --signal-soft: #e5f0eb;
   --coral: #b85e4e;
   --warning: #a16f24;
+  --graph-blue: #577f9b;
+  --graph-purple: #8b709c;
   --shadow: 0 18px 48px rgb(28 48 40 / 0.08);
   font-family: 'Noto Sans SC', 'DM Sans', sans-serif;
   background: var(--paper);
@@ -53,6 +55,8 @@
   --signal-soft: #263d34;
   --coral: #ec927f;
   --warning: #dfb765;
+  --graph-blue: #8cb6d1;
+  --graph-purple: #b69ac9;
   --shadow: 0 18px 48px rgb(0 0 0 / 0.24);
 }
 
@@ -76,6 +80,13 @@
   .quiet-button { @apply inline-flex items-center justify-center rounded-md border border-line bg-transparent px-3 py-2 text-xs font-semibold text-muted transition hover:border-signal hover:text-signal; }
   .text-button { @apply inline-flex items-center gap-1.5 border-0 bg-transparent px-0 py-2 text-xs font-semibold text-muted hover:text-signal; }
   .post-summary-clamp { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+  .record-markdown { color: var(--ink); font-size: 14px; line-height: 1.85; }
+  .record-markdown h1 { margin: 0 0 18px; font-size: 24px; line-height: 1.35; letter-spacing: -.03em; }
+  .record-markdown h2 { margin: 26px 0 8px; color: var(--signal-dark); font-size: 13px; line-height: 1.5; }
+  .record-markdown p { margin: 10px 0 0; }
+  .record-markdown ul, .record-markdown ol { margin: 10px 0 0; padding-left: 22px; }
+  .record-markdown li { margin-top: 5px; }
+  .record-markdown strong { color: var(--signal-dark); font-weight: 700; }
 }
 
 .gender-mark { display: inline-flex; align-items: center; justify-content: center; font-family: Arial, sans-serif; font-size: 14px; line-height: 1; }

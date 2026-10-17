@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { CircleAlert, Info, TriangleAlert } from 'lucide-react'
+import { Switch } from 'radix-ui'
 import { AvatarEditor } from '../../features/profile/ui/AvatarEditor'
 import { GenderMark } from '../../shared/ui/profile/GenderMark'
 import { Select } from '../../shared/ui/select/Select'
@@ -7,14 +7,16 @@ import { TabsContent, TabsList, TabsRoot, TabsTrigger } from '../../shared/ui/ta
 import type { AIKeyConfig, SaveAIKeyInput } from '../../entities/ai-key/model/types'
 import { AIKeySettings } from '../../features/ai-key/ui/AIKeySettings'
 import type { UserProfile } from '../../shared/model'
-import { useToast } from '../../shared/ui/toast/useToast'
+import { ComponentShowcase } from './components/ComponentShowcase'
 
 type SettingsPanelProps = {
   profile: UserProfile
   darkMode: boolean
+  showActionGraphLegend: boolean
   aiConfigs: AIKeyConfig[]
   onSave: (profile: UserProfile) => void
   onToggleTheme: () => void
+  onShowActionGraphLegendChange: (show: boolean) => void
   onSaveAIConfig: (input: SaveAIKeyInput) => void
   onSetDefaultAIConfig: (id: string) => void
   onDeleteAIConfig: (id: string) => void
@@ -23,12 +25,11 @@ type SettingsPanelProps = {
 type SettingsTab = 'profile' | 'ai' | 'account' | 'preferences' | 'components'
 const defaultBio = '把想法变成正在发生的事情。'
 
-export function SettingsPanel({ profile, darkMode, aiConfigs, onSave, onToggleTheme, onSaveAIConfig, onSetDefaultAIConfig, onDeleteAIConfig }: SettingsPanelProps) {
+export function SettingsPanel({ profile, darkMode, showActionGraphLegend, aiConfigs, onSave, onToggleTheme, onShowActionGraphLegendChange, onSaveAIConfig, onSetDefaultAIConfig, onDeleteAIConfig }: SettingsPanelProps) {
   const [draft, setDraft] = useState({ ...profile, bio: profile.bio.trim() || defaultBio })
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile')
   const [emailStatus, setEmailStatus] = useState('')
   const [passwordStatus, setPasswordStatus] = useState('')
-  const { showToast } = useToast()
 
   const update = <K extends keyof UserProfile>(key: K, value: UserProfile[K]) => setDraft((current) => ({ ...current, [key]: value }))
   const saveProfile = (event: FormEvent) => { event.preventDefault(); onSave({ ...draft, name: draft.name.trim() || '乔', bio: draft.bio.trim() || defaultBio }) }
@@ -67,16 +68,12 @@ export function SettingsPanel({ profile, darkMode, aiConfigs, onSave, onToggleTh
       </TabsContent>
 
       <TabsContent value="preferences">
-        <div className="mt-5 grid gap-5"><div className="flex items-center justify-between gap-5 max-[700px]:grid max-[700px]:items-start"><div className="grid gap-[5px]"><strong className="text-sm">界面主题</strong><span className="text-xs text-muted">切换浅色或深色显示</span></div><button className="inline-flex w-max items-center justify-center rounded-md border border-line bg-transparent px-3 py-2 text-xs font-semibold text-muted transition hover:border-signal hover:text-signal" type="button" onClick={onToggleTheme}>{darkMode ? '切换浅色' : '切换深色'}</button></div></div>
+        <div className="mt-5 grid gap-5"><div className="flex items-center justify-between gap-5 max-[700px]:grid max-[700px]:items-start"><div className="grid gap-[5px]"><strong className="text-sm">界面主题</strong><span className="text-xs text-muted">切换浅色或深色显示</span></div><button className="inline-flex w-max items-center justify-center rounded-md border border-line bg-transparent px-3 py-2 text-xs font-semibold text-muted transition hover:border-signal hover:text-signal" type="button" onClick={onToggleTheme}>{darkMode ? '切换浅色' : '切换深色'}</button></div>
+          <div className="flex items-center justify-between gap-5 border-t border-line pt-5"><label className="cursor-pointer text-sm font-semibold" htmlFor="show-action-graph-legend">显示节点关系图例</label><Switch.Root id="show-action-graph-legend" checked={showActionGraphLegend} onCheckedChange={onShowActionGraphLegendChange} className="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border-0 bg-line p-0.5 outline-none transition-colors data-[state=checked]:bg-signal focus-visible:ring-2 focus-visible:ring-signal/25"><Switch.Thumb className="block size-4 rounded-full bg-white shadow-sm transition-transform data-[state=checked]:translate-x-4" /></Switch.Root></div>
+        </div>
       </TabsContent>
 
-      {profile.isTestAccount && <TabsContent value="components">
-        <div className="mt-5 grid gap-4">
-          <div className="flex items-center justify-between gap-5"><span className="inline-flex items-center gap-2 text-[13px] font-bold text-coral"><CircleAlert size={17} />错误</span><button className="inline-flex items-center justify-center rounded-md border border-line bg-transparent px-3 py-2 text-xs font-semibold text-muted transition hover:border-signal hover:text-signal" type="button" onClick={() => showToast({ kind: 'error', message: '示例：操作失败，请稍后重试。' })}>显示错误</button></div>
-          <div className="flex items-center justify-between gap-5"><span className="inline-flex items-center gap-2 text-[13px] font-bold text-warning"><TriangleAlert size={17} />警告</span><button className="inline-flex items-center justify-center rounded-md border border-line bg-transparent px-3 py-2 text-xs font-semibold text-muted transition hover:border-signal hover:text-signal" type="button" onClick={() => showToast({ kind: 'warning', message: '示例：当前配置还没有完成验证。' })}>显示警告</button></div>
-          <div className="flex items-center justify-between gap-5"><span className="inline-flex items-center gap-2 text-[13px] font-bold text-signal"><Info size={17} />提示</span><button className="inline-flex items-center justify-center rounded-md border border-line bg-transparent px-3 py-2 text-xs font-semibold text-muted transition hover:border-signal hover:text-signal" type="button" onClick={() => showToast({ kind: 'info', message: '示例：设置已更新。' })}>显示提示</button></div>
-        </div>
-      </TabsContent>}
+      {profile.isTestAccount && <TabsContent value="components"><ComponentShowcase /></TabsContent>}
     </TabsRoot>
   </section>
 }

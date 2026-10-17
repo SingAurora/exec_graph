@@ -1,0 +1,45 @@
+@layer components {
+  .action-graph-panel { display: flex; min-height: 0; min-width: 0; flex-direction: column; border-right: 1px solid var(--line); }
+  .action-graph-heading { display: flex; flex: none; justify-content: space-between; align-items: center; padding: 18px 18px 13px; }
+  .action-graph-heading h3 { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; }
+  .action-graph-heading h3 > svg { color: var(--signal); }
+  .action-graph-heading p { margin-top: 7px; color: var(--muted); font-size: 10px; }
+  .action-graph-heading-actions { display: flex; flex: none; align-items: center; gap: 6px; }
+  .action-graph-icon-button { display: grid; width: 28px; height: 28px; flex: none; place-items: center; border: 1px solid var(--line); border-radius: 5px; background: transparent; color: var(--muted); }
+  .action-graph-icon-button:hover { background: var(--soft); color: var(--signal); }
+  .action-graph-icon-button:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+  .action-graph-legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 8px; padding: 0 18px 13px; }
+  .action-graph-legend span { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 10px; }
+  .action-graph-legend i { width: 16px; height: 0; flex: none; border-top: 2px solid var(--muted); }
+  .action-graph-legend .is-dashed { border-top-style: dashed; }
+  .action-graph-legend b { display: inline-grid; width: 16px; height: 16px; flex: none; place-items: center; color: var(--coral); font-size: 16px; font-weight: 500; line-height: 1; }
+  .action-graph-legend .is-level { border: 1px solid var(--muted); border-radius: 50%; color: var(--muted); font-size: 9px; }
+  .action-graph-scroll { min-height: 0; flex: 1; border-top: 1px solid var(--line); overflow-x: hidden; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line) transparent; background: radial-gradient(circle, var(--line) 0.65px, transparent 0.8px) 0 0 / 16px 16px; }
+  .action-graph-scroll:focus-visible { outline: 2px solid var(--signal); outline-offset: -2px; }
+  .action-graph-canvas { position: relative; margin: 0 auto; }
+  .action-graph-surface { position: absolute; inset: 0; pointer-events: none; }
+  .action-graph-edge-targets { position: absolute; inset: 0; max-width: none; overflow: visible; pointer-events: none; }
+  .action-graph-edge-targets path { fill: none; stroke: transparent; stroke-width: 14px; pointer-events: stroke; cursor: pointer; outline: none; -webkit-tap-highlight-color: transparent; }
+  /* SVG focus outlines can surround the entire curve bounds; trace the path instead. */
+  .action-graph-edge-targets path:focus, .action-graph-edge-targets path:focus-visible { outline: none; }
+  .action-graph-edge-targets path:focus-visible { stroke: color-mix(in srgb, var(--signal) 12%, transparent); }
+  .action-graph-node-target { position: absolute; z-index: 1; width: 40px; height: 40px; padding: 0; border: 0; border-radius: 50%; background: transparent; transform: translate(-50%, -50%); }
+  .action-graph-node-target:hover { background: color-mix(in srgb, var(--signal) 5%, transparent); }
+  .action-graph-node-target:focus-visible { outline: 2px solid var(--signal); outline-offset: 3px; }
+  .action-graph-tooltip { position: fixed; z-index: 80; width: 308px; max-height: 330px; overflow: hidden; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow); pointer-events: none; }
+  .action-graph-tooltip-kicker { font-size: 10px; color: var(--muted); }
+  .action-graph-tooltip h4 { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; margin: 6px 0 10px; font-size: 13px; line-height: 1.6; font-weight: 600; }
+  .action-graph-tooltip-author { display: flex; align-items: center; gap: 7px; margin-bottom: 10px; font-size: 10px; color: var(--muted); }
+  .action-graph-tooltip-author strong { color: var(--ink); font-weight: 500; }
+  .action-graph-tooltip-author time { margin-left: auto; }
+  .action-graph-tooltip-preview { display: flex; gap: 10px; align-items: flex-start; }
+  .action-graph-tooltip-preview p { min-width: 0; font-size: 11px; line-height: 1.8; color: var(--muted); }
+  .action-graph-tooltip-preview img { width: 56px; height: 56px; flex: 0 0 56px; object-fit: cover; border-radius: 4px; }
+  .action-graph-tooltip-meta { margin-top: 10px; font-size: 10px; line-height: 1.7; color: var(--muted); }
+  .action-graph-tooltip-agreement { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+  .action-graph-tooltip-agreement > span { font-size: 10px; color: var(--signal); }
+  .action-graph-tooltip-agreement p { margin-top: 4px; font-size: 11px; line-height: 1.8; color: var(--muted); }
+  .action-graph-tooltip-status { margin-top: 12px; font-size: 11px; color: var(--signal); }
+  .action-graph-tooltip-status.is-exception { color: var(--coral); }
+  .action-graph-tooltip-reason { margin-top: 6px; font-size: 11px; line-height: 1.8; color: var(--ink); }
+}

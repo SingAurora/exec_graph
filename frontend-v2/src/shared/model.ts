@@ -1,4 +1,4 @@
-export type AppView = 'home' | 'following' | 'publish' | 'my' | 'settings' | 'topic' | 'project' | 'projects' | 'archive'
+export type AppView = 'home' | 'following' | 'publish' | 'my' | 'settings' | 'topic' | 'project' | 'projects' | 'action-archive'
 
 export type AuthView = 'login' | 'register' | 'forgot'
 
@@ -27,8 +27,11 @@ export type Project = {
   participantIds: string[]
   title: string
   description: string
+  avatar?: string
+  backgroundImage?: string
   createdAt: string
   updatedAt: string
+  contextGuide?: string
 }
 
 export type PlanNode = {
