@@ -21,7 +21,7 @@
 }
 
 :root {
-  color-scheme: light;
+  color-scheme: only light;
   --paper: #f6f8f6;
   --surface: #ffffff;
   --soft: #edf2ef;

@@ -3,6 +3,7 @@ import dagre from 'cytoscape-dagre'
 import type { ActionNode } from '../../../entities/action/model/types'
 import { getActionReferences, type ActionReference } from '../../../entities/action/lib/references'
 import { getActionLevels } from '../../../entities/action/lib/levels'
+import { getActionContextIds } from '../../../entities/action/lib/graph'
 
 cytoscape.use(dagre)
 
@@ -26,15 +27,18 @@ export function createActionLayout(actions: ActionNode[], mainPath: ActionNode[]
   const levels = getActionLevels(actions)
   if (!actions.length) return { elements: [], positions: new Map(), levels, references, height: 460 }
   const mainIds = new Set(mainPath.map((node) => node.id))
+  const tip = mainPath.at(-1)
+  const contextIds = tip ? getActionContextIds(actions, tip.id) : new Set<string>()
   const elements: ElementDefinition[] = [...actions].sort((a, b) => b.number - a.number).map((node) => ({
-    data: { id: node.id, level: String(levels.get(node.id)) }, classes: mainIds.has(node.id) ? 'main' : 'branch',
+    data: { id: node.id, level: String(levels.get(node.id)) }, classes: mainIds.has(node.id) ? 'main' : contextIds.has(node.id) ? 'context' : 'branch',
   }))
   for (const reference of references) {
     elements.push({
       data: { id: reference.id, source: reference.source.id, target: reference.target.id },
       classes: [reference.sameAuthor ? 'same-author' : 'other-author',
         reference.incorporated ? 'incorporated' : 'continuation',
-        mainIds.has(reference.source.id) && mainIds.has(reference.target.id) && !reference.incorporated ? 'main' : 'branch',
+        mainIds.has(reference.source.id) && mainIds.has(reference.target.id) && !reference.incorporated ? 'main'
+          : contextIds.has(reference.source.id) && contextIds.has(reference.target.id) ? 'context' : 'branch',
         reference.agreementStatus === 'exception' ? 'exception' : ''].join(' '),
     })
   }

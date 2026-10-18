@@ -6,6 +6,7 @@ import { CreateProjectDialog } from '../features/project/ui/CreateProjectDialog'
 import { formatDateTime } from '../shared/lib/date'
 import type { ActionTopic, CompletionNode, PlanNode, Project } from '../shared/model'
 import { Select } from '../shared/ui/select/Select'
+import { Pagination } from '../shared/ui/Pagination'
 
 type ProjectGroup = 'owned' | 'joined'
 type ProjectSort = 'updated-desc' | 'created-desc' | 'name-asc'
@@ -57,7 +58,7 @@ export function ProjectsPage({ currentUserId, projects, topics, plans, completio
     </div>
     <div className="flex items-center justify-between gap-4 px-0.5 pb-3 pt-[3px] text-[11px] text-muted"><span>共 {filteredProjects.length} 个行动图</span><span className="font-bold text-signal">{activeGroup === 'owned' ? '我发起的行动图' : '我参与的行动图'}</span></div>
     <ProjectList projects={pageProjects} topics={topics} plans={plans} completions={completions} onOpenProject={onOpenProject} emptyMessage={normalizedKeyword ? '没有找到相关行动图。' : '暂无行动图。'} dateField={sort === 'created-desc' ? 'createdAt' : 'updatedAt'} />
-    {filteredProjects.length > 0 && <Pagination currentPage={currentPage} pageCount={pageCount} onChange={setPage} />}
+    {filteredProjects.length > 0 && <Pagination label="行动图分页" currentPage={currentPage} pageCount={pageCount} onChange={setPage} />}
     {showCreateDialog && <CreateProjectDialog returnFocusRef={createProjectButtonRef} onClose={() => setShowCreateDialog(false)} onCreate={onCreateProject} />}
   </section>
 }
@@ -70,16 +71,6 @@ function ProjectList({ projects, topics, plans, completions, onOpenProject, empt
     const activeCount = projectPlans.filter((plan) => plan.status === 'active').length
     return <button className="grid w-full grid-cols-[42px_minmax(0,1fr)_auto] items-center gap-3.5 border-0 border-b border-line bg-transparent px-1 py-5 text-left text-ink hover:bg-soft max-[700px]:grid-cols-[40px_minmax(0,1fr)]" type="button" onClick={() => onOpenProject(project.id)} key={project.id}><ProjectAvatar project={project} /><span className="grid min-w-0 gap-1"><strong className="text-[15px]">{project.title}</strong><small className="text-xs leading-[1.5] text-muted">{project.description}</small><span className="text-[10px] font-bold text-signal">{activeCount} 项进行中 · {projectPlans.length} 项计划 · {projectCompletions.length} 条完成</span></span><span className="flex items-center gap-2.5 text-[11px] text-muted max-[700px]:col-start-2 max-[700px]:justify-between">{dateField === 'createdAt' ? '创建' : '更新'} {formatDateTime(project[dateField])}<ArrowRight className="text-signal" size={16} /></span></button>
   })}{!projects.length && <p className="py-[25px] text-[13px] text-muted">{emptyMessage}</p>}</div>
-}
-
-function Pagination({ currentPage, pageCount, onChange }: { currentPage: number; pageCount: number; onChange: (page: number) => void }) {
-  const pageNumbers = Array.from(new Set([1, currentPage - 1, currentPage, currentPage + 1, pageCount])).filter((page) => page >= 1 && page <= pageCount).sort((left, right) => left - right)
-
-  return <nav className="flex items-center justify-center gap-[7px] pt-6" aria-label="行动图分页">
-    <button className="grid size-8 place-items-center rounded-md border border-line bg-surface text-muted hover:border-signal hover:text-signal" type="button" aria-label="上一页" title="上一页" disabled={currentPage === 1} onClick={() => onChange(currentPage - 1)}><ArrowLeft size={15} /></button>
-    <div className="flex items-center gap-[7px]">{pageNumbers.map((pageNumber, index) => <span className="flex items-center gap-[7px]" key={pageNumber}>{index > 0 && pageNumber - pageNumbers[index - 1] > 1 && <span className="text-[11px] text-muted">...</span>}<button className={`grid size-8 place-items-center rounded-md border border-line bg-surface text-[11px] font-bold text-muted hover:border-signal hover:text-signal ${pageNumber === currentPage ? 'border-signal bg-signal-soft text-signal' : ''}`} type="button" aria-label={`第 ${pageNumber} 页`} aria-current={pageNumber === currentPage ? 'page' : undefined} onClick={() => onChange(pageNumber)}>{pageNumber}</button></span>)}</div>
-    <button className="grid size-8 place-items-center rounded-md border border-line bg-surface text-muted hover:border-signal hover:text-signal" type="button" aria-label="下一页" title="下一页" disabled={currentPage === pageCount} onClick={() => onChange(currentPage + 1)}><ArrowRight size={15} /></button>
-  </nav>
 }
 
 function compareProjects(left: Project, right: Project, sort: ProjectSort) {

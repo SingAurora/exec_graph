@@ -4,11 +4,11 @@ import { MarkdownContent } from '../../../shared/ui/MarkdownContent'
 import { RecordImages } from '../../../shared/ui/RecordImages'
 
 /** Displays an effective expression without substituting factual content for an empty one. */
-export function ExpressionContent({ expression, nodeId, users }: { expression: ActionExpression; nodeId: string; users: UserProfile[] }) {
+export function ExpressionContent({ expression, nodeId, users, showImageCaptions = true }: { expression: ActionExpression; nodeId: string; users: UserProfile[]; showImageCaptions?: boolean }) {
   const empty = !expression.markdown.trim()
   return <div>
     <ExpressionSource expression={expression} nodeId={nodeId} users={users} />
-    {empty ? <p className="py-3 text-sm text-muted">暂无表达</p> : <><MarkdownContent markdown={expression.markdown} /><RecordImages images={expression.sourceNode?.images ?? []} /></>}
+    {empty ? <p className="py-3 text-sm text-muted">暂无表达</p> : <><MarkdownContent markdown={expression.markdown} /><RecordImages images={expression.sourceNode?.images ?? []} showCaptions={showImageCaptions} /></>}
   </div>
 }
 

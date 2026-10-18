@@ -19,6 +19,13 @@ export class APIRequestError extends Error {
   }
 }
 
+/** Reads a file through the shared HTTP boundary, preserving its MIME type. */
+export async function getBlob(url: string): Promise<Blob> {
+  const response = await fetch(url)
+  if (!response.ok) throw new APIRequestError(`图片下载失败（${response.status}）`, response.status)
+  return response.blob()
+}
+
 /** Sends JSON through the shared HTTP boundary and decodes the JSON response. */
 export async function postJSON<TResponse, TBody>(url: string, body: TBody, options: JSONRequestOptions = {}): Promise<TResponse> {
   const response = await fetch(url, {

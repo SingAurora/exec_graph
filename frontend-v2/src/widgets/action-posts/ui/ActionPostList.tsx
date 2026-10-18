@@ -1,5 +1,5 @@
 import { Plus } from 'lucide-react'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { getActionExpression } from '../../../entities/action/lib/expressions'
 import { getActionLevels } from '../../../entities/action/lib/levels'
 import type { ActionDocumentMode, ActionNode } from '../../../entities/action/model/types'
@@ -18,23 +18,45 @@ type ActionPostListProps = {
   users: UserProfile[]
   mode: ActionDocumentMode
   searchQuery?: string
+  infinite?: boolean
+  active?: boolean
   onExplore: (node: ActionNode, mode: ActionDocumentMode) => void
   onCreate?: () => void
 }
 
+const pageSize = 6
+
 /** Shows compact expressions or actions with separate document, profile, and image interactions. */
-export function ActionPostList({ nodes, actions, users, mode, searchQuery, onExplore, onCreate }: ActionPostListProps) {
+export function ActionPostList({ nodes, actions, users, mode, searchQuery, infinite = false, active = true, onExplore, onCreate }: ActionPostListProps) {
   const levels = useMemo(() => getActionLevels(actions), [actions])
-  if (!nodes.length) return <div className="border-y border-line py-16 text-center">
+  const [visibleCount, setVisibleCount] = useState(pageSize)
+  const endRef = useRef<HTMLParagraphElement>(null)
+  const hasMore = infinite && visibleCount < nodes.length
+  useEffect(() => {
+    const end = endRef.current
+    if (!active || !hasMore || !end) return
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries.some((entry) => entry.isIntersecting)) return
+      observer.disconnect()
+      setVisibleCount((count) => Math.min(count + pageSize, nodes.length))
+    }, { rootMargin: '160px 0px' })
+    observer.observe(end)
+    return () => observer.disconnect()
+  }, [active, hasMore, nodes.length, visibleCount])
+
+  if (!nodes.length) return <div className="py-16 text-center" role="status">
     <h3 className="text-[17px]">{mode === 'expression' ? '暂无表达' : '暂无行动'}</h3>
     {onCreate && <button className="primary-button mt-5" type="button" onClick={onCreate}><Plus size={16} />记录行动</button>}
   </div>
-  return <section className="min-w-0 divide-y divide-line" aria-label={mode === 'expression' ? '表达列表' : '行动列表'}>
-    {nodes.map((node) => <ActionPostItem key={node.id} node={node} level={levels.get(node.id)} actions={actions} users={users} mode={mode} searchQuery={searchQuery} onExplore={onExplore} />)}
-  </section>
+  return <div className="min-w-0">
+    <section className="divide-y divide-line" aria-label={mode === 'expression' ? '表达列表' : '行动列表'}>
+      {(infinite ? nodes.slice(0, visibleCount) : nodes).map((node) => <ActionPostItem key={node.id} node={node} level={levels.get(node.id)} actions={actions} users={users} mode={mode} searchQuery={searchQuery} onExplore={onExplore} />)}
+    </section>
+    {infinite && <p ref={endRef} className="py-8 text-center text-xs leading-5 text-muted" role="status">{hasMore ? '加载中…' : '没有更多了'}</p>}
+  </div>
 }
 
-function ActionPostItem({ node, level, actions, users, mode, searchQuery, onExplore }: Omit<ActionPostListProps, 'nodes' | 'onCreate'> & { node: ActionNode; level: number | undefined }) {
+function ActionPostItem({ node, level, actions, users, mode, searchQuery, onExplore }: Omit<ActionPostListProps, 'nodes' | 'onCreate' | 'infinite' | 'active'> & { node: ActionNode; level: number | undefined }) {
   const author = users.find((user) => user.id === node.authorId)
   const expression = mode === 'expression' ? getActionExpression(actions, node.id) : undefined
   const previewImages = expression ? (expression.markdown.trim() ? expression.sourceNode?.images ?? [] : []) : node.images

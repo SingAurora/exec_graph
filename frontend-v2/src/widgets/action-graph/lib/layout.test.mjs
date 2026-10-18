@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { demoActions } from '../../../app/demo/actions.ts'
-import { getActionContextIds, getActionParentIds, getPreferredPath } from '../../../entities/action/lib/graph.ts'
+import { getActionContextIds, getActionParentIds, getAncestors, getPreferredPath } from '../../../entities/action/lib/graph.ts'
 import { getActionReferences } from '../../../entities/action/lib/references.ts'
 import { getActionLevels } from '../../../entities/action/lib/levels.ts'
 import { createActionLayout, GRAPH_WIDTH } from './layout.ts'
@@ -53,6 +53,31 @@ describe('action graph reference semantics', () => {
 })
 
 describe('fixed-width vertical layout', () => {
+  test('clearing route emphasis preserves geometry, authorship and agreement exceptions', () => {
+    const highlighted = createActionLayout(actions, getAncestors(actions, 'cooking-13'))
+    const neutral = createActionLayout(actions, [])
+    expect([...neutral.positions]).toEqual([...highlighted.positions])
+    expect(neutral.height).toBe(highlighted.height)
+    expect(neutral.elements.every((element) => !element.classes.split(' ').some((name) => name === 'main' || name === 'context'))).toBe(true)
+    const edge = neutral.elements.find((element) => element.data.id === 'cooking-10:cooking-13')
+    expect(edge.classes.split(' ')).toContain('same-author')
+    expect(edge.classes.split(' ')).toContain('exception')
+  })
+
+  test('emphasizes the continuation path separately from incorporated history', () => {
+    const path = getAncestors(actions, 'cooking-13')
+    const layout = createActionLayout(actions, path)
+    const classOf = (id) => layout.elements.find((element) => element.data.id === id).classes.split(' ')
+    expect(path.map((node) => node.id)).toEqual(['cooking-1', 'cooking-2', 'cooking-5', 'cooking-8', 'cooking-9', 'cooking-10', 'cooking-13'])
+    expect(classOf('cooking-4')).toContain('context')
+    expect(classOf('cooking-4')).not.toContain('main')
+    expect(classOf('cooking-4:cooking-13')).toContain('context')
+    expect(classOf('cooking-1:cooking-4')).toContain('context')
+    expect(classOf('cooking-10:cooking-13')).toContain('main')
+    expect(classOf('cooking-14')).toContain('branch')
+    expect(classOf('cooking-7:cooking-14')).toContain('branch')
+  })
+
   test('shows depth from one rather than unique publication numbers', () => {
     const layout = createActionLayout(actions, mainPath)
     expect([...layout.levels.values()]).toEqual([1, 2, 2, 2, 3, 3, 3, 4, 5, 6, 6, 6, 7, 7, 3, 4, 2, 3])

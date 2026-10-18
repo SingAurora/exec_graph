@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState, type FocusEvent, type MouseEvent } from 'react'
 import cytoscape, { type Core } from 'cytoscape'
-import { LocateFixed, Maximize2, Network } from 'lucide-react'
+import { GitBranch, LocateFixed, Maximize2, Network, X } from 'lucide-react'
 import type { ActionNode } from '../../../entities/action/model/types'
 import { getActionContextIds, getActionParentIds } from '../../../entities/action/lib/graph'
 import type { UserProfile } from '../../../shared/model'
@@ -16,7 +16,7 @@ import './action-graph.css'
 
 type Props = {
   actions: ActionNode[]
-  mainPath: ActionNode[]
+  highlightedPath: ActionNode[]
   users: UserProfile[]
   selectedId?: string
   selectedReferenceId?: string
@@ -24,27 +24,33 @@ type Props = {
   background: GraphBackgroundPreferences
   active?: boolean
   focusRequest?: number
+  locateRequest?: number
+  detailsVisible?: boolean
   onSelect: (id: string) => void
   onSelectReference: (id: string) => void
   onFitViewport: () => void
+  onClearHighlight: () => void
 }
 
 /** Fixed-width action graph; line style shows authorship and crosses show agreement exceptions. */
-export function ActionGraph({ actions, mainPath, users, selectedId, selectedReferenceId, showLegend, background, active = true, focusRequest = 0, onSelect, onSelectReference, onFitViewport }: Props) {
+export function ActionGraph({ actions, highlightedPath, users, selectedId, selectedReferenceId, showLegend, background, active = true, focusRequest = 0, locateRequest = 0, detailsVisible = true, onSelect, onSelectReference, onFitViewport, onClearHighlight }: Props) {
   const container = useRef<HTMLDivElement>(null)
   const viewport = useRef<HTMLDivElement>(null)
   const graphRef = useRef<Core | null>(null)
   const handledFocus = useRef(0)
+  const handledLocate = useRef(0)
+  const lastFocusedSelection = useRef<string | undefined>(undefined)
   const tooltipId = useId()
   const [hover, setHover] = useState<GraphHover | null>(null)
   const [hitPaths, setHitPaths] = useState<EdgeHitPath[]>([])
-  const layout = useMemo(() => createActionLayout(actions, mainPath), [actions, mainPath])
+  // Highlighting changes styles only, so cancelling it never rebuilds or moves the graph.
+  const layout = useMemo(() => createActionLayout(actions, []), [actions])
+  const highlightTip = highlightedPath.at(-1)
   const userById = useMemo(() => new Map(users.map((user) => [user.id, user])), [users])
   const referenceById = useMemo(() => new Map(layout.references.map((reference) => [reference.id, reference])), [layout])
   const palette = useGraphPalette()
   const hoveredNode = hover?.kind === 'node' ? actions.find((node) => node.id === hover.id) : undefined
   const hoveredReference = hover?.kind === 'reference' ? referenceById.get(hover.id) : undefined
-  const historyCount = hoveredNode ? getActionContextIds(actions, hoveredNode.id).size - 1 : 0
 
   useEffect(() => {
     if (!container.current) return
@@ -66,19 +72,25 @@ export function ActionGraph({ actions, mainPath, users, selectedId, selectedRefe
     if (!graph || !active) return
     graph.resize()
     const reference = selectedReferenceId ? referenceById.get(selectedReferenceId) : undefined
-    const contextId = reference?.source.id ?? selectedId
+    const contextId = highlightedPath.at(-1)?.id
     const context = contextId ? getActionContextIds(actions, contextId) : new Set<string>()
-    if (reference) context.add(reference.target.id)
+    const pathIds = new Set(highlightedPath.map((node) => node.id))
     const selected = actions.find((node) => node.id === selectedId)
     const sources = new Set(reference ? [reference.source.id, reference.target.id] : selected ? getActionParentIds(selected) : [])
     graph.batch(() => {
-      graph.elements().removeClass('active source outside')
+      graph.elements().removeClass('active source outside main context')
       graph.nodes().forEach((node) => {
+        if (pathIds.has(node.id())) node.addClass('main')
+        else if (context.has(node.id())) node.addClass('context')
         if (contextId && !context.has(node.id())) node.addClass('outside')
         if (sources.has(node.id())) node.addClass('source')
       })
       graph.edges().forEach((edge) => {
-        if (reference ? edge.id() !== reference.id : contextId && (!context.has(edge.source().id()) || !context.has(edge.target().id()))) edge.addClass('outside')
+        const sourceId = edge.source().id()
+        const targetId = edge.target().id()
+        if (pathIds.has(sourceId) && pathIds.has(targetId) && !edge.hasClass('incorporated')) edge.addClass('main')
+        else if (context.has(sourceId) && context.has(targetId)) edge.addClass('context')
+        if (contextId && (!context.has(sourceId) || !context.has(targetId))) edge.addClass('outside')
       })
       const activeId = reference?.id ?? selectedId
       if (activeId) graph.getElementById(activeId).addClass('active')
@@ -86,12 +98,16 @@ export function ActionGraph({ actions, mainPath, users, selectedId, selectedRefe
     const focusId = reference?.target.id ?? selectedId
     const position = focusId ? layout.positions.get(focusId) : undefined
     const scroll = viewport.current
-    const forceFocus = handledFocus.current !== focusRequest
+    const forceFocus = handledFocus.current !== focusRequest || handledLocate.current !== locateRequest
     handledFocus.current = focusRequest
-    if (position && scroll && (forceFocus || position.y < scroll.scrollTop + 30 || position.y > scroll.scrollTop + scroll.clientHeight - 30)) {
+    handledLocate.current = locateRequest
+    const selectionId = reference?.id ?? selectedId
+    const selectionChanged = lastFocusedSelection.current !== selectionId
+    lastFocusedSelection.current = selectionId
+    if (position && scroll && (forceFocus || selectionChanged && (position.y < scroll.scrollTop + 30 || position.y > scroll.scrollTop + scroll.clientHeight - 30))) {
       scroll.scrollTo({ top: Math.max(0, position.y - scroll.clientHeight / 2), behavior: 'instant' })
     }
-  }, [selectedId, selectedReferenceId, referenceById, actions, layout, palette, active, focusRequest])
+  }, [selectedId, selectedReferenceId, referenceById, actions, layout, palette, active, focusRequest, locateRequest, highlightedPath])
 
   useEffect(() => {
     const graph = graphRef.current
@@ -113,27 +129,35 @@ export function ActionGraph({ actions, mainPath, users, selectedId, selectedRefe
 
   function selectNode(id: string) { setHover(null); onSelect(id) }
   function selectReference(id: string) { setHover(null); onSelectReference(id) }
-  function locateLatestMainNode() {
-    const tip = mainPath.at(-1)
-    if (!tip) return
-    const position = layout.positions.get(tip.id)
+  function locateNode(id?: string) {
+    const position = id ? layout.positions.get(id) : undefined
     const scroll = viewport.current
     if (position && scroll) scroll.scrollTo({ top: Math.max(0, position.y - scroll.clientHeight / 2), behavior: 'instant' })
-    selectNode(tip.id)
+    setHover(null)
   }
 
-  return <aside className="action-graph-panel" aria-label="节点关系">
+  return <aside className={`action-graph-panel ${detailsVisible ? '' : 'border-r-0'}`} aria-label="节点关系">
     <header className="action-graph-heading"><div><div className="flex items-center gap-1"><h3><Network size={16} />节点关系</h3><HelpPopover title="节点关系">
       <p>圆点数字表示层级：起点为 1，后续节点为所有直接来源中最高层级加 1。节点编号用于区分具体行动。</p>
       <p>实线表示自己引用自己，虚线表示引用他人。满足约定没有额外标记；× 表示不满足来源约定，例外获同意后仍保留。</p>
-      <p>绿色节点表示当前路线及其引用背景，节点外圈标记当前选择。浏览其他节点不会改变当前路线。</p>
-      <p>悬浮查看摘要，点击节点阅读文档，点击连线查看引用详情。“定位当前路线”回到这次查看的路线终点；“重新铺满”将节点图与详情对齐当前窗口。</p>
-    </HelpPopover></div><p>{actions.length} 个节点</p></div>
+      <p>绿色节点和连线表示高亮链路的承接路径，蓝灰色填充节点表示合入背景。节点外圈标记当前选择，查看其他节点不会改变高亮链路。</p>
+      <p>从表达、行动或搜索结果进入时自动高亮对应链路。点击链路状态右侧的 × 取消，在节点详情点击“高亮链路”重新开启。定位仅移动图的位置，不切换右侧文档。</p>
+      <p>悬浮查看摘要，点击节点阅读文档，点击连线查看引用详情。“重新铺满”将节点图与详情对齐当前窗口。</p>
+      <p>详情右上角可定位当前节点或隐藏详情。隐藏后点击任意节点或连线重新打开，同一文档恢复阅读位置。</p>
+    </HelpPopover></div></div>
       <div className="action-graph-heading-actions">
         <button className="action-graph-icon-button" type="button" title="重新铺满" aria-label="重新铺满" onClick={onFitViewport}><Maximize2 size={16} aria-hidden="true" /></button>
-        <button className="action-graph-icon-button" type="button" title="定位当前路线" aria-label="定位当前路线" onClick={locateLatestMainNode}><LocateFixed size={16} aria-hidden="true" /></button>
+        {!highlightTip && <button className="action-graph-icon-button" type="button" title="定位选中节点" aria-label="定位选中节点" onClick={() => locateNode(selectedReferenceId ? referenceById.get(selectedReferenceId)?.target.id : selectedId)}><LocateFixed size={16} aria-hidden="true" /></button>}
       </div>
     </header>
+    {highlightTip && <div className="mx-[18px] mb-3 flex min-h-9 shrink-0 items-center justify-between gap-2 rounded-md bg-signal-soft px-2 text-xs text-signal" role="group" aria-label="高亮链路">
+      <span className="inline-flex min-w-0 items-center gap-1.5" title={highlightTip.title}><GitBranch size={14} aria-hidden="true" />链路 #{highlightTip.number}</span>
+      <div className="flex items-center gap-1">
+        <button className="action-graph-icon-button border-0 text-signal" type="button" title="定位链路终点" aria-label="定位链路终点" onClick={() => locateNode(highlightTip.id)}><LocateFixed size={15} aria-hidden="true" /></button>
+        <button className="action-graph-icon-button border-0 text-signal" type="button" title="取消链路高亮" aria-label="取消链路高亮" onClick={() => { setHover(null); onClearHighlight() }}><X size={15} aria-hidden="true" /></button>
+      </div>
+    </div>}
+    {!highlightTip && <div className="mx-[18px] mb-3 flex min-h-9 shrink-0 items-center text-xs text-muted">{actions.length} 个节点</div>}
     {showLegend && <div className="action-graph-legend" aria-label="节点关系图例">
       <span><i className="is-solid" aria-hidden="true" />自己引用</span>
       <span><i className="is-dashed" aria-hidden="true" />引用他人</span>
@@ -141,8 +165,9 @@ export function ActionGraph({ actions, mainPath, users, selectedId, selectedRefe
       <span><b className="is-level" aria-hidden="true">2</b>节点层级</span>
     </div>}
     <div className="action-graph-scroll" ref={viewport} tabIndex={0} role="region" aria-label="浏览节点关系" onScroll={() => setHover(null)}>
-      <div className="action-graph-canvas" style={{ width: GRAPH_WIDTH, height: layout.height }}>
+      <div className="relative min-h-full" style={{ height: layout.height }}>
         <GraphBackground preferences={background} />
+      <div className="action-graph-canvas" style={{ width: GRAPH_WIDTH, height: '100%' }}>
         {/* Cytoscape injects an unlayered relative-position rule; keep the canvas frame absolute. */}
         <div className="action-graph-surface" style={{ position: 'absolute' }} ref={container} aria-hidden="true" />
         <svg className="action-graph-edge-targets" width={GRAPH_WIDTH} height={layout.height} role="group" aria-label="节点引用关系">
@@ -166,7 +191,8 @@ export function ActionGraph({ actions, mainPath, users, selectedId, selectedRefe
             onFocus={(event) => showHover('node', node.id, event)} onBlur={() => setHover(null)} />
         })}
       </div>
+      </div>
     </div>
-    {hover && <GraphTooltip id={tooltipId} hover={hover} node={hoveredNode} reference={hoveredReference} users={userById} historyCount={historyCount} levels={layout.levels} />}
+    {hover && <GraphTooltip id={tooltipId} hover={hover} node={hoveredNode} reference={hoveredReference} users={userById} levels={layout.levels} />}
   </aside>
 }
