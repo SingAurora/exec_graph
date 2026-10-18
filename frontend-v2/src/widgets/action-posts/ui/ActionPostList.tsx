@@ -7,6 +7,8 @@ import { ExpressionSource } from '../../../entities/action/ui/ExpressionContent'
 import type { UserProfile } from '../../../shared/model'
 import { formatFullPublicationTime, formatPublicationTime } from '../../../shared/lib/date'
 import { getMarkdownSummary } from '../../../shared/lib/markdownSummary'
+import { getSearchExcerpt } from '../../../shared/lib/search'
+import { HighlightedText } from '../../../shared/ui/HighlightedText'
 import { Avatar } from '../../../shared/ui/Avatar'
 import { RecordThumbnails } from '../../../shared/ui/RecordThumbnails'
 
@@ -15,34 +17,36 @@ type ActionPostListProps = {
   actions: ActionNode[]
   users: UserProfile[]
   mode: ActionDocumentMode
+  searchQuery?: string
   onExplore: (node: ActionNode, mode: ActionDocumentMode) => void
-  onCreate: () => void
+  onCreate?: () => void
 }
 
-/** Shows compact route expressions or facts; every reading action opens the full document. */
-export function ActionPostList({ nodes, actions, users, mode, onExplore, onCreate }: ActionPostListProps) {
+/** Shows compact expressions or actions with separate document, profile, and image interactions. */
+export function ActionPostList({ nodes, actions, users, mode, searchQuery, onExplore, onCreate }: ActionPostListProps) {
   const levels = useMemo(() => getActionLevels(actions), [actions])
   if (!nodes.length) return <div className="border-y border-line py-16 text-center">
     <h3 className="text-[17px]">{mode === 'expression' ? '暂无表达' : '暂无行动'}</h3>
-    <button className="primary-button mt-5" type="button" onClick={onCreate}><Plus size={16} />记录行动</button>
+    {onCreate && <button className="primary-button mt-5" type="button" onClick={onCreate}><Plus size={16} />记录行动</button>}
   </div>
   return <section className="min-w-0 divide-y divide-line" aria-label={mode === 'expression' ? '表达列表' : '行动列表'}>
-    {nodes.map((node) => <ActionPostItem key={node.id} node={node} level={levels.get(node.id)} actions={actions} users={users} mode={mode} onExplore={onExplore} />)}
+    {nodes.map((node) => <ActionPostItem key={node.id} node={node} level={levels.get(node.id)} actions={actions} users={users} mode={mode} searchQuery={searchQuery} onExplore={onExplore} />)}
   </section>
 }
 
-function ActionPostItem({ node, level, actions, users, mode, onExplore }: Omit<ActionPostListProps, 'nodes' | 'onCreate'> & { node: ActionNode; level: number | undefined }) {
+function ActionPostItem({ node, level, actions, users, mode, searchQuery, onExplore }: Omit<ActionPostListProps, 'nodes' | 'onCreate'> & { node: ActionNode; level: number | undefined }) {
   const author = users.find((user) => user.id === node.authorId)
   const expression = mode === 'expression' ? getActionExpression(actions, node.id) : undefined
   const previewImages = expression ? (expression.markdown.trim() ? expression.sourceNode?.images ?? [] : []) : node.images
   const markdown = expression?.markdown ?? node.objectiveMarkdown ?? node.markdown
   const summary = getMarkdownSummary(markdown, node.title)
+  const excerpt = searchQuery ? getSearchExcerpt(summary, searchQuery) : summary
   const openDocument = () => onExplore(node, mode)
   const documentLabel = mode === 'expression' ? '表达' : '行动'
   return <article className="group relative isolate min-w-0 px-1 py-5" data-node-id={node.id}>
     <button className="absolute inset-0 z-0 w-full cursor-pointer border-0 bg-transparent p-0 text-left transition hover:bg-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal" type="button" aria-label={`阅读全文：${documentLabel} · ${node.title}`} onClick={openDocument} />
     <div className="pointer-events-none relative">
-      <h3 className="truncate text-base font-semibold leading-[1.6] tracking-[-.02em] group-hover:text-signal" title={node.title}>{node.title}</h3>
+      <h3 className="truncate text-base font-semibold leading-[1.6] tracking-[-.02em] group-hover:text-signal" title={node.title}><HighlightedText text={node.title} query={searchQuery} /></h3>
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs leading-5 text-muted">
         <a className="pointer-events-auto relative z-10 inline-flex items-center gap-2 rounded-sm text-ink hover:text-signal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal" href={`#profile?userId=${encodeURIComponent(node.authorId)}`} aria-label={`查看${author?.name ?? node.authorId}的主页`}>
           <Avatar profile={author} label={(author?.name ?? node.authorId).slice(0, 1)} size="compact" /><strong className="text-sm font-medium">{author?.name ?? node.authorId}</strong>
@@ -51,7 +55,7 @@ function ActionPostItem({ node, level, actions, users, mode, onExplore }: Omit<A
       </div>
       <div className="mt-3">
         {expression && <ExpressionSource expression={expression} nodeId={node.id} users={users} />}
-        <p className={`post-summary-clamp text-sm leading-[1.85] ${summary ? 'text-copy' : 'text-muted'}`}>{summary || `暂无${documentLabel}`}</p>
+        <p className={`post-summary-clamp text-sm leading-[1.85] ${summary ? 'text-copy' : 'text-muted'}`}><HighlightedText text={excerpt || `暂无${documentLabel}`} query={searchQuery} /></p>
         <RecordThumbnails images={previewImages} />
       </div>
     </div>

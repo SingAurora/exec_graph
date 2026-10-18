@@ -1,4 +1,4 @@
-import { Footprints, MessageCircle, Plus, Settings2, Sparkles } from 'lucide-react'
+import { Footprints, MessageCircle, Plus, Search, Settings2, Sparkles } from 'lucide-react'
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ActionDocumentMode, ActionNode } from '../entities/action/model/types'
 import { getActionContextIds } from '../entities/action/lib/graph'
@@ -13,10 +13,12 @@ import { ProjectSettingsPanel } from '../features/project/ui/ProjectSettingsPane
 import { ActionPostList } from '../widgets/action-posts/ui/ActionPostList'
 import { ProjectHeader } from '../entities/project/ui/ProjectHeader'
 import { GraphDetailsAside } from '../widgets/graph-details/ui/GraphDetailsAside'
+import { GraphSearch } from '../widgets/graph-search/ui/GraphSearch'
 import type { GraphBackgroundPreferences } from '../shared/ui/graph-background/model'
 
 type ProjectPageProps = {
   project: Project
+  active?: boolean
   currentUserId: string
   users: UserProfile[]
   actions: ActionNode[]
@@ -29,13 +31,15 @@ type ProjectPageProps = {
 }
 
 type GraphSelection = { kind: 'node' | 'reference'; id: string }
-type ProjectTab = 'expressions' | 'facts' | 'explore' | 'settings'
+type ProjectTab = 'expressions' | 'facts' | 'explore' | 'search' | 'settings'
 
-export function ProjectPage({ project, currentUserId, users, actions, showActionGraphLegend, graphBackground, onCreateAction, onContinueAction, onOpenActionArchive, onUpdateProject }: ProjectPageProps) {
+export function ProjectPage({ project, active = true, currentUserId, users, actions, showActionGraphLegend, graphBackground, onCreateAction, onContinueAction, onOpenActionArchive, onUpdateProject }: ProjectPageProps) {
   const workspaceRef = useRef<HTMLDivElement>(null)
   const tabScroll = useRef<Partial<Record<ProjectTab, number>>>({})
   const pendingLocate = useRef(false)
   const lastTab = useRef<ProjectTab>('expressions')
+  const wasActive = useRef(active)
+  const openingProfile = useRef(false)
   const [activeTab, setActiveTab] = useState<ProjectTab>('expressions')
   const [visitedExplore, setVisitedExplore] = useState(false)
   const [focusRequest, setFocusRequest] = useState(0)
@@ -70,7 +74,15 @@ export function ProjectPage({ project, currentUserId, users, actions, showAction
     setActiveTab(tab)
   }
   useLayoutEffect(() => {
-    if (lastTab.current === activeTab) return
+    if (!active) {
+      if (wasActive.current && !openingProfile.current) tabScroll.current[activeTab] = window.scrollY
+      wasActive.current = false
+      return
+    }
+    const returning = !wasActive.current
+    wasActive.current = true
+    openingProfile.current = false
+    if (lastTab.current === activeTab && !returning) return
     lastTab.current = activeTab
     const locate = pendingLocate.current && activeTab === 'explore'
     pendingLocate.current = false
@@ -84,7 +96,7 @@ export function ProjectPage({ project, currentUserId, users, actions, showAction
       }
     })
     return () => window.cancelAnimationFrame(frame)
-  }, [activeTab])
+  }, [activeTab, active])
 
   const openInExplore = (node: ActionNode, mode: ActionDocumentMode) => {
     setRouteTipId(node.id)
@@ -100,13 +112,20 @@ export function ProjectPage({ project, currentUserId, users, actions, showAction
     else onCreateAction(project.id)
   }
 
-  return <section className="max-w-[1000px] pt-0 max-[700px]:pt-7">
+  return <section className="max-w-[1000px] pt-0 max-[700px]:pt-7" onClickCapture={(event) => {
+    const link = event.target instanceof Element ? event.target.closest('a') : null
+    if (link?.getAttribute('href')?.startsWith('#profile?')) {
+      tabScroll.current[activeTab] = window.scrollY
+      openingProfile.current = true
+    }
+  }}>
     <ProjectHeader project={project} participantCount={participantIds.length} expressionCount={expressionNodes.length} />
     <TabsRoot value={activeTab} onValueChange={(value) => switchTab(value as ProjectTab)}>
       <TabsList label="行动图内容" sticky showDivider={false}>
         <TabsTrigger value="expressions"><span className="inline-flex items-center gap-1.5"><MessageCircle size={16} />表达</span></TabsTrigger>
         <TabsTrigger value="facts"><span className="inline-flex items-center gap-1.5"><Footprints size={16} />行动</span></TabsTrigger>
         <TabsTrigger value="explore"><span className="inline-flex items-center gap-1.5"><Sparkles size={16} />探索</span></TabsTrigger>
+        <TabsTrigger value="search"><span className="inline-flex items-center gap-1.5"><Search size={16} />搜索</span></TabsTrigger>
         {canEditProject && <TabsTrigger value="settings"><span className="inline-flex items-center gap-1.5"><Settings2 size={16} />设置</span></TabsTrigger>}
       </TabsList>
       {(['expressions', 'facts'] as const).map((tab) => <TabsContent key={tab} value={tab} keepMounted>
@@ -115,9 +134,15 @@ export function ProjectPage({ project, currentUserId, users, actions, showAction
           <GraphDetailsAside description={project.description} createdAt={project.createdAt} actionCount={actions.length} lastActionAt={facts[0]?.createdAt} participantIds={participantIds} users={users} />
         </div>
       </TabsContent>)}
+      <TabsContent value="search" keepMounted>
+        <div className="mt-5 grid grid-cols-[minmax(0,1fr)_220px] items-start gap-7 max-[800px]:grid-cols-1">
+          <GraphSearch projectId={project.id} actions={actions} users={users} onExplore={openInExplore} />
+          <GraphDetailsAside description={project.description} createdAt={project.createdAt} actionCount={actions.length} lastActionAt={facts[0]?.createdAt} participantIds={participantIds} users={users} />
+        </div>
+      </TabsContent>
       <TabsContent value="explore" keepMounted={visitedExplore}>
         {!actions.length ? <EmptyActions onCreate={() => onCreateAction(project.id)} /> : <div ref={workspaceRef} className="mt-5 grid h-[calc(100dvh-44px)] scroll-mt-11 grid-cols-[342px_minmax(0,1fr)] overflow-hidden border border-line bg-surface outline-none" role="region" tabIndex={-1} aria-label="行动阅读工作区">
-          <ActionGraph actions={actions} mainPath={mainPath} users={users} selectedId={selected?.id} selectedReferenceId={selectedReference?.id} showLegend={showActionGraphLegend} background={graphBackground} active={activeTab === 'explore'} focusRequest={focusRequest} onSelect={selectNode} onSelectReference={(id) => setSelection({ kind: 'reference', id })} onFitViewport={() => workspaceRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' })} />
+          <ActionGraph actions={actions} mainPath={mainPath} users={users} selectedId={selected?.id} selectedReferenceId={selectedReference?.id} showLegend={showActionGraphLegend} background={graphBackground} active={active && activeTab === 'explore'} focusRequest={focusRequest} onSelect={selectNode} onSelectReference={(id) => setSelection({ kind: 'reference', id })} onFitViewport={() => workspaceRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' })} />
           <div key={`${selectedReference?.id ?? selected?.id}-${documentMode}-${focusRequest}`} className="min-h-0 min-w-0 overflow-y-auto" aria-label={selectedReference ? '选中引用关系详情' : '选中行动节点详情'}>
             {selectedReference ? <ActionReferenceDetail reference={selectedReference} actions={actions} users={users} onSelectNode={selectNode} />
               : selected ? <><ActionSources node={selected} actions={actions} onSelect={selectNode} /><ActionDetail node={selected} actions={actions} users={users} author={users.find((user) => user.id === selected.authorId)} isMain={mainPath.some((node) => node.id === selected.id)} recordMode={documentMode} onModeChange={setDocumentMode} branches={actions.filter((node) => node.parentId === selected.id)} onOpenArchive={() => onOpenActionArchive(selected)} onContinue={() => onContinueAction(selected, 'continue')} onFork={() => onContinueAction(selected, 'fork')} onSelect={selectNode} /></>
