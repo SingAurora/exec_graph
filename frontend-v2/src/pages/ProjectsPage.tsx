@@ -1,4 +1,5 @@
-import { ArrowLeft, ArrowRight, ArrowUpDown, FolderKanban, Plus, Search, X } from 'lucide-react'
+import { ProjectAvatar } from '../entities/project/ui/ProjectAvatar'
+import { ArrowLeft, ArrowRight, ArrowUpDown, Plus, Search, X } from 'lucide-react'
 import { useRef, useState } from 'react'
 import type { CreateProjectInput } from '../features/project/model/types'
 import { CreateProjectDialog } from '../features/project/ui/CreateProjectDialog'
@@ -67,7 +68,7 @@ function ProjectList({ projects, topics, plans, completions, onOpenProject, empt
     const projectPlans = plans.filter((plan) => topicIds.has(plan.topicId))
     const projectCompletions = completions.filter((completion) => topicIds.has(completion.topicId))
     const activeCount = projectPlans.filter((plan) => plan.status === 'active').length
-    return <button className="grid w-full grid-cols-[42px_minmax(0,1fr)_auto] items-center gap-3.5 border-0 border-b border-line bg-transparent px-1 py-5 text-left text-ink hover:bg-soft max-[700px]:grid-cols-[40px_minmax(0,1fr)]" type="button" onClick={() => onOpenProject(project.id)} key={project.id}><span className="grid size-10 place-items-center rounded-md bg-signal-soft text-signal"><FolderKanban size={19} /></span><span className="grid min-w-0 gap-1"><strong className="text-[15px]">{project.title}</strong><small className="text-xs leading-[1.5] text-muted">{project.description}</small><span className="text-[10px] font-bold text-signal">{activeCount} 项进行中 · {projectPlans.length} 项计划 · {projectCompletions.length} 条完成</span></span><span className="flex items-center gap-2.5 text-[11px] text-muted max-[700px]:col-start-2 max-[700px]:justify-between">{dateField === 'createdAt' ? '创建' : '更新'} {formatDateTime(project[dateField])}<ArrowRight className="text-signal" size={16} /></span></button>
+    return <button className="grid w-full grid-cols-[42px_minmax(0,1fr)_auto] items-center gap-3.5 border-0 border-b border-line bg-transparent px-1 py-5 text-left text-ink hover:bg-soft max-[700px]:grid-cols-[40px_minmax(0,1fr)]" type="button" onClick={() => onOpenProject(project.id)} key={project.id}><ProjectAvatar project={project} /><span className="grid min-w-0 gap-1"><strong className="text-[15px]">{project.title}</strong><small className="text-xs leading-[1.5] text-muted">{project.description}</small><span className="text-[10px] font-bold text-signal">{activeCount} 项进行中 · {projectPlans.length} 项计划 · {projectCompletions.length} 条完成</span></span><span className="flex items-center gap-2.5 text-[11px] text-muted max-[700px]:col-start-2 max-[700px]:justify-between">{dateField === 'createdAt' ? '创建' : '更新'} {formatDateTime(project[dateField])}<ArrowRight className="text-signal" size={16} /></span></button>
   })}{!projects.length && <p className="py-[25px] text-[13px] text-muted">{emptyMessage}</p>}</div>
 }
 

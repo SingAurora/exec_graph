@@ -1,4 +1,6 @@
 import type { ActionNode } from '../../../entities/action/model/types'
+import cookingDishImage from '../../../../assets/cooking-graph-avatar.jpg'
+import cookingTableImage from '../../../../assets/cooking-graph-background.jpg'
 
 type CookingExample = Pick<ActionNode, 'number' | 'authorId' | 'title' | 'createdAt' | 'agreementMarkdown' | 'referenceAgreements'> & {
   parent?: number
@@ -13,6 +15,11 @@ const tomatoImage = {
   url: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=1200&q=80',
   alt: '番茄食材示意图 · 非本次行动实拍',
 }
+const cookingImages = [
+  { url: cookingDishImage, alt: '番茄炒蛋成菜示意图 · 非本次行动实拍' },
+  tomatoImage,
+  { url: cookingTableImage, alt: '番茄炒蛋装盘示意图 · 非本次行动实拍' },
+]
 
 /** One published action per node; statements about other meals are attributed to their records. */
 export const cookingExamples: CookingExample[] = [
@@ -151,6 +158,7 @@ export const cookingExamples: CookingExample[] = [
   },
   {
     number: 12, parent: 9, authorId: 'lin', title: '油减到 6g，鸡蛋粘底，先留下这次失败', createdAt: '2026-10-14T12:20:00+08:00',
+    images: cookingImages,
     markdown: `中午仍用 #9 的 26cm 不粘锅、燃气灶，番茄 400g、鸡蛋 4 个、盐 2g，不加糖，把总油量从 12g 减到 6g。
 
 没有测锅温。蛋液倒下去后底部很快粘住，铲起时碎了，几块边缘焦黄。没有重做，直接把碎蛋盛出，再炒番茄、回蛋装盘。
@@ -162,6 +170,7 @@ export const cookingExamples: CookingExample[] = [
   },
   {
     number: 13, parent: 10, mergedParents: [4], authorId: 'jo', title: '回到自己的锅，十九分钟，番茄软了，鸡蛋也没硬边', createdAt: '2026-10-14T19:40:00+08:00',
+    images: [...cookingImages, cookingImages[0]],
     referenceAgreements: [
       { sourceId: 'cooking-10', complies: false, exceptionReason: '这次回到自己的 24cm 不粘锅和电磁炉，独立操作，改变了 #10 约定的锅灶条件。我只借用识别凝固状态的经验，不沿用那次两人备菜的 17 分钟或未记录的加热秒数。' },
       { sourceId: 'cooking-4', complies: true },
@@ -185,6 +194,7 @@ export const cookingExamples: CookingExample[] = [
   },
   {
     number: 14, parent: 11, mergedParents: [7], authorId: 'miao', title: '把多汁做法和备菜顺序合起来，十八分钟拌上饭', createdAt: '2026-10-14T20:15:00+08:00',
+    images: [...cookingImages, cookingImages[0], tomatoImage],
     markdown: `承接自己的多汁版本 #11，并合入十八分钟那次 #7。还是我的 24cm 不粘锅和燃气灶，番茄 400g、鸡蛋 4 个、油 12g、盐 2g，没有加糖。
 
 先把番茄切成约 1cm 小块，蛋打好，工具摆齐再开火。按 #11 的状态提前盛蛋；番茄中心软了、汁仍能流动时回蛋，翻匀关火，没有继续收浓。
@@ -197,5 +207,51 @@ export const cookingExamples: CookingExample[] = [
 我这条路线愿意保留能流动的汁，也接受单独夹菜时偏湿。十八分钟对今晚有效，放凉后的口感却还没有验证；不能因为这次做得快，就把没有做过的静置测试也写成结果。
 
 对我来说，练厨艺不是最后所有人做出同一盘。可以借用彼此的动作，再用实际吃饭的方式留下自己的偏好。`,
+  },
+  {
+    number: 15, parent: 2, authorId: 'che', title: '第一次做一人份，先盛蛋后没吃到硬边', createdAt: '2026-10-15T12:30:00+08:00',
+    images: [cookingImages[0]],
+    markdown: `参考林岚的 #2，午饭只做自己的一份：番茄 200g、鸡蛋 2 个、油 6g、盐 1g，不加糖，用 20cm 不粘锅和电磁炉。
+
+鸡蛋表面还有光泽时盛出，番茄炒到能压开后回蛋，翻匀就关火。洗菜到装盘 18 分钟，热着配饭吃，没有吃到硬边，但番茄皮有几片卷起来。
+
+没有留出静置样本。这是缩份量、换锅后的独立尝试，不是对原份量的严格复验。`,
+    expression: `#2 的先盛蛋让我第一次下锅时有了能照着做的顺序。这次热着吃的口感我能接受，但还不知道放凉后如何。
+
+对我来说，一人食的练习先从真的愿意再做一顿开始，不必第一盘就追求和别人一样。`,
+  },
+  {
+    number: 16, parent: 5, authorId: 'xiaoman', title: '去皮后炒到挂汁，这一盘吃起来更顺口', createdAt: '2026-10-15T19:10:00+08:00',
+    markdown: `引用 miao 的 #5，保留先盛蛋、番茄炒软后回蛋的顺序。番茄 400g、鸡蛋 4 个、油 12g、盐 2g，不加糖，用 24cm 不粘锅和燃气灶。
+
+这次把番茄烫过后去皮，切约 1.5cm 小块。炒到能压散、汁略稠后回蛋，挂汁就关火。从洗菜、烧水去皮到装盘 28 分钟，五分钟后吃没有咬到番茄皮，鸡蛋也没有明显硬边。
+
+没有同时做带皮的一盘，只能记录我对这次口感的感受。`,
+    expression: `我沿用 #5 的顺序，又愿意为不吃到番茄皮多花一点准备时间。顺口是我的偏好，不代表每个人都值得花这几分钟。
+
+我想保留的是愿意为哪种口感付出时间，而不只是越来越快。`,
+  },
+  {
+    number: 17, parent: 1, authorId: 'chenhe', title: '照起点一起炒，吃到半盘时鸡蛋边缘偏硬', createdAt: '2026-10-16T12:15:00+08:00',
+    markdown: `第一次参与，按乔的 #1 用番茄 400g、鸡蛋 4 个、油 12g、盐 2g，不加糖。锅是自己的 26cm 不粘锅，使用燃气灶。
+
+鸡蛋炒凝固后没有盛出，倒入约 2cm 的番茄块，炒到番茄中心能压开再装盘。洗菜到装盘 24 分钟，没有记分别加热多久。
+
+边吃边聊，大约十分钟后剩下半盘，鸡蛋边缘对我偏硬，盘底有一些水。我吃完了，没有做另一盘作比较。`,
+    expression: `我读过 #1 的结果，还是先照着做了一次，才知道自己说的硬边是什么口感。换了锅灶，记录到相似的感受，也不能证明原因完全相同。
+
+先把一次真实吃过的饭说清楚，比急着给出改进结论更适合我的第一步。`,
+  },
+  {
+    number: 18, parent: 2, authorId: 'robin', title: '鸡蛋先盛出，最后加葱，我喜欢这次的香味', createdAt: '2026-10-16T19:20:00+08:00',
+    images: [cookingImages[2]],
+    markdown: `从林岚的 #2 接续，番茄 400g、鸡蛋 4 个、油 12g、盐 2g，另加葱花 3g，不加糖。用 24cm 不粘锅和燃气灶。
+
+鸡蛋大部分凝固后先盛出，番茄炒软再回蛋，翻匀后撒葱关火。洗菜到装盘 22 分钟，刚出锅能闻到葱香，我配饭吃没有吃到明显的鸡蛋硬边。
+
+没有与不放葱的版本并排试吃，也没有测试放凉后的口感。`,
+    expression: `#2 给了我分开加热的顺序，这次我又加了喜欢的葱香。它是我愿意常做的一盘，还不是一份能证明比别人的更好的做法。
+
+接着别人的行动往下做，也可以留下自己的味道。`,
   },
 ]

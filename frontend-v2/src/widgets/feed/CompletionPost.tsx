@@ -1,6 +1,6 @@
 import { ArrowRight, Check, CircleHelp, FileText } from 'lucide-react'
 import type { ActionTopic, CompletionNode, PlanNode, Reaction, UserProfile } from '../../shared/model'
-import { Avatar } from '../layout/AppShell'
+import { Avatar } from '../../shared/ui/Avatar'
 import { PostImageGallery } from '../post/PostImageGallery'
 
 type CompletionPostProps = {

@@ -8,11 +8,15 @@ import type { AIKeyConfig, SaveAIKeyInput } from '../../entities/ai-key/model/ty
 import { AIKeySettings } from '../../features/ai-key/ui/AIKeySettings'
 import type { UserProfile } from '../../shared/model'
 import { ComponentShowcase } from './components/ComponentShowcase'
+import { GraphBackgroundSettings } from '../../features/graph-appearance/ui/GraphBackgroundSettings'
+import type { GraphBackgroundPreferences } from '../../shared/ui/graph-background/model'
 
 type SettingsPanelProps = {
   profile: UserProfile
   darkMode: boolean
   showActionGraphLegend: boolean
+  graphBackground: GraphBackgroundPreferences
+  onGraphBackgroundChange: (preferences: GraphBackgroundPreferences) => void
   aiConfigs: AIKeyConfig[]
   onSave: (profile: UserProfile) => void
   onToggleTheme: () => void
@@ -25,7 +29,7 @@ type SettingsPanelProps = {
 type SettingsTab = 'profile' | 'ai' | 'account' | 'preferences' | 'components'
 const defaultBio = '把想法变成正在发生的事情。'
 
-export function SettingsPanel({ profile, darkMode, showActionGraphLegend, aiConfigs, onSave, onToggleTheme, onShowActionGraphLegendChange, onSaveAIConfig, onSetDefaultAIConfig, onDeleteAIConfig }: SettingsPanelProps) {
+export function SettingsPanel({ profile, darkMode, showActionGraphLegend, graphBackground, onGraphBackgroundChange, aiConfigs, onSave, onToggleTheme, onShowActionGraphLegendChange, onSaveAIConfig, onSetDefaultAIConfig, onDeleteAIConfig }: SettingsPanelProps) {
   const [draft, setDraft] = useState({ ...profile, bio: profile.bio.trim() || defaultBio })
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile')
   const [emailStatus, setEmailStatus] = useState('')
@@ -40,7 +44,7 @@ export function SettingsPanel({ profile, darkMode, showActionGraphLegend, aiConf
         <TabsTrigger value="profile">个人资料</TabsTrigger>
         <TabsTrigger value="ai">AI 服务</TabsTrigger>
         <TabsTrigger value="account">账户安全</TabsTrigger>
-        <TabsTrigger value="preferences">界面偏好</TabsTrigger>
+        <TabsTrigger value="preferences">外观</TabsTrigger>
         {profile.isTestAccount && <TabsTrigger value="components">组件演示</TabsTrigger>}
       </TabsList>
 
@@ -69,7 +73,13 @@ export function SettingsPanel({ profile, darkMode, showActionGraphLegend, aiConf
 
       <TabsContent value="preferences">
         <div className="mt-5 grid gap-5"><div className="flex items-center justify-between gap-5 max-[700px]:grid max-[700px]:items-start"><div className="grid gap-[5px]"><strong className="text-sm">界面主题</strong><span className="text-xs text-muted">切换浅色或深色显示</span></div><button className="inline-flex w-max items-center justify-center rounded-md border border-line bg-transparent px-3 py-2 text-xs font-semibold text-muted transition hover:border-signal hover:text-signal" type="button" onClick={onToggleTheme}>{darkMode ? '切换浅色' : '切换深色'}</button></div>
-          <div className="flex items-center justify-between gap-5 border-t border-line pt-5"><label className="cursor-pointer text-sm font-semibold" htmlFor="show-action-graph-legend">显示节点关系图例</label><Switch.Root id="show-action-graph-legend" checked={showActionGraphLegend} onCheckedChange={onShowActionGraphLegendChange} className="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border-0 bg-line p-0.5 outline-none transition-colors data-[state=checked]:bg-signal focus-visible:ring-2 focus-visible:ring-signal/25"><Switch.Thumb className="block size-4 rounded-full bg-white shadow-sm transition-transform data-[state=checked]:translate-x-4" /></Switch.Root></div>
+          <section className="grid grid-cols-[minmax(150px,1fr)_minmax(0,430px)] items-start gap-5 border-t border-line pt-5 max-[700px]:grid-cols-1" aria-labelledby="graph-appearance-title">
+            <h3 id="graph-appearance-title" className="text-sm font-semibold">行动节点图</h3>
+            <div className="min-w-0">
+              <div className="flex items-center justify-between gap-5"><label className="cursor-pointer text-[13px]" htmlFor="show-action-graph-legend">显示图例</label><Switch.Root id="show-action-graph-legend" checked={showActionGraphLegend} onCheckedChange={onShowActionGraphLegendChange} className="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border-0 bg-line p-0.5 outline-none transition-colors data-[state=checked]:bg-signal focus-visible:ring-2 focus-visible:ring-signal/25"><Switch.Thumb className="block size-4 rounded-full bg-white shadow-sm transition-transform data-[state=checked]:translate-x-4" /></Switch.Root></div>
+              <GraphBackgroundSettings preferences={graphBackground} onChange={onGraphBackgroundChange} />
+            </div>
+          </section>
         </div>
       </TabsContent>
 

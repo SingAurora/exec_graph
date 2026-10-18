@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { demoActions } from './demo/actions'
 import type { ActionNode } from '../entities/action/model/types'
+import { getActionContextIds } from '../entities/action/lib/graph'
+import { getActionExpression } from '../entities/action/lib/expressions'
 import type { AIKeyConfig, SaveAIKeyInput } from '../entities/ai-key/model/types'
 import { buildPlanMarkdown } from '../features/action/lib/planning'
 import { getPlanBranchId, getPlanBranchTitle } from '../features/action/lib/branches'
@@ -9,8 +11,11 @@ import { isAppView, isAuthView, useHashRoute } from '../shared/lib/navigation'
 import type { ActionTopic, AuthView, BranchMode, ChatMessage, CompletionNode, PlanNode, Project, Reaction, UserProfile } from '../shared/model'
 import { FeedPage } from '../pages/FeedPage'
 import { MyPage } from '../pages/MyPage'
+import { useGraphBackground } from '../features/graph-appearance/model/useGraphBackground'
+import { ProfilePage } from '../pages/ProfilePage'
 import { ProjectPage } from '../pages/ProjectPage'
 import { cookingContextGuide } from './demo/cooking'
+import { cookingParticipants } from './demo/cooking/participants'
 import { ProjectsPage } from '../pages/ProjectsPage'
 import { AuthScreen } from '../widgets/auth/AuthScreen'
 import { AppShell } from '../widgets/layout/AppShell'
@@ -19,6 +24,8 @@ import { AIWorkspace } from '../widgets/ai/AIWorkspace'
 import { ActionWorkspace } from '../widgets/ai/ActionWorkspace'
 import { TopicPage } from '../widgets/topics/TopicPage'
 import { ActionArchivePage } from '../pages/ActionArchivePage'
+import cookingGraphAvatar from '../../assets/cooking-graph-avatar.jpg'
+import cookingGraphBackground from '../../assets/cooking-graph-background.jpg'
 
 const currentUser: UserProfile = { id: 'jo', name: '乔', email: 'qiao@example.com', gender: 'unknown', bio: '把想法变成正在发生的事情。', avatar: '', activeDays: 12, isTestAccount: true }
 const legendPreferenceKey = 'execg.actionGraph.showLegend'
@@ -26,7 +33,7 @@ const lin: UserProfile = { id: 'lin', name: '林岚', email: 'lin@example.com', 
 const miao: UserProfile = { id: 'miao', name: 'miao', email: 'miao@example.com', gender: 'unknown', bio: '从生活里找到下一步。', avatar: '', activeDays: 9 }
 
 const initialProjects: Project[] = [
-  { id: 'cooking', ownerId: 'jo', participantIds: ['lin', 'miao'], title: '一盘番茄炒蛋：练出可复现的好吃', description: '从番茄和鸡蛋出发，各自在真实晚餐里练习、复做和借用彼此的经验，留下做法的变化与不同的口味取舍。', contextGuide: cookingContextGuide, createdAt: '2026-10-03T19:30:00+08:00', updatedAt: '2026-10-14T20:15:00+08:00' },
+  { id: 'cooking', ownerId: 'jo', participantIds: ['lin', 'miao', ...cookingParticipants.map((user) => user.id)], title: '一盘番茄炒蛋：练出可复现的好吃', description: '从番茄和鸡蛋出发，各自在真实晚餐里练习、复做和借用彼此的经验，留下做法的变化与不同的口味取舍。', avatar: cookingGraphAvatar, backgroundImage: cookingGraphBackground, contextGuide: cookingContextGuide, createdAt: '2026-10-03T19:30:00+08:00', updatedAt: '2026-10-16T19:20:00+08:00' },
   { id: 'daily', ownerId: 'jo', participantIds: ['lin', 'miao'], title: '日常空间整理', description: '让每天使用的空间更容易进入和维持。', createdAt: '2026-09-28T10:00:00+08:00', updatedAt: '2026-10-11T10:20:00+08:00' },
   { id: 'learning', ownerId: 'jo', participantIds: [], title: '阅读与思考', description: '把阅读变成可以回看的理解和行动。', createdAt: '2026-10-01T19:30:00+08:00', updatedAt: '2026-10-11T09:10:00+08:00' },
   { id: 'practice', ownerId: 'lin', participantIds: ['jo'], title: '生活技能练习', description: '通过一次次实际完成积累生活经验。', createdAt: '2026-09-20T08:00:00+08:00', updatedAt: '2026-10-11T07:40:00+08:00' },
@@ -143,6 +150,7 @@ export function App() {
   const [reactions, setReactions] = useState<Record<string, Reaction>>({})
   const followingIds = ['lin']
   const [darkMode, setDarkMode] = useState(false)
+  const [graphBackground, setGraphBackground] = useGraphBackground()
   const [showActionGraphLegend, setShowActionGraphLegend] = useState(() => {
     try { return window.localStorage.getItem(legendPreferenceKey) === 'true' } catch { return false }
   })
@@ -189,7 +197,7 @@ export function App() {
     const now = new Date().toISOString()
     const description = input.description.trim() || '从这里开始记录行动。'
     const project: Project = { id, ownerId: profile.id, participantIds: [], title: input.title, description, createdAt: now, updatedAt: now }
-    const initialAction: ActionNode = { id: `action-${Date.now()}-root`, projectId: id, number: 1, authorId: profile.id, title: input.title, markdown: `# ${input.title}\n\n${description}`, objectiveMarkdown: `# ${input.title}\n\n${description}`, expressionMarkdown: `# 行动表达\n\n这张行动图从「${input.title}」开始。`, contextSnapshot: { directNodeIds: [], historyNodeCount: 0 }, images: [], conversation: [], createdAt: now }
+    const initialAction: ActionNode = { id: `action-${Date.now()}-root`, projectId: id, number: 1, authorId: profile.id, title: input.title, markdown: `# ${input.title}\n\n${description}`, objectiveMarkdown: `# ${input.title}\n\n${description}`, contextSnapshot: { directNodeIds: [], historyNodeCount: 0 }, images: [], conversation: [], createdAt: now }
     setProjects((current) => [project, ...current])
     setActions((current) => [initialAction, ...current])
     openProject(id, 'projects')
@@ -201,12 +209,12 @@ export function App() {
   const setDefaultAIConfig = (id: string) => setAIConfigs((current) => current.map((config) => ({ ...config, isDefault: config.id === id })))
   const deleteAIConfig = (id: string) => setAIConfigs((current) => { const remaining = current.filter((config) => config.id !== id); if (remaining.length && !remaining.some((config) => config.isDefault)) remaining[0] = { ...remaining[0], isDefault: true }; return remaining })
 
-  const confirmWorkspace = (markdown: string, details: { title: string; description: string; points: string[]; note: string }, conversation: ChatMessage[]) => {
+  const confirmWorkspace = (markdown: string, details: { title: string; description: string; points: string[]; note: string }, conversation: ChatMessage[], expressionMarkdown?: string) => {
     if (workspaceMode === 'action') {
       if (!workspaceProjectId) return
       const projectActions = actions.filter((action) => action.projectId === workspaceProjectId)
       const project = projects.find((item) => item.id === workspaceProjectId)
-      const action: ActionNode = { id: `action-${Date.now()}`, projectId: workspaceProjectId, number: Math.max(0, ...projectActions.map((item) => item.number)) + 1, parentId: workspaceActionParent?.id, authorId: profile.id, title: details.title || '一次行动记录', markdown, objectiveMarkdown: markdown, expressionMarkdown: `# 行动表达\n\n${details.note || '这次行动暂时没有形成新的表达。'}`, contextSnapshot: { directNodeIds: workspaceActionParent ? [workspaceActionParent.id] : [], historyNodeCount: projectActions.length, guide: project?.contextGuide }, images: [], conversation, createdAt: new Date().toISOString() }
+      const action: ActionNode = { id: `action-${Date.now()}`, projectId: workspaceProjectId, number: Math.max(0, ...projectActions.map((item) => item.number)) + 1, parentId: workspaceActionParent?.id, authorId: profile.id, title: details.title || '一次行动记录', markdown, objectiveMarkdown: markdown, expressionMarkdown, contextSnapshot: { directNodeIds: workspaceActionParent ? [workspaceActionParent.id] : [], historyNodeCount: workspaceActionParent ? getActionContextIds(projectActions, workspaceActionParent.id).size : 0, guide: project?.contextGuide }, images: [], conversation, createdAt: new Date().toISOString() }
       setActions((current) => [action, ...current])
       openProject(workspaceProjectId)
       return
@@ -259,7 +267,7 @@ export function App() {
   const selectedTopic = topics.find((topic) => topic.id === selectedTopicId) ?? topics[0]
   const selectedProject = projects.find((project) => project.id === selectedProjectId) ?? projects[0]
   const selectedProjectActions = actions.filter((action) => action.projectId === selectedProject.id)
-  const allUsers = [profile, lin, miao]
+  const allUsers = [profile, lin, miao, ...cookingParticipants]
   const ownPlans = plans.filter((plan) => plan.authorId === profile.id)
   const ownCompletions = completions.filter((completion) => completion.authorId === profile.id)
   const activeAIConfig = aiConfigs.find((config) => config.isDefault) ?? aiConfigs[0]
@@ -268,13 +276,14 @@ export function App() {
   return <AppShell profile={profile} profileStats={{ createdProjects: projects.filter((project) => project.ownerId === profile.id).length, completedRecords: ownCompletions.length }} activeView={route} darkMode={darkMode} projectTitle={selectedProject.title} backAction={route === 'project' ? { label: projectBackView === 'projects' ? '返回所有行动图' : '返回我的', onBack: () => navigate(projectBackView) } : undefined} onToggleTheme={() => setDarkMode((current) => !current)} onLogout={() => { window.location.hash = 'login' }}>
     {route === 'home' && <FeedPage title="公开完成记录" eyebrow="大家最近完成的事情" completions={visibleCompletions} topics={topics} plans={plans} users={allUsers} reactions={reactions} onReaction={onReaction} onOpenTopic={openTopic} onParallel={startPlanning} />}
     {route === 'following' && <FeedPage title="最新完成记录" eyebrow="来自你关注的人" completions={visibleCompletions} topics={topics} plans={plans} users={allUsers} reactions={reactions} onReaction={onReaction} onOpenTopic={openTopic} onParallel={startPlanning} />}
-    {route === 'publish' && workspaceMode === 'action' ? <ActionWorkspace key={`action-${workspaceActionParent?.id ?? 'root'}-${workspaceActionId ?? 'new'}`} profileName={profile.name} aiConfig={activeAIConfig} contextTitle={workspaceActionParent?.title} contextGuide={projects.find((item) => item.id === workspaceProjectId)?.contextGuide} onBack={() => workspaceProjectId ? openProject(workspaceProjectId) : navigate('my')} onConfirm={confirmWorkspace} /> : route === 'publish' && <AIWorkspace key={`${workspaceMode}-${workspacePlan?.id ?? 'new'}-${workspaceCompletion?.id ?? 'new'}-${workspaceParentPlan?.id ?? 'root'}`} mode={workspaceMode === 'completion' ? 'completion' : 'planning'} profileName={profile.name} aiConfig={activeAIConfig} plan={workspacePlan} contextPlan={workspaceParentPlan} topicTitle={workspaceTopicId ? topics.find((topic) => topic.id === workspaceTopicId)?.title : undefined} initialDocument={workspaceMode === 'planning' ? workspacePlan?.markdown : workspaceCompletion?.markdown ?? workspacePlan?.markdown} initialMessages={workspaceMode === 'planning' ? workspacePlan?.conversation : workspaceCompletion?.conversation ?? workspacePlan?.conversation} continuationFromPlan={workspaceMode === 'completion' && !workspaceCompletion} onStartCompletion={workspaceMode === 'planning' && workspacePlan?.status === 'active' ? () => startCompletion(workspacePlan) : undefined} onBack={() => workspaceProjectId ? openProject(workspaceProjectId) : navigate('my')} onConfirm={confirmWorkspace} />}
+    {route === 'publish' && workspaceMode === 'action' ? <ActionWorkspace key={`action-${workspaceActionParent?.id ?? 'root'}-${workspaceActionId ?? 'new'}`} profileName={profile.name} aiConfig={activeAIConfig} contextTitle={workspaceActionParent?.title} inheritedExpression={workspaceActionParent ? getActionExpression(actions, workspaceActionParent.id).markdown : ''} contextGuide={projects.find((item) => item.id === workspaceProjectId)?.contextGuide} onBack={() => workspaceProjectId ? openProject(workspaceProjectId) : navigate('my')} onConfirm={confirmWorkspace} /> : route === 'publish' && <AIWorkspace key={`${workspaceMode}-${workspacePlan?.id ?? 'new'}-${workspaceCompletion?.id ?? 'new'}-${workspaceParentPlan?.id ?? 'root'}`} mode={workspaceMode === 'completion' ? 'completion' : 'planning'} profileName={profile.name} aiConfig={activeAIConfig} plan={workspacePlan} contextPlan={workspaceParentPlan} topicTitle={workspaceTopicId ? topics.find((topic) => topic.id === workspaceTopicId)?.title : undefined} initialDocument={workspaceMode === 'planning' ? workspacePlan?.markdown : workspaceCompletion?.markdown ?? workspacePlan?.markdown} initialMessages={workspaceMode === 'planning' ? workspacePlan?.conversation : workspaceCompletion?.conversation ?? workspacePlan?.conversation} continuationFromPlan={workspaceMode === 'completion' && !workspaceCompletion} onStartCompletion={workspaceMode === 'planning' && workspacePlan?.status === 'active' ? () => startCompletion(workspacePlan) : undefined} onBack={() => workspaceProjectId ? openProject(workspaceProjectId) : navigate('my')} onConfirm={confirmWorkspace} />}
     {route === 'my' && <MyPage profile={profile} projects={projects} plans={ownPlans} completions={ownCompletions} topics={topics} onOpenProject={(projectId) => openProject(projectId, 'my')} onOpenPlan={(plan) => { setProjectBackView('my'); openPlanInteraction(plan) }} onOpenCompletion={(completion) => { setProjectBackView('my'); openCompletionInteraction(completion) }} />}
-    {route === 'project' && <ProjectPage project={selectedProject} currentUserId={profile.id} users={allUsers} actions={selectedProjectActions} showActionGraphLegend={showActionGraphLegend} onCreateAction={startAction} onContinueAction={(node, mode) => startAction(selectedProject.id, node, mode)} onOpenActionArchive={openActionArchive} onUpdateProject={updateProject} />}
-    {route === 'action-archive' && archiveAction && <ActionArchivePage project={selectedProject} node={archiveAction} onBack={() => openProject(selectedProject.id)} />}
+    {route === 'profile' && <ProfilePage users={allUsers} projects={projects} actions={actions} onOpenProject={openProject} />}
+    {route === 'project' && <ProjectPage key={selectedProject.id} project={selectedProject} currentUserId={profile.id} users={allUsers} actions={selectedProjectActions} showActionGraphLegend={showActionGraphLegend} graphBackground={graphBackground} onCreateAction={startAction} onContinueAction={(node, mode) => startAction(selectedProject.id, node, mode)} onOpenActionArchive={openActionArchive} onUpdateProject={updateProject} />}
+    {route === 'action-archive' && archiveAction && <ActionArchivePage project={selectedProject} node={archiveAction} actions={selectedProjectActions} users={allUsers} onBack={() => openProject(selectedProject.id)} />}
     {route === 'projects' && <ProjectsPage currentUserId={profile.id} projects={projects} topics={topics} plans={plans} completions={completions} onBack={() => navigate('my')} onCreateProject={createProject} onOpenProject={(projectId) => openProject(projectId, 'projects')} />}
     {route === 'topic' && <TopicPage topic={selectedTopic} plans={plans.filter((plan) => plan.topicId === selectedTopic.id)} completions={completions.filter((completion) => completion.topicId === selectedTopic.id)} users={allUsers} reactions={reactions} onBack={() => navigate('home')} onReaction={onReaction} onParallel={startPlanning} onContinuePlan={(plan, branchMode) => startPlanning(plan.topicId, selectedTopic.projectId, plan, branchMode)} />}
-    {route === 'settings' && <SettingsPanel profile={profile} darkMode={darkMode} showActionGraphLegend={showActionGraphLegend} aiConfigs={aiConfigs} onSave={setProfile} onToggleTheme={() => setDarkMode((current) => !current)} onShowActionGraphLegendChange={setShowActionGraphLegend} onSaveAIConfig={saveAIConfig} onSetDefaultAIConfig={setDefaultAIConfig} onDeleteAIConfig={deleteAIConfig} />}
+    {route === 'settings' && <SettingsPanel profile={profile} darkMode={darkMode} showActionGraphLegend={showActionGraphLegend} graphBackground={graphBackground} onGraphBackgroundChange={setGraphBackground} aiConfigs={aiConfigs} onSave={setProfile} onToggleTheme={() => setDarkMode((current) => !current)} onShowActionGraphLegendChange={setShowActionGraphLegend} onSaveAIConfig={saveAIConfig} onSetDefaultAIConfig={setDefaultAIConfig} onDeleteAIConfig={deleteAIConfig} />}
   </AppShell>
 }
 

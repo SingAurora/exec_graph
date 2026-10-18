@@ -1,5 +1,5 @@
 import type { Action, UserProfile } from '../../shared/model'
-import { Avatar } from '../layout/AppShell'
+import { Avatar } from '../../shared/ui/Avatar'
 
 type ActionListProps = { actions: Action[]; profile: UserProfile; onComplete: (action: Action) => void }
 

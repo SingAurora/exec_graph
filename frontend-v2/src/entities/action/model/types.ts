@@ -25,7 +25,7 @@ export type ActionNode = {
   markdown: string
   /** Facts from this action only. `markdown` remains as a legacy fallback. */
   objectiveMarkdown?: string
-  /** The interpretation formed from this action and its prior context. */
+  /** Undefined inherits from parentId; an empty string explicitly clears the expression. */
   expressionMarkdown?: string
   /** Compact provenance captured when the two documents were generated. */
   contextSnapshot?: { directNodeIds: string[]; historyNodeCount: number; guide?: string }
@@ -33,6 +33,15 @@ export type ActionNode = {
   conversation: ChatMessage[]
   createdAt: string
 }
+
+/** Effective expression and the node that last updated or explicitly cleared it. */
+export type ActionExpression = {
+  markdown: string
+  sourceNode?: ActionNode
+}
+
+/** The two independently readable documents attached to an action. */
+export type ActionDocumentMode = 'objective' | 'expression'
 
 /** The user's unpublished account and the conversation used to organize it. */
 export type ActionDraft = {

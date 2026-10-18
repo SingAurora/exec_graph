@@ -1,58 +1,59 @@
-import { ArrowRight, Plus, Sparkles } from 'lucide-react'
-import type { ActionNode } from '../../../entities/action/model/types'
+import { Plus } from 'lucide-react'
+import { useMemo } from 'react'
+import { getActionExpression } from '../../../entities/action/lib/expressions'
+import { getActionLevels } from '../../../entities/action/lib/levels'
+import type { ActionDocumentMode, ActionNode } from '../../../entities/action/model/types'
+import { ExpressionSource } from '../../../entities/action/ui/ExpressionContent'
 import type { UserProfile } from '../../../shared/model'
+import { formatFullPublicationTime, formatPublicationTime } from '../../../shared/lib/date'
+import { getMarkdownSummary } from '../../../shared/lib/markdownSummary'
 import { Avatar } from '../../../shared/ui/Avatar'
-
-export type ActionPost = {
-  node: ActionNode
-  summary: string
-  pathLength: number
-  participantCount: number
-  mergedCount: number
-}
+import { RecordThumbnails } from '../../../shared/ui/RecordThumbnails'
 
 type ActionPostListProps = {
-  posts: ActionPost[]
+  nodes: ActionNode[]
+  actions: ActionNode[]
   users: UserProfile[]
-  category: 'featured' | 'hot' | 'latest'
-  onOpenPost: (post: ActionPost) => void
+  mode: ActionDocumentMode
+  onExplore: (node: ActionNode, mode: ActionDocumentMode) => void
   onCreate: () => void
 }
 
-/** Renders the fixed Tieba-like post list for an action graph. */
-export function ActionPostList({ posts, users, category, onOpenPost, onCreate }: ActionPostListProps) {
-  const userById = new Map(users.map((user) => [user.id, user]))
-  if (!posts.length) return <EmptyPostList category={category} onCreate={onCreate} />
-  return <section className="border-y border-line" aria-label={`${categoryLabel(category)}帖子列表`}>
-    {posts.map((post) => <button className="group grid w-full gap-3 border-0 border-b border-line bg-transparent px-1 py-5 text-left last:border-b-0 hover:bg-soft" type="button" key={post.node.id} onClick={() => onOpenPost(post)}>
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0"><h3 className="truncate text-[16px] font-semibold tracking-[-.02em] group-hover:text-signal">{post.node.title}</h3><p className="post-summary-clamp mt-2 max-w-[690px] text-[13px] leading-[1.75] text-muted">{post.summary}</p></div>
-        <ArrowRight className="mt-1 flex-none text-muted transition group-hover:translate-x-0.5 group-hover:text-signal" size={17} />
-      </div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[11px] text-muted">
-        <span className="inline-flex items-center gap-2"><Avatar profile={userById.get(post.node.authorId)} label={post.node.authorId.slice(0, 1).toUpperCase()} size="tiny" /><strong className="font-medium text-ink">{userById.get(post.node.authorId)?.name ?? post.node.authorId}</strong></span>
-        <span>节点 {post.pathLength}</span><span>{post.participantCount} 人接续</span>{post.mergedCount > 0 && <span>合入 {post.mergedCount} 条路线</span>}<time dateTime={post.node.createdAt}>{formatPostDate(post.node.createdAt)}</time>
-      </div>
-      {post.node.images.length > 0 && <div className="flex gap-1.5">{post.node.images.slice(0, 3).map((image) => <img className="size-14 rounded border border-line object-cover" src={image.url} alt={image.alt} key={image.url} loading="lazy" />)}</div>}
-    </button>)}
+/** Shows compact route expressions or facts; every reading action opens the full document. */
+export function ActionPostList({ nodes, actions, users, mode, onExplore, onCreate }: ActionPostListProps) {
+  const levels = useMemo(() => getActionLevels(actions), [actions])
+  if (!nodes.length) return <div className="border-y border-line py-16 text-center">
+    <h3 className="text-[17px]">{mode === 'expression' ? '暂无表达' : '暂无行动'}</h3>
+    <button className="primary-button mt-5" type="button" onClick={onCreate}><Plus size={16} />记录行动</button>
+  </div>
+  return <section className="min-w-0 divide-y divide-line" aria-label={mode === 'expression' ? '表达列表' : '行动列表'}>
+    {nodes.map((node) => <ActionPostItem key={node.id} node={node} level={levels.get(node.id)} actions={actions} users={users} mode={mode} onExplore={onExplore} />)}
   </section>
 }
 
-function EmptyPostList({ category, onCreate }: { category: ActionPostListProps['category']; onCreate: () => void }) {
-  const content = {
-    featured: ['还没有精华帖子', '等一条行动链形成清晰的表达后，它会出现在这里。'],
-    hot: ['还没有热门帖子', '等更多人接续和回应后，这里会出现正在升温的表达。'],
-    latest: ['还没有帖子', '记录第一条行动，形成表达后就会出现在这里。'],
-  }[category]
-  return <div className="border-y border-line py-16 text-center"><Sparkles size={22} className="mx-auto text-signal" /><h3 className="mt-3 text-[17px]">{content[0]}</h3><p className="mt-2 text-[13px] text-muted">{content[1]}</p><button className="primary-button mt-5" type="button" onClick={onCreate}><Plus size={15} />记录第一条行动</button></div>
-}
-
-function categoryLabel(category: ActionPostListProps['category']) {
-  return category === 'featured' ? '精华' : category === 'hot' ? '热门' : '最新'
-}
-
-function formatPostDate(value: string) {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).format(date)
+function ActionPostItem({ node, level, actions, users, mode, onExplore }: Omit<ActionPostListProps, 'nodes' | 'onCreate'> & { node: ActionNode; level: number | undefined }) {
+  const author = users.find((user) => user.id === node.authorId)
+  const expression = mode === 'expression' ? getActionExpression(actions, node.id) : undefined
+  const previewImages = expression ? (expression.markdown.trim() ? expression.sourceNode?.images ?? [] : []) : node.images
+  const markdown = expression?.markdown ?? node.objectiveMarkdown ?? node.markdown
+  const summary = getMarkdownSummary(markdown, node.title)
+  const openDocument = () => onExplore(node, mode)
+  const documentLabel = mode === 'expression' ? '表达' : '行动'
+  return <article className="group relative isolate min-w-0 px-1 py-5" data-node-id={node.id}>
+    <button className="absolute inset-0 z-0 w-full cursor-pointer border-0 bg-transparent p-0 text-left transition hover:bg-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal" type="button" aria-label={`阅读全文：${documentLabel} · ${node.title}`} onClick={openDocument} />
+    <div className="pointer-events-none relative">
+      <h3 className="truncate text-base font-semibold leading-[1.6] tracking-[-.02em] group-hover:text-signal" title={node.title}>{node.title}</h3>
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs leading-5 text-muted">
+        <a className="pointer-events-auto relative z-10 inline-flex items-center gap-2 rounded-sm text-ink hover:text-signal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal" href={`#profile?userId=${encodeURIComponent(node.authorId)}`} aria-label={`查看${author?.name ?? node.authorId}的主页`}>
+          <Avatar profile={author} label={(author?.name ?? node.authorId).slice(0, 1)} size="compact" /><strong className="text-sm font-medium">{author?.name ?? node.authorId}</strong>
+        </a>
+        <time className="pointer-events-auto relative z-10 cursor-text" dateTime={node.createdAt} title={formatFullPublicationTime(node.createdAt)}>{formatPublicationTime(node.createdAt)}</time>{level !== undefined && <span className="pointer-events-auto relative z-10 cursor-text">第{level}层</span>}
+      </div>
+      <div className="mt-3">
+        {expression && <ExpressionSource expression={expression} nodeId={node.id} users={users} />}
+        <p className={`post-summary-clamp text-sm leading-[1.85] ${summary ? 'text-copy' : 'text-muted'}`}>{summary || `暂无${documentLabel}`}</p>
+        <RecordThumbnails images={previewImages} />
+      </div>
+    </div>
+  </article>
 }

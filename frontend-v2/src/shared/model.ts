@@ -1,4 +1,4 @@
-export type AppView = 'home' | 'following' | 'publish' | 'my' | 'settings' | 'topic' | 'project' | 'projects' | 'action-archive'
+export type AppView = 'home' | 'following' | 'publish' | 'my' | 'settings' | 'topic' | 'project' | 'projects' | 'action-archive' | 'profile'
 
 export type AuthView = 'login' | 'register' | 'forgot'
 

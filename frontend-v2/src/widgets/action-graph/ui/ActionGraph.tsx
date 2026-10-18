@@ -5,6 +5,8 @@ import type { ActionNode } from '../../../entities/action/model/types'
 import { getActionContextIds, getActionParentIds } from '../../../entities/action/lib/graph'
 import type { UserProfile } from '../../../shared/model'
 import { HelpPopover } from '../../../shared/ui/help/HelpPopover'
+import { GraphBackground } from '../../../shared/ui/graph-background/GraphBackground'
+import type { GraphBackgroundPreferences } from '../../../shared/ui/graph-background/model'
 import { createActionLayout, GRAPH_WIDTH } from '../lib/layout'
 import { getEdgeHitPaths, type EdgeHitPath } from '../lib/edgeGeometry'
 import { createGraphStyles } from './graphStyles'
@@ -19,16 +21,20 @@ type Props = {
   selectedId?: string
   selectedReferenceId?: string
   showLegend: boolean
+  background: GraphBackgroundPreferences
+  active?: boolean
+  focusRequest?: number
   onSelect: (id: string) => void
   onSelectReference: (id: string) => void
   onFitViewport: () => void
 }
 
 /** Fixed-width action graph; line style shows authorship and crosses show agreement exceptions. */
-export function ActionGraph({ actions, mainPath, users, selectedId, selectedReferenceId, showLegend, onSelect, onSelectReference, onFitViewport }: Props) {
+export function ActionGraph({ actions, mainPath, users, selectedId, selectedReferenceId, showLegend, background, active = true, focusRequest = 0, onSelect, onSelectReference, onFitViewport }: Props) {
   const container = useRef<HTMLDivElement>(null)
   const viewport = useRef<HTMLDivElement>(null)
   const graphRef = useRef<Core | null>(null)
+  const handledFocus = useRef(0)
   const tooltipId = useId()
   const [hover, setHover] = useState<GraphHover | null>(null)
   const [hitPaths, setHitPaths] = useState<EdgeHitPath[]>([])
@@ -57,7 +63,8 @@ export function ActionGraph({ actions, mainPath, users, selectedId, selectedRefe
 
   useEffect(() => {
     const graph = graphRef.current
-    if (!graph) return
+    if (!graph || !active) return
+    graph.resize()
     const reference = selectedReferenceId ? referenceById.get(selectedReferenceId) : undefined
     const contextId = reference?.source.id ?? selectedId
     const context = contextId ? getActionContextIds(actions, contextId) : new Set<string>()
@@ -79,10 +86,12 @@ export function ActionGraph({ actions, mainPath, users, selectedId, selectedRefe
     const focusId = reference?.target.id ?? selectedId
     const position = focusId ? layout.positions.get(focusId) : undefined
     const scroll = viewport.current
-    if (position && scroll && (position.y < scroll.scrollTop + 30 || position.y > scroll.scrollTop + scroll.clientHeight - 30)) {
+    const forceFocus = handledFocus.current !== focusRequest
+    handledFocus.current = focusRequest
+    if (position && scroll && (forceFocus || position.y < scroll.scrollTop + 30 || position.y > scroll.scrollTop + scroll.clientHeight - 30)) {
       scroll.scrollTo({ top: Math.max(0, position.y - scroll.clientHeight / 2), behavior: 'instant' })
     }
-  }, [selectedId, selectedReferenceId, referenceById, actions, layout, palette])
+  }, [selectedId, selectedReferenceId, referenceById, actions, layout, palette, active, focusRequest])
 
   useEffect(() => {
     const graph = graphRef.current
@@ -114,15 +123,15 @@ export function ActionGraph({ actions, mainPath, users, selectedId, selectedRefe
   }
 
   return <aside className="action-graph-panel" aria-label="节点关系">
-    <header className="action-graph-heading"><div><div className="flex items-center gap-1"><h3><Network size={15} />节点关系</h3><HelpPopover title="节点关系">
+    <header className="action-graph-heading"><div><div className="flex items-center gap-1"><h3><Network size={16} />节点关系</h3><HelpPopover title="节点关系">
       <p>圆点数字表示层级：起点为 1，后续节点为所有直接来源中最高层级加 1。节点编号用于区分具体行动。</p>
       <p>实线表示自己引用自己，虚线表示引用他人。满足约定没有额外标记；× 表示不满足来源约定，例外获同意后仍保留。</p>
-      <p>绿色路线为主线，节点外圈标记当前选择。主线会随后续行动变化，切换选择不会改变主线。</p>
-      <p>悬浮查看摘要，点击节点阅读文档，点击连线查看引用详情。“定位主链”会选中并显示当前帖子的主链；“重新铺满”将节点图与详情对齐当前窗口。</p>
+      <p>绿色节点表示当前路线及其引用背景，节点外圈标记当前选择。浏览其他节点不会改变当前路线。</p>
+      <p>悬浮查看摘要，点击节点阅读文档，点击连线查看引用详情。“定位当前路线”回到这次查看的路线终点；“重新铺满”将节点图与详情对齐当前窗口。</p>
     </HelpPopover></div><p>{actions.length} 个节点</p></div>
       <div className="action-graph-heading-actions">
-        <button className="action-graph-icon-button" type="button" title="重新铺满" aria-label="重新铺满" onClick={onFitViewport}><Maximize2 size={15} aria-hidden="true" /></button>
-        <button className="action-graph-icon-button" type="button" title="定位主链" aria-label="定位主链" onClick={locateLatestMainNode}><LocateFixed size={15} aria-hidden="true" /></button>
+        <button className="action-graph-icon-button" type="button" title="重新铺满" aria-label="重新铺满" onClick={onFitViewport}><Maximize2 size={16} aria-hidden="true" /></button>
+        <button className="action-graph-icon-button" type="button" title="定位当前路线" aria-label="定位当前路线" onClick={locateLatestMainNode}><LocateFixed size={16} aria-hidden="true" /></button>
       </div>
     </header>
     {showLegend && <div className="action-graph-legend" aria-label="节点关系图例">
@@ -133,6 +142,7 @@ export function ActionGraph({ actions, mainPath, users, selectedId, selectedRefe
     </div>}
     <div className="action-graph-scroll" ref={viewport} tabIndex={0} role="region" aria-label="浏览节点关系" onScroll={() => setHover(null)}>
       <div className="action-graph-canvas" style={{ width: GRAPH_WIDTH, height: layout.height }}>
+        <GraphBackground preferences={background} />
         {/* Cytoscape injects an unlayered relative-position rule; keep the canvas frame absolute. */}
         <div className="action-graph-surface" style={{ position: 'absolute' }} ref={container} aria-hidden="true" />
         <svg className="action-graph-edge-targets" width={GRAPH_WIDTH} height={layout.height} role="group" aria-label="节点引用关系">

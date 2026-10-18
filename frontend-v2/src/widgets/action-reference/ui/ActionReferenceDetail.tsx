@@ -40,9 +40,9 @@ export function ActionReferenceDetail({ reference, actions, users, onSelectNode 
           <p>未记录约定核对结果时，不能据此判断是否满足约定。</p>
           <p>引用背景包含来源节点及其全部引用历史，追溯至起点并去重。未被引用的其他分支不属于当前已知的执行事实。</p>
         </HelpPopover></div>
-        <span className="text-[10px] text-muted">节点 #{source.number} → #{target.number}</span>
+        <span className="text-xs text-muted">节点 #{source.number} → #{target.number}</span>
       </div>
-      <h3 className="mt-[7px] flex items-center gap-2 text-[23px] tracking-[-.03em]">
+      <h3 className="mt-[7px] flex items-center gap-2 text-xl tracking-[-.03em]">
         {incorporated ? <GitMerge size={20} className="text-signal" /> : <Link2 size={20} className="text-signal" />}
         {incorporated ? '合入行动背景' : '承接行动'}
       </h3>
@@ -64,14 +64,14 @@ export function ActionReferenceDetail({ reference, actions, users, onSelectNode 
 
     <section className="border-b border-line px-6 py-5">
       <h4 className="text-[13px] font-semibold">约定核对</h4>
-      <p className={`mt-3 text-xs font-semibold ${exception ? 'text-coral' : 'text-signal'}`}>
+      <p className={`mt-3 text-[13px] font-semibold ${exception ? 'text-coral' : agreementStatus === 'satisfied' ? 'text-signal' : 'text-muted'}`}>
         {exception && <span aria-hidden="true">× </span>}{agreementLabels[agreementStatus]}
       </p>
       {exception && <>
-        <h5 className="mt-4 text-[11px] font-semibold text-muted">例外原因</h5>
-        <p className="mt-1.5 whitespace-pre-wrap text-xs leading-[1.9]">{reference.exceptionReason?.trim() || '尚未填写例外原因。'}</p>
+        <h5 className="mt-4 text-xs font-semibold text-muted">例外原因</h5>
+        <p className="mt-1.5 whitespace-pre-wrap text-sm leading-[1.9]">{reference.exceptionReason?.trim() || '尚未填写例外原因。'}</p>
         <div className="mt-4 border-l-2 border-line pl-3">
-          <h5 className="text-[11px] font-semibold text-muted">例外授权</h5>
+          <h5 className="text-xs font-semibold text-muted">例外授权</h5>
           <p className="mt-1.5 text-xs leading-[1.9]">
             {authorization === 'self-approved' ? '自动同意（本人）'
               : authorization === 'author-approved' ? `${sourceAuthor} 已同意`
@@ -96,12 +96,12 @@ function ReferenceNode({ label, node, author, level, onSelect }: {
   onSelect: (id: string) => void
 }) {
   return <div>
-    <div className="mb-2 flex items-center justify-between gap-3 text-[10px] text-muted">
+    <div className="mb-2 flex items-center justify-between gap-3 text-xs text-muted">
       <span>{label}</span><span>第 {level} 层 · 节点 #{node.number}</span>
     </div>
     <button className="group flex w-full items-center gap-3 rounded-md border border-line bg-transparent p-3 text-left hover:bg-soft" type="button" onClick={() => onSelect(node.id)}>
       <Avatar profile={author} label={author?.name.slice(0, 1) ?? node.authorId.slice(0, 1)} size="small" />
-      <span className="min-w-0 flex-1"><strong className="block text-xs leading-[1.7] group-hover:text-signal">{node.title}</strong><span className="mt-1 block text-[10px] text-muted">{author?.name ?? node.authorId}</span></span>
+      <span className="min-w-0 flex-1"><strong className="block text-sm leading-[1.7] group-hover:text-signal">{node.title}</strong><span className="mt-1 block text-[13px] font-medium text-ink">{author?.name ?? node.authorId}</span></span>
       <ArrowUpRight size={15} className="shrink-0 text-muted group-hover:text-signal" />
     </button>
   </div>

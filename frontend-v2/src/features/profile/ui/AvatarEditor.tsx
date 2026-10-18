@@ -1,6 +1,7 @@
 import { Check, ImagePlus, Minus, Plus } from 'lucide-react'
 import { useId, useRef, useState, type ChangeEvent, type PointerEvent } from 'react'
 import { Dialog } from '../../../shared/ui/dialog/Dialog'
+import { getAvatarLabel } from '../../../shared/lib/avatar'
 import {
   imageCompressionThreshold,
   readImageFile,
@@ -116,11 +117,14 @@ export function AvatarEditor({ value, fallback, onChange }: AvatarEditorProps) {
   }
 
   return <>
+    <div className="grid shrink-0 justify-items-start gap-2">
     <button className="group relative grid size-[88px] flex-none place-items-center overflow-hidden rounded-xl border-0 bg-transparent p-0" type="button" onClick={openFilePicker} aria-label="编辑头像">
-      <span className={`inline-grid size-[88px] place-items-center overflow-hidden rounded-[11px] bg-[#dce9e3] text-[27px] font-bold text-signal-dark${value ? ' bg-cover bg-center bg-no-repeat text-transparent' : ''}`} style={value ? { backgroundImage: `url("${value}")` } : undefined}>{value ? '' : fallback}</span>
+      <span className={`inline-grid size-[88px] place-items-center overflow-hidden rounded-[11px] bg-[#dce9e3] text-[27px] font-bold text-signal-dark${value ? ' bg-cover bg-center bg-no-repeat text-transparent' : ''}`} style={value ? { backgroundImage: `url("${value}")` } : undefined}>{value ? '' : getAvatarLabel(fallback)}</span>
       <span className="absolute inset-0 grid place-items-center rounded-xl bg-black/55 text-white opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100"><ImagePlus size={20} /><span className="sr-only">编辑头像</span></span>
     </button>
     <input ref={inputRef} id={inputId} className="sr-only" type="file" accept="image/*" onChange={selectImage} />
+    {value && <button className="text-button text-xs" type="button" onClick={() => onChange('')}>使用文字头像</button>}
+    </div>
     <Dialog open={open} onOpenChange={closeEditor} title="编辑头像" description="调整头像的缩放和裁剪位置" className="w-[min(calc(100%-40px),380px)] rounded-lg p-[26px]">
       <div className="relative mx-auto mt-[22px] size-[280px] cursor-grab touch-none overflow-hidden rounded-[10px] bg-soft active:cursor-grabbing" onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={finishDrag} onPointerCancel={finishDrag}>
         {source && <img className="absolute max-w-none select-none" ref={imageRef} src={source} alt="头像裁剪预览" draggable={false} onLoad={handleImageLoad} style={{ width: renderedWidth, height: renderedHeight, left: offset.x, top: offset.y }} />}

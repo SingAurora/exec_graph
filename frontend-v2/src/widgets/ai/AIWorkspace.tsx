@@ -3,7 +3,7 @@ import { useMemo, useState, type FormEvent } from 'react'
 import type { AIKeyConfig } from '../../entities/ai-key/model/types'
 import { generateAIDocument, type AIConversationTurn } from '../../features/ai-key/api/chat'
 import type { ChatMessage, PlanNode } from '../../shared/model'
-import { Avatar } from '../layout/AppShell'
+import { Avatar } from '../../shared/ui/Avatar'
 import { MarkdownDocument } from './MarkdownDocument'
 
 type AIWorkspaceProps = {

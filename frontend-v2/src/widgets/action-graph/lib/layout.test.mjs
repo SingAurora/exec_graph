@@ -11,7 +11,7 @@ const mainPath = getPreferredPath(actions)
 describe('action graph reference semantics', () => {
   test('separates authorship from continuation and incorporation', () => {
     const references = getActionReferences(actions)
-    expect(references).toHaveLength(15)
+    expect(references).toHaveLength(19)
     expect(references.find((edge) => edge.id === 'cooking-10:cooking-13').sameAuthor).toBe(true)
     expect(references.find((edge) => edge.id === 'cooking-4:cooking-13').sameAuthor).toBe(true)
     expect(references.find((edge) => edge.id === 'cooking-1:cooking-2').sameAuthor).toBe(false)
@@ -55,7 +55,7 @@ describe('action graph reference semantics', () => {
 describe('fixed-width vertical layout', () => {
   test('shows depth from one rather than unique publication numbers', () => {
     const layout = createActionLayout(actions, mainPath)
-    expect([...layout.levels.values()]).toEqual([1, 2, 2, 2, 3, 3, 3, 4, 5, 6, 6, 6, 7, 7])
+    expect([...layout.levels.values()]).toEqual([1, 2, 2, 2, 3, 3, 3, 4, 5, 6, 6, 6, 7, 7, 3, 4, 2, 3])
     expect(layout.elements.find((element) => element.data.id === 'cooking-13').data.level).toBe('7')
     expect(layout.elements.find((element) => element.data.id === 'cooking-14').data.level).toBe('7')
   })
@@ -80,7 +80,7 @@ describe('fixed-width vertical layout', () => {
 
   test('preserves relationships, fits horizontally and puts each source below its action', () => {
     const layout = createActionLayout(actions, mainPath)
-    expect(layout.positions.size).toBe(14)
+    expect(layout.positions.size).toBe(18)
     for (const position of layout.positions.values()) {
       expect(position.x).toBeGreaterThanOrEqual(40)
       expect(position.x).toBeLessThanOrEqual(GRAPH_WIDTH - 40)

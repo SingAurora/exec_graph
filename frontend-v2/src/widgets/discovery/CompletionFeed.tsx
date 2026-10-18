@@ -1,5 +1,5 @@
 import type { DiscoveryPost } from '../../shared/model'
-import { Avatar } from '../layout/AppShell'
+import { Avatar } from '../../shared/ui/Avatar'
 
 type CompletionFeedProps = { posts: DiscoveryPost[]; onToggleFollow: (id: string) => void; followingOnly?: boolean }
 
