@@ -1,12 +1,6 @@
 .DS_Store
 .idea/
 
-frontend/node_modules/
-frontend/dist/
-frontend/.vite/
-
-/backend/etc/config.local.yaml
-/frontend/.env.local
 /frontend-v2/.env.local
 
 *.log

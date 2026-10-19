@@ -2,6 +2,8 @@
 
 本文件是本仓库的项目级开发约定。修改代码前先阅读相关领域的现有实现，保持接口行为和数据兼容；不要回退无关的工作区改动。
 
+当前仅维护 `frontend-v2` 静态前端原型。旧 `frontend` 和 `backend` 已移除；以下后端、HTTP 和数据规范保留供未来服务端实现参考，不表示当前已接入这些能力。
+
 ## 结构与职责
 
 - `backend/cmd` 只保留进程启动入口。
@@ -51,6 +53,6 @@
 
 ## 验证
 
-- 后端改动至少运行：`cd backend && gofmt -w <改动文件> && go test ./... && go vet ./...`。
-- 前端改动至少运行：`cd frontend && bun run lint && bun run build`。
+- 未来重新引入后端时，后端改动至少运行：`gofmt -w <改动文件>`、`go test ./...` 和 `go vet ./...`。
+- 前端改动至少运行：`cd frontend-v2 && bun run lint && bun run build`。
 - 提交前运行 `git diff --check`。涉及接口、权限、事务或状态流时补充针对该行为的测试。
