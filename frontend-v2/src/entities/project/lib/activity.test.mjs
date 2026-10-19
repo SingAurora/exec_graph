@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { getGraphActivity, hasUserContributed } from './activity.ts'
+import { getActiveGraphActivities, getGraphActivity, hasUserContributed } from './activity.ts'
 import { getPublishedExpressions } from '../../action/lib/published.ts'
 
 const node = (id, extra = {}) => ({
@@ -36,5 +36,19 @@ describe('public graph activity', () => {
     const root = node('1', { expressionMarkdown: '本图表达' })
     const foreign = node('2', { projectId: 'other', parentId: '1' })
     expect(getPublishedExpressions([root, foreign])).toEqual([root])
+  })
+
+  test('discovery excludes empty and unknown graphs and orders real activity rather than metadata edits', () => {
+    const projects = [{ ...graph, updatedAt: '2026-12-01T00:00:00+08:00' },
+      { ...graph, id: 'newer', title: '最近行动的图' },
+      { ...graph, id: 'empty', createdAt: '2026-12-01T00:00:00+08:00' }]
+    const nodes = [node('1'), node('2', { projectId: 'newer', authorId: 'lin' }),
+      node('3', { projectId: 'missing' })]
+    const activities = getActiveGraphActivities(projects, nodes)
+    expect(activities.map(({ project }) => project.id)).toEqual(['newer', 'g'])
+    expect(activities[0].participantCount).toBe(1)
+    expect(activities[0].lastActionAt).toBe(nodes[1].createdAt)
+    expect(getActiveGraphActivities(projects, [])).toEqual([])
+    expect(projects.map(({ id }) => id)).toEqual(['g', 'newer', 'empty'])
   })
 })

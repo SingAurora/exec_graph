@@ -4,11 +4,11 @@ import type { CreateProjectInput } from '../model/types'
 import { CreateProjectDialog } from './CreateProjectDialog'
 
 /** Opens the shared form that creates an empty public graph. */
-export function CreateGraphButton({ onCreate }: { onCreate: (input: CreateProjectInput) => void }) {
+export function CreateGraphButton({ onCreate, compact = false }: { onCreate: (input: CreateProjectInput) => void; compact?: boolean }) {
   const [open, setOpen] = useState(false)
   const trigger = useRef<HTMLButtonElement>(null)
   return <>
-    <button className="primary-button" type="button" ref={trigger} onClick={() => setOpen(true)}><Plus size={16} />发起行动图</button>
+    <button className={compact ? 'text-button text-xs' : 'primary-button'} type="button" aria-label="发起行动图" ref={trigger} onClick={() => setOpen(true)}><Plus size={compact ? 14 : 16} />{compact ? '发起' : '发起行动图'}</button>
     {open && <CreateProjectDialog returnFocusRef={trigger} onClose={() => setOpen(false)} onCreate={(input) => { setOpen(false); onCreate(input) }} />}
   </>
 }

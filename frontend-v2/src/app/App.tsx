@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { demoActions } from './demo/actions'
 import { currentUser, initialProjects, lin, miao } from './demo/catalog'
 import { cookingParticipants } from './demo/cooking/participants'
 import { deleteProjectContent } from './model/delete-project'
 import { useAppNavigation } from './model/useAppNavigation'
+import { canFollowGraph } from '../entities/following/lib/activity'
+import { FollowingPage } from '../pages/FollowingPage'
 import type { ActionDocumentMode, ActionNode, ActionReferenceAgreement } from '../entities/action/model/types'
+import type { ActionReference } from '../entities/action/lib/references'
 import { getActionContinuationContext } from '../entities/action/lib/continuation'
 import { getActionExpressionContext } from '../entities/action/lib/expression-context'
 import { canEditActionExpression, getActionExpression, updateActionExpressionFromConversation } from '../entities/action/lib/expressions'
@@ -37,6 +40,7 @@ export function App() {
   const [actions, setActions] = useState<ActionNode[]>(demoActions)
   const [aiConfigs, setAIConfigs] = useState<AIKeyConfig[]>([platformAIConfig])
   const [followingIds, setFollowingIds] = useState<string[]>(['lin'])
+  const [followingGraphIds, setFollowingGraphIds] = useState<string[]>([])
   const [darkMode, setDarkMode] = useState(false)
   const [graphBackground, setGraphBackground] = useGraphBackground()
   const [showActionGraphLegend, setShowActionGraphLegend] = useState(() => {
@@ -56,11 +60,21 @@ export function App() {
   const expressionAction = actions.find((node) => node.id === workspaceActionId)
   const workspaceProject = projects.find((project) => project.id === workspaceProjectId)
   const archiveAction = actions.find((action) => action.id === archiveActionId)
-  const allUsers = [profile, lin, miao, ...cookingParticipants]
+  const allUsers = useMemo(() => [profile, lin, miao, ...cookingParticipants], [profile])
+  // Undo may outlive its original button; always validate against the latest resources.
+  const followTargets = useRef({ projects, actions, users: allUsers, selfId: profile.id })
+  useLayoutEffect(() => {
+    followTargets.current = { projects, actions, users: allUsers, selfId: profile.id }
+  }, [projects, actions, allUsers, profile.id])
   const activeAIConfig = aiConfigs.find((config) => config.isDefault) ?? aiConfigs[0]
-  const externalFocus = useMemo(() => route === 'project' && query.get('nodeId') ? {
-    requestId: hash + ':' + revision, nodeId: query.get('nodeId')!, mode: query.get('document') === 'expression' ? 'expression' as const : 'objective' as const,
-  } : undefined, [hash, query, route, revision])
+  const externalFocus = useMemo(() => {
+    if (route !== 'project') return undefined
+    const requestId = hash + ':' + revision
+    const referenceId = query.get('referenceId')
+    if (referenceId) return { requestId, referenceId }
+    const nodeId = query.get('nodeId')
+    return nodeId ? { requestId, nodeId, mode: query.get('document') === 'expression' ? 'expression' as const : 'objective' as const } : undefined
+  }, [hash, query, route, revision])
 
   useEffect(() => {
     if (darkMode) document.documentElement.setAttribute('data-theme', 'dark')
@@ -80,6 +94,10 @@ export function App() {
   const openNode = (node: ActionNode, mode: ActionDocumentMode) => {
     setLastProjectId(node.projectId)
     navigate('project?projectId=' + encodeURIComponent(node.projectId) + '&nodeId=' + encodeURIComponent(node.id) + '&document=' + mode)
+  }
+  const openReference = (reference: ActionReference) => {
+    setLastProjectId(reference.target.projectId)
+    navigate('project?projectId=' + encodeURIComponent(reference.target.projectId) + '&referenceId=' + encodeURIComponent(reference.id))
   }
   const startAction = (projectId: string, parent?: ActionNode) => {
     const nodes = actions.filter((node) => node.projectId === projectId)
@@ -126,6 +144,7 @@ export function App() {
     if (!remaining) return false
     setProjects(remaining.projects)
     setActions(remaining.actions)
+    setFollowingGraphIds((current) => current.filter((id) => id !== projectId))
     setLastProjectId('')
     setArchiveActionId(undefined)
     setWorkspaceProjectId(undefined)
@@ -153,9 +172,15 @@ export function App() {
     setActions((current) => [action, ...current])
     openNode(action, 'objective')
   }
-  const toggleFollow = (id: string) => {
-    if (id === profile.id) return
-    setFollowingIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])
+  const setUserFollow = (id: string, following: boolean) => {
+    if (id === followTargets.current.selfId || !followTargets.current.users.some((user) => user.id === id)) return false
+    setFollowingIds((current) => following ? current.includes(id) ? current : [...current, id] : current.filter((item) => item !== id))
+    return true
+  }
+  const setGraphFollow = (id: string, following: boolean) => {
+    if (following && !canFollowGraph(id, followTargets.current.projects, followTargets.current.actions)) return false
+    setFollowingGraphIds((current) => following ? current.includes(id) ? current : [...current, id] : current.filter((item) => item !== id))
+    return true
   }
   const profileReturnGraph = route === 'profile' ? query.get('fromGraph') : null
   const profileReturn = profileReturnGraph ? () => openProject(profileReturnGraph) : () => navigate(profileBackHash)
@@ -166,17 +191,17 @@ export function App() {
   return <AppShell profile={profile} profileStats={{ createdProjects: projects.filter((project) => project.ownerId === profile.id).length, completedRecords: actions.filter((node) => node.authorId === profile.id).length }} activeView={viewingOwnProfile ? 'my' : route} darkMode={darkMode} projectTitle={selectedProject?.title} publishTitle={workspaceMode === 'expression' ? '整理表达' : undefined}
     backAction={route === 'projects' ? { label: '返回我的', onBack: () => navigate('my') } : route === 'project' ? { label: '返回列表', onBack: () => navigate(graphBackHash) } : route === 'profile' && (!viewingOwnProfile || profileBackHash !== 'my') ? { label: profileReturnGraph ? '返回行动图' : '返回', onBack: profileReturn } : undefined}
     onToggleTheme={() => setDarkMode((current) => !current)} onLogout={() => navigate('login')}>
-    <div hidden={!personalAreaActive}><MyPage profile={profile} projects={projects} actions={actions} active={personalAreaActive} selectedTab={route === 'profile' ? 'profile' : 'overview'} showNavigation={route === 'my' || viewingOwnProfile}
+    <div hidden={!personalAreaActive}><MyPage profile={profile} users={allUsers} projects={projects} actions={actions} active={personalAreaActive} selectedTab={route === 'profile' ? 'profile' : 'overview'} showNavigation={route === 'my' || viewingOwnProfile}
       onSelectTab={(tab) => navigate(tab === 'profile' ? 'profile?userId=' + encodeURIComponent(profile.id) : 'my')}
-      onCreateProject={createProject} onOpenProject={openProject} onOpenNode={openNode}
-      profileContent={<ProfilePage users={allUsers} projects={projects} actions={actions} currentUserId={profile.id} followingIds={followingIds} active={route === 'profile'} onToggleFollow={toggleFollow} onOpenProject={openProject} onOpenNode={openNode} />} /></div>
-    <div hidden={route !== 'home'}><FeedPage actions={actions} projects={projects} users={allUsers} active={route === 'home'} onOpenProject={openProject} onOpenNode={openNode} /></div>
-    <div hidden={route !== 'following'}>{!followingIds.length && <div className="empty-state"><p>还没有关注任何人</p><a className="quiet-button" href="#home">去发现</a></div>}<div hidden={!followingIds.length}><FeedPage actions={actions} projects={projects} users={allUsers} authorIds={followingIds} active={route === 'following' && followingIds.length > 0} onOpenProject={openProject} onOpenNode={openNode} /></div></div>
+      onCreateProject={createProject} onOpenProject={openProject} onOpenNode={openNode} onOpenReference={openReference}
+      profileContent={<ProfilePage users={allUsers} projects={projects} actions={actions} currentUserId={profile.id} followingIds={followingIds} active={route === 'profile'} onSetUserFollow={setUserFollow} onOpenProject={openProject} onOpenNode={openNode} onOpenReference={openReference} />} /></div>
+    <div hidden={route !== 'home'}><FeedPage actions={actions} projects={projects} users={allUsers} active={route === 'home'} onOpenProject={openProject} onOpenNode={openNode} onOpenReference={openReference} /></div>
+    <div hidden={route !== 'following'}><FollowingPage actions={actions} projects={projects} users={allUsers} sources={{ userIds: followingIds, graphIds: followingGraphIds }} active={route === 'following'} onOpenProject={openProject} onOpenNode={openNode} onOpenReference={openReference} onSetGraphFollow={setGraphFollow} onSetUserFollow={setUserFollow} /></div>
     <div hidden={route !== 'projects'}><ProjectsPage currentUserId={profile.id} projects={projects} actions={actions} onCreateProject={createProject} onOpenProject={openProject} /></div>
     {selectedProject && <div hidden={route !== 'project'}><ProjectPage key={selectedProject.id} active={route === 'project'} project={selectedProject} externalFocus={externalFocus} currentUserId={profile.id} users={allUsers} actions={selectedProjectActions} showActionGraphLegend={showActionGraphLegend} graphBackground={graphBackground}
       onCreateAction={startAction} onContinueAction={(node) => startAction(selectedProject.id, node)}
       onOpenActionArchive={(node) => { setLastProjectId(node.projectId); setArchiveActionId(node.id); navigate('action-archive') }}
-      onUpdateProject={updateProject} onEditExpression={startExpression} onUpdateAgreement={updateAgreement} onDeleteProject={deleteProject} /></div>}
+      onUpdateProject={updateProject} onEditExpression={startExpression} onUpdateAgreement={updateAgreement} onDeleteProject={deleteProject} following={followingGraphIds.includes(selectedProject.id)} onSetGraphFollow={setGraphFollow} /></div>}
     {route === 'publish' && (workspaceMode === 'expression' && expressionAction ? <ExpressionWorkspace key={'expression-' + expressionAction.id} node={expressionAction} actions={actions.filter((node) => node.projectId === expressionAction.projectId)}
       profileName={profile.name} profileId={profile.id} profile={profile} users={allUsers} aiConfig={activeAIConfig} contextGuide={workspaceProject?.contextGuide} onBack={() => openProject(expressionAction.projectId)} onConfirm={confirmExpression} />
       : workspaceProject ? <ActionWorkspace key={workspaceSession} profileName={profile.name} profile={profile} aiConfig={activeAIConfig} hasParent={Boolean(workspaceParent)}

@@ -15,3 +15,9 @@ export function getSatisfiedAgreementResponses(references: ActionReference[]): A
     .sort((a, b) => Date.parse(b.target.createdAt) - Date.parse(a.target.createdAt)
       || b.target.number - a.target.number || a.id.localeCompare(b.id))
 }
+
+/** Lists a person's satisfied exchanges as responder or actual agreement author, once per arrow. */
+export function getProfileAgreementResponses(references: ActionReference[], userId: string): ActionReference[] {
+  return getSatisfiedAgreementResponses(references).filter((reference) => reference.target.authorId === userId
+    || getReferenceAgreementAuthorId(reference) === userId)
+}

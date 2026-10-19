@@ -9,6 +9,7 @@ export type UserProfile = {
   gender: 'male' | 'female' | 'unknown'
   bio: string
   avatar: string
+  backgroundImage?: string
   activeDays: number
   isTestAccount?: boolean
 }

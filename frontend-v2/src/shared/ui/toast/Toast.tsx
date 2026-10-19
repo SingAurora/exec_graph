@@ -19,6 +19,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map((toast) => <ToastPrimitive.Root className={`flex min-h-[42px] w-max max-w-full items-center gap-[9px] rounded-lg border bg-surface px-3.5 py-2 text-xs text-ink shadow-app animate-[toast-in_160ms_ease-out] ${toast.kind === 'error' ? 'border-coral text-coral' : toast.kind === 'warning' ? 'border-warning text-warning' : 'border-signal text-signal'}`} key={toast.id} duration={toast.duration ?? 2800} onOpenChange={(open) => { if (!open) dismissToast(toast.id) }}>
           <span className="inline-flex flex-none" aria-hidden="true">{toast.kind === 'error' ? <CircleAlert size={17} /> : toast.kind === 'warning' ? <TriangleAlert size={17} /> : <Info size={17} />}</span>
           <ToastPrimitive.Description className="break-words">{toast.message}</ToastPrimitive.Description>
+          {toast.action && <ToastPrimitive.Action className="ml-2 shrink-0 rounded border-0 bg-transparent px-1 py-1 font-semibold text-signal hover:bg-soft" altText={toast.action.label} onClick={toast.action.onClick}>{toast.action.label}</ToastPrimitive.Action>}
         </ToastPrimitive.Root>)}
       </ToastPrimitive.Viewport>
     </ToastPrimitive.Provider>

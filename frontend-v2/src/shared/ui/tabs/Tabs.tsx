@@ -14,13 +14,13 @@ export function TabsRoot({ value, onValueChange, children, className }: TabsRoot
 }
 
 /** Accessible tab list with the settings page's visual treatment. */
-export function TabsList({ label, children, sticky = false, showDivider = true }: { label: string; children: ReactNode; sticky?: boolean; showDivider?: boolean }) {
-  return <TabsPrimitive.List className={`mt-[23px] flex gap-[26px] overflow-x-auto ${showDivider ? 'border-b border-line' : ''} ${sticky ? 'sticky top-0 z-20 bg-paper' : ''}`} aria-label={label}>{children}</TabsPrimitive.List>
+export function TabsList({ label, children, sticky = false, showDivider = true, compact = false }: { label: string; children: ReactNode; sticky?: boolean; showDivider?: boolean; compact?: boolean }) {
+  return <TabsPrimitive.List className={`flex overflow-x-auto ${compact ? 'gap-5' : 'mt-[23px] gap-[26px]'} ${showDivider ? 'border-b border-line' : ''} ${sticky ? 'sticky top-0 z-20 bg-paper' : ''}`} aria-label={label}>{children}</TabsPrimitive.List>
 }
 
 /** Single tab trigger. */
-export function TabsTrigger({ value, children, disabled = false }: { value: string; children: ReactNode; disabled?: boolean }) {
-  return <TabsPrimitive.Trigger className="min-h-11 whitespace-nowrap border-0 border-b-2 border-transparent bg-transparent px-0.5 text-sm font-medium text-muted transition hover:text-signal disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-muted data-[state=active]:border-signal data-[state=active]:font-semibold data-[state=active]:text-signal" value={value} disabled={disabled}>{children}</TabsPrimitive.Trigger>
+export function TabsTrigger({ value, children, disabled = false, compact = false }: { value: string; children: ReactNode; disabled?: boolean; compact?: boolean }) {
+  return <TabsPrimitive.Trigger className={`${compact ? 'min-h-9 text-[13px]' : 'min-h-11 text-sm'} whitespace-nowrap border-0 border-b-2 border-transparent bg-transparent px-0.5 font-medium text-muted transition hover:text-signal disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-muted data-[state=active]:border-signal data-[state=active]:font-semibold data-[state=active]:text-signal`} value={value} disabled={disabled}>{children}</TabsPrimitive.Trigger>
 }
 
 /** Content panel associated with a tab trigger. */

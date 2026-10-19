@@ -31,5 +31,5 @@ function ConversationSection({ label, messages, empty }: { label: string; messag
 
 function ConversationMessage({ message }: { message: ChatMessage }) {
   const isUser = message.speaker === 'user'
-  return <div className={`flex gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[78%] border px-3.5 py-3 text-[13px] leading-[1.7] ${isUser ? 'border-signal bg-signal text-white' : 'border-line bg-paper text-ink'}`}><div className={`mb-1 text-[10px] font-bold ${isUser ? 'text-white/75' : 'text-signal'}`}>{isUser ? '你' : 'ExAct AI'}</div><p>{message.body}</p></div></div>
+  return <div className={`flex gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[78%] border px-3.5 py-3 text-[13px] leading-[1.7] ${isUser ? 'border-signal bg-signal text-white' : 'border-line bg-paper text-ink'}`}><div className={`mb-1 text-[10px] font-bold ${isUser ? 'text-white/75' : 'text-signal'}`}>{isUser ? '你' : '引序 AI'}</div><p>{message.body}</p></div></div>
 }

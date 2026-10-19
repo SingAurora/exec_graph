@@ -1,39 +1,44 @@
 import { Search, X } from 'lucide-react'
+import type { UserProfile } from '../../../shared/model'
+import { SearchSelect } from '../../../shared/ui/select/SearchSelect'
+import type { GraphSearchCriteria, GraphSearchScope } from '../model/types'
 
-export type GraphSearchScope = 'expressions' | 'actions' | 'users'
-
-type GraphSearchFormProps = {
+type Props = {
   scope: GraphSearchScope
-  value: string
-  onValueChange: (value: string) => void
-  onScopeChange: (scope: GraphSearchScope) => void
+  criteria: GraphSearchCriteria
+  users: UserProfile[]
+  onChange: (criteria: GraphSearchCriteria) => void
   onSubmit: () => void
-  onClear: () => void
+  onReset: () => void
 }
 
-const scopes: { value: GraphSearchScope; label: string }[] = [
-  { value: 'expressions', label: '表达' },
-  { value: 'actions', label: '行动' },
-  { value: 'users', label: '参与用户' },
-]
+const labels: Record<GraphSearchScope, string> = { expressions: '表达', agreements: '约定', actions: '行动', users: '用户' }
+const placeholders: Record<GraphSearchScope, string> = {
+  expressions: '搜索表达正文或节点标题', agreements: '搜索约定正文或回应行动标题',
+  actions: '搜索行动正文或标题', users: '搜索本图参与用户的昵称',
+}
 
-/** Submits graph-local keywords and switches between the three supported search scopes. */
-export function GraphSearchForm({ scope, value, onValueChange, onScopeChange, onSubmit, onClear }: GraphSearchFormProps) {
-  const label = scopes.find((item) => item.value === scope)!.label
-  return <div>
-    <form className="flex gap-2" role="search" aria-label="图内搜索" onSubmit={(event) => { event.preventDefault(); onSubmit() }}>
+/** Renders category-specific criteria without sharing drafts or submitting on filter changes. */
+export function GraphSearchForm({ scope, criteria, users, onChange, onSubmit, onReset }: Props) {
+  const options = [{ value: '', label: '全部' }, ...users.map((user) => ({ value: user.id, label: user.name }))]
+  const filters = scope === 'agreements'
+    ? [{ field: 'responderId' as const, label: '满足者' }, { field: 'agreementAuthorId' as const, label: '约定提出者' }]
+    : scope === 'users' ? [] : [{ field: 'authorId' as const, label: '作者' }]
+  const hasCriteria = Boolean(criteria.keyword.trim() || filters.some(({ field }) => criteria[field]))
+  return <form className="space-y-3" role="search" aria-label={`${labels[scope]}搜索`} onSubmit={(event) => { event.preventDefault(); if (hasCriteria) onSubmit() }}>
+    <div className="flex gap-2">
       <label className="flex min-w-0 flex-1 items-center gap-2 rounded-md border border-line bg-surface px-3 focus-within:border-signal">
         <Search className="shrink-0 text-muted" size={16} aria-hidden="true" />
-        <input className="h-10 min-w-0 flex-1 border-0 bg-transparent text-sm text-ink outline-none focus-visible:outline-none [&::-webkit-search-cancel-button]:appearance-none" type="search" aria-label={`搜索${label}`} placeholder={`搜索${label}`} value={value} onChange={(event) => onValueChange(event.target.value)} />
-        {value && <button className="inline-grid size-6 shrink-0 place-items-center rounded text-muted hover:bg-soft hover:text-ink" type="button" onClick={onClear} aria-label="清空搜索"><X size={14} /></button>}
+        <input className="h-10 min-w-0 flex-1 border-0 bg-transparent text-sm text-ink outline-none focus-visible:outline-none [&::-webkit-search-cancel-button]:appearance-none" type="search" aria-label={`搜索${labels[scope]}`} placeholder={placeholders[scope]} value={criteria.keyword} onChange={(event) => onChange({ ...criteria, keyword: event.target.value })} />
+        {criteria.keyword && <button className="inline-grid size-6 shrink-0 place-items-center rounded text-muted hover:bg-soft hover:text-ink" type="button" onClick={() => onChange({ ...criteria, keyword: '' })} aria-label="清空关键词"><X size={14} /></button>}
       </label>
-      <button className="primary-button" type="submit" disabled={!value.trim()}>搜索</button>
-    </form>
-    <div className="mt-3 flex gap-5" role="radiogroup" aria-label="搜索类型">
-      {scopes.map((item) => <label key={item.value} className={`relative cursor-pointer py-1 text-[13px] ${scope === item.value ? 'font-medium text-signal' : 'text-muted hover:text-ink'}`}>
-        <input className="peer sr-only" type="radio" name="graph-search-scope" value={item.value} checked={scope === item.value} onChange={() => onScopeChange(item.value)} />
-        <span className="rounded-sm peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-signal">{item.label}</span>
-      </label>)}
+      <button className="primary-button" type="submit" disabled={!hasCriteria}>搜索</button>
+      <button className="quiet-button" type="button" onClick={onReset}>重置</button>
     </div>
-  </div>
+    {filters.length > 0 && <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+      {filters.map(({ field, label }) => <div key={field} className="flex items-center gap-2"><span className="text-xs text-muted">{label}</span>
+        <SearchSelect ariaLabel={label} value={criteria[field] ?? ''} options={options} onValueChange={(value) => onChange({ ...criteria, [field]: value || undefined })} />
+      </div>)}
+    </div>}
+  </form>
 }

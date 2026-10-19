@@ -21,3 +21,16 @@ export function getGraphActivity(project: Project, actions: ActionNode[]): Graph
   }
 }
 
+/** Lists graphs with published actions by their latest action, independent of metadata edits. */
+export function getActiveGraphActivities(projects: Project[], actions: ActionNode[]): GraphActivity[] {
+  const byGraph = new Map<string, ActionNode[]>()
+  for (const action of actions) {
+    const nodes = byGraph.get(action.projectId) ?? []
+    nodes.push(action)
+    byGraph.set(action.projectId, nodes)
+  }
+  return projects.filter((project) => byGraph.has(project.id))
+    .map((project) => getGraphActivity(project, byGraph.get(project.id)!))
+    .sort((a, b) => Date.parse(b.lastActionAt!) - Date.parse(a.lastActionAt!) || a.project.id.localeCompare(b.project.id))
+}
+

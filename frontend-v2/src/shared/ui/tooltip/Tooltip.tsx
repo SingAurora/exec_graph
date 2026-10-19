@@ -11,9 +11,8 @@ export function Tooltip({ content, children, side = 'top' }: { content: ReactNod
   return <TooltipPrimitive.Root>
     <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
     <TooltipPrimitive.Portal>
-      <TooltipPrimitive.Content className="z-50 rounded bg-ink px-2 py-1 text-[10px] font-semibold leading-[1.3] text-surface" side={side} sideOffset={6}>
+      <TooltipPrimitive.Content className="z-[90] max-w-[min(280px,calc(100vw-24px))] break-words rounded-lg border border-line bg-surface px-3 py-2 text-xs font-normal leading-relaxed text-copy shadow-app" side={side} sideOffset={6} collisionPadding={12}>
         {content}
-        <TooltipPrimitive.Arrow className="fill-ink" width={8} height={4} />
       </TooltipPrimitive.Content>
     </TooltipPrimitive.Portal>
   </TooltipPrimitive.Root>

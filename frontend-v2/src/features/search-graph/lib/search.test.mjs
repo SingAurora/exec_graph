@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { searchGraphDocuments, searchGraphParticipants } from './search.ts'
+import { searchGraphAgreementResponses, searchGraphDocuments, searchGraphParticipants } from './search.ts'
 import { getSearchExcerpt } from '../../../shared/lib/search.ts'
 import { cookingActions } from '../../../app/demo/cooking/index.ts'
 import { cookingParticipants } from '../../../app/demo/cooking/participants.ts'
@@ -41,6 +41,41 @@ describe('graph-local document search', () => {
     const text = '开头内容'.repeat(100) + '少油结果在这里'
     expect(getSearchExcerpt(text, '少油')).toContain('少油结果在这里')
     expect(getSearchExcerpt(text, '少油').startsWith('…')).toBe(true)
+  })
+
+  test('allows author-only searches and applies expression authors after resolving route endpoints', () => {
+    const actions = [node('1', { authorId: 'jo', expressionMarkdown: '慢慢练习才有改变' }),
+      node('2', { authorId: 'lin', parentId: '1' }), node('3', { authorId: 'jo', projectId: 'other' })]
+    expect(searchGraphDocuments(actions, 'graph', '', 'expression', 'lin').map((item) => item.id)).toEqual(['2'])
+    expect(searchGraphDocuments(actions, 'graph', '', 'expression', 'jo')).toEqual([])
+    expect(searchGraphDocuments(actions, 'graph', '', 'objective', 'jo').map((item) => item.id)).toEqual(['1'])
+    expect(searchGraphDocuments(actions, 'graph', '练习', 'expression', 'lin').map((item) => item.id)).toEqual(['2'])
+    expect(searchGraphDocuments(actions, 'graph', '没有这个词', 'expression', 'lin')).toEqual([])
+  })
+})
+
+describe('agreement response search', () => {
+  const sources = [node('1', { authorId: 'jo', agreementMarkdown: '记录实际用时。\n\n![示意](/only-photo.jpg)' }),
+    node('2', { parentId: '1', authorId: 'lin', title: '盛蛋早了一些', referenceAgreements: [{ sourceId: '1', complies: true }] }),
+    node('3', { parentId: '2', authorId: 'miao', referenceAgreements: [{ sourceId: '2', complies: true }] }),
+    node('4', { parentId: '2', authorId: 'jo', referenceAgreements: [{ sourceId: '2', complies: true }] }),
+    node('5', { parentId: '1', authorId: 'lin', referenceAgreements: [{ sourceId: '1', complies: false }] }),
+    node('6', { parentId: '1', authorId: 'miao' }),
+    node('7', { projectId: 'other', authorId: 'jo', agreementMarkdown: '记录用时' }),
+    node('8', { projectId: 'other', authorId: 'lin', parentId: '7', referenceAgreements: [{ sourceId: '7', complies: true }] })]
+
+  test('combines independently selected parties and attributes inherited agreements to their actual author', () => {
+    expect(searchGraphAgreementResponses(sources, 'graph', { keyword: '', agreementAuthorId: 'jo' }).map((item) => item.id)).toEqual(['2:3', '1:2'])
+    expect(searchGraphAgreementResponses(sources, 'graph', { keyword: '', responderId: 'miao', agreementAuthorId: 'jo' }).map((item) => item.id)).toEqual(['2:3'])
+    expect(searchGraphAgreementResponses(sources, 'graph', { keyword: '', responderId: 'miao', agreementAuthorId: 'lin' })).toEqual([])
+  })
+
+  test('matches agreement text or response title, excluding unrelated facts, images and other graphs', () => {
+    expect(searchGraphAgreementResponses(sources, 'graph', { keyword: '用时' }).map((item) => item.id)).toEqual(['2:3', '1:2'])
+    expect(searchGraphAgreementResponses(sources, 'graph', { keyword: '盛蛋' }).map((item) => item.id)).toEqual(['1:2'])
+    expect(searchGraphAgreementResponses(sources, 'graph', { keyword: '本次行动' })).toEqual([])
+    expect(searchGraphAgreementResponses(sources, 'graph', { keyword: 'only-photo' })).toEqual([])
+    expect(searchGraphAgreementResponses(sources, 'graph', { keyword: ' ' })).toEqual([])
   })
 })
 

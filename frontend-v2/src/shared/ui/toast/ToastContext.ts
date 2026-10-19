@@ -6,6 +6,7 @@ export type ToastInput = {
   message: ReactNode
   kind?: ToastKind
   duration?: number
+  action?: { label: string; onClick: () => void }
 }
 
 export type ToastItem = ToastInput & { id: string }

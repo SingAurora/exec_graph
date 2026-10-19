@@ -2,6 +2,7 @@ import { KeyRound, LockKeyhole, Palette, PanelsTopLeft, UserRound } from 'lucide
 import { useState, type FormEvent } from 'react'
 import { Switch } from 'radix-ui'
 import { AvatarEditor } from '../../features/profile/ui/AvatarEditor'
+import { ProfileBackgroundEditor } from '../../features/profile/ui/ProfileBackgroundEditor'
 import { AccountSecurity } from '../../features/account-security/ui/AccountSecurity'
 import { GenderMark } from '../../shared/ui/profile/GenderMark'
 import { Select } from '../../shared/ui/select/Select'
@@ -41,12 +42,13 @@ const categories = [
 /** Global preferences with consistent forms and retained tab drafts. */
 export function SettingsPanel({ profile, darkMode, showActionGraphLegend, graphBackground, onGraphBackgroundChange, aiConfigs, onSave, onToggleTheme, onShowActionGraphLegendChange, onSaveAIConfig, onSetDefaultAIConfig, onDeleteAIConfig }: SettingsPanelProps) {
   const [draft, setDraft] = useState(profile)
+  const [backgroundLoading, setBackgroundLoading] = useState(false)
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile')
   const { showToast } = useToast()
   const update = <K extends keyof UserProfile>(key: K, value: UserProfile[K]) => setDraft((current) => ({ ...current, [key]: value }))
   const saveProfile = (event: FormEvent) => {
     event.preventDefault()
-    if (!draft.name.trim()) return
+    if (!draft.name.trim() || backgroundLoading) return
     onSave({ ...draft, name: draft.name.trim(), bio: draft.bio.trim() })
     showToast({ kind: 'info', message: '个人资料已保存' })
   }
@@ -58,10 +60,11 @@ export function SettingsPanel({ profile, darkMode, showActionGraphLegend, graphB
           <div><h2 className="text-base font-semibold">公开资料</h2><a className="text-button mt-2" href={'#profile?userId=' + encodeURIComponent(profile.id)}>查看我的主页</a></div>
           <form className="grid gap-5" onSubmit={saveProfile}>
             <div className="flex items-center gap-4"><AvatarEditor value={draft.avatar} fallback={draft.name.slice(0, 1)} onChange={(avatar) => update('avatar', avatar)} /><span className="text-sm text-muted">个人头像</span></div>
+            <ProfileBackgroundEditor value={draft.backgroundImage} onChange={(image) => update('backgroundImage', image)} onLoadingChange={setBackgroundLoading} />
             <label className="form-field">昵称<input className="form-input" required maxLength={30} value={draft.name} onChange={(event) => update('name', event.target.value)} placeholder="昵称" /></label>
             <div className="form-field"><span>性别</span><Select className="!h-10 w-full !border !border-line !bg-surface !text-sm !font-normal" ariaLabel="性别" value={draft.gender} onValueChange={(value) => update('gender', value as UserProfile['gender'])} options={[{ value: 'male', label: <span className="inline-flex items-center gap-1.5"><GenderMark gender="male" />男</span> }, { value: 'female', label: <span className="inline-flex items-center gap-1.5"><GenderMark gender="female" />女</span> }, { value: 'unknown', label: '不展示' }]} /></div>
             <label className="form-field">个人简介<textarea className="form-input min-h-28 resize-y leading-6" rows={3} maxLength={200} value={draft.bio} onChange={(event) => update('bio', event.target.value)} placeholder="写一点关于自己的事" /></label>
-            <div className="flex justify-end"><button className="primary-button" type="submit" disabled={!draft.name.trim()}>保存资料</button></div>
+            <div className="flex justify-end"><button className="primary-button" type="submit" disabled={!draft.name.trim() || backgroundLoading}>保存资料</button></div>
           </form>
         </div>
       </TabsContent>

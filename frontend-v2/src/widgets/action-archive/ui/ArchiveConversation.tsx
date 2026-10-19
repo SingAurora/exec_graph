@@ -25,7 +25,7 @@ export function ArchiveConversation({ label, messages, authorId, projectId, user
           {message.speaker === 'user' ? <a className="shrink-0 rounded-lg" href={participantLink} aria-label={`查看${participantName}的主页`}><Avatar profile={participant} label={participantName} size="small" /></a>
             : <span className="inline-grid size-8 shrink-0 place-items-center rounded-[9px] bg-signal-soft text-signal" aria-hidden="true"><Bot size={17} /></span>}
           <div className="min-w-0 flex-1">
-            {message.speaker === 'user' ? <a className="inline-block py-1 text-sm font-medium hover:text-signal" href={participantLink}>{participantName}</a> : <span className="inline-block py-1 text-sm font-medium text-muted">ExAct AI</span>}
+            {message.speaker === 'user' ? <a className="inline-block py-1 text-sm font-medium hover:text-signal" href={participantLink}>{participantName}</a> : <span className="inline-block py-1 text-sm font-medium text-muted">引序 AI</span>}
             <div className={`mt-1 rounded-lg px-4 py-3 ${message.speaker === 'user' ? 'bg-soft' : 'bg-surface'}`}><MarkdownContent markdown={message.body} /></div>
           </div>
         </article>

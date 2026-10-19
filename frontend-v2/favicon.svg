@@ -1,4 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="16" fill="#236b59" />
-  <text x="32" y="43" fill="#ffffff" font-family="Arial, sans-serif" font-size="34" font-weight="700" text-anchor="middle">E</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="24 24 208 208">
+  <title>引序</title>
+  <rect x="24" y="24" width="208" height="208" rx="44" fill="#236b59" />
+  <g fill="#ffffff">
+    <path d="M48 40H108Q128 40 128 60V92C128 124 100 148 68 164L52 136C72 124 88 108 88 96H48Q44 96 44 92V44Q44 40 48 40Z" />
+    <path d="M208 216H148Q128 216 128 196V164C128 132 156 108 188 92L204 120C184 132 168 148 168 160H208Q212 160 212 164V212Q212 216 208 216Z" />
+  </g>
 </svg>

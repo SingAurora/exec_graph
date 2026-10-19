@@ -1,4 +1,4 @@
-import { Footprints, MessageCircle, Plus, ScrollText, Search, Settings2, Sparkles } from 'lucide-react'
+import { ArrowUpDown, Footprints, MessageCircle, Plus, ScrollText, Search, Settings2, Sparkles } from 'lucide-react'
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ActionDocumentMode, ActionNode } from '../entities/action/model/types'
 import { getAncestors } from '../entities/action/lib/graph'
@@ -19,12 +19,13 @@ import { AgreementResponseList } from '../widgets/agreement-responses/ui/Agreeme
 import { ProjectHeader } from '../entities/project/ui/ProjectHeader'
 import { GraphDetailsAside } from '../widgets/graph-details/ui/GraphDetailsAside'
 import { GraphSearch } from '../widgets/graph-search/ui/GraphSearch'
+import { FollowButton } from '../features/follow/ui/FollowButton'
 import type { GraphBackgroundPreferences } from '../shared/ui/graph-background/model'
 
 type ProjectPageProps = {
   project: Project
   active?: boolean
-  externalFocus?: { requestId: string; nodeId: string; mode: ActionDocumentMode }
+  externalFocus?: { requestId: string } & ({ nodeId: string; mode: ActionDocumentMode } | { referenceId: string })
   currentUserId: string
   users: UserProfile[]
   actions: ActionNode[]
@@ -37,12 +38,14 @@ type ProjectPageProps = {
   onEditExpression: (node: ActionNode) => void
   onUpdateAgreement: (nodeId: string, markdown: string) => boolean
   onDeleteProject: (projectId: string, expectedNodeCount: number) => boolean
+  following: boolean
+  onSetGraphFollow: (projectId: string, following: boolean) => boolean
 }
 
 type GraphSelection = { kind: 'node' | 'reference'; id: string }
 type ProjectTab = 'expressions' | 'agreements' | 'facts' | 'explore' | 'search' | 'settings'
 
-export function ProjectPage({ project, active = true, externalFocus, currentUserId, users, actions, showActionGraphLegend, graphBackground, onCreateAction, onContinueAction, onOpenActionArchive, onUpdateProject, onEditExpression, onUpdateAgreement, onDeleteProject }: ProjectPageProps) {
+export function ProjectPage({ project, active = true, externalFocus, currentUserId, users, actions, showActionGraphLegend, graphBackground, onCreateAction, onContinueAction, onOpenActionArchive, onUpdateProject, onEditExpression, onUpdateAgreement, onDeleteProject, following, onSetGraphFollow }: ProjectPageProps) {
   const handledExternalFocus = useRef<string | undefined>(undefined)
   const workspaceRef = useRef<HTMLDivElement>(null)
   const tabScroll = useRef<Partial<Record<ProjectTab, number>>>({})
@@ -140,19 +143,23 @@ export function ProjectPage({ project, active = true, externalFocus, currentUser
     leavingPage.current = true
   }
   useLayoutEffect(() => {
-    if (!active || !externalFocus || externalFocus.requestId === handledExternalFocus.current || !actions.some((node) => node.id === externalFocus.nodeId)) return
+    if (!active || !externalFocus || externalFocus.requestId === handledExternalFocus.current) return
+    const reference = 'referenceId' in externalFocus ? references.find((item) => item.id === externalFocus.referenceId) : undefined
+    const node = 'nodeId' in externalFocus ? actions.find((item) => item.id === externalFocus.nodeId) : undefined
+    if (!reference && !node) return
     handledExternalFocus.current = externalFocus.requestId
     setDetailsVisible(true)
-    setHighlightTipId(externalFocus.nodeId)
-    setSelection({ kind: 'node', id: externalFocus.nodeId })
-    setDocumentMode(externalFocus.mode)
+    setHighlightTipId(reference ? undefined : node?.id)
+    if (reference) setSelection({ kind: 'reference', id: reference.id })
+    else if (node) setSelection({ kind: 'node', id: node.id })
+    if ('mode' in externalFocus) setDocumentMode(externalFocus.mode)
     setVisitedExplore(true)
     setFocusRequest((value) => value + 1)
     pendingLocate.current = true
     setActiveTab('explore')
     const frame = window.requestAnimationFrame(() => workspaceRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' }))
     return () => window.cancelAnimationFrame(frame)
-  }, [active, externalFocus, actions])
+  }, [active, externalFocus, actions, references])
   const createAction = () => {
     rememberPagePosition()
     onCreateAction(project.id)
@@ -177,7 +184,10 @@ export function ProjectPage({ project, active = true, externalFocus, currentUser
       rememberPagePosition()
     }
   }}>
-    <ProjectHeader project={project} participantCount={participantIds.length} expressionCount={expressionNodes.length} actions={!actions.length && <button className="primary-button" type="button" onClick={createAction}><Plus size={16} />记录第一次行动</button>} />
+    <ProjectHeader project={project} participantCount={participantIds.length} expressionCount={expressionNodes.length} actions={<div className="flex items-center gap-2">
+      <FollowButton kind="graph" name={project.title} following={following} disabledReason={!actions.length ? '发布第一次行动后才能关注此图' : undefined} onChange={(next) => onSetGraphFollow(project.id, next)} />
+      {!actions.length && <button className="primary-button" type="button" onClick={createAction}><Plus size={16} />记录第一次行动</button>}
+    </div>} />
     <TabsRoot value={activeTab} onValueChange={(value) => switchTab(value as ProjectTab)}>
       <TabsList label="行动图内容" sticky showDivider={false}>
         <TabsTrigger value="expressions"><span className="inline-flex items-center gap-1.5"><MessageCircle size={16} />表达</span></TabsTrigger>
@@ -201,18 +211,26 @@ export function ProjectPage({ project, active = true, externalFocus, currentUser
       </TabsContent>
       <TabsContent value="search" keepMounted>
         <div className="mt-5 grid grid-cols-[minmax(0,1fr)_220px] items-start gap-7 max-[800px]:grid-cols-1">
-          <GraphSearch projectId={project.id} actions={actions} users={users} onExplore={openInExplore} />
+          <GraphSearch projectId={project.id} actions={actions} users={users} active={active && activeTab === 'search'} onExplore={openInExplore} onExploreReference={openReferenceInExplore} />
           <GraphDetailsAside description={project.description} createdAt={project.createdAt} actionCount={actions.length} lastActionAt={facts[0]?.createdAt} participantIds={participantIds} users={users} />
         </div>
       </TabsContent>
       <TabsContent value="explore" keepMounted={visitedExplore}>
-        {!actions.length ? <p className="py-16 text-center text-[17px]" role="status">暂无节点</p> : <div ref={workspaceRef} className={`mt-5 grid h-[calc(100dvh-44px)] scroll-mt-11 overflow-hidden rounded-lg border border-line bg-surface outline-none ${detailsVisible ? 'grid-cols-[342px_minmax(0,1fr)]' : 'grid-cols-1'}`} role="region" tabIndex={-1} aria-label="行动阅读工作区">
+        {!actions.length ? <p className="py-16 text-center text-[17px]" role="status">暂无节点</p> : <div className="relative mt-5">
+        <div ref={workspaceRef} className={`grid h-[calc(100dvh-44px)] scroll-mt-11 overflow-hidden rounded-lg border border-line bg-surface outline-none ${detailsVisible ? 'grid-cols-[342px_minmax(0,1fr)]' : 'grid-cols-1'}`} role="region" tabIndex={-1} aria-label="行动阅读工作区">
           <ActionGraph actions={actions} highlightedPath={highlightedPath} users={users} selectedId={selected?.id} selectedReferenceId={selectedReference?.id} showLegend={showActionGraphLegend} background={graphBackground} active={active && activeTab === 'explore'} focusRequest={focusRequest} locateRequest={nodeLocateRequest} detailsVisible={detailsVisible} onClearHighlight={() => setHighlightTipId(undefined)} onSelect={selectNode} onSelectReference={(id) => { setSelection({ kind: 'reference', id }); setDetailsVisible(true) }} onFitViewport={() => workspaceRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' })} />
           <ActionReadingPane readingKey={selectedReference ? `reference:${selectedReference.id}` : `node:${selected?.id}:${visibleDocumentMode}`} focusRequest={focusRequest} hidden={!detailsVisible} active={active && activeTab === 'explore' && detailsVisible} label={selectedReference ? '选中引用关系详情' : '选中行动节点详情'}>
             {selectedReference ? <ActionReferenceDetail reference={selectedReference} actions={actions} users={users} onHide={hideDetails} onSelectNode={selectNode} />
               : selected ? <ActionDetail node={selected} actions={actions} users={users} author={users.find((user) => user.id === selected.authorId)} isHighlightTip={highlightTipId === selected.id} onHighlight={() => setHighlightTipId(selected.id)} onHide={hideDetails} onLocate={() => setNodeLocateRequest((value) => value + 1)} recordMode={visibleDocumentMode} onModeChange={setDocumentMode} branches={actions.filter((node) => node.parentId === selected.id)} onOpenArchive={() => openArchive(selected)} onContinue={() => continueAction(selected)} onSelect={selectNode} onEditExpression={editExpression} onUpdateAgreement={onUpdateAgreement} />
                 : <p className="p-6 text-sm text-muted">暂无行动</p>}
           </ActionReadingPane>
+        </div>
+        <aside className="absolute inset-y-0 -right-7 w-6" aria-label="页面滚动提示">
+          <p className="sticky top-[calc(50dvh-64px)] flex w-6 flex-col items-center gap-2 rounded-full bg-soft px-1 py-3 text-xs leading-4 text-muted">
+            <ArrowUpDown size={14} className="shrink-0" aria-hidden="true" />
+            <span className="[writing-mode:vertical-rl]">在此滚动页面</span>
+          </p>
+        </aside>
         </div>}
       </TabsContent>
       {canAccessSettings && <TabsContent value="settings" keepMounted><ProjectSettingsPanel id="project-settings" project={project} canEdit={canEditProject} onSave={(patch) => onUpdateProject(project.id, patch)} deletionAction={isParticipant && <DeleteProject title={project.title} nodeCount={actions.length} disabledReason={deletionDisabledReason} onDelete={(count) => onDeleteProject(project.id, count)} />} /></TabsContent>}

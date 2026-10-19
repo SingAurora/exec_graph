@@ -12,6 +12,7 @@ const render = (actions, props = {}) => renderToStaticMarkup(createElement(Toolt
   project, currentUserId: 'jo', users: [], actions, showActionGraphLegend: false,
   graphBackground: createDefaultGraphBackground(), onCreateAction: noop,
   onContinueAction: noop, onOpenActionArchive: noop, onUpdateProject: noop,
+  following: false, onSetGraphFollow: () => true,
   onEditExpression: () => true, onUpdateAgreement: () => true, onDeleteProject: () => true, ...props,
 }))))
 
@@ -23,6 +24,7 @@ describe('first action entry', () => {
     expect(html.match(/<button[^>]*id="[^"]*-trigger-search"[^>]*>/)?.[0]).toMatch(/ disabled(?:=|\s|>)/)
     expect(html).toContain('暂无表达')
     expect(html).toContain('暂无行动')
+    expect(html).toMatch(/<button[^>]*aria-label="关注图：厨艺练习，发布第一次行动后才能关注此图"[^>]*disabled=""/)
   })
 
   test('publishing a node removes the first action entry and enables search', () => {
@@ -32,6 +34,7 @@ describe('first action entry', () => {
     }])
     expect(html).not.toContain('记录第一次行动')
     expect(html.match(/<button[^>]*id="[^"]*-trigger-search"[^>]*>/)?.[0]).not.toMatch(/ disabled(?:=|\s|>)/)
+    expect(html.match(/<button[^>]*aria-label="关注图：厨艺练习"[^>]*>/)?.[0]).not.toContain('disabled')
   })
 })
 

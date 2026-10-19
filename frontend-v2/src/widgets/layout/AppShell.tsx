@@ -1,9 +1,10 @@
-import { Compass, Home, LogOut, Moon, Settings2, Sun, UserRound, UsersRound } from 'lucide-react'
+import { Bookmark, Compass, Home, LogOut, Moon, Settings2, Sun, UserRound } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { AppView, UserProfile } from '../../shared/model'
 import { BackButton } from '../../shared/ui/navigation/BackButton'
 import { Avatar } from '../../shared/ui/Avatar'
 import { GenderMark } from '../../shared/ui/profile/GenderMark'
+import { Brand } from '../../shared/ui/Brand'
 
 type AppShellProps = {
   profile: UserProfile
@@ -21,7 +22,7 @@ type AppShellProps = {
 const globalNavigation: { view: AppView; label: string; icon: typeof Home }[] = [
   { view: 'my', label: '我的', icon: UserRound },
   { view: 'home', label: '发现', icon: Compass },
-  { view: 'following', label: '关注', icon: UsersRound },
+  { view: 'following', label: '关注', icon: Bookmark },
   { view: 'settings', label: '设置', icon: Settings2 },
 ]
 
@@ -32,7 +33,7 @@ export function AppShell({ profile, profileStats, activeView, darkMode, onLogout
 
   return <div className="mx-auto grid min-h-screen w-[min(1200px,calc(100%-72px))] grid-cols-[224px_minmax(0,880px)] gap-[62px] max-[1000px]:w-[min(920px,calc(100%-48px))] max-[1000px]:grid-cols-[190px_minmax(0,1fr)] max-[1000px]:gap-[38px]">
     <aside className="sticky top-0 flex h-screen flex-col py-[30px] pb-6" aria-label="主导航">
-      <a className="inline-flex w-max items-center gap-2.5 text-lg font-bold tracking-tight text-ink" href="#my" aria-label="ExAct 我的"><span className="grid size-[30px] place-items-center rounded-[9px] bg-signal font-sans text-[15px] text-on-signal">E</span><span>ExAct</span></a>
+      <a className="inline-flex w-max rounded-sm" href="#my" aria-label="引序 我的"><Brand /></a>
       <nav className="mt-7 grid gap-1.5">
         {globalNavigation.map(({ view, label, icon: Icon }) => <a className={'flex items-center gap-3 rounded-lg px-3 py-3 text-[15px] font-medium transition hover:bg-soft hover:text-ink ' + (globalView === view ? 'bg-soft font-semibold text-signal' : 'text-muted')} href={'#' + view} aria-current={globalView === view ? 'page' : undefined} key={view}><Icon size={19} strokeWidth={1.8} />{label}</a>)}
       </nav>

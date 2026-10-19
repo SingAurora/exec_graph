@@ -72,7 +72,15 @@ export const cookingExamples: CookingExample[] = [
   },
   {
     number: 5, parent: 2, authorId: 'miao', title: '沿用先盛蛋，再把番茄炒到能用铲子压散', createdAt: '2026-10-10T18:40:00+08:00',
-    agreementMarkdown: '引用本轮做法时，请保留从洗菜到装盘的总用时、盛蛋和回蛋时的食材状态。切块、去皮或回锅时间有变化时如实记录，不把同时改变多个步骤后的结果归给单一原因。',
+    agreementMarkdown: `引用本轮做法时，请保留从洗菜到装盘的总用时、盛蛋和回蛋时的食材状态。切块、去皮或回锅时间有变化时如实记录，不把同时改变多个步骤后的结果归给单一原因。
+
+![约定配图：成菜示意，非行动实拍](${cookingDishImage})
+
+![约定配图：番茄食材示意，非行动实拍](${tomatoImage.url})
+
+![约定配图：装盘示意，非行动实拍](${cookingTableImage})
+
+![约定配图：成菜示意（重复图片演示）](${cookingDishImage})`,
     referenceAgreements: [{ sourceId: 'cooking-2', complies: false, exceptionReason: '本次只观察了装盘五分钟后的口感，没有做约定要求的十分钟静置观察，不能说明十分钟后的口感。' }],
     markdown: `这次直接参考林岚的 #2：鸡蛋表面还有光泽时先盛出来。我用番茄 400g、鸡蛋 4 个、油 12g、盐 2g，不加糖，锅是自己的 24cm 不粘锅。
 
