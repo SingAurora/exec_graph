@@ -1,29 +1,36 @@
 @layer components {
   .action-graph-panel { display: flex; min-height: 0; min-width: 0; flex-direction: column; border-right: 1px solid var(--line); }
-  .action-graph-heading { display: flex; flex: none; justify-content: space-between; align-items: center; padding: 18px 18px 13px; }
+  .action-graph-heading { display: flex; flex: none; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 14px 4px; }
   .action-graph-heading h3 { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; }
   .action-graph-heading h3 > svg { color: var(--signal); }
   .action-graph-heading p { margin-top: 4px; color: var(--muted); font-size: 12px; }
-  .action-graph-heading-actions { display: flex; flex: none; align-items: center; gap: 6px; }
-  .action-graph-icon-button { display: grid; width: 32px; height: 32px; flex: none; place-items: center; border: 1px solid var(--line); border-radius: 5px; background: transparent; color: var(--muted); }
+  .action-graph-heading-actions { display: flex; flex: none; align-items: center; gap: 2px; }
+  .action-graph-icon-button { display: grid; width: 28px; height: 28px; flex: none; place-items: center; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--muted); }
   .action-graph-icon-button:hover { background: var(--soft); color: var(--signal); }
   .action-graph-icon-button:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
-  .action-graph-legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 8px; padding: 0 18px 13px; }
-  .action-graph-legend span { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+  .action-graph-legend { display: flex; flex-wrap: wrap; gap: 5px 12px; padding: 0 14px 8px; }
+  .action-graph-legend span { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 11px; line-height: 16px; white-space: nowrap; }
   .action-graph-legend i { width: 16px; height: 0; flex: none; border-top: 2px solid var(--muted); }
   .action-graph-legend .is-dashed { border-top-style: dashed; }
   .action-graph-legend b { display: inline-grid; width: 16px; height: 16px; flex: none; place-items: center; color: var(--coral); font-size: 16px; font-weight: 500; line-height: 1; }
   .action-graph-legend .is-level { border: 1px solid var(--muted); border-radius: 50%; color: var(--muted); font-size: 9px; }
-  .action-graph-scroll { min-height: 0; flex: 1; border-top: 1px solid var(--line); overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
-  .action-graph-scroll:focus-visible { outline: 2px solid var(--signal); outline-offset: -2px; }
-  .action-graph-canvas { position: relative; min-height: 100%; margin: 0 auto; }
-  .action-graph-surface { position: absolute; inset: 0; pointer-events: none; }
+  .action-graph-toolbar { display: flex; flex: none; min-height: 28px; align-items: center; justify-content: space-between; gap: 6px; margin: 0 14px 8px; flex-wrap: wrap; }
+  .action-graph-highlight { display: flex; min-width: 0; min-height: 28px; align-items: center; gap: 8px; border-radius: 4px; padding: 0 4px 0 7px; background: var(--signal-soft); color: var(--signal); font-size: 12px; }
+  .action-graph-highlight .action-graph-icon-button { width: 24px; height: 24px; color: var(--signal); }
+  .action-graph-zoom-controls { display: flex; align-items: center; gap: 2px; margin-left: auto; }
+  .action-graph-zoom-controls .action-graph-icon-button { width: 24px; height: 26px; }
+  .action-graph-zoom-value { width: 34px; text-align: center; font-size: 11px; font-variant-numeric: tabular-nums; color: var(--muted); }
+  .action-graph-viewport { position: relative; min-height: 0; flex: 1; border-top: 1px solid var(--line); overflow: clip; overscroll-behavior: contain; touch-action: none; }
+  .action-graph-viewport:focus-visible { outline: 2px solid var(--signal); outline-offset: -2px; }
+  .action-graph-targets { position: absolute; inset: 0 auto auto 0; transform-origin: 0 0; pointer-events: none; }
+  .action-graph-surface { position: absolute; inset: 0; cursor: grab; }
+  .action-graph-surface:active { cursor: grabbing; }
   .action-graph-edge-targets { position: absolute; inset: 0; max-width: none; overflow: visible; pointer-events: none; }
   .action-graph-edge-targets path { fill: none; stroke: transparent; stroke-width: 14px; pointer-events: stroke; cursor: pointer; outline: none; -webkit-tap-highlight-color: transparent; }
   /* SVG focus outlines can surround the entire curve bounds; trace the path instead. */
   .action-graph-edge-targets path:focus, .action-graph-edge-targets path:focus-visible { outline: none; }
   .action-graph-edge-targets path:focus-visible { stroke: color-mix(in srgb, var(--signal) 12%, transparent); }
-  .action-graph-node-target { position: absolute; z-index: 1; width: 40px; height: 40px; padding: 0; border: 0; border-radius: 50%; background: transparent; transform: translate(-50%, -50%); }
+  .action-graph-node-target { position: absolute; z-index: 1; width: 40px; height: 40px; padding: 0; border: 0; border-radius: 50%; background: transparent; transform: translate(-50%, -50%); pointer-events: auto; }
   .action-graph-node-target:hover { background: color-mix(in srgb, var(--signal) 5%, transparent); }
   .action-graph-node-target:focus-visible { outline: 2px solid var(--signal); outline-offset: 3px; }
   .action-graph-tooltip { position: fixed; z-index: 80; width: 308px; max-height: min(280px, calc(100dvh - 24px)); overflow: hidden; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow); pointer-events: none; }

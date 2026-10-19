@@ -1,6 +1,6 @@
 import type { ChatMessage } from '../../../shared/model'
 
-type CookingConversation = { description: string; question: string; answer: string; interpretation: string }
+type CookingConversation = { description: string; question: string; answer: string; interpretation: string; agreements?: string }
 
 const conversations: Record<number, CookingConversation> = {
   1: {
@@ -18,7 +18,7 @@ const conversations: Record<number, CookingConversation> = {
   3: {
     description: '从乔第一盘接着试酸甜，还是一起炒。400g 番茄、四个蛋、12g 油、2g 盐，再加2g糖。生尝番茄先酸后有点甜，成菜第一口柔和，但吃到最后还是甜重。蛋边也硬。',
     question: '有没有同时做不加糖的一盘，或者其他人试吃？你想给后面的比例复验留下什么约定？',
-    answer: '都没有，就是我自己的感受。这轮先固定400g番茄四个蛋，后面记糖克数和生尝口味；改份量就申请例外，不要混成同一组对照。',
+    answer: '都没有，就是我自己的感受。这轮先固定400g番茄四个蛋，后面记糖克数和生尝口味；改份量就不满足固定份量要求，不要混成同一组对照。',
     interpretation: '2g是发生过的量，不是万能答案。我试了调味，鸡蛋硬的问题还在。',
   },
   4: {
@@ -28,16 +28,17 @@ const conversations: Record<number, CookingConversation> = {
     interpretation: '只代表我这盘做快却没做好，不是说十六分钟一定不行。不能只看时间。',
   },
   5: {
+    agreements: '没有做#2约定的十分钟静置，只留了五分钟的观察。本次引用不满足来源约定，不能说十分钟后也一样。',
     description: '照林岚先盛蛋的做法，自己的24cm不粘锅，400g番茄四个蛋12g油2g盐没糖。番茄改成1.5cm，单炒四分钟左右能压散，汁稠了回蛋十秒左右。',
     question: '装盘以后实际观察到什么？这次切块、番茄加热和回锅时间都变了，记录里需要保留这些差异。',
     answer: '洗菜到装盘21分钟。五分钟后盘底只有少量汁，蛋能用勺子切开。我喜欢挂着汁的感觉，但没并排尝别人的菜，也没留拌饭汤汁。',
     interpretation: '先盛蛋这句话变成了可操作的顺序，但不能说只改一个步骤就验证成功。',
   },
   6: {
-    description: '想引用miao的糖量那盘，但只剩三个蛋。我先申请改成300g番茄三个蛋、9g油1.5g盐1.5g糖，她同意单独记，不放进原份量对照。',
+    description: '引用miao的糖量那盘，但只剩三个蛋。我改成300g番茄三个蛋、9g油1.5g盐1.5g糖，不满足来源约定的固定份量，单独记，不放进原份量对照。',
     question: '这批番茄生尝是什么感觉？你实际用了哪条路线的烹饪步骤？',
     answer: '另一批，已经明显甜。照她#3一起炒，没有用别的分支。成菜我觉得偏甜，没补调料，配饭吃完。锅灶和人也都不一样。',
-    interpretation: '我倾向先不放糖，但别把两个人都觉得甜写成普遍结论。同意例外也不等于两次就可直接比较了。',
+    interpretation: '我倾向先不放糖，但别把两个人都觉得甜写成普遍结论。引用她的记录不等于两次就可直接比较了。',
   },
   7: {
     description: '从乔十六分钟那次试省时。自己24cm不粘锅燃气灶，400g番茄四个蛋12g油2g盐。先切1cm小块打好蛋取好盐再开火，凝固的蛋先盛碗里，番茄软了再合。',
@@ -46,54 +47,62 @@ const conversations: Record<number, CookingConversation> = {
     interpretation: '准备集中一点对我有用，但我和乔条件不同，不能只归功切小，也不是已经找到最好的快手版。',
   },
   8: {
+    agreements: '#5要求的洗菜到装盘用时、盛蛋和回蛋状态都已记录，变化和没记录的电话时长也保留了，我确认满足这份来源约定。',
     description: '今天下班只做这一顿，照#5先盛蛋、番茄压散汁稠后回蛋。自己的24cm锅电磁炉，400g番茄四个蛋12g油2g盐没糖，块大概1.5cm，没有提前洗切。',
     question: '这顿做完有什么顺利和不顺利的地方？别把一次复做写成长期稳定。',
     answer: '洗菜到装盘十九分钟。回蛋时接电话，挂了才关火，没记通话多久。大部分软，锅边几块硬。最后洗了锅、打蛋碗、盛蛋碗。',
     interpretation: '顺序有用了，但还要知道什么时候停，不能用十九分钟掩盖电话造成的过度加热。',
   },
   9: {
+    agreements: '关于#8的来源约定，这次还没有完成核对，不要替我标成满足。',
     description: '看乔#8后，在自己的26cm不粘锅燃气灶做了一盘，份量还是400g番茄四个蛋12g油2g盐无糖。1.5cm块炒到压散略稠，先盛蛋，最后看到挂汁就关火，不抄十秒。',
     question: '这次有哪些人的实际反馈？有没有计时或放凉再尝？',
     answer: '我和家人各吃半盘，没挑到硬边。家人说不干，没做排名。没有计总用时和回锅时间，也没静置测试。',
     interpretation: '我能说清为什么关火了。但这顿不干不能推成放凉也一样，更不能代表别人的锅。',
   },
   10: {
+    agreements: '我确认满足#9的约定：只记录我和爸爸吃到的结果，不把换灶后的这次失败说成所有锅都这样。',
     description: '今天去爸爸家，给他看#9。他切番茄我炒，26cm不粘锅燃气灶，400g番茄四个蛋12g油2g盐无糖。蛋刚下去底部就凝了，我等整面熟悉的状态，边缘已经褐了。',
     question: '最后吃到的情况如何？两个人同时做的用时不要和独立做菜直接比。这轮锅灶经验需要什么引用条件？',
-    answer: '主体还有光泽才盛，但晚了，回锅挂汁就关火，我和爸爸仍吃到硬边。洗菜到装盘两人共17分钟，没记蛋的秒数。这轮限定这口26cm锅和燃气灶，记录下锅和盛出状态，换设备申请例外。',
+    answer: '主体还有光泽才盛，但晚了，回锅挂汁就关火，我和爸爸仍吃到硬边。洗菜到装盘两人共17分钟，没记蛋的秒数。这轮限定这口26cm锅和燃气灶，记录下锅和盛出状态，换设备就不满足这组条件。',
     interpretation: '知道先盛和真的盛得及时不是一回事。后来节点不一定更成功，也要留下换灶后失败。',
   },
   11: {
+    agreements: '我确认满足#9的约定：没尝过她的那盘，也没做并排对照；我只表达自己热着拌饭时的偏好。',
     description: '从#9继续，但我想拌饭。自己24cm锅燃气灶400g番茄四个蛋12g油2g盐无糖，1.5cm块。蛋还有光泽先出，番茄中心软、汁能流动时回蛋关火，没收稠。',
     question: '你是尝过林岚那盘后比较，还是这顿独立吃到的感受？用时和汁的实际吃法是什么？',
     answer: '没尝过她的，这顿我独立做。洗菜到装盘22分钟，半碗饭拌进去能吸汁，蛋没硬边。单夹偏湿，拌饭更合我口味。',
     interpretation: '不是浓汁做错了，只是我想怎么吃饭不同。我想留下这种偏好。',
   },
   12: {
+    agreements: '这次按#9的约定保留未测锅温、没有原油量对照的限制，不能把粘底直接归因为少油，我确认满足。',
     description: '从自己#9试少油，同一26cm锅燃气灶400g番茄四个蛋2g盐无糖，油改6g。蛋很快粘住，铲碎了还有焦黄边。我照样盛出炒番茄再回蛋，没重做。',
     question: '锅温有记录吗？有没有同一顿的原油量对照？这些决定能不能把失败归给减油。',
     answer: '都没有，也没计时。番茄软了，碎蛋有焦边，吃完了。暂时不推荐这个少油做法。',
     interpretation: '别写成成功减油，也别断言一定是油少导致。失败和不知道原因都是这次记录的一部分。',
   },
   13: {
-    description: '今晚接#10，再合入自己#4。回家用24cm锅电磁炉独立做，400g番茄四个蛋12g油2g盐无糖。换设备不满足我#10的约定，是自己的例外，别拿爸爸家两人17分钟和我的比。',
+    description: '今晚接#10，再合入自己#4。回家用24cm锅电磁炉独立做，400g番茄四个蛋12g油2g盐无糖。换设备不满足我#10的约定，要如实记录这点，别拿爸爸家两人17分钟和我的比。',
     question: '这次实际用了两条来源的哪些经验？时间范围、番茄中心、蛋的状态和代价分别如何？',
     answer: '洗菜到装盘19分钟不含煮饭洗锅。先切1cm块打蛋取盐，蛋主体刚凝还有光泽先盛，没等边全干；番茄压散再回蛋，挂汁就关火，人没离锅。没硬芯，半盘放10分钟没吃到硬边，挂汁且盘底有少量流汁。洗锅和两个碗，只做过这一次。',
     interpretation: '比自己十六分钟那盘多三分钟多一个碗，我愿意。先照顾食材状态再说省时，不代表比所有分支好，也没有验证别人的锅。',
   },
   14: {
+    agreements: '#11要求的汁、热时品尝和拌饭吃法都已记录，我确认满足。#7的来源约定还没有核对完，先保留为待核对，不能因为是自己的记录就自动算满足。',
     description: '今晚接自己#11，再合入#7的准备顺序。自己24cm锅燃气灶400g番茄四个蛋12g油2g盐无糖。切成1cm小块、打蛋、工具放好，蛋有光泽先出，番茄软且汁流动时回蛋关火。',
     question: '实际用了多久？静置后的口感测试过吗？比之前快是否只改变了备菜顺序？',
     answer: '洗菜到装盘18分钟，不含饭和洗锅，一锅两碗。热时拌半碗饭没硬芯没硬边，有明显汤汁。没有静置样本。比自己#11快四分钟，但块也切小了，不能只算工具先放好。',
     interpretation: '我保留多汁偏好，再借另一次的操作，不是把两个结论粘起来。只知道热时好吃，没做的放凉测试不能补写。',
   },
   15: {
+    agreements: '没有做#2约定的十分钟静置，本次引用不满足来源约定。只保留热时结果，不知道放凉后如何。',
     description: '照林岚#2做了一人份，200g番茄两个蛋6g油1g盐没糖，用20cm不粘锅电磁炉。蛋有光泽时先盛，番茄能压开后回蛋关火。',
     question: '缩份量和换锅以后，实际吃到什么？有没有留出静置样本？',
     answer: '洗菜到装盘18分钟，热着吃没硬边，皮有几片卷起。没留静置样本，不算原份量严格复验。',
     interpretation: '先做出我愿意再做的一顿，不必第一盘就和别人一样。',
   },
   16: {
+    agreements: '我确认满足#5的约定：用时包括烧水去皮，盛蛋和回蛋的状态都写了，也没有把口感变化全部归给去皮。',
     description: '照miao#5先盛蛋、番茄炒软再回蛋，这次先烫过去皮。400g番茄四蛋12g油2g盐无糖，24cm锅燃气灶，切1.5cm块。',
     question: '去皮用时算进去了吗？这次的口感和比较条件是什么？',
     answer: '洗菜烧水去皮到装盘28分钟。炒到能压散、汁略稠回蛋挂汁关火。五分钟后吃没皮也没明显硬边，没有同时做带皮对照。',
@@ -106,6 +115,7 @@ const conversations: Record<number, CookingConversation> = {
     interpretation: '先照做才知道自己说的硬边是什么。相似感受不证明原因一样，我想先说清真实吃过的饭。',
   },
   18: {
+    agreements: '我还没完成#2来源约定的核对，先不要标成满足，也不要补写没有做的静置测试。',
     description: '接林岚#2先盛蛋，400g番茄四蛋12g油2g盐无糖，24cm不粘锅燃气灶。番茄软后回蛋，最后加3g葱花关火。',
     question: '总用时、实际口感和未验证的部分分别是什么？',
     answer: '洗菜到装盘22分钟，热着闻到葱香，配饭吃没明显硬边。没做不放葱对照，也没放凉测试。',
@@ -114,16 +124,26 @@ const conversations: Record<number, CookingConversation> = {
 }
 
 /** Distinct clarification conversations preserve reported facts and the author's own interpretation. */
-export function getCookingConversation(number: number): ChatMessage[] {
+export function getCookingConversation(number: number, expression: string | undefined, hasParent: boolean, agreementMarkdown?: string): ChatMessage[] {
   const turn = conversations[number]
   if (!turn) throw new Error(`缺少厨艺示例节点 #${number} 的对话`)
+  const expressionChoice = expression === undefined
+    ? hasParent ? '这次不修改表达，沿用承接节点的表达。' : '先只记录这次行动，暂不填写表达。'
+    : expression.trim() ? '把这些想法整理为本节点的表达。' : '这次主动清空表达，只保留行动记录，不沿用之前的表达。'
+  const result = expression === undefined
+    ? hasParent ? '已整理本次行动，表达沿用承接节点，没有重新生成。' : '已整理本次行动，表达保持为空。'
+    : expression.trim() ? '已整理本次行动，并按你的选择写入表达。保留已说明的差异与尚未验证的部分。' : '已整理本次行动，并清空本节点的表达；后续未更新时也不会恢复更早的表达。'
   const messages: Omit<ChatMessage, 'id'>[] = [
     { speaker: 'user', body: turn.description },
     { speaker: 'ai', body: turn.question },
     { speaker: 'user', body: turn.answer },
-    { speaker: 'ai', body: '这些实际发生的过程和结果会写进记录。基于这次行动和已引用的历史，你自己想表达什么？' },
-    { speaker: 'user', body: turn.interpretation },
-    { speaker: 'ai', body: '已分别整理为记录和表达，保留你说明的差异与尚未验证的部分，不把其他分支或没做过的测试补成事实。' },
+    ...(turn.agreements ? [{ speaker: 'ai' as const, body: '本次对直接来源约定的核对结果是什么？如不满足，请说明原因。' }, { speaker: 'user' as const, body: turn.agreements }] : []),
+    { speaker: 'ai', body: '这次行动向后传递的约定，要沿用、修改，还是不设置？' },
+    { speaker: 'user', body: agreementMarkdown === undefined ? hasParent ? '约定沿用承接节点的有效版本，不做修改。' : '暂不设置约定。'
+      : agreementMarkdown.trim() ? `本节点的约定设为：\n\n${agreementMarkdown}` : '清空本节点向后传递的约定。这不改变本次行动需要核对的来源约定。' },
+    { speaker: 'ai', body: `这些实际发生的过程和结果会写进行动记录。${hasParent ? '表达要沿用、修改，还是清空？' : '这次要填写表达，还是暂不填写？'}` },
+    { speaker: 'user', body: `${turn.interpretation}\n\n${expressionChoice}` },
+    { speaker: 'ai', body: result },
   ]
   return messages.map((message, index) => ({ ...message, id: `cooking-${number}-message-${index + 1}` }))
 }

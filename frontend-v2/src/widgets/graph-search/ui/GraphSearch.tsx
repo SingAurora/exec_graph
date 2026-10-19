@@ -79,9 +79,9 @@ export function GraphSearch({ projectId, actions, users, onExplore }: GraphSearc
       <p ref={resultsRef} tabIndex={-1} className="mt-5 text-xs leading-5 text-muted outline-none" role="status">找到 {count} {scope === 'users' ? '位参与用户' : `条${label}`}</p>
       {count === 0 ? <p className="py-12 text-center text-sm text-muted">没有找到相关{label}</p>
         : scope !== 'users' ? <ActionPostList nodes={pageDocuments} actions={actions} users={users} mode={mode} onExplore={onExplore} searchQuery={query} />
-          : <ul className="mt-2 divide-y divide-line" aria-label="参与用户搜索结果">
+          : <ul className="mt-2" aria-label="参与用户搜索结果">
             {pageParticipants.map((user) => <li key={user.id}>
-              <a className="flex items-start gap-3 rounded-sm px-1 py-5 hover:bg-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal" href={`#profile?userId=${encodeURIComponent(user.id)}&fromGraph=${encodeURIComponent(projectId)}`} aria-label={`查看${user.name}的主页`}>
+              <a className="flex items-start gap-3 rounded-lg px-1 py-5 hover:bg-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal" href={`#profile?userId=${encodeURIComponent(user.id)}&fromGraph=${encodeURIComponent(projectId)}`} aria-label={`查看${user.name}的主页`}>
                 <Avatar profile={user} size="medium" />
                 <div className="min-w-0 flex-1">
                   <h3 className="text-sm font-medium leading-5 text-ink"><HighlightedText text={user.name} query={query} /></h3>

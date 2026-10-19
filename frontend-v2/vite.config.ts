@@ -9,11 +9,21 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), tailwindcss()],
     server: {
       proxy: {
+        '/platform-ai-api': {
+          target: 'https://api.deepseek.com',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/platform-ai-api/, ''),
+          headers: { Authorization: env.DEEPSEEK_API_KEY ? `Bearer ${env.DEEPSEEK_API_KEY}` : '' },
+        },
         '/deepseek-api': {
           target: 'https://api.deepseek.com',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/deepseek-api/, ''),
-          headers: env.DEEPSEEK_API_KEY ? { Authorization: `Bearer ${env.DEEPSEEK_API_KEY}` } : undefined,
+        },
+        '/openai-api': {
+          target: 'https://api.openai.com',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/openai-api/, ''),
         },
       },
     },

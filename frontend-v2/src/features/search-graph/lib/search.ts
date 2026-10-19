@@ -1,5 +1,6 @@
 import type { ActionDocumentMode, ActionNode } from '../../../entities/action/model/types'
-import { getActionExpression, getActionExpressionNodes, sortActionsNewestFirst } from '../../../entities/action/lib/expressions'
+import { getActionExpression, sortActionsNewestFirst } from '../../../entities/action/lib/expressions'
+import { getPublishedExpressions } from '../../../entities/action/lib/published'
 import type { UserProfile } from '../../../shared/model'
 import { getMarkdownSummary } from '../../../shared/lib/markdownSummary'
 import { findSearchMatch } from '../../../shared/lib/search'
@@ -15,7 +16,7 @@ export function searchGraphDocuments(actions: ActionNode[], projectId: string, q
   const keyword = query.trim()
   if (!keyword) return []
   const graphActions = actions.filter((node) => node.projectId === projectId)
-  const candidates = mode === 'expression' ? getActionExpressionNodes(graphActions) : sortActionsNewestFirst(graphActions)
+  const candidates = mode === 'expression' ? getPublishedExpressions(graphActions) : sortActionsNewestFirst(graphActions)
   return candidates.map((node) => {
     const markdown = mode === 'expression' ? getActionExpression(graphActions, node.id).markdown : node.objectiveMarkdown ?? node.markdown
     return { node, rank: matchRank(node.title, getMarkdownSummary(markdown), keyword) }

@@ -6,9 +6,9 @@ import type { AuthView } from '../../shared/model'
 type AuthScreenProps = { view: AuthView; onEnter: () => void }
 
 const copy = {
-  login: { title: '欢迎回来', intro: '登录后继续记录正在发生的事情。', submit: '登录' },
-  register: { title: '创建账号', intro: '从一件小事开始，留下你的行动。', submit: '注册' },
-  forgot: { title: '找回密码', intro: '输入邮箱，我们会发送重置密码的邮件。', submit: '发送重置邮件' },
+  login: { title: '欢迎回来', intro: '记录做过的事，让表达有迹可循。', submit: '进入演示' },
+  register: { title: '创建账号', intro: '当前体验演示账号，注册服务暂未接入。', submit: '体验演示账号' },
+  forgot: { title: '找回密码', intro: '当前为演示站点，暂未接入密码找回服务。', submit: '查看服务状态' },
 } satisfies Record<AuthView, { title: string; intro: string; submit: string }>
 
 export function AuthScreen({ view, onEnter }: AuthScreenProps) {
@@ -25,7 +25,7 @@ export function AuthScreen({ view, onEnter }: AuthScreenProps) {
         {view !== 'forgot' && <div className="grid gap-[7px]"><div className="flex items-center justify-between gap-3"><label className="text-xs font-semibold text-muted" htmlFor="auth-password">密码</label>{view === 'login' && <a className="text-[11px] font-semibold text-signal hover:text-signal-dark" href="#forgot">忘记密码？</a>}</div><input className="h-[42px] w-full rounded-md border border-line bg-transparent px-3 text-ink outline-none transition focus:border-signal focus:shadow-[0_0_0_3px_rgb(35_107_89_/_0.12)]" id="auth-password" required type="password" autoComplete={isRegister ? 'new-password' : 'current-password'} placeholder={isRegister ? '设置密码' : '输入密码'} /></div>}
         <button className="mt-0.5 min-h-[42px] rounded-md border-0 bg-signal text-[13px] font-bold text-white transition hover:bg-signal-dark" type="submit">{content.submit}</button>
       </form>
-      {submitted && view === 'forgot' && <p className="mt-2 text-[13px] leading-[1.7] text-muted">重置邮件已发送，请查看邮箱。</p>}
+      {submitted && view === 'forgot' && <p className="mt-2 text-sm leading-6 text-muted" role="status">暂未发送邮件，可返回登录页进入演示。</p>}
       {view === 'login' && <p className="mt-[22px] text-center text-xs text-muted">还没有账号？ <a className="font-bold text-signal" href="#register">注册账号</a></p>}
       {view === 'register' && <p className="mt-[22px] text-center text-xs text-muted">已经有账号？ <a className="font-bold text-signal" href="#login">返回登录</a></p>}
       {view === 'forgot' && <p className="mt-[22px] text-center text-xs text-muted"><a className="font-bold text-signal" href="#login">返回登录</a></p>}

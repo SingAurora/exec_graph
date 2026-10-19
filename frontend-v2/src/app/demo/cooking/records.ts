@@ -6,7 +6,7 @@ type CookingExample = Pick<ActionNode, 'number' | 'authorId' | 'title' | 'create
   parent?: number
   mergedParents?: number[]
   markdown: string
-  expression: string
+  expression?: string
   images?: ActionNode['images']
 }
 
@@ -20,6 +20,7 @@ const cookingImages = [
   tomatoImage,
   { url: cookingTableImage, alt: '番茄炒蛋装盘示意图 · 非本次行动实拍' },
 ]
+const [dishMarkdown, tomatoMarkdown, tableMarkdown] = cookingImages.map((image) => `![${image.alt}](${image.url})`)
 
 /** One published action per node; statements about other meals are attributed to their records. */
 export const cookingExamples: CookingExample[] = [
@@ -31,12 +32,10 @@ export const cookingExamples: CookingExample[] = [
 鸡蛋炒到完全凝固后没盛出来，直接倒进切成大块的番茄，一起炒到番茄变软。从开始洗菜到装盘用了 23 分钟，不含煮饭和洗锅。
 
 刚出锅时我觉得能吃。十分钟后吃剩下的半盘，鸡蛋边缘发硬，盘底积了一圈水。没有测锅温，也没有分别记录两个食材的在锅时间。`,
-    expression: `这次能留下的是一个具体问题：我想等番茄软，却让已经凝固的鸡蛋继续留在锅里。还不能凭这一盘断定，发硬只由这一个原因造成。
-
-我想练的不是背出一份配方，而是知道锅里发生了什么。现在还说不清，就先把用量、步骤和不好吃的地方记录下来，给后来的尝试一个可以引用的起点。`,
   },
   {
     number: 2, parent: 1, authorId: 'lin', title: '鸡蛋先盛出，静置十分钟后仍能用勺子切开', createdAt: '2026-10-09T18:10:00+08:00',
+    agreementMarkdown: '引用这次先盛蛋的做法时，请记录盛蛋时的状态，并留出一份静置十分钟后的口感观察。不能把热时或五分钟后的口感写成十分钟后的结果。',
     markdown: `参考乔的 #1，用番茄 400g、鸡蛋 4 个、油 12g、盐 2g 做了一盘。我用自己的 26cm 不粘锅和燃气灶，并没有吃过乔的那一盘。
 
 蛋液大部分凝固、表面还有湿润光泽时，我把鸡蛋盛进碗里。番茄单独炒软，再让鸡蛋回锅翻拌约 15 秒。全程没有计时。
@@ -49,7 +48,7 @@ export const cookingExamples: CookingExample[] = [
   {
     number: 3, parent: 1, authorId: 'miao', title: '这一批番茄加了 2g 糖，第一口柔和，吃完仍偏甜', createdAt: '2026-10-09T18:30:00+08:00',
     images: [tomatoImage],
-    agreementMarkdown: '这一轮用去蒂番茄 400g、鸡蛋 4 个比较调味。引用本轮做比例复验时，请保留这组用量，并写明糖的克数和番茄生尝的酸甜感受；改变份量需要申请例外。',
+    agreementMarkdown: '这一轮用去蒂番茄 400g、鸡蛋 4 个比较调味。引用本轮做比例复验时，请保留这组用量，并写明糖的克数和番茄生尝的酸甜感受。',
     markdown: `从乔的 #1 接着试。我这次仍把鸡蛋和番茄一起炒，使用番茄 400g、鸡蛋 4 个、油 12g、盐 2g，另加白糖 2g。
 
 下锅前尝了一小块番茄，入口偏酸，之后才有一点甜味。加糖后的成菜，第一口的酸味对我柔和了；配半碗米饭吃到最后，我又觉得甜味重了。
@@ -73,6 +72,8 @@ export const cookingExamples: CookingExample[] = [
   },
   {
     number: 5, parent: 2, authorId: 'miao', title: '沿用先盛蛋，再把番茄炒到能用铲子压散', createdAt: '2026-10-10T18:40:00+08:00',
+    agreementMarkdown: '引用本轮做法时，请保留从洗菜到装盘的总用时、盛蛋和回蛋时的食材状态。切块、去皮或回锅时间有变化时如实记录，不把同时改变多个步骤后的结果归给单一原因。',
+    referenceAgreements: [{ sourceId: 'cooking-2', complies: false, exceptionReason: '本次只观察了装盘五分钟后的口感，没有做约定要求的十分钟静置观察，不能说明十分钟后的口感。' }],
     markdown: `这次直接参考林岚的 #2：鸡蛋表面还有光泽时先盛出来。我用番茄 400g、鸡蛋 4 个、油 12g、盐 2g，不加糖，锅是自己的 24cm 不粘锅。
 
 ## 本次下锅过程
@@ -81,25 +82,28 @@ export const cookingExamples: CookingExample[] = [
 - 锅底汁液变稠后倒回鸡蛋，翻拌约十秒装盘。
 - 洗菜到装盘 21 分钟；放五分钟后，盘底只有少量汁，鸡蛋能用勺子切开。
 
-我喜欢鸡蛋表面挂着汁的状态。这一盘没有刻意留出拌饭的汤汁，也没有和别人的成菜并排比较。`,
+我喜欢鸡蛋表面挂着汁的状态。这一盘没有刻意留出拌饭的汤汁，也没有和别人的成菜并排比较。
+
+没有做 #2 约定的十分钟静置观察，本次引用不满足来源约定，只能保留为五分钟的样本。`,
     expression: `#2 先把鸡蛋从等待里拿出来，我这次再给番茄足够的独立加热时间。对我来说，这让“先盛蛋”从一句提醒变成了能接着操作的顺序。
 
 但我同时改变了切块大小、番茄加热和回锅时长，不能把结果全归给某一步。现在可以借给别人的，是这些能看见的状态和本次结果，而不是一份已经验证完的标准答案。`,
   },
   {
     number: 6, parent: 3, authorId: 'lin', title: '缩成三蛋份量，按比例加糖后仍觉得偏甜', createdAt: '2026-10-10T20:10:00+08:00',
-    referenceAgreements: [{ sourceId: 'cooking-3', complies: false, exceptionReason: '只剩三个鸡蛋，本次改用番茄 300g、鸡蛋 3 个、糖 1.5g，不满足原约定的固定份量；miao 同意将其作为缩份量尝试单独记录，不并入原份量的对照。', approvedById: 'miao' }],
-    markdown: `引用 miao 的 #3，但家里只剩三个鸡蛋。先申请了缩份量的例外，获同意后，用另一批番茄 300g、鸡蛋 3 个、油 9g、盐 1.5g、糖 1.5g 做了一盘。
+    referenceAgreements: [{ sourceId: 'cooking-3', complies: false, exceptionReason: '只剩三个鸡蛋，本次改用番茄 300g、鸡蛋 3 个、糖 1.5g，不满足原约定的固定份量；作为缩份量尝试单独记录，不并入原份量的对照。' }],
+    markdown: `引用 miao 的 #3，但家里只剩三个鸡蛋。我用另一批番茄 300g、鸡蛋 3 个、油 9g、盐 1.5g、糖 1.5g 做了一盘，不满足来源约定的固定份量要求。
 
 这批番茄生尝时已经明显偏甜。成菜配饭吃，对我仍然偏甜；我吃完了，没有再补其他调料。这次照 #3 一起炒，没有另外采用别的分支步骤。
 
 份量、番茄批次、锅灶和试吃的人都变了。这不是 #3 的固定份量对照，只保留为一次实际发生的缩份量尝试。`,
     expression: `#3 留下的是 miao 对那一盘的感受，我留下的是自己对这一盘的感受。两次都写到偏甜，并不足以证明同一个糖量对所有人都不合适。
 
-我想保留的分歧是：对已经偏甜的原料，我更愿意先不加糖，再尝成菜。例外授权允许我引用这段经验，并没有让两次不同条件的结果突然变成可直接比较的数据。`,
+我想保留的分歧是：对已经偏甜的原料，我更愿意先不加糖，再尝成菜。引用这段经验，并没有让两次不同条件的结果变成可直接比较的数据。`,
   },
   {
     number: 7, parent: 4, authorId: 'miao', title: '先备齐再开火，十八分钟，番茄中心已经软了', createdAt: '2026-10-11T18:15:00+08:00',
+    agreementMarkdown: '引用这次集中备菜的顺序时，请记录洗菜到装盘的总用时（不含煮饭和洗锅）、锅碗数量，以及番茄中心是否软化；同时改了切块大小时，不把省时全部归因于备齐工具。',
     referenceAgreements: [{ sourceId: 'cooking-4', complies: true }],
     markdown: `从乔的 #4 接着试省时。番茄 400g、鸡蛋 4 个、油 12g、盐 2g，不加糖，用我的 24cm 不粘锅和燃气灶。
 
@@ -112,17 +116,18 @@ export const cookingExamples: CookingExample[] = [
   },
   {
     number: 8, parent: 5, authorId: 'jo', title: '下班后照这个顺序做了一盘，接电话时鸡蛋多热了', createdAt: '2026-10-11T20:05:00+08:00',
+    // Both the expression and downstream agreement inherit from #5.
+    referenceAgreements: [{ sourceId: 'cooking-5', complies: true }],
     markdown: `今晚在家复做 miao 的 #5，仍用自己的 24cm 不粘锅和电磁炉。番茄 400g、鸡蛋 4 个、油 12g、盐 2g，没有加糖，也没有提前洗切。
 
 番茄切约 1.5cm 小块。鸡蛋表面还有光泽时先盛出；番茄炒到能压散、汁液变稠，再倒回鸡蛋。从洗菜到装盘共 19 分钟。
 
 回锅时接了电话，挂电话后才关火，没有记录通话持续多久。刚装盘的鸡蛋大部分仍软，贴着锅边的几块偏硬。饭后洗了一口锅、一个打蛋碗和一个盛蛋碗。`,
-    expression: `#1 的问题是让鸡蛋等番茄；#2 和 #5 逐步给出了先盛出、再看番茄状态的操作。我这次在没提前备菜的晚上也用上了它，但最后一次加热仍然被电话打断。
-
-我开始觉得，能复做的经验不只是顺序，还要有“到了这里就停”的提醒。十九分钟不代表这套方法稳定在十九分钟，更不能掩盖锅边那几块已经变硬的鸡蛋。`,
+    // No update: this action inherits the effective expression from #5.
   },
   {
     number: 9, parent: 8, authorId: 'lin', title: '不照抄回锅秒数，看到挂汁就关火', createdAt: '2026-10-12T19:10:00+08:00',
+    agreementMarkdown: '引用本轮经验时，请区分自己尝到的结果与来源记录中的结果，写明观察对象和未验证的部分。没有测量或对照时，不把单次感受写成普遍结论或确定的因果关系。',
     markdown: `看了乔的 #8，我在自己的 26cm 不粘锅、燃气灶上做了一盘。用番茄 400g、鸡蛋 4 个、油 12g、盐 2g，不加糖。
 
 先盛鸡蛋，再把约 1.5cm 的番茄块炒到能压散、汁液略稠。鸡蛋回锅后没有照抄 #5 的十秒，看到表面挂上汁就关火装盘。没有计总用时，也没有记录回锅秒数。
@@ -134,7 +139,8 @@ export const cookingExamples: CookingExample[] = [
   },
   {
     number: 10, parent: 9, authorId: 'jo', title: '换到爸爸家的燃气灶，第一次炒蛋还是盛晚了', createdAt: '2026-10-13T19:30:00+08:00',
-    agreementMarkdown: '这一轮只讨论爸爸家的 26cm 不粘锅与燃气灶。引用本轮复做时请保留这组锅灶条件，并记录蛋液刚下锅与盛出时的状态；换设备需要申请例外，不能把这里的秒数当作通用火候。',
+    referenceAgreements: [{ sourceId: 'cooking-9', complies: true }],
+    agreementMarkdown: '这一轮只讨论爸爸家的 26cm 不粘锅与燃气灶。引用本轮复做时请保留这组锅灶条件，并记录蛋液刚下锅与盛出时的状态，不能把这里的秒数当作通用火候。',
     markdown: `这天去爸爸家做晚饭，我给他看了林岚的 #9。这次用他家的 26cm 不粘锅、燃气灶，番茄 400g、鸡蛋 4 个、油 12g、盐 2g，没有加糖。
 
 爸爸切番茄，我负责炒。蛋液刚倒入，底部就很快凝固，我还在等整面都出现熟悉的状态，边缘已经变褐。盛出时主体仍有光泽，但几块边缘明显硬了，没有记录确切秒数。
@@ -146,6 +152,8 @@ export const cookingExamples: CookingExample[] = [
   },
   {
     number: 11, parent: 9, authorId: 'miao', title: '留些番茄汁拌饭，我更喜欢这一盘', createdAt: '2026-10-13T20:00:00+08:00',
+    agreementMarkdown: '引用这个多汁版本时，请说明汁的状态、实际吃法，以及品尝时是热的还是放置后的；个人拌饭偏好不能写成所有人都更喜欢，也不能补写没有做过的放凉观察。',
+    referenceAgreements: [{ sourceId: 'cooking-9', complies: true }],
     images: [tomatoImage],
     markdown: `承接林岚的 #9，用自己的 24cm 不粘锅和燃气灶，食材是番茄 400g、鸡蛋 4 个、油 12g、盐 2g，不加糖。这次是我独立做，没有尝过林岚那盘。
 
@@ -158,15 +166,16 @@ export const cookingExamples: CookingExample[] = [
   },
   {
     number: 12, parent: 9, authorId: 'lin', title: '油减到 6g，鸡蛋粘底，先留下这次失败', createdAt: '2026-10-14T12:20:00+08:00',
+    agreementMarkdown: '',
+    referenceAgreements: [{ sourceId: 'cooking-9', complies: true }],
     images: cookingImages,
     markdown: `中午仍用 #9 的 26cm 不粘锅、燃气灶，番茄 400g、鸡蛋 4 个、盐 2g，不加糖，把总油量从 12g 减到 6g。
 
 没有测锅温。蛋液倒下去后底部很快粘住，铲起时碎了，几块边缘焦黄。没有重做，直接把碎蛋盛出，再炒番茄、回蛋装盘。
 
 最后吃完了这一盘，番茄是软的，鸡蛋碎且有焦边。这次没有计时，也没有在同一顿做一盘 12g 油的对照。`,
-    expression: `#9 的状态判断并没有保证这次不粘。我减少了油，但并没有同时控制预热状态，现在不能把粘底全归因于 6g 油。
-
-这条分支暂时没有一份值得推荐的少油做法。它仍然是一次行动：留下哪里失败、缺了什么证据，比把吃完的结果包装成“成功减油”更有用。`,
+    // This endpoint keeps its expression empty so the supplement flow can be exercised.
+    expression: '',
   },
   {
     number: 13, parent: 10, mergedParents: [4], authorId: 'jo', title: '回到自己的锅，十九分钟，番茄软了，鸡蛋也没硬边', createdAt: '2026-10-14T19:40:00+08:00',
@@ -194,34 +203,59 @@ export const cookingExamples: CookingExample[] = [
   },
   {
     number: 14, parent: 11, mergedParents: [7], authorId: 'miao', title: '把多汁做法和备菜顺序合起来，十八分钟拌上饭', createdAt: '2026-10-14T20:15:00+08:00',
+    agreementMarkdown: '引用这次多汁与集中备菜的组合时，请分别说明实际采用了哪些步骤、总用时和食用状态。没有做静置测试就注明未验证，不把十八分钟或多汁偏好当作通用标准。',
+    // #7 remains unreviewed even though the action contains relevant observations.
+    referenceAgreements: [{ sourceId: 'cooking-11', complies: true }],
     images: [...cookingImages, cookingImages[0], tomatoImage],
     markdown: `承接自己的多汁版本 #11，并合入十八分钟那次 #7。还是我的 24cm 不粘锅和燃气灶，番茄 400g、鸡蛋 4 个、油 12g、盐 2g，没有加糖。
 
+${tomatoMarkdown}
+
 先把番茄切成约 1cm 小块，蛋打好，工具摆齐再开火。按 #11 的状态提前盛蛋；番茄中心软了、汁仍能流动时回蛋，翻匀关火，没有继续收浓。
+
+${dishMarkdown}
 
 从开始洗菜到装盘 18 分钟，不含煮饭和洗锅。刚出锅就拌了半碗饭，我没吃到硬芯或鸡蛋硬边，盘里有明显汤汁。用了一口锅和两个碗。
 
-我只吃了热的时候，没有留出静置样本。这一盘比自己的 #11 少用四分钟，但切块也更小，不能把省下的时间全算给提前备齐工具。`,
+${tableMarkdown}
+
+我只吃了热的时候，没有留出静置样本。这一盘比自己的 #11 少用四分钟，但切块也更小，不能把省下的时间全算给提前备齐工具。
+
+${dishMarkdown}
+
+${tomatoMarkdown}`,
     expression: `#11 留下的是我喜欢的吃法，#7 留下了开火前集中准备的经验。合入以后不是把两份记录拼成一句结论，而是今晚确实同时用了两边的操作。
+
+${dishMarkdown}
 
 我这条路线愿意保留能流动的汁，也接受单独夹菜时偏湿。十八分钟对今晚有效，放凉后的口感却还没有验证；不能因为这次做得快，就把没有做过的静置测试也写成结果。
 
-对我来说，练厨艺不是最后所有人做出同一盘。可以借用彼此的动作，再用实际吃饭的方式留下自己的偏好。`,
+${tableMarkdown}
+
+对我来说，练厨艺不是最后所有人做出同一盘。可以借用彼此的动作，再用实际吃饭的方式留下自己的偏好。
+
+${tomatoMarkdown}
+
+${dishMarkdown}
+
+${tomatoMarkdown}`,
   },
   {
     number: 15, parent: 2, authorId: 'che', title: '第一次做一人份，先盛蛋后没吃到硬边', createdAt: '2026-10-15T12:30:00+08:00',
+    referenceAgreements: [{ sourceId: 'cooking-2', complies: false, exceptionReason: '午饭做完后直接吃完，没有按来源约定留出十分钟静置样本，只知道热时的口感。' }],
     images: [cookingImages[0]],
     markdown: `参考林岚的 #2，午饭只做自己的一份：番茄 200g、鸡蛋 2 个、油 6g、盐 1g，不加糖，用 20cm 不粘锅和电磁炉。
 
 鸡蛋表面还有光泽时盛出，番茄炒到能压开后回蛋，翻匀就关火。洗菜到装盘 18 分钟，热着配饭吃，没有吃到硬边，但番茄皮有几片卷起来。
 
-没有留出静置样本。这是缩份量、换锅后的独立尝试，不是对原份量的严格复验。`,
+没有留出静置样本。这是缩份量、换锅后的独立尝试，不是对原份量的严格复验。未做 #2 约定的十分钟观察，本次引用不满足来源约定，放凉后的口感仍未知。`,
     expression: `#2 的先盛蛋让我第一次下锅时有了能照着做的顺序。这次热着吃的口感我能接受，但还不知道放凉后如何。
 
 对我来说，一人食的练习先从真的愿意再做一顿开始，不必第一盘就追求和别人一样。`,
   },
   {
     number: 16, parent: 5, authorId: 'xiaoman', title: '去皮后炒到挂汁，这一盘吃起来更顺口', createdAt: '2026-10-15T19:10:00+08:00',
+    referenceAgreements: [{ sourceId: 'cooking-5', complies: true }],
     markdown: `引用 miao 的 #5，保留先盛蛋、番茄炒软后回蛋的顺序。番茄 400g、鸡蛋 4 个、油 12g、盐 2g，不加糖，用 24cm 不粘锅和燃气灶。
 
 这次把番茄烫过后去皮，切约 1.5cm 小块。炒到能压散、汁略稠后回蛋，挂汁就关火。从洗菜、烧水去皮到装盘 28 分钟，五分钟后吃没有咬到番茄皮，鸡蛋也没有明显硬边。

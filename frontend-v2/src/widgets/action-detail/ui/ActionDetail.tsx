@@ -1,38 +1,62 @@
-import { ArrowRight, GitBranch, MessageCircle } from 'lucide-react'
+import { ArrowRight, ChevronDown, MessageCircle, Route } from 'lucide-react'
 import { Popover } from 'radix-ui'
 import { useMemo } from 'react'
 import type { ActionDocumentMode, ActionNode } from '../../../entities/action/model/types'
 import { getActionParentIds } from '../../../entities/action/lib/graph'
-import { getActionExpression } from '../../../entities/action/lib/expressions'
+import { canEditActionExpression, getActionExpression, getActionExpressionOrigin } from '../../../entities/action/lib/expressions'
+import { EditExpression } from '../../../features/action-expression/ui/EditExpression'
 import { getActionLevels } from '../../../entities/action/lib/levels'
 import { ExpressionContent } from '../../../entities/action/ui/ExpressionContent'
 import type { UserProfile } from '../../../shared/model'
 import { formatFullPublicationTime, formatPublicationTime } from '../../../shared/lib/date'
 import { Avatar } from '../../../shared/ui/Avatar'
 import { MarkdownContent } from '../../../shared/ui/MarkdownContent'
-import { RecordImages } from '../../../shared/ui/RecordImages'
 import { HelpPopover } from '../../../shared/ui/help/HelpPopover'
 import { DetailPanelControls } from '../../../shared/ui/DetailPanelControls'
+import { ActionOwnAgreement, ActionSourceAgreements } from './ActionAgreements'
 
 /** Shows only direct sources; full historical context belongs to the formation archive. */
-function ActionSources({ node, actions, onSelect }: { node: ActionNode; actions: ActionNode[]; onSelect: (id: string) => void }) {
+function ActionSources({ node, actions, users, onSelect }: { node: ActionNode; actions: ActionNode[]; users: UserProfile[]; onSelect: (id: string) => void }) {
   const parents = getActionParentIds(node).map((id) => actions.find((action) => action.id === id)).filter((action) => action !== undefined)
+  const continuation = parents.find((parent) => parent.id === node.parentId)
+  const merged = parents.filter((parent) => parent.id !== node.parentId)
   if (!parents.length) return null
-  return <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs leading-5 text-muted" aria-label="直接来源">
-    {parents.slice(0, 3).map((parent) => <span key={parent.id}>
-      {parent.id === node.parentId ? '承接' : '合入'} <button className="border-0 bg-transparent p-0 text-signal hover:underline" type="button" title={parent.title} onClick={() => onSelect(parent.id)}>#{parent.number}</button>
-    </span>)}
-    {parents.length > 3 && <Popover.Root>
-      <Popover.Trigger className="border-0 bg-transparent p-0 text-signal hover:underline" aria-label={`查看其他 ${parents.length - 3} 个直接来源`}>+{parents.length - 3}</Popover.Trigger>
-      <Popover.Portal><Popover.Content className="z-50 max-h-72 w-72 overflow-y-auto rounded-lg border border-line bg-surface p-3 text-ink shadow-app" sideOffset={8} collisionPadding={12} aria-label="其他直接来源">
-        {parents.slice(3).map((parent) => <Popover.Close asChild key={parent.id}><button className="block w-full rounded border-0 bg-transparent px-2 py-2 text-left text-sm hover:bg-soft hover:text-signal" type="button" onClick={() => onSelect(parent.id)}>#{parent.number} · {parent.title}</button></Popover.Close>)}
+  const sourceButton = (parent: ActionNode, relation: string) => <button key={parent.id} className="group inline-flex min-h-6 items-center gap-1 whitespace-nowrap rounded-sm border-0 bg-transparent p-0 text-xs" type="button" aria-label={`查看${relation}节点 #${parent.number}`} title={parent.title} onClick={() => onSelect(parent.id)}>
+    <span className="text-muted group-hover:text-ink">{relation}</span>
+    <span className="font-medium tabular-nums text-signal group-hover:underline">#{parent.number}</span>
+  </button>
+  return <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-l border-line pl-3" aria-label="直接来源">
+    {continuation && sourceButton(continuation, '承接')}
+    {merged.length === 1 && sourceButton(merged[0], '合入')}
+    {merged.length > 1 && <Popover.Root key={node.id}>
+      <Popover.Trigger type="button" className="group inline-flex min-h-6 items-center gap-1 whitespace-nowrap rounded-sm border-0 bg-transparent p-0 text-xs" aria-label={`查看 ${merged.length} 个合入节点`}>
+        <span className="text-muted group-hover:text-ink">合入</span>
+        <span className="font-medium tabular-nums text-signal group-hover:underline">{merged.length} 个节点</span>
+        <ChevronDown size={12} className="text-muted group-hover:text-signal" aria-hidden="true" />
+      </Popover.Trigger>
+      <Popover.Portal><Popover.Content className="z-50 w-80 max-w-[calc(100vw-24px)] overflow-hidden rounded-lg border border-line bg-surface text-ink shadow-app" align="start" sideOffset={8} collisionPadding={12} aria-label="合入节点">
+        <div className="px-3 pb-1 pt-3 text-xs font-medium text-muted">合入节点 · {merged.length}</div>
+        <div className="max-h-64 overflow-y-auto overscroll-contain p-1.5">
+          {merged.map((parent) => {
+            const authorName = users.find((user) => user.id === parent.authorId)?.name ?? parent.authorId
+            return <Popover.Close asChild key={parent.id}>
+              <button className="group block w-full rounded border-0 bg-transparent px-2 py-2 text-left hover:bg-soft focus-visible:outline-2 focus-visible:outline-signal" type="button" aria-label={`查看合入节点 #${parent.number}：${parent.title}`} onClick={() => onSelect(parent.id)}>
+                <span className="flex items-baseline gap-2 text-sm leading-5">
+                  <span className="shrink-0 font-medium tabular-nums text-signal">#{parent.number}</span>
+                  <span className="min-w-0 truncate group-hover:text-signal" title={parent.title}>{parent.title}</span>
+                </span>
+                <span className="mt-1 block truncate text-xs leading-5 text-muted">{authorName}</span>
+              </button>
+            </Popover.Close>
+          })}
+        </div>
       </Popover.Content></Popover.Portal>
     </Popover.Root>}
   </div>
 }
 
 /** Reads an action or effective expression, with compact metadata and a sticky document switch. */
-export function ActionDetail({ node, actions, users, author, isHighlightTip, onHighlight, onHide, onLocate, recordMode, onModeChange, branches, onOpenArchive, onContinue, onSelect }: {
+export function ActionDetail({ node, actions, users, author, isHighlightTip, onHighlight, onHide, onLocate, recordMode, onModeChange, branches, onOpenArchive, onContinue, onSelect, onEditExpression, onUpdateAgreement }: {
   node: ActionNode
   actions: ActionNode[]
   users: UserProfile[]
@@ -47,18 +71,29 @@ export function ActionDetail({ node, actions, users, author, isHighlightTip, onH
   onOpenArchive: () => void
   onContinue: () => void
   onSelect: (nodeId: string) => void
+  onEditExpression: (node: ActionNode) => void
+  onUpdateAgreement: (nodeId: string, markdown: string) => boolean
 }) {
   const objectiveMarkdown = node.objectiveMarkdown ?? node.markdown
   const levels = useMemo(() => getActionLevels(actions), [actions])
   const level = levels.get(node.id)
   const expression = getActionExpression(actions, node.id)
+  const hasExpression = Boolean(expression.markdown.trim())
+  const activeMode = hasExpression ? recordMode : 'objective'
+  const documentModes: ActionDocumentMode[] = hasExpression ? ['objective', 'expression'] : ['objective']
   const authorName = author?.name ?? node.authorId
   return <article>
     <header className="px-6 pb-4 pt-5">
-      <div className="flex flex-wrap items-center justify-between gap-2 text-xs leading-5 text-muted">
-        <span>节点 #{node.number}{level !== undefined && ` · 第${level}层`}</span>
-        <div className="flex items-center gap-3">
-          <button type="button" className={`inline-flex min-h-7 items-center gap-1.5 border-0 bg-transparent p-0 text-xs hover:text-signal ${isHighlightTip ? 'text-signal' : 'text-muted'}`} aria-pressed={isHighlightTip} title="以此节点为终点高亮承接链路" onClick={onHighlight}><GitBranch size={14} aria-hidden="true" />高亮链路</button>
+      <div className="flex items-start justify-between gap-4 text-xs leading-5 text-muted">
+        <div className="flex min-h-8 min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="inline-flex items-center gap-2 whitespace-nowrap">
+            <span className="text-[13px] font-medium tabular-nums text-ink">节点 #{node.number}</span>
+            {level !== undefined && <span>第 {level} 层</span>}
+          </span>
+          <ActionSources node={node} actions={actions} users={users} onSelect={onSelect} />
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          <button type="button" className={`icon-button ${isHighlightTip ? 'border-signal bg-signal-soft text-signal' : ''}`} aria-label="高亮链路" aria-pressed={isHighlightTip} title="高亮链路" onClick={onHighlight}><Route size={16} aria-hidden="true" /></button>
           <DetailPanelControls onHide={onHide} onLocate={onLocate} locateLabel="定位此节点" />
         </div>
       </div>
@@ -70,11 +105,10 @@ export function ActionDetail({ node, actions, users, author, isHighlightTip, onH
         </a>
         <time dateTime={node.createdAt} title={formatFullPublicationTime(node.createdAt)}>{formatPublicationTime(node.createdAt)}</time>
       </div>
-      <ActionSources node={node} actions={actions} onSelect={onSelect} />
     </header>
     <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-line bg-surface/95 px-6 py-2 backdrop-blur-sm">
       <div className="flex items-center gap-5" role="group" aria-label="文档类型">
-        {(['objective', 'expression'] as const).map((mode) => <button key={mode} className={`min-h-8 border-0 bg-transparent px-0 py-1 text-sm font-medium transition-colors ${recordMode === mode ? 'text-signal' : 'text-muted hover:text-signal'}`} type="button" aria-pressed={recordMode === mode} onClick={() => onModeChange(mode)}>{mode === 'objective' ? '行动' : '表达'}</button>)}
+        {documentModes.map((mode) => <button key={mode} className={`min-h-8 border-0 bg-transparent px-0 py-1 text-sm font-medium transition-colors ${activeMode === mode ? 'text-signal' : 'text-muted hover:text-signal'}`} type="button" aria-pressed={activeMode === mode} onClick={() => onModeChange(mode)}>{mode === 'objective' ? '行动' : '表达'}</button>)}
       </div>
       <HelpPopover title="行动与表达">
         <p>行动记录本次实际发生的事情；表达没有更新时沿用承接节点的表达，可以主动清空。合入来源不会自动覆盖表达。</p>
@@ -82,12 +116,17 @@ export function ActionDetail({ node, actions, users, author, isHighlightTip, onH
       </HelpPopover>
     </div>
     <div className="action-reading-document px-6 py-5">
-      {recordMode === 'expression' ? <ExpressionContent expression={expression} nodeId={node.id} users={users} showImageCaptions={false} /> : <><MarkdownContent markdown={objectiveMarkdown} /><RecordImages images={node.images} showCaptions={false} /></>}
+      {activeMode === 'expression' ? <ExpressionContent expression={expression} origin={getActionExpressionOrigin(actions, node.id)} onSelectSource={(id) => { onSelect(id); onModeChange('expression') }} showImageCaptions={false} /> : <MarkdownContent markdown={objectiveMarkdown} images={node.images} showImageCaptions={false} />}
     </div>
     <footer className="flex flex-wrap items-center gap-x-5 gap-y-3 px-6 pb-6 pt-1">
       <button className="primary-button" type="button" onClick={onContinue}><ArrowRight size={16} />接续行动</button>
+      {canEditActionExpression(actions, node.id) && <EditExpression markdown={expression.markdown} onOpen={() => onEditExpression(node)} />}
       <button className="inline-flex min-h-9 items-center gap-1.5 border-0 bg-transparent px-0 text-sm text-muted hover:text-signal" type="button" onClick={onOpenArchive}><MessageCircle size={16} />查看形成过程</button>
     </footer>
+    <section className="space-y-2 px-6 pb-6" aria-label="节点约定">
+      <ActionOwnAgreement key={node.id} node={node} actions={actions} onSelect={onSelect} onUpdate={onUpdateAgreement ? (markdown) => onUpdateAgreement(node.id, markdown) : undefined} />
+      <ActionSourceAgreements node={node} actions={actions} users={users} onSelect={onSelect} />
+    </section>
     {branches.length > 0 && <section className="border-t border-line px-6 py-5" aria-label="后续行动">
       <h4 className="text-sm font-medium">后续行动 <span className="ml-1 text-xs font-normal text-muted">{branches.length}</span></h4>
       <div className="mt-2 divide-y divide-line">{branches.map((branch) => {

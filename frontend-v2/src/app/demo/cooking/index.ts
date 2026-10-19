@@ -20,7 +20,7 @@ const records: ActionNode[] = cookingExamples.map(({ parent, mergedParents = [],
     historyNodeCount: 0,
     guide: cookingContextGuide,
   },
-  conversation: getCookingConversation(example.number),
+  conversation: getCookingConversation(example.number, expression, Boolean(parent), example.agreementMarkdown),
 }))
 
 /** Static prototype actions whose background includes only reachable source actions. */

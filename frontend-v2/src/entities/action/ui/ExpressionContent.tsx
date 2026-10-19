@@ -1,24 +1,19 @@
-import type { ActionExpression } from '../model/types'
-import type { UserProfile } from '../../../shared/model'
+import type { ActionExpression, ActionExpressionOrigin } from '../model/types'
 import { MarkdownContent } from '../../../shared/ui/MarkdownContent'
-import { RecordImages } from '../../../shared/ui/RecordImages'
 
 /** Displays an effective expression without substituting factual content for an empty one. */
-export function ExpressionContent({ expression, nodeId, users, showImageCaptions = true }: { expression: ActionExpression; nodeId: string; users: UserProfile[]; showImageCaptions?: boolean }) {
-  const empty = !expression.markdown.trim()
+export function ExpressionContent({ expression, origin, onSelectSource, showImageCaptions = true }: { expression: ActionExpression; origin?: ActionExpressionOrigin; onSelectSource?: (nodeId: string) => void; showImageCaptions?: boolean }) {
+  if (!expression.markdown.trim()) return null
   return <div>
-    <ExpressionSource expression={expression} nodeId={nodeId} users={users} />
-    {empty ? <p className="py-3 text-sm text-muted">暂无表达</p> : <><MarkdownContent markdown={expression.markdown} /><RecordImages images={expression.sourceNode?.images ?? []} showCaptions={showImageCaptions} /></>}
+    <ExpressionSource origin={origin} onSelectSource={onSelectSource} />
+    <MarkdownContent markdown={expression.markdown} images={expression.sourceNode?.images} showImageCaptions={showImageCaptions} />
   </div>
 }
 
-/** Attributes inherited expressions and explicit clears without rendering the document. */
-export function ExpressionSource({ expression, nodeId, users }: { expression: ActionExpression; nodeId: string; users: UserProfile[] }) {
-  const source = expression.sourceNode
-  if (!source) return null
-  const inherited = source.id !== nodeId
-  const empty = !expression.markdown.trim()
-  if (!inherited && !empty) return null
-  const author = users.find((user) => user.id === source.authorId)
-  return <p className="mb-3 text-xs leading-5 text-muted">{inherited ? '沿用' : '本节点'} · 节点 #{source.number} · {author?.name ?? source.authorId}{empty ? ' · 已清空表达' : ''}</p>
+/** Labels the actual document origin without adding empty-state explanations. */
+export function ExpressionSource({ origin, onSelectSource }: { origin?: ActionExpressionOrigin; onSelectSource?: (nodeId: string) => void }) {
+  if (!origin) return null
+  return <p className="mb-3 text-xs leading-5 text-muted">{origin.kind === 'modified' ? '修改自' : '继承自'}{' '}
+    {onSelectSource ? <button type="button" className="rounded-sm border-0 bg-transparent p-0 text-xs text-signal hover:underline" onClick={() => onSelectSource(origin.node.id)} aria-label={`查看表达来源节点 #${origin.node.number}`}>节点 #{origin.node.number}</button> : <span>节点 #{origin.node.number}</span>}
+  </p>
 }

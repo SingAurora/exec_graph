@@ -1,9 +1,12 @@
+import { KeyRound, LockKeyhole, Palette, PanelsTopLeft, UserRound } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Switch } from 'radix-ui'
 import { AvatarEditor } from '../../features/profile/ui/AvatarEditor'
+import { AccountSecurity } from '../../features/account-security/ui/AccountSecurity'
 import { GenderMark } from '../../shared/ui/profile/GenderMark'
 import { Select } from '../../shared/ui/select/Select'
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from '../../shared/ui/tabs/Tabs'
+import { useToast } from '../../shared/ui/toast/useToast'
 import type { AIKeyConfig, SaveAIKeyInput } from '../../entities/ai-key/model/types'
 import { AIKeySettings } from '../../features/ai-key/ui/AIKeySettings'
 import type { UserProfile } from '../../shared/model'
@@ -27,51 +30,46 @@ type SettingsPanelProps = {
 }
 
 type SettingsTab = 'profile' | 'ai' | 'account' | 'preferences' | 'components'
-const defaultBio = '把想法变成正在发生的事情。'
+const categories = [
+  { id: 'profile', label: '个人资料', icon: UserRound },
+  { id: 'ai', label: 'AI 服务', icon: KeyRound },
+  { id: 'account', label: '账户安全', icon: LockKeyhole },
+  { id: 'preferences', label: '外观', icon: Palette },
+  { id: 'components', label: '组件演示', icon: PanelsTopLeft },
+] as const
 
+/** Global preferences with consistent forms and retained tab drafts. */
 export function SettingsPanel({ profile, darkMode, showActionGraphLegend, graphBackground, onGraphBackgroundChange, aiConfigs, onSave, onToggleTheme, onShowActionGraphLegendChange, onSaveAIConfig, onSetDefaultAIConfig, onDeleteAIConfig }: SettingsPanelProps) {
-  const [draft, setDraft] = useState({ ...profile, bio: profile.bio.trim() || defaultBio })
+  const [draft, setDraft] = useState(profile)
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile')
-  const [emailStatus, setEmailStatus] = useState('')
-  const [passwordStatus, setPasswordStatus] = useState('')
-
+  const { showToast } = useToast()
   const update = <K extends keyof UserProfile>(key: K, value: UserProfile[K]) => setDraft((current) => ({ ...current, [key]: value }))
-  const saveProfile = (event: FormEvent) => { event.preventDefault(); onSave({ ...draft, name: draft.name.trim() || '乔', bio: draft.bio.trim() || defaultBio }) }
-  return <section className="pt-[38px]" aria-labelledby="settings-title">
-    <div><div className="font-sans text-[11px] font-bold uppercase tracking-[.11em] text-signal">调整你的使用方式</div><h2 id="settings-title" className="mt-[7px] text-[25px] tracking-[-.03em] max-[700px]:text-[22px]">设置</h2></div>
+  const saveProfile = (event: FormEvent) => {
+    event.preventDefault()
+    if (!draft.name.trim()) return
+    onSave({ ...draft, name: draft.name.trim(), bio: draft.bio.trim() })
+    showToast({ kind: 'info', message: '个人资料已保存' })
+  }
+  return <section aria-label="全局设置">
     <TabsRoot value={activeTab} onValueChange={(value) => setActiveTab(value as SettingsTab)}>
-      <TabsList label="设置分类">
-        <TabsTrigger value="profile">个人资料</TabsTrigger>
-        <TabsTrigger value="ai">AI 服务</TabsTrigger>
-        <TabsTrigger value="account">账户安全</TabsTrigger>
-        <TabsTrigger value="preferences">外观</TabsTrigger>
-        {profile.isTestAccount && <TabsTrigger value="components">组件演示</TabsTrigger>}
-      </TabsList>
-
-      <TabsContent value="profile">
-        <div className="mt-5 grid gap-5"><div className="grid items-start gap-5 min-[701px]:grid-cols-[minmax(150px,1fr)_minmax(0,430px)]"><div className="grid gap-[5px]"><strong className="text-sm">个人资料</strong><span className="text-[13px] text-muted">昵称和个人简介</span></div>
-          <form className="grid w-full gap-[9px]" onSubmit={saveProfile}>
-            <div className="flex items-start gap-3"><AvatarEditor value={draft.avatar} fallback={draft.name.slice(0, 1)} onChange={(avatar) => update('avatar', avatar)} /><div className="grid gap-[5px]"><span className="text-[11px] text-muted">支持 JPG、PNG 或 WEBP 图片，可在裁剪时调整</span></div></div>
-            <label><span className="sr-only">昵称</span><input className="h-9 w-full rounded-md border border-line bg-transparent px-2.5 text-xs text-ink outline-none focus:border-signal" type="text" value={draft.name} onChange={(event) => update('name', event.target.value)} placeholder="昵称" /></label>
-            <label><span className="sr-only">性别</span><Select className="w-full !border !border-line !bg-transparent focus-visible:!border-signal" ariaLabel="性别" value={draft.gender} onValueChange={(value) => update('gender', value as UserProfile['gender'])} options={[{ value: 'male', label: <span className="inline-flex items-center gap-1.5"><GenderMark gender="male" />男</span> }, { value: 'female', label: <span className="inline-flex items-center gap-1.5"><GenderMark gender="female" />女</span> }, { value: 'unknown', label: '未知' }]} /></label>
-            <label><span className="sr-only">个人简介</span><textarea className="min-h-[58px] w-full resize-y rounded-md border border-line bg-transparent px-2.5 py-[9px] text-xs text-ink outline-none focus:border-signal" rows={2} value={draft.bio} onChange={(event) => update('bio', event.target.value)} placeholder="个人简介" /></label>
-            <button className="inline-flex w-max items-center justify-center rounded-md border border-line bg-transparent px-3 py-2 text-xs font-semibold text-muted transition hover:border-signal hover:text-signal" type="submit">保存资料</button>
+      <TabsList label="设置分类" showDivider={false}>{categories.filter(({ id }) => id !== 'components' || profile.isTestAccount).map(({ id, label, icon: Icon }) => <TabsTrigger key={id} value={id}><span className="inline-flex items-center gap-1.5"><Icon size={16} />{label}</span></TabsTrigger>)}</TabsList>
+      <TabsContent value="profile" keepMounted>
+        <div className="mt-7 grid grid-cols-[minmax(130px,1fr)_minmax(0,460px)] items-start gap-8">
+          <div><h2 className="text-base font-semibold">公开资料</h2><a className="text-button mt-2" href={'#profile?userId=' + encodeURIComponent(profile.id)}>查看我的主页</a></div>
+          <form className="grid gap-5" onSubmit={saveProfile}>
+            <div className="flex items-center gap-4"><AvatarEditor value={draft.avatar} fallback={draft.name.slice(0, 1)} onChange={(avatar) => update('avatar', avatar)} /><span className="text-sm text-muted">个人头像</span></div>
+            <label className="form-field">昵称<input className="form-input" required maxLength={30} value={draft.name} onChange={(event) => update('name', event.target.value)} placeholder="昵称" /></label>
+            <div className="form-field"><span>性别</span><Select className="!h-10 w-full !border !border-line !bg-surface !text-sm !font-normal" ariaLabel="性别" value={draft.gender} onValueChange={(value) => update('gender', value as UserProfile['gender'])} options={[{ value: 'male', label: <span className="inline-flex items-center gap-1.5"><GenderMark gender="male" />男</span> }, { value: 'female', label: <span className="inline-flex items-center gap-1.5"><GenderMark gender="female" />女</span> }, { value: 'unknown', label: '不展示' }]} /></div>
+            <label className="form-field">个人简介<textarea className="form-input min-h-28 resize-y leading-6" rows={3} maxLength={200} value={draft.bio} onChange={(event) => update('bio', event.target.value)} placeholder="写一点关于自己的事" /></label>
+            <div className="flex justify-end"><button className="primary-button" type="submit" disabled={!draft.name.trim()}>保存资料</button></div>
           </form>
-        </div></div>
-      </TabsContent>
-
-      <TabsContent value="ai">
-        <AIKeySettings configs={aiConfigs} onSave={onSaveAIConfig} onSetDefault={onSetDefaultAIConfig} onDelete={onDeleteAIConfig} />
-      </TabsContent>
-
-      <TabsContent value="account">
-        <div className="mt-5 grid gap-5">
-          <div className="grid items-start gap-5 min-[701px]:grid-cols-[minmax(150px,1fr)_minmax(0,430px)]"><div className="grid gap-[5px]"><strong className="text-sm">修改邮箱</strong><span className="text-xs text-muted">修改后需要通过新邮箱验证</span></div><form className="grid w-full gap-[9px]" onSubmit={(event) => { event.preventDefault(); setEmailStatus('验证邮件已发送') }}><label><span className="sr-only">新邮箱</span><input className="h-9 w-full rounded-md border border-line bg-transparent px-2.5 text-xs text-ink outline-none focus:border-signal" type="email" placeholder="输入新的邮箱" /></label><button className="inline-flex w-max items-center justify-center rounded-md border border-line bg-transparent px-3 py-2 text-xs font-semibold text-muted transition hover:border-signal hover:text-signal" type="submit">{emailStatus || '发送验证邮件'}</button></form></div>
-          <div className="grid items-start gap-5 min-[701px]:grid-cols-[minmax(150px,1fr)_minmax(0,430px)]"><div className="grid gap-[5px]"><strong className="text-sm">更新密码</strong><span className="text-xs text-muted">使用至少 8 位的新密码</span></div><form className="grid w-full gap-[9px]" onSubmit={(event) => { event.preventDefault(); setPasswordStatus('密码已更新') }}><label><span className="sr-only">新密码</span><input className="h-9 w-full rounded-md border border-line bg-transparent px-2.5 text-xs text-ink outline-none focus:border-signal" type="password" minLength={8} placeholder="输入新密码" /></label><label><span className="sr-only">确认新密码</span><input className="h-9 w-full rounded-md border border-line bg-transparent px-2.5 text-xs text-ink outline-none focus:border-signal" type="password" minLength={8} placeholder="再次输入新密码" /></label><button className="inline-flex w-max items-center justify-center rounded-md border border-line bg-transparent px-3 py-2 text-xs font-semibold text-muted transition hover:border-signal hover:text-signal" type="submit">{passwordStatus || '更新密码'}</button></form></div>
         </div>
       </TabsContent>
-
-      <TabsContent value="preferences">
+      <TabsContent value="ai" keepMounted><AIKeySettings configs={aiConfigs} onSave={onSaveAIConfig} onSetDefault={onSetDefaultAIConfig} onDelete={onDeleteAIConfig} /></TabsContent>
+      <TabsContent value="account" keepMounted>
+        <AccountSecurity email={profile.email} />
+      </TabsContent>
+      <TabsContent value="preferences" keepMounted>
         <div className="mt-5 grid gap-5"><div className="flex items-center justify-between gap-5 max-[700px]:grid max-[700px]:items-start"><div className="grid gap-[5px]"><strong className="text-sm">界面主题</strong><span className="text-xs text-muted">切换浅色或深色显示</span></div><button className="inline-flex w-max items-center justify-center rounded-md border border-line bg-transparent px-3 py-2 text-xs font-semibold text-muted transition hover:border-signal hover:text-signal" type="button" onClick={onToggleTheme}>{darkMode ? '切换浅色' : '切换深色'}</button></div>
           <section className="grid grid-cols-[minmax(150px,1fr)_minmax(0,430px)] items-start gap-5 border-t border-line pt-5 max-[700px]:grid-cols-1" aria-labelledby="graph-appearance-title">
             <h3 id="graph-appearance-title" className="text-sm font-semibold">行动节点图</h3>
@@ -81,9 +79,9 @@ export function SettingsPanel({ profile, darkMode, showActionGraphLegend, graphB
             </div>
           </section>
         </div>
-      </TabsContent>
 
-      {profile.isTestAccount && <TabsContent value="components"><ComponentShowcase /></TabsContent>}
+      </TabsContent>
+      {profile.isTestAccount && <TabsContent value="components" keepMounted><ComponentShowcase /></TabsContent>}
     </TabsRoot>
   </section>
 }

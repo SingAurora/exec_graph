@@ -1,5 +1,5 @@
 /** Supported AI service providers. */
-export type AIProvider = 'deepseek' | 'openai' | 'doubao' | 'claude' | 'openai_compatible'
+export type AIProvider = 'deepseek' | 'openai'
 
 /** Saved AI configuration held in the current frontend session. */
 export type AIKeyConfig = {
@@ -11,7 +11,8 @@ export type AIKeyConfig = {
   keyHint: string
   apiKey?: string
   isDefault: boolean
+  source?: 'platform' | 'personal'
 }
 
 /** Input accepted when saving an AI configuration. */
-export type SaveAIKeyInput = Omit<AIKeyConfig, 'id' | 'isDefault'>
+export type SaveAIKeyInput = Omit<AIKeyConfig, 'id' | 'isDefault' | 'source'>

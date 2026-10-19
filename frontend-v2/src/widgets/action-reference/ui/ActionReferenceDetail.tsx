@@ -3,9 +3,10 @@ import type { ActionNode } from '../../../entities/action/model/types'
 import type { ActionReference } from '../../../entities/action/lib/references'
 import { getActionContextIds } from '../../../entities/action/lib/graph'
 import { getActionLevels } from '../../../entities/action/lib/levels'
+import { getActionAgreementOrigin } from '../../../entities/action/lib/agreements'
+import { AgreementContent } from '../../../entities/action/ui/AgreementContent'
 import type { UserProfile } from '../../../shared/model'
 import { Avatar } from '../../../shared/ui/Avatar'
-import { MarkdownContent } from '../../../shared/ui/MarkdownContent'
 import { HelpPopover } from '../../../shared/ui/help/HelpPopover'
 import { DetailPanelControls } from '../../../shared/ui/DetailPanelControls'
 
@@ -24,23 +25,22 @@ const agreementLabels: Record<ActionReference['agreementStatus'], string> = {
   unreviewed: '尚未记录约定核对结果',
 }
 
-/** Shows the selected reference, its source agreement and any exception authorization. */
+/** Shows the selected reference, its source agreement and any noncompliance reason. */
 export function ActionReferenceDetail({ reference, actions, users, onSelectNode, onHide }: Props) {
-  const { source, target, incorporated, agreementStatus, authorization } = reference
+  const { source, target, incorporated, agreementStatus } = reference
   const levels = getActionLevels(actions)
   const userById = new Map(users.map((user) => [user.id, user]))
   const historyCount = getActionContextIds(actions, source.id).size
   const exception = agreementStatus === 'exception'
-  const sourceAuthor = userById.get(source.authorId)?.name ?? source.authorId
 
   return <article>
     <header className="px-6 pb-2 pt-5">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-1"><span className="text-xs text-muted">引用关系</span><HelpPopover title="引用关系">
           <p>实线表示同一作者的引用，虚线表示不同作者的引用。承接延续当前路线，合入将另一来源纳入行动背景。</p>
-          <p>来源约定适用于这条引用。不满足约定时显示 ×；自己引用自己可自动同意例外，引用他人则需来源作者同意。获得授权后仍保留 ×。</p>
+          <p>来源约定适用于这条引用。不满足约定时，连线上显示 × 并记录原因，仍可引用。</p>
           <p>未记录约定核对结果时，不能据此判断是否满足约定。</p>
-          <p>引用背景包含来源节点及其全部引用历史，追溯至起点并去重。未被引用的其他分支不属于当前已知的执行事实。</p>
+          <p>引用历史包含来源节点本身及其全部上游引用节点，追溯至起点并去重，不包含当前引用行动。未被引用的其他分支不属于当前已知的执行事实。</p>
         </HelpPopover></div>
         <div className="flex items-center gap-3"><span className="text-xs text-muted">节点 #{source.number} → #{target.number}</span><DetailPanelControls onHide={onHide} /></div>
       </div>
@@ -59,8 +59,7 @@ export function ActionReferenceDetail({ reference, actions, users, onSelectNode,
     <section className="action-reading-document px-6 py-4">
       <h4 className="text-sm font-medium">来源约定</h4>
       <div className="mt-3">
-        {source.agreementMarkdown?.trim() ? <MarkdownContent markdown={source.agreementMarkdown} />
-          : <p className="text-sm leading-[1.85] text-muted">未设置</p>}
+        <AgreementContent agreement={reference.agreement} origin={getActionAgreementOrigin(actions, source.id)} onSelectSource={onSelectNode} />
       </div>
     </section>
 
@@ -70,22 +69,14 @@ export function ActionReferenceDetail({ reference, actions, users, onSelectNode,
         {exception && <span aria-hidden="true">× </span>}{agreementLabels[agreementStatus]}
       </p>
       {exception && <>
-        <h5 className="mt-4 text-xs font-semibold text-muted">例外原因</h5>
-        <p className="mt-1.5 whitespace-pre-wrap text-sm leading-[1.85] text-copy">{reference.exceptionReason?.trim() || '尚未填写例外原因。'}</p>
-        <div className="mt-4 border-l-2 border-line pl-3">
-          <h5 className="text-xs font-semibold text-muted">例外授权</h5>
-          <p className="mt-1.5 text-sm leading-[1.85] text-copy">
-            {authorization === 'self-approved' ? '自动同意（本人）'
-              : authorization === 'author-approved' ? `${sourceAuthor} 已同意`
-                : `等待 ${sourceAuthor} 同意`}
-          </p>
-        </div>
+        <h5 className="mt-4 text-xs font-semibold text-muted">不符合原因</h5>
+        <p className="mt-1.5 whitespace-pre-wrap text-sm leading-[1.85] text-copy">{reference.exceptionReason?.trim() || '尚未填写不符合原因。'}</p>
       </>}
     </section>
 
     <section className="px-6 pb-6 pt-4">
-      <h4 className="text-sm font-medium">引用背景</h4>
-      <p className="mt-2 text-sm text-muted">{historyCount} 个行动节点</p>
+      <h4 className="text-sm font-medium">引用历史</h4>
+      <p className="mt-2 text-sm text-muted">共 {historyCount} 个节点</p>
     </section>
   </article>
 }

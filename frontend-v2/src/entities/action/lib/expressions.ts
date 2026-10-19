@@ -1,19 +1,35 @@
-import type { ActionExpression, ActionNode } from '../model/types'
+import type { ActionDocumentRevision, ActionExpression, ActionExpressionOrigin, ActionNode } from '../model/types'
+import type { ChatMessage } from '../../../shared/model'
+import { canEditActionDocument, getInheritedActionDocument, getInheritedActionDocumentOrigin, updateActionDocument } from './inherited-document'
 
 /** Resolves expression along the primary parent only; explicit clears stop inheritance. */
 export function getActionExpression(nodes: ActionNode[], nodeId: string): ActionExpression {
-  const byId = new Map(nodes.map((node) => [node.id, node]))
-  let current = byId.get(nodeId)
-  const projectId = current?.projectId
-  const visited = new Set<string>()
-  while (current && current.projectId === projectId && !visited.has(current.id)) {
-    visited.add(current.id)
-    if (current.expressionMarkdown !== undefined) {
-      return { markdown: current.expressionMarkdown, sourceNode: current }
-    }
-    current = current.parentId ? byId.get(current.parentId) : undefined
-  }
-  return { markdown: '' }
+  return getInheritedActionDocument(nodes, nodeId, 'expressionMarkdown')
+}
+
+/** Skips inherited intermediates and never assigns an origin to empty or first expressions. */
+export function getActionExpressionOrigin(nodes: ActionNode[], nodeId: string): ActionExpressionOrigin | undefined {
+  return getInheritedActionDocumentOrigin(nodes, nodeId, 'expressionMarkdown')
+}
+
+/** An endpoint can supplement, modify or clear its effective expression. */
+export function canEditActionExpression(nodes: ActionNode[], nodeId: string): boolean {
+  return canEditActionDocument(nodes, nodeId)
+}
+
+/** Updates only the endpoint's expression; empty text explicitly stops inheritance. */
+export function updateActionExpression(nodes: ActionNode[], nodeId: string, markdown: string, editor: Pick<ActionDocumentRevision, 'authorId' | 'createdAt'>): ActionNode[] {
+  return updateActionDocument(nodes, nodeId, 'expressionMarkdown', markdown, editor)
+}
+
+/** Saves an AI revision and its continued dialogue together, leaving facts and the original dialogue intact. */
+export function updateActionExpressionFromConversation(nodes: ActionNode[], nodeId: string, markdown: string, editor: Pick<ActionDocumentRevision, 'authorId' | 'createdAt'>, conversation: ChatMessage[]): ActionNode[] {
+  const messages = conversation.filter((message) => !message.id.startsWith('error-') && message.id !== 'welcome')
+  const last = messages.at(-1)
+  if (last?.speaker !== 'ai' || !messages.some((message) => message.speaker === 'user')) return nodes
+  const updated = updateActionExpression(nodes, nodeId, markdown, editor)
+  if (updated === nodes) return nodes
+  return updated.map((node) => node.id === nodeId ? { ...node, expressionConversation: messages } : node)
 }
 
 /** Lists current route endpoints, including an isolated starting node, newest first. */

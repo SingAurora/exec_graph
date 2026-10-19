@@ -1,20 +1,32 @@
-import { useEffect, useState } from 'react'
-import type { ActionNode } from '../entities/action/model/types'
-import type { Project, UserProfile } from '../shared/model'
+import { useEffect, useState, type ComponentProps } from 'react'
 import { PublicProfile } from '../widgets/profile/PublicProfile'
 
-function readProfileId() {
-  return new URLSearchParams(window.location.hash.split('?')[1]).get('userId')
+function readProfileRoute() {
+  const query = new URLSearchParams(window.location.hash.split('?')[1])
+  const tab = query.get('tab')
+  const activityTabRequest: ComponentProps<typeof PublicProfile>['activityTabRequest'] = tab === 'actions' || tab === 'expressions' || tab === 'graphs' ? { value: tab } : undefined
+  return { userId: query.get('userId'), activityTabRequest }
 }
 
-/** Resolves the public profile route and composes its author overview. */
-export function ProfilePage({ users, projects, actions, onOpenProject }: { users: UserProfile[]; projects: Project[]; actions: ActionNode[]; onOpenProject: (id: string) => void }) {
-  const [userId, setUserId] = useState(readProfileId)
+type ProfilePageProps = Omit<ComponentProps<typeof PublicProfile>, 'profile' | 'following' | 'activityTabRequest'> & { followingIds: string[] }
+
+/** Resolves the profile route while preserving the public activity tabs. */
+export function ProfilePage({ followingIds, ...props }: ProfilePageProps) {
+  const [profileRoute, setProfileRoute] = useState(readProfileRoute)
   useEffect(() => {
-    const syncProfile = () => setUserId(readProfileId())
+    let previousView = window.location.hash.split('?')[0]
+    const syncProfile = () => {
+      const nextView = window.location.hash.split('?')[0]
+      if (nextView === '#profile') {
+        const next = readProfileRoute()
+        const returningFromGraph = ['#project', '#publish', '#action-archive'].includes(previousView)
+        setProfileRoute((current) => returningFromGraph && current.userId === next.userId ? current : next)
+      }
+      previousView = nextView
+    }
     window.addEventListener('hashchange', syncProfile)
     return () => window.removeEventListener('hashchange', syncProfile)
   }, [])
-  const profile = users.find((user) => user.id === userId)
-  return profile ? <PublicProfile profile={profile} projects={projects} actions={actions} onOpenProject={onOpenProject} /> : <p className="py-8 text-sm text-muted">用户不存在</p>
+  const profile = props.users.find((user) => user.id === profileRoute.userId)
+  return profile ? <PublicProfile key={profile.id} {...props} profile={profile} activityTabRequest={profileRoute.activityTabRequest} following={followingIds.includes(profile.id)} /> : <p className="empty-state" role="status">用户不存在</p>
 }

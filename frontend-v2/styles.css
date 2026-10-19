@@ -21,7 +21,7 @@
 }
 
 :root {
-  color-scheme: only light;
+  color-scheme: light;
   --paper: #f6f8f6;
   --surface: #ffffff;
   --soft: #edf2ef;
@@ -85,6 +85,9 @@
   .primary-button { @apply inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md border-0 bg-signal px-3.5 py-2 text-[13px] font-semibold text-on-signal transition hover:bg-signal-dark; }
   .quiet-button { @apply inline-flex min-h-8 items-center justify-center gap-1.5 rounded-md border border-line bg-transparent px-3 py-1.5 text-[13px] font-medium text-muted transition hover:border-signal hover:text-signal; }
   .text-button { @apply inline-flex min-h-8 items-center gap-1.5 border-0 bg-transparent px-0 py-1.5 text-[13px] font-medium text-muted hover:text-signal; }
+  .empty-state { @apply flex min-h-48 flex-col items-center justify-center gap-3 py-12 text-center text-sm text-muted; }
+  .form-field { @apply grid gap-2 text-sm font-medium; }
+  .form-input { @apply min-h-10 w-full rounded-md border border-line bg-surface px-3 py-2 text-sm font-normal text-ink outline-none focus:border-signal; }
   .post-summary-clamp { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
   .record-markdown { color: var(--ink); font-size: 14px; line-height: 1.85; }
   .record-markdown h1 { margin: 0 0 18px; font-size: 24px; line-height: 1.35; letter-spacing: -.03em; }
@@ -94,14 +97,21 @@
   .record-markdown ul, .record-markdown ol { margin: 10px 0 0; padding-left: 22px; }
   .record-markdown li { margin-top: 5px; }
   .record-markdown strong { color: var(--ink); font-weight: 600; }
+  .record-document-figure { display: block; margin: 18px 0; }
+  .record-document-figure img { display: block; width: auto; max-width: 100%; height: auto; border-radius: 6px; cursor: zoom-in; transition: opacity .15s; }
+  .record-document-figure img:hover { opacity: .9; }
+  .record-document-figure img:focus-visible { outline: 2px solid var(--signal); outline-offset: 3px; }
+  .record-document-caption { display: block; margin-top: 6px; color: var(--muted); font-size: 12px; line-height: 1.7; }
 }
 
 .gender-mark { display: inline-flex; align-items: center; justify-content: center; font-family: Arial, sans-serif; font-size: 14px; line-height: 1; }
 .gender-mark.is-male { color: #4d7894; }
 .gender-mark.is-female { color: var(--coral); }
 
-@keyframes dialog-in { from { opacity: 0; transform: translate(-50%, -48%) scale(.98); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
-@keyframes dialog-out { from { opacity: 1; transform: translate(-50%, -50%) scale(1); } to { opacity: 0; transform: translate(-50%, -48%) scale(.98); } }
+@keyframes overlay-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes overlay-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes dialog-in { from { opacity: 0; transform: scale(.98); } to { opacity: 1; transform: scale(1); } }
+@keyframes dialog-out { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(.98); } }
 @keyframes toast-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
 
 @media (prefers-reduced-motion: reduce) {

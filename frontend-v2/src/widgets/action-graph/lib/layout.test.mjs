@@ -19,24 +19,31 @@ describe('action graph reference semantics', () => {
       .toEqual(['cooking-4:cooking-13', 'cooking-7:cooking-14'])
   })
 
-  test('preserves exception crosses after self or source-author approval', () => {
+  test('marks noncompliance independently of authorship without authorization state', () => {
     const references = getActionReferences(actions)
     expect(references.find((edge) => edge.id === 'cooking-10:cooking-13'))
-      .toMatchObject({ sameAuthor: true, agreementStatus: 'exception', authorization: 'self-approved' })
+      .toMatchObject({ sameAuthor: true, agreementStatus: 'exception' })
     expect(references.find((edge) => edge.id === 'cooking-3:cooking-6'))
-      .toMatchObject({ sameAuthor: false, agreementStatus: 'exception', authorization: 'author-approved' })
+      .toMatchObject({ sameAuthor: false, agreementStatus: 'exception' })
     expect(references.find((edge) => edge.id === 'cooking-4:cooking-13'))
-      .toMatchObject({ sameAuthor: true, agreementStatus: 'satisfied', authorization: 'not-required' })
+      .toMatchObject({ sameAuthor: true, agreementStatus: 'satisfied' })
     expect(references.find((edge) => edge.id === 'cooking-4:cooking-7'))
-      .toMatchObject({ sameAuthor: false, agreementStatus: 'satisfied', authorization: 'not-required' })
+      .toMatchObject({ sameAuthor: false, agreementStatus: 'satisfied' })
+    const layout = createActionLayout(actions, [])
+    for (const reference of references) {
+      expect(reference).not.toHaveProperty('authorization')
+      const edge = layout.elements.find((element) => element.data.id === reference.id)
+      expect(edge.classes.split(' ').includes('exception')).toBe(reference.agreementStatus === 'exception')
+      expect(edge.classes.split(' ')).toContain(reference.sameAuthor ? 'same-author' : 'other-author')
+    }
   })
 
-  test('does not invent compliance or accept approval from a third party', () => {
+  test('does not infer compliance when an assessment is missing', () => {
     const source = actions.find((node) => node.id === 'cooking-3')
     const target = actions.find((node) => node.id === 'cooking-6')
     expect(getActionReferences([source, { ...target, referenceAgreements: [] }])[0].agreementStatus).toBe('unreviewed')
-    const referenceAgreements = [{ sourceId: source.id, complies: false, approvedById: 'jo' }]
-    expect(getActionReferences([source, { ...target, referenceAgreements }])[0].authorization).toBe('pending')
+    const referenceAgreements = [{ sourceId: source.id, complies: false, exceptionReason: '改变份量' }]
+    expect(getActionReferences([source, { ...target, referenceAgreements }])[0]).toMatchObject({ agreementStatus: 'exception', exceptionReason: '改变份量' })
   })
 
   test('includes all referenced histories while excluding unrelated branches', () => {

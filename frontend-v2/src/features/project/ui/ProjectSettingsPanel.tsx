@@ -1,5 +1,5 @@
 import { ImagePlus, Trash2 } from 'lucide-react'
-import { useEffect, useId, useState, type ChangeEvent } from 'react'
+import { useEffect, useId, useState, type ChangeEvent, type ReactNode } from 'react'
 import type { Project } from '../../../shared/model'
 import { readImageFile } from '../../../shared/lib/image'
 import { ProjectAvatar } from '../../../entities/project/ui/ProjectAvatar'
@@ -9,11 +9,13 @@ import { useToast } from '../../../shared/ui/toast/useToast'
 type ProjectSettingsPanelProps = {
   id?: string
   project: Project
+  canEdit?: boolean
+  deletionAction?: ReactNode
   onSave: (patch: Pick<Project, 'title' | 'description' | 'avatar' | 'backgroundImage'>) => void
 }
 
 /** Edits the identity of an action graph in the page flow. */
-export function ProjectSettingsPanel({ id, project, onSave }: ProjectSettingsPanelProps) {
+export function ProjectSettingsPanel({ id, project, onSave, canEdit = true, deletionAction }: ProjectSettingsPanelProps) {
   const { showToast } = useToast()
   const [title, setTitle] = useState(project.title)
   const [description, setDescription] = useState(project.description)
@@ -33,15 +35,16 @@ export function ProjectSettingsPanel({ id, project, onSave }: ProjectSettingsPan
     showToast({ kind: 'info', message: '已保存' })
   }
 
-  return <section id={id} className="mt-5 border border-line bg-surface px-6 py-5 max-[700px]:px-4" aria-label="图设置">
+  return <section id={id} className="mt-5 rounded-lg border border-line bg-surface px-6 py-5 max-[700px]:px-4" aria-label="图设置">
     <div className="border-b border-line pb-4"><h3 className="text-[16px] font-semibold">图设置</h3></div>
-    <form className="mt-5 grid gap-3" onSubmit={(event) => { event.preventDefault(); submit() }}>
+    {canEdit && <form className="mt-5 grid gap-3" onSubmit={(event) => { event.preventDefault(); submit() }}>
       <label className="grid gap-1.5 text-xs font-semibold text-ink" htmlFor="graph-title">图标题<input id="graph-title" className="h-10 rounded-md border border-line bg-paper px-3 text-[13px] font-normal outline-none focus:border-signal focus:shadow-[0_0_0_3px_rgb(35_107_89_/_0.1)]" value={title} maxLength={60} onChange={(event) => setTitle(event.target.value)} /></label>
       <label className="grid gap-1.5 text-xs font-semibold text-ink" htmlFor="graph-description">图简介<textarea id="graph-description" className="min-h-24 resize-y rounded-md border border-line bg-paper px-3 py-2.5 text-[13px] font-normal leading-[1.6] outline-none focus:border-signal focus:shadow-[0_0_0_3px_rgb(35_107_89_/_0.1)]" value={description} maxLength={240} onChange={(event) => setDescription(event.target.value)} /></label>
       <ProjectImageField label="图头像" value={avatar} fallback={title} kind="avatar" onChange={setAvatar} />
       <ProjectImageField label="背景图" value={backgroundImage} kind="background" onChange={setBackgroundImage} />
       <div className="mt-3 flex justify-end"><button className="primary-button" type="submit" disabled={!title.trim()}>保存</button></div>
-    </form>
+    </form>}
+    {deletionAction}
   </section>
 }
 

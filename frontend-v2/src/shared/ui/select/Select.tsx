@@ -12,15 +12,16 @@ type SelectProps = {
   options: SelectOption[]
   ariaLabel: string
   className?: string
+  disabled?: boolean
   onValueChange: (value: string) => void
 }
 
 /** Accessible single-value select with the application's visual language. */
-export function Select({ value, options, ariaLabel, className, onValueChange }: SelectProps) {
+export function Select({ value, options, ariaLabel, className, disabled = false, onValueChange }: SelectProps) {
   const selectedOption = options.find((option) => option.value === value)
 
-  return <SelectPrimitive.Root value={value} onValueChange={onValueChange}>
-    <SelectPrimitive.Trigger className={`inline-flex h-9 min-w-[126px] items-center justify-between gap-4 rounded-md border-0 bg-transparent px-2.5 py-0 text-xs font-semibold text-ink outline-none focus-visible:rounded focus-visible:shadow-[0_0_0_3px_rgb(35_107_89_/_0.1)] ${className ?? ''}`.trim()} aria-label={ariaLabel}>
+  return <SelectPrimitive.Root value={value} onValueChange={onValueChange} disabled={disabled}>
+    <SelectPrimitive.Trigger className={`inline-flex h-9 min-w-[126px] items-center justify-between gap-4 rounded-md border-0 bg-transparent px-2.5 py-0 text-xs font-semibold text-ink outline-none focus-visible:rounded focus-visible:shadow-[0_0_0_3px_rgb(35_107_89_/_0.1)] disabled:cursor-not-allowed disabled:opacity-50 ${className ?? ''}`.trim()} aria-label={ariaLabel}>
       <SelectPrimitive.Value>{selectedOption?.label}</SelectPrimitive.Value>
       <SelectPrimitive.Icon asChild><ChevronDown size={14} /></SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>

@@ -30,7 +30,9 @@ describe('graph-local document search', () => {
   })
 
   test('demo queries lead to existing independently readable nodes', () => {
-    expect(searchGraphDocuments(cookingActions, 'cooking', '少油', 'expression').map((item) => item.id)).toContain('cooking-12')
+    expect(searchGraphDocuments(cookingActions, 'cooking', '十八分钟', 'expression').map((item) => item.id)).toContain('cooking-14')
+    expect(searchGraphDocuments(cookingActions, 'cooking', '油减到', 'expression')).toEqual([])
+    expect(searchGraphDocuments(cookingActions, 'cooking', '油减到', 'objective').map((item) => item.id)).toEqual(['cooking-12'])
     expect(searchGraphDocuments(cookingActions, 'cooking', '葱花', 'objective').map((item) => item.id)).toEqual(['cooking-18'])
     expect(searchGraphParticipants(cookingActions, cookingParticipants, 'cooking', 'roBIN').map((user) => user.id)).toEqual(['robin'])
   })
