@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { isAppView, isAuthView } from '../../shared/lib/navigation'
-import type { AppView } from '../../shared/model'
+import type { AppView } from '../../shared/lib/navigation'
 import { getNavigationPositionKey } from './navigation-position'
 
 function readHash() {

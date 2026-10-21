@@ -1,6 +1,7 @@
 import type { ActionReference } from '../../entities/action/lib/references'
 import { GraphContextLink } from '../../entities/project/ui/GraphContextLink'
-import type { Project, UserProfile } from '../../shared/model'
+import type { Project } from '../../entities/project/model/types'
+import type { UserProfile } from '../../entities/profile/model/types'
 import { AgreementResponseList } from '../agreement-responses/ui/AgreementResponseList'
 
 /** Reuses the public feed item for a recent personal agreement exchange. */

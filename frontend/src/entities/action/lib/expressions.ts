@@ -1,5 +1,5 @@
 import type { ActionDocumentRevision, ActionExpression, ActionExpressionOrigin, ActionNode } from '../model/types'
-import type { ChatMessage } from '../../../shared/model'
+import type { ChatMessage } from '../../../shared/model/content'
 import { canEditActionDocument, getInheritedActionDocument, getInheritedActionDocumentOrigin, updateActionDocument } from './inherited-document'
 
 /** Resolves expression along the primary parent only; explicit clears stop inheritance. */

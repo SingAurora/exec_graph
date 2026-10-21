@@ -1,5 +1,7 @@
 import { ArrowLeft, ArrowRight, GitBranch, PenLine } from 'lucide-react'
-import type { ActionTopic, BranchMode, CompletionNode, PlanNode, Reaction, UserProfile } from '../../shared/model'
+import type { ActionTopic, CompletionNode, PlanNode, Reaction } from '../../entities/action/model/legacy-types'
+import type { BranchMode } from '../../entities/action/model/types'
+import type { UserProfile } from '../../entities/profile/model/types'
 import { BranchOverview } from '../branches/BranchOverview'
 import { CompletionPost } from '../feed/CompletionPost'
 import { MarkdownDocument } from '../ai/MarkdownDocument'

@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { ArrowRight } from 'lucide-react'
 import { guessTitle, inferFocusPoints } from '../../features/action/lib/planning'
-import type { Action } from '../../shared/model'
+import type { Action } from '../../entities/action/model/legacy-types'
 
 type ActionComposerProps = { onCreate: (action: Action) => void }
 

@@ -1,5 +1,5 @@
 import { ArrowUpRight, Network } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useInfiniteList } from '../../shared/lib/useInfiniteList'
 import type { GraphActivity } from '../../entities/project/model/types'
 import { ProjectAvatar } from '../../entities/project/ui/ProjectAvatar'
 import { formatFullPublicationTime, formatPublicationTime } from '../../shared/lib/date'
@@ -15,24 +15,10 @@ type Props = {
   dividers?: boolean
   searchQuery?: string
 }
-const pageSize = 6
 
 /** Compact graph identities with optional retained infinite scrolling for discovery. */
 export function GraphList({ items, onOpen, empty = '暂无行动图', infinite = false, active = true, dividers = true, searchQuery }: Props) {
-  const [visibleCount, setVisibleCount] = useState(pageSize)
-  const endRef = useRef<HTMLParagraphElement>(null)
-  const hasMore = infinite && visibleCount < items.length
-  useEffect(() => {
-    const end = endRef.current
-    if (!active || !hasMore || !end) return
-    const observer = new IntersectionObserver((entries) => {
-      if (!entries.some((entry) => entry.isIntersecting)) return
-      observer.disconnect()
-      setVisibleCount((count) => Math.min(count + pageSize, items.length))
-    }, { rootMargin: '160px 0px' })
-    observer.observe(end)
-    return () => observer.disconnect()
-  }, [active, hasMore, items.length, visibleCount])
+  const { visibleCount, endRef, hasMore } = useInfiniteList({ itemCount: items.length, infinite, active })
   if (!items.length) return <div className="empty-state" role="status"><Network size={24} strokeWidth={1.5} /><p>{empty}</p></div>
   return <div>
     <div className={dividers ? 'divide-y divide-line' : ''} aria-label="行动图列表">

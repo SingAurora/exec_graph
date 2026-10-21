@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useMemo, type ReactNode } from 'react'
+import { useInfiniteList } from '../../../shared/lib/useInfiniteList'
 import { getActionExpression, getActionExpressionOrigin } from '../../../entities/action/lib/expressions'
 import { getActionLevels } from '../../../entities/action/lib/levels'
 import { getActionContextIds } from '../../../entities/action/lib/graph'
 import type { ActionDocumentMode, ActionNode } from '../../../entities/action/model/types'
 import { ExpressionSource } from '../../../entities/action/ui/ExpressionContent'
-import type { UserProfile } from '../../../shared/model'
+import type { UserProfile } from '../../../entities/profile/model/types'
 import { formatFullPublicationTime, formatPublicationTime } from '../../../shared/lib/date'
 import { getMarkdownSummary } from '../../../shared/lib/markdownSummary'
 import { getSearchExcerpt } from '../../../shared/lib/search'
@@ -27,28 +28,13 @@ type ActionPostListProps = {
   renderContext?: (node: ActionNode) => ReactNode
 }
 
-const pageSize = 6
-
 /** Shows compact expressions or actions with separate document, profile, and image interactions. */
 export function ActionPostList({ nodes, actions, users, mode, searchQuery, infinite = false, active = true, emptyContent, presentation = 'default', onExplore, renderContext }: ActionPostListProps) {
   const levels = useMemo(() => getActionLevels(actions), [actions])
   const contextCounts = useMemo(() => presentation === 'feed' && mode === 'expression'
     ? new Map(nodes.map((node) => [node.id, getActionContextIds(actions.filter((action) => action.projectId === node.projectId), node.id).size]))
     : new Map<string, number>(), [actions, nodes, mode, presentation])
-  const [visibleCount, setVisibleCount] = useState(pageSize)
-  const endRef = useRef<HTMLParagraphElement>(null)
-  const hasMore = infinite && visibleCount < nodes.length
-  useEffect(() => {
-    const end = endRef.current
-    if (!active || !hasMore || !end) return
-    const observer = new IntersectionObserver((entries) => {
-      if (!entries.some((entry) => entry.isIntersecting)) return
-      observer.disconnect()
-      setVisibleCount((count) => Math.min(count + pageSize, nodes.length))
-    }, { rootMargin: '160px 0px' })
-    observer.observe(end)
-    return () => observer.disconnect()
-  }, [active, hasMore, nodes.length, visibleCount])
+  const { visibleCount, endRef, hasMore } = useInfiniteList({ itemCount: nodes.length, infinite, active })
 
   if (!nodes.length && emptyContent) return <div className="empty-state" role="status">{emptyContent}</div>
   if (!nodes.length) return <div className="py-16 text-center" role="status">

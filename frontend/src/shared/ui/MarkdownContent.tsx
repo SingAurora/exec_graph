@@ -3,7 +3,7 @@ import { useCallback, useRef, useState, type ComponentPropsWithoutRef } from 're
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { remarkDocumentImages } from '../lib/document-images'
-import type { PostImage } from '../model'
+import type { PostImage } from '../model/content'
 import { ImagePreview } from './ImagePreview'
 
 /** Reads text and full-ratio images in document order, with a shared image preview. */

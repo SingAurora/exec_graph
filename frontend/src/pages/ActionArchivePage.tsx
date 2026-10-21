@@ -1,5 +1,6 @@
 import type { ActionNode } from '../entities/action/model/types'
-import type { Project, UserProfile } from '../shared/model'
+import type { Project } from '../entities/project/model/types'
+import type { UserProfile } from '../entities/profile/model/types'
 import { ActionArchive } from '../widgets/action-archive/ui/ActionArchive'
 
 /** Composes the selected action's formation archive. */

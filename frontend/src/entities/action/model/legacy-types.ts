@@ -1,19 +1,8 @@
-export type AppView = 'home' | 'following' | 'publish' | 'my' | 'settings' | 'topic' | 'project' | 'projects' | 'action-archive' | 'profile' | 'graph-search'
+import type { ChatMessage, PostImage } from '../../../shared/model/content'
 
-export type AuthView = 'login' | 'register' | 'forgot'
+// Compatibility models for the earlier plan/completion prototype. New action flows use types.ts.
 
-export type UserProfile = {
-  id: string
-  name: string
-  email: string
-  gender: 'male' | 'female' | 'unknown'
-  bio: string
-  avatar: string
-  backgroundImage?: string
-  activeDays: number
-  isTestAccount?: boolean
-}
-
+/** Legacy topic grouping retained for reading earlier prototype records. */
 export type ActionTopic = {
   id: string
   projectId: string
@@ -22,19 +11,7 @@ export type ActionTopic = {
   createdAt: string
 }
 
-export type Project = {
-  id: string
-  ownerId: string
-  participantIds: string[]
-  title: string
-  description: string
-  avatar?: string
-  backgroundImage?: string
-  createdAt: string
-  updatedAt: string
-  contextGuide?: string
-}
-
+/** Legacy plan document, separate from the current action-node model. */
 export type PlanNode = {
   id: string
   topicId: string
@@ -52,10 +29,10 @@ export type PlanNode = {
   createdAt: string
 }
 
-export type BranchMode = 'continue' | 'fork'
-
+/** Legacy archive's document and conversation views. */
 export type ArchiveTab = 'plan' | 'history'
 
+/** Legacy completed-plan document retained for earlier archive readers. */
 export type CompletionNode = {
   id: string
   topicId: string
@@ -70,20 +47,10 @@ export type CompletionNode = {
   createdAt: string
 }
 
-export type PostImage = {
-  url: string
-  alt: string
-}
-
+/** Legacy feedback attached to a completed-plan record. */
 export type Reaction = 'believe' | 'doubt' | null
 
-export type ChatMessage = {
-  id: string
-  speaker: 'ai' | 'user'
-  body: string
-}
-
-// Legacy shapes remain for the unused prototype components in this folder.
+/** Legacy lightweight action card. */
 export type Action = {
   id: string
   title: string
@@ -92,6 +59,7 @@ export type Action = {
   createdAt: string
 }
 
+/** Legacy calendar record. */
 export type CompletionRecord = {
   id: string
   title: string
@@ -100,6 +68,7 @@ export type CompletionRecord = {
   month: string
 }
 
+/** Legacy discovery card kept separate from the current expression and agreement feeds. */
 export type DiscoveryPost = {
   id: string
   name: string

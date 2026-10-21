@@ -1,4 +1,4 @@
-import type { DiscoveryPost } from '../../shared/model'
+import type { DiscoveryPost } from '../../entities/action/model/legacy-types'
 import { Avatar } from '../../shared/ui/Avatar'
 
 type CompletionFeedProps = { posts: DiscoveryPost[]; onToggleFollow: (id: string) => void; followingOnly?: boolean }

@@ -1,4 +1,4 @@
-import type { CompletionNode, PlanNode } from '../../../shared/model'
+import type { CompletionNode, PlanNode } from '../../../entities/action/model/legacy-types'
 
 export type BranchSummary = {
   id: string

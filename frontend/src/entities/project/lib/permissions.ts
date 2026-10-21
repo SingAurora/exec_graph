@@ -1,5 +1,5 @@
 import type { ActionNode } from '../../action/model/types'
-import type { Project } from '../../../shared/model'
+import type { Project } from '../model/types'
 
 /** Includes the creator, declared participants, and authors within this graph. */
 export function isProjectParticipant(project: Project, userId: string, actions: ActionNode[]): boolean {

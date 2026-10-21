@@ -6,13 +6,14 @@ import { getPublishedExpressions } from '../../entities/action/lib/published'
 import { sortActionsNewestFirst } from '../../entities/action/lib/expressions'
 import type { ActionDocumentMode, ActionNode } from '../../entities/action/model/types'
 import type { ActionReference } from '../../entities/action/lib/references'
-import type { Project, UserProfile } from '../../shared/model'
+import type { Project } from '../../entities/project/model/types'
+import type { UserProfile } from '../../entities/profile/model/types'
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from '../../shared/ui/tabs/Tabs'
 import { ActionPostList } from '../action-posts/ui/ActionPostList'
 import { GraphList } from '../graphs/GraphList'
 import { AgreementResponseList } from '../agreement-responses/ui/AgreementResponseList'
 import { ProfileSearch } from '../profile-search/ui/ProfileSearch'
-import { getActivityTabScrollTop } from './model/tab-scroll'
+import { getRetainedTabScrollTop } from '../../shared/lib/tab-scroll'
 
 type ActivityTab = 'home' | 'expressions' | 'agreements' | 'actions' | 'graphs' | 'search'
 
@@ -55,7 +56,7 @@ export function ActivityFeed({ actions, allActions = actions, users, projects, a
     const next = value as ActivityTab
     const currentTop = window.scrollY
     scrollPositions.current[tab] = currentTop
-    pendingScroll.current = getActivityTabScrollTop(scrollPositions.current[next], currentTop, navigationTop())
+    pendingScroll.current = getRetainedTabScrollTop(scrollPositions.current[next], currentTop, navigationTop())
     setTab(next)
   }
   const include = (node: ActionNode) => !authorIds || authorIds.includes(node.authorId)

@@ -1,4 +1,7 @@
-import type { ChatMessage, PostImage } from '../../../shared/model'
+import type { ChatMessage, PostImage } from '../../../shared/model/content'
+
+/** Continuation mode retained by the prototype's action entry callbacks. */
+export type BranchMode = 'continue' | 'fork'
 
 /** Latest edit after publication; older records without a kind represent manual supplements. */
 export type ActionDocumentRevision = {

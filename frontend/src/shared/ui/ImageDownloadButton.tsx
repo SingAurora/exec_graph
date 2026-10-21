@@ -1,7 +1,7 @@
 import { Download, LoaderCircle } from 'lucide-react'
 import { useState } from 'react'
 import { getBlob } from '../api/client'
-import type { PostImage } from '../model'
+import type { PostImage } from '../model/content'
 import { useToast } from './toast/useToast'
 
 /** Downloads the original image without navigating away from its preview. */

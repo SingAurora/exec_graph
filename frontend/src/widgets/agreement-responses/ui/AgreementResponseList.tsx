@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useMemo, type ReactNode } from 'react'
+import { useInfiniteList } from '../../../shared/lib/useInfiniteList'
 import { getReferenceAgreementAuthorId, getSatisfiedAgreementResponses } from '../../../entities/action/lib/agreement-responses'
 import type { ActionReference } from '../../../entities/action/lib/references'
-import type { UserProfile } from '../../../shared/model'
+import type { UserProfile } from '../../../entities/profile/model/types'
 import { formatFullPublicationTime, formatPublicationTime } from '../../../shared/lib/date'
 import { getMarkdownSummary } from '../../../shared/lib/markdownSummary'
 import { getMarkdownImages } from '../../../shared/lib/document-images'
@@ -23,28 +24,13 @@ type Props = {
   renderContext?: (reference: ActionReference) => ReactNode
 }
 
-const pageSize = 6
-
 /** Shows who fulfilled whose agreement, with every document click opening the real reference. */
 export function AgreementResponseList({ references, users, active, infinite = true, searchQuery, emptyContent, presentation = 'default', onExplore, renderContext }: Props) {
   const feed = presentation === 'feed'
   const responses = useMemo(() => getSatisfiedAgreementResponses(references), [references])
   const agreementImages = useMemo(() => new Map(responses.map((reference) => [reference.id, getMarkdownImages(reference.agreement.markdown)])), [responses])
   const usersById = useMemo(() => new Map(users.map((user) => [user.id, user])), [users])
-  const [visibleCount, setVisibleCount] = useState(pageSize)
-  const endRef = useRef<HTMLParagraphElement>(null)
-  const hasMore = infinite && visibleCount < responses.length
-  useEffect(() => {
-    const end = endRef.current
-    if (!active || !hasMore || !end) return
-    const observer = new IntersectionObserver((entries) => {
-      if (!entries.some((entry) => entry.isIntersecting)) return
-      observer.disconnect()
-      setVisibleCount((count) => Math.min(count + pageSize, responses.length))
-    }, { rootMargin: '160px 0px' })
-    observer.observe(end)
-    return () => observer.disconnect()
-  }, [active, hasMore, responses.length, visibleCount])
+  const { visibleCount, endRef, hasMore } = useInfiniteList({ itemCount: responses.length, infinite, active })
 
   if (!responses.length && emptyContent) return <div className="empty-state" role="status">{emptyContent}</div>
   if (!responses.length) return <p className="py-16 text-center text-[17px]" role="status">暂无满足约定的跨用户引用</p>

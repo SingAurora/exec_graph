@@ -1,4 +1,4 @@
-import type { Project } from '../../../shared/model'
+import type { Project } from '../model/types'
 import { findSearchMatch } from '../../../shared/lib/search'
 
 /** Filters supplied graphs by name and introduction without changing their order or scope. */

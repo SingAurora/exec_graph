@@ -3,7 +3,7 @@ import { getActionReferences, type ActionReference } from '../../action/lib/refe
 import { getReferenceAgreementAuthorId, getSatisfiedAgreementResponses } from '../../action/lib/agreement-responses'
 import { getPublishedExpressions } from '../../action/lib/published'
 import { sortActionsNewestFirst } from '../../action/lib/expressions'
-import type { Project } from '../../../shared/model'
+import type { Project } from '../../project/model/types'
 import type { FollowedSources } from '../model/types'
 
 /** A public graph becomes followable only after its first published action. */

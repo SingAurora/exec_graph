@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import type { UserProfile } from '../model'
 import { getAvatarLabel } from '../lib/avatar'
 
+type AvatarIdentity = { name: string; avatar: string }
+
 /** Fixed-size avatar shared by account information and action records. */
-export function Avatar({ profile, label, size, tone, shape = 'rounded' }: { profile?: UserProfile; label?: string; size: 'tiny' | 'compact' | 'small' | 'medium' | 'profile' | 'large' | 'xlarge'; tone?: 'blue' | 'coral'; shape?: 'rounded' | 'circle' }) {
+export function Avatar({ profile, label, size, tone, shape = 'rounded' }: { profile?: AvatarIdentity; label?: string; size: 'tiny' | 'compact' | 'small' | 'medium' | 'profile' | 'large' | 'xlarge'; tone?: 'blue' | 'coral'; shape?: 'rounded' | 'circle' }) {
   const [failedImage, setFailedImage] = useState<string>()
   const image = profile?.avatar.trim()
   const sizeClass = { tiny: 'size-6 text-[10px]', compact: 'size-7 text-xs', small: 'size-8 text-xs', medium: 'size-10 text-sm', profile: 'size-12 text-base', large: 'size-[68px] text-2xl', xlarge: 'size-[88px] text-3xl' }[size]

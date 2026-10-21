@@ -1,5 +1,5 @@
 import { GitBranch, TrendingUp } from 'lucide-react'
-import type { CompletionNode, PlanNode } from '../../shared/model'
+import type { CompletionNode, PlanNode } from '../../entities/action/model/legacy-types'
 import { buildBranchSummaries } from '../../features/action/lib/branches'
 
 type BranchOverviewProps = {

@@ -1,6 +1,6 @@
 import { Bot, MessageCircle } from 'lucide-react'
 import type { ActionExpressionMessage } from '../../../entities/action/model/types'
-import type { UserProfile } from '../../../shared/model'
+import type { UserProfile } from '../../../entities/profile/model/types'
 import { Avatar } from '../../../shared/ui/Avatar'
 import { ProfilePreview } from '../../../entities/profile/ui/ProfilePreview'
 import { MarkdownContent } from '../../../shared/ui/MarkdownContent'

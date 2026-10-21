@@ -1,7 +1,6 @@
 import { getGraphActivity } from '../../../entities/project/lib/activity'
-import type { GraphActivity } from '../../../entities/project/model/types'
+import type { GraphActivity, Project } from '../../../entities/project/model/types'
 import type { ActionNode } from '../../../entities/action/model/types'
-import type { Project } from '../../../shared/model'
 import { findSearchMatch } from '../../../shared/lib/search'
 
 /** Searches every public graph by name or introduction, ordered by real activity then creation. */

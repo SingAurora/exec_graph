@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import type { ActionNode } from '../../../entities/action/model/types'
 import { searchPublicGraphs } from '../../../features/search-graphs/lib/search'
 import { DiscoverySearch } from '../../../features/search-discovery/ui/DiscoverySearch'
-import type { Project } from '../../../shared/model'
+import type { Project } from '../../../entities/project/model/types'
 import { Pagination } from '../../../shared/ui/Pagination'
 import { GraphList } from '../../graphs/GraphList'
 

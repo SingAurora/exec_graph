@@ -1,6 +1,6 @@
 import { ImagePlus, Trash2 } from 'lucide-react'
 import { useEffect, useId, useState, type ChangeEvent, type ReactNode } from 'react'
-import type { Project } from '../../../shared/model'
+import type { Project } from '../../../entities/project/model/types'
 import { readImageFile } from '../../../shared/lib/image'
 import { ProjectAvatar } from '../../../entities/project/ui/ProjectAvatar'
 import { defaultProjectBackground } from '../../../entities/project/lib/appearance'

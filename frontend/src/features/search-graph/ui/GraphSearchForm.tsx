@@ -1,5 +1,5 @@
 import { Search, X } from 'lucide-react'
-import type { UserProfile } from '../../../shared/model'
+import type { UserProfile } from '../../../entities/profile/model/types'
 import { SearchSelect } from '../../../shared/ui/select/SearchSelect'
 import type { GraphSearchCriteria, GraphSearchScope } from '../model/types'
 

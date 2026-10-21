@@ -1,5 +1,6 @@
 import { ArrowRight, Check, CircleHelp, FileText } from 'lucide-react'
-import type { ActionTopic, CompletionNode, PlanNode, Reaction, UserProfile } from '../../shared/model'
+import type { ActionTopic, CompletionNode, PlanNode, Reaction } from '../../entities/action/model/legacy-types'
+import type { UserProfile } from '../../entities/profile/model/types'
 import { Avatar } from '../../shared/ui/Avatar'
 import { PostImageGallery } from '../post/PostImageGallery'
 

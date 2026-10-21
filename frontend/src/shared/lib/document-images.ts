@@ -1,7 +1,7 @@
 import type { Nodes, Root } from 'mdast'
 import { fromMarkdown } from 'mdast-util-from-markdown'
 import { defaultUrlTransform } from 'react-markdown'
-import type { PostImage } from '../model'
+import type { PostImage } from '../model/content'
 
 /** Extracts actual Markdown images in document order, including references and intentional repeats. */
 export function getMarkdownImages(markdown: string): PostImage[] {

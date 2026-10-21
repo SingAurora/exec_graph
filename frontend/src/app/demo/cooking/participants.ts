@@ -1,4 +1,4 @@
-import type { UserProfile } from '../../../shared/model'
+import type { UserProfile } from '../../../entities/profile/model/types'
 
 /** Additional cooks with published actions, including enough profiles to preview participant overflow. */
 export const cookingParticipants: UserProfile[] = [

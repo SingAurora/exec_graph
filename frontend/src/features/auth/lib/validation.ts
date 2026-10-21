@@ -1,4 +1,4 @@
-import type { AuthView } from '../../../shared/model'
+import type { AuthView } from '../../../shared/lib/navigation'
 
 export type AuthFieldName = 'nickname' | 'email' | 'code' | 'password'
 export type AuthFieldErrors = Partial<Record<AuthFieldName, string>>

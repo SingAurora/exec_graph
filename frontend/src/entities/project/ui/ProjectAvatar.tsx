@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { Project } from '../../../shared/model'
+import type { Project } from '../model/types'
 import { getAvatarLabel } from '../../../shared/lib/avatar'
 
 const avatarSizes = {

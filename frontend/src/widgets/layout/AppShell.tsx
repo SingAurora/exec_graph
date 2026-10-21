@@ -1,6 +1,7 @@
 import { Bookmark, Compass, Home, LogOut, Moon, Settings2, Sun, UserRound } from 'lucide-react'
 import type { ReactNode } from 'react'
-import type { AppView, UserProfile } from '../../shared/model'
+import type { AppView } from '../../shared/lib/navigation'
+import type { UserProfile } from '../../entities/profile/model/types'
 import { BackButton } from '../../shared/ui/navigation/BackButton'
 import { Brand } from '../../shared/ui/Brand'
 import { SidebarProfileCard, type SidebarProfileStats } from './SidebarProfileCard'

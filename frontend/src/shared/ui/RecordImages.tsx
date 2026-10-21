@@ -1,4 +1,4 @@
-import type { PostImage } from '../model'
+import type { PostImage } from '../model/content'
 import { MarkdownContent } from './MarkdownContent'
 
 /** Record images open at their natural ratio; absent images occupy no space. */

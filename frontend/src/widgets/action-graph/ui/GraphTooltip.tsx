@@ -1,7 +1,7 @@
 import { createPortal } from 'react-dom'
 import type { ActionNode } from '../../../entities/action/model/types'
 import type { ActionReference } from '../../../entities/action/lib/references'
-import type { UserProfile } from '../../../shared/model'
+import type { UserProfile } from '../../../entities/profile/model/types'
 import { Avatar } from '../../../shared/ui/Avatar'
 import { formatFullPublicationTime, formatPublicationTime } from '../../../shared/lib/date'
 import { getMarkdownSummary } from '../../../shared/lib/markdownSummary'

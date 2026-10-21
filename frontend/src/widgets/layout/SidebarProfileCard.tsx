@@ -1,4 +1,4 @@
-import type { UserProfile } from '../../shared/model'
+import type { UserProfile } from '../../entities/profile/model/types'
 import { Avatar } from '../../shared/ui/Avatar'
 import { GenderMark } from '../../shared/ui/profile/GenderMark'
 import { ProfileBiography } from '../../entities/profile/ui/ProfileBiography'

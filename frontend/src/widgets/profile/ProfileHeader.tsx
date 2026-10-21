@@ -1,4 +1,5 @@
-import type { AppView, UserProfile } from '../../shared/model'
+import type { AppView } from '../../shared/lib/navigation'
+import type { UserProfile } from '../../entities/profile/model/types'
 import { Avatar } from '../../shared/ui/Avatar'
 
 type ProfileHeaderProps = {

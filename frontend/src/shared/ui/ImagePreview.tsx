@@ -1,7 +1,7 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Dialog } from 'radix-ui'
 import type { ComponentPropsWithoutRef } from 'react'
-import type { PostImage } from '../model'
+import type { PostImage } from '../model/content'
 import { ImageDownloadButton } from './ImageDownloadButton'
 
 type ImagePreviewProps = {

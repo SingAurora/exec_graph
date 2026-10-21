@@ -1,6 +1,8 @@
 import { ArrowLeft, FileText, MessageCircle, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import type { ActionTopic, ArchiveTab, ChatMessage, CompletionNode, PlanNode, Project } from '../shared/model'
+import type { ActionTopic, ArchiveTab, CompletionNode, PlanNode } from '../entities/action/model/legacy-types'
+import type { ChatMessage } from '../shared/model/content'
+import type { Project } from '../entities/project/model/types'
 import { MarkdownDocument } from '../widgets/ai/MarkdownDocument'
 
 type NodeArchivePageProps = {

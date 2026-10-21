@@ -1,4 +1,5 @@
-import type { Project, UserProfile } from '../../shared/model'
+import type { Project } from '../../entities/project/model/types'
+import type { UserProfile } from '../../entities/profile/model/types'
 import { cookingContextGuide } from './cooking'
 import { cookingParticipants } from './cooking/participants'
 import cookingGraphAvatar from '../../../assets/cooking-graph-avatar.jpg'

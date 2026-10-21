@@ -1,4 +1,4 @@
-import type { ChatMessage } from '../../../shared/model'
+import type { ChatMessage } from '../../../shared/model/content'
 
 type CookingConversation = { description: string; question: string; answer: string; interpretation: string; agreements?: string }
 

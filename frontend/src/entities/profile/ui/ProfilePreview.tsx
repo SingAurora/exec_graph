@@ -1,6 +1,6 @@
 import { useId, type ReactNode } from 'react'
 import { Popover } from 'radix-ui'
-import type { UserProfile } from '../../../shared/model'
+import type { UserProfile } from '../model/types'
 import { Avatar } from '../../../shared/ui/Avatar'
 import { GenderMark } from '../../../shared/ui/profile/GenderMark'
 import { ProfileBiography } from './ProfileBiography'

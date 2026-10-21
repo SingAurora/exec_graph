@@ -2,7 +2,7 @@ import { Footprints, MessageCircle, Network, ScrollText } from 'lucide-react'
 import { useLayoutEffect, useRef, useState, type ComponentProps } from 'react'
 import type { ProfileSearchScope } from '../../../features/search-profile/model/types'
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from '../../../shared/ui/tabs/Tabs'
-import { getActivityTabScrollTop } from '../../feed/model/tab-scroll'
+import { getRetainedTabScrollTop } from '../../../shared/lib/tab-scroll'
 import { ProfileSearchPanel } from './ProfileSearchPanel'
 
 type Props = Omit<ComponentProps<typeof ProfileSearchPanel>, 'scope'>
@@ -31,7 +31,7 @@ export function ProfileSearch({ active, ...props }: Props) {
     const currentTop = window.scrollY
     const navigationTop = Math.max(0, currentTop + (headerRef.current?.getBoundingClientRect().top ?? 0) - 48)
     scrollPositions.current[scope] = currentTop
-    pendingScroll.current = getActivityTabScrollTop(scrollPositions.current[next], currentTop, navigationTop)
+    pendingScroll.current = getRetainedTabScrollTop(scrollPositions.current[next], currentTop, navigationTop)
     setScope(next)
   }
   return <section className="pt-4" aria-label="主页搜索">

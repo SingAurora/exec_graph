@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { Project } from '../../../shared/model'
+import type { Project } from '../model/types'
 import { defaultProjectBackground } from '../lib/appearance'
 import { ProjectAvatar } from './ProjectAvatar'
 

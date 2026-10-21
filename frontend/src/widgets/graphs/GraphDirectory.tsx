@@ -2,7 +2,7 @@ import { ArrowUpDown, Network, Search, UserRound, UsersRound } from 'lucide-reac
 import { useState } from 'react'
 import { getGraphActivity, hasUserContributed } from '../../entities/project/lib/activity'
 import type { ActionNode } from '../../entities/action/model/types'
-import type { Project } from '../../shared/model'
+import type { Project } from '../../entities/project/model/types'
 import type { CreateProjectInput } from '../../features/project/model/types'
 import { CreateGraphButton } from '../../features/project/ui/CreateGraphButton'
 import { Select } from '../../shared/ui/select/Select'

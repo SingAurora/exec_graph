@@ -1,6 +1,7 @@
 import type { ActionNode } from '../../entities/action/model/types'
 import { canDeleteProject } from '../../entities/project/lib/permissions'
-import type { ActionTopic, CompletionNode, PlanNode, Project, Reaction } from '../../shared/model'
+import type { ActionTopic, CompletionNode, PlanNode, Reaction } from '../../entities/action/model/legacy-types'
+import type { Project } from '../../entities/project/model/types'
 
 /** In-memory graph content owned by the static frontend prototype. */
 export type ProjectContentState = {

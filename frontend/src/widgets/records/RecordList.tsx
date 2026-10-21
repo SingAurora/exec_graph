@@ -1,4 +1,4 @@
-import type { CompletionRecord } from '../../shared/model'
+import type { CompletionRecord } from '../../entities/action/model/legacy-types'
 
 export function RecordList({ records }: { records: CompletionRecord[] }) {
   return <section className="pt-[38px]" aria-labelledby="records-title">

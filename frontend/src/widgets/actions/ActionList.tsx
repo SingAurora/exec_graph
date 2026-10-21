@@ -1,4 +1,5 @@
-import type { Action, UserProfile } from '../../shared/model'
+import type { Action } from '../../entities/action/model/legacy-types'
+import type { UserProfile } from '../../entities/profile/model/types'
 import { Avatar } from '../../shared/ui/Avatar'
 
 type ActionListProps = { actions: Action[]; profile: UserProfile; onComplete: (action: Action) => void }

@@ -1,4 +1,4 @@
-import type { PostImage } from '../../shared/model'
+import type { PostImage } from '../../shared/model/content'
 
 type PostImageGalleryProps = {
   images?: PostImage[]

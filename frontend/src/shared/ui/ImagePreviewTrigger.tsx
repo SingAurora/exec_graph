@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Dialog } from 'radix-ui'
-import type { PostImage } from '../model'
+import type { PostImage } from '../model/content'
 import { ImagePreview } from './ImagePreview'
 
 /** Opens a single image from a custom trigger and restores focus when dismissed. */

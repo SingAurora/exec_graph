@@ -1,8 +1,7 @@
 import { sortActionsNewestFirst } from '../../action/lib/expressions'
 import { getPublishedExpressions } from '../../action/lib/published'
 import type { ActionNode } from '../../action/model/types'
-import type { Project } from '../../../shared/model'
-import type { GraphActivity } from '../model/types'
+import type { Project, GraphActivity } from '../model/types'
 
 /** Uses actual published contributions instead of the obsolete participant list. */
 export function hasUserContributed(projectId: string, userId: string, actions: ActionNode[]): boolean {

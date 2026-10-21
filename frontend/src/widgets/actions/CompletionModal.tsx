@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { X } from 'lucide-react'
-import type { Action } from '../../shared/model'
+import type { Action } from '../../entities/action/model/legacy-types'
 
 type CompletionModalProps = { action: Action | null; onClose: () => void; onSave: (note: string) => void }
 

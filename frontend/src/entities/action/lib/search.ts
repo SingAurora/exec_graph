@@ -2,7 +2,7 @@ import { getActionExpression } from './expressions'
 import { getReferenceAgreementAuthorId } from './agreement-responses'
 import type { ActionReference } from './references'
 import type { ActionNode } from '../model/types'
-import type { UserProfile } from '../../../shared/model'
+import type { UserProfile } from '../../profile/model/types'
 import { getMarkdownSummary } from '../../../shared/lib/markdownSummary'
 import { findSearchMatch } from '../../../shared/lib/search'
 

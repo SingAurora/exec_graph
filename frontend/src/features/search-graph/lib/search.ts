@@ -4,7 +4,7 @@ import { getPublishedExpressions } from '../../../entities/action/lib/published'
 import { filterAgreementParticipants, getSatisfiedAgreementResponses } from '../../../entities/action/lib/agreement-responses'
 import { getActionReferences, type ActionReference } from '../../../entities/action/lib/references'
 import type { GraphSearchCriteria } from '../model/types'
-import type { UserProfile } from '../../../shared/model'
+import type { UserProfile } from '../../../entities/profile/model/types'
 import { getMarkdownSummary } from '../../../shared/lib/markdownSummary'
 import { findSearchMatch } from '../../../shared/lib/search'
 

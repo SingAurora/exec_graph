@@ -4,7 +4,7 @@ import { GitBranch, LocateFixed, Maximize2, Minus, Network, Plus, Scan, X } from
 import type { ActionNode } from '../../../entities/action/model/types'
 import { getActionContextIds, getActionParentIds } from '../../../entities/action/lib/graph'
 import { ActionGraphLegend } from '../../../entities/action/ui/ActionGraphLegend'
-import type { UserProfile } from '../../../shared/model'
+import type { UserProfile } from '../../../entities/profile/model/types'
 import { HelpPopover } from '../../../shared/ui/help/HelpPopover'
 import { GraphBackground } from '../../../shared/ui/graph-background/GraphBackground'
 import type { GraphBackgroundPreferences } from '../../../shared/ui/graph-background/model'

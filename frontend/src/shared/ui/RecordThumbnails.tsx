@@ -1,7 +1,7 @@
 import { Images } from 'lucide-react'
 import { Dialog } from 'radix-ui'
 import { useRef, useState } from 'react'
-import type { PostImage } from '../model'
+import type { PostImage } from '../model/content'
 import { ImagePreview } from './ImagePreview'
 
 const thumbnailSizes = {

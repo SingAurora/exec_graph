@@ -1,4 +1,4 @@
-import type { UserProfile } from '../../../shared/model'
+import type { UserProfile } from '../../../entities/profile/model/types'
 import { Avatar } from '../../../shared/ui/Avatar'
 import { HighlightedText } from '../../../shared/ui/HighlightedText'
 import { getMarkdownSummary } from '../../../shared/lib/markdownSummary'

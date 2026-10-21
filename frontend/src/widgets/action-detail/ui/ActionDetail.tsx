@@ -7,7 +7,7 @@ import { canEditActionExpression, getActionExpression, getActionExpressionOrigin
 import { EditExpression } from '../../../features/action-expression/ui/EditExpression'
 import { getActionLevels } from '../../../entities/action/lib/levels'
 import { ExpressionContent } from '../../../entities/action/ui/ExpressionContent'
-import type { UserProfile } from '../../../shared/model'
+import type { UserProfile } from '../../../entities/profile/model/types'
 import { formatFullPublicationTime, formatPublicationTime } from '../../../shared/lib/date'
 import { Avatar } from '../../../shared/ui/Avatar'
 import { ProfilePreview } from '../../../entities/profile/ui/ProfilePreview'

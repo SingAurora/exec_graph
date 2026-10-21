@@ -1,5 +1,5 @@
 import type { ActionDocumentUpdateMode, ActionExpressionMessage } from '../../../entities/action/model/types'
-import type { ChatMessage } from '../../../shared/model'
+import type { ChatMessage } from '../../../shared/model/content'
 import type { AIDocumentDetails, AIDocumentResult } from '../../../features/ai-key/api/chat'
 import type { AIActionAgreementReview } from '../../../features/ai-key/lib/action-agreement-review'
 
