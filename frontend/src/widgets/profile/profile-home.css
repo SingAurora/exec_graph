@@ -1,0 +1,29 @@
+.profile-heatmap-day,
+.profile-heatmap-key {
+  border: 0;
+  border-radius: 3px;
+  background: var(--soft);
+}
+
+.profile-heatmap-day {
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 0;
+  cursor: pointer;
+}
+
+.profile-heatmap-day[data-level='1'],
+.profile-heatmap-key[data-level='1'] { background: color-mix(in srgb, var(--signal) 30%, var(--soft)); }
+.profile-heatmap-day[data-level='2'],
+.profile-heatmap-key[data-level='2'] { background: color-mix(in srgb, var(--signal) 52%, var(--soft)); }
+.profile-heatmap-day[data-level='3'],
+.profile-heatmap-key[data-level='3'] { background: color-mix(in srgb, var(--signal) 75%, var(--soft)); }
+.profile-heatmap-day[data-level='4'],
+.profile-heatmap-key[data-level='4'] { background: var(--signal); }
+
+.profile-heatmap-day:hover,
+.profile-heatmap-day:focus-visible,
+.profile-heatmap-day[aria-pressed='true'] {
+  outline: 2px solid var(--signal);
+  outline-offset: 1px;
+}

@@ -1,6 +1,6 @@
 .DS_Store
 .idea/
 
-/frontend-v2/.env.local
+/frontend/.env.local
 
 *.log
