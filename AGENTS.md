@@ -25,6 +25,7 @@
 
 ## HTTP 与接口
 
+- 业务请求的详细约定及当前接入范围以 `doc/api-request-contract.md` 为准；前端与 MSW 共用 `frontend/src/shared/api/contracts.ts` 的通用协议类型与错误码。开发环境已接入模拟服务，正式业务后端尚未接入。
 - API 仅使用 `GET` 和 `POST`。读取使用 `GET`，筛选参数放 query；会改变状态的操作使用 `POST`，参数放 JSON。文件上传可使用 `multipart/form-data`。
 - 路径采用 `/api/commands/<领域>/<动作>`，不使用通配路径、路径参数、`PATCH` 或 `DELETE`。路由不自行校验 HTTP Method，Gin 路由定义是唯一方法约束。
 - 所有 JSON 返回使用统一顶层结构：`{"code": 0, "msg": "", "data": ...}`；错误由顶层错误边界转换，不在每个 handler 重复写 HTTP 错误响应。
@@ -50,6 +51,8 @@
 - 所有 HTTP 请求通过 `shared/api/client.ts`。页面、UI 组件和 store 不直接调用 `fetch`，也不直接拼接 API URL；领域 API 放在对应 feature/entity 的 `api/` 内。
 - Zustand 只保存会话和必要的跨页面客户端状态。工作区、项目、节点等服务端事实必须由 API 刷新；组件的弹窗、筛选和表单草稿优先使用局部状态。不得加入运行时假数据、离线写入或持久化明文密码。
 - 保持前端类型与后端公开 DTO 的字段语义一致。修改 API 时同步检查调用点；稳定的 API 输入和输出必须定义 TypeScript 类型，避免 `any` 和无语义的对象字面量。
+- 远端业务数据由 TanStack Query 管理，不再复制到 Zustand；读取请求透传 AbortSignal，mutation 成功后按领域更新／失效缓存。Query 缓存、本地草稿和阅读状态保持各自职责。
+- MSW 仅在显式启用的开发环境启动，handler 位于 `app/mocks`，沿用真实业务契约；现有 AI 代理响应与业务 JSON 外壳分开处理，不用模拟数据回退真实接口失败。
 
 ### 静态原型与类型归属
 

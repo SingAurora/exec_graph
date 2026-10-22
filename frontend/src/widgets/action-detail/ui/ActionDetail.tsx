@@ -74,7 +74,7 @@ export function ActionDetail({ node, actions, users, author, currentUserId, isHi
   onContinue: () => void
   onSelect: (nodeId: string) => void
   onEditExpression: (node: ActionNode) => void
-  onUpdateAgreement: (nodeId: string, markdown: string) => boolean
+  onUpdateAgreement: (nodeId: string, markdown: string) => boolean | Promise<boolean>
 }) {
   const objectiveMarkdown = node.objectiveMarkdown ?? node.markdown
   const levels = useMemo(() => getActionLevels(actions), [actions])

@@ -18,8 +18,8 @@ type Props = {
   users: UserProfile[]
   actions: ActionNode[]
   onOpenProject: (id: string) => void
-  onSetGraphFollow: (id: string, following: boolean) => boolean
-  onSetUserFollow: (id: string, following: boolean) => boolean
+  onSetGraphFollow: (id: string, following: boolean) => boolean | Promise<boolean>
+  onSetUserFollow: (id: string, following: boolean) => boolean | Promise<boolean>
 }
 
 /** Searchable followed objects with independent navigation and unsubscribe controls. */

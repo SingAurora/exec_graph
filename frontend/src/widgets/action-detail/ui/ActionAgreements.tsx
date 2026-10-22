@@ -50,7 +50,7 @@ export function ActionSourceAgreements({ node, actions, users, onSelect }: { nod
 }
 
 /** Shows conditions this node sets for future references, separately from its incoming obligations. */
-export function ActionOwnAgreement({ node, actions, currentUserId, onSelect, onUpdate }: { node: ActionNode; actions: ActionNode[]; currentUserId?: string; onSelect: (id: string) => void; onUpdate?: (markdown: string) => boolean }) {
+export function ActionOwnAgreement({ node, actions, currentUserId, onSelect, onUpdate }: { node: ActionNode; actions: ActionNode[]; currentUserId?: string; onSelect: (id: string) => void; onUpdate?: (markdown: string) => boolean | Promise<boolean> }) {
   const [expanded, setExpanded] = useState(false)
   const [editing, setEditing] = useState(false)
   const contentId = useId()

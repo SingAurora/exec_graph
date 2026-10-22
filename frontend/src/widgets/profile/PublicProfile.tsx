@@ -23,7 +23,7 @@ export function PublicProfile({ profile, currentUserId, following, users, projec
   projects: Project[]; actions: ActionNode[]; active?: boolean
   activityTabRequest?: ComponentProps<typeof ActivityFeed>['tabRequest']
   onCreateProject?: (input: CreateProjectInput) => void
-  onSetUserFollow: (id: string, following: boolean) => boolean; onOpenProject: (id: string) => void
+  onSetUserFollow: (id: string, following: boolean) => boolean | Promise<boolean>; onOpenProject: (id: string) => void
   onOpenNode: (node: ActionNode, mode: ActionDocumentMode) => void
   onOpenReference: (reference: ActionReference) => void
 }) {

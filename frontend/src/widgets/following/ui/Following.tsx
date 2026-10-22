@@ -23,8 +23,8 @@ type Props = {
   onOpenProject: (id: string) => void
   onOpenNode: (node: ActionNode, mode: ActionDocumentMode) => void
   onOpenReference: (reference: ActionReference) => void
-  onSetGraphFollow: (id: string, following: boolean) => boolean
-  onSetUserFollow: (id: string, following: boolean) => boolean
+  onSetGraphFollow: (id: string, following: boolean) => boolean | Promise<boolean>
+  onSetUserFollow: (id: string, following: boolean) => boolean | Promise<boolean>
 }
 
 /** Retains followed activity, graph and people directories across navigation. */

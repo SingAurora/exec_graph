@@ -17,7 +17,7 @@ const groups = [{ id: 'all', label: '全部', icon: Network }, { id: 'joined', l
 /** Browses public graphs without introducing a join gate or a planned-action state. */
 export function GraphDirectory({ currentUserId, projects, actions, onCreateProject, onOpenProject }: {
   currentUserId: string; projects: Project[]; actions: ActionNode[]
-  onCreateProject: (input: CreateProjectInput) => void; onOpenProject: (id: string) => void
+  onCreateProject: (input: CreateProjectInput) => void | Promise<void>; onOpenProject: (id: string) => void
 }) {
   const [group, setGroup] = useState<GraphGroup>('all')
   const [keyword, setKeyword] = useState('')

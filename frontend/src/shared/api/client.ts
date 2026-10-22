@@ -1,3 +1,6 @@
+import { API_REQUEST_DEFAULTS } from './contracts'
+import { BusinessRequestError } from './errors'
+
 type APIErrorBody = {
   error?: { message?: string }
   msg?: string
@@ -50,4 +53,68 @@ async function readJSON<T>(response: Response): Promise<T> {
   } catch {
     throw new APIRequestError('AI 服务返回了无法识别的内容。', response.status)
   }
+}
+
+/** A fixed business command endpoint, separate from third-party AI and download URLs. */
+export type BusinessAPIPath = `/api/commands/${string}/${string}`
+
+/** Options shared by ordinary business requests and TanStack Query cancellation. */
+export type BusinessRequestOptions = {
+  signal?: AbortSignal
+  csrfToken?: string
+  idempotencyKey?: string
+  timeoutMs?: number
+}
+
+type QueryValue = string | number | boolean | readonly (string | number | boolean)[] | null | undefined
+
+/** Reads and unwraps a business response through the shared HTTP boundary. */
+export function getAPI<T>(path: BusinessAPIPath, query: Record<string, QueryValue> = {}, options: BusinessRequestOptions = {}): Promise<T> {
+  const params = new URLSearchParams()
+  for (const [key, value] of Object.entries(query)) {
+    if (value === undefined || value === null) continue
+    for (const item of Array.isArray(value) ? value : [value]) params.append(key, String(item))
+  }
+  return requestBusiness<T>(path, params, undefined, options)
+}
+
+/** Writes business JSON and returns server-confirmed data; it never retries a mutation. */
+export function postAPI<T, TBody>(path: BusinessAPIPath, body: TBody, options: BusinessRequestOptions = {}): Promise<T> {
+  return requestBusiness<T>(path, undefined, body, options)
+}
+
+async function requestBusiness<T>(path: BusinessAPIPath, query: URLSearchParams | undefined, body: unknown, options: BusinessRequestOptions): Promise<T> {
+  const timeout = new AbortController()
+  const timer = setTimeout(() => timeout.abort(), options.timeoutMs ?? API_REQUEST_DEFAULTS.timeoutMs)
+  const signal = options.signal ? AbortSignal.any([options.signal, timeout.signal]) : timeout.signal
+  const base = import.meta.env?.VITE_API_BASE_URL || globalThis.location?.origin
+  try {
+    if (!/^\/api\/commands\/[a-z][a-z-]*\/[a-z][a-z-]*$/.test(path)) throw new BusinessRequestError('接口路径不合法', 'protocol')
+    const url = new URL(path, base)
+    if (query) url.search = query.toString()
+    const headers = new Headers({ Accept: 'application/json' })
+    if (body !== undefined) {
+      headers.set('Content-Type', 'application/json')
+      if (options.csrfToken) headers.set('X-CSRF-Token', options.csrfToken)
+      if (options.idempotencyKey) headers.set('Idempotency-Key', options.idempotencyKey)
+    }
+    const response = await fetch(url, { method: body === undefined ? 'GET' : 'POST', credentials: 'include', headers, signal, ...(body === undefined ? {} : { body: JSON.stringify(body) }) })
+    const requestId = response.headers.get('X-Request-Id') ?? undefined
+    let payload: unknown
+    try { payload = await response.json() } catch {
+      if (signal.aborted) throw signal.reason
+      throw new BusinessRequestError('服务返回了无法识别的响应', 'protocol', response.status, undefined, requestId)
+    }
+    if (!payload || typeof payload !== 'object' || !('code' in payload) || !Number.isInteger(payload.code)
+      || !('msg' in payload) || typeof payload.msg !== 'string' || !('data' in payload)) {
+      throw new BusinessRequestError('服务响应格式不正确', 'protocol', response.status, undefined, requestId)
+    }
+    if (!response.ok || payload.code !== 0) throw new BusinessRequestError(payload.msg || `请求失败（${response.status}）`, 'business', response.status, payload.code as number, requestId)
+    return payload.data as T
+  } catch (error) {
+    if (options.signal?.aborted) throw new BusinessRequestError('请求已取消', 'cancelled')
+    if (timeout.signal.aborted) throw new BusinessRequestError('请求超时，请重试', 'timeout')
+    if (error instanceof BusinessRequestError) throw error
+    throw new BusinessRequestError('网络连接失败，请重试', 'network')
+  } finally { clearTimeout(timer) }
 }

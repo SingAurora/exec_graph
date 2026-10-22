@@ -20,7 +20,7 @@ const recentItemLimit = 3
 /** Finite previews of personal actions and expressions, with agreement exchanges and graph shortcuts. */
 export function PersonalWorkspace({ profile, users, projects, actions, onCreateProject, onOpenProject, onOpenNode, onOpenReference }: {
   profile: UserProfile; users: UserProfile[]; projects: Project[]; actions: ActionNode[]
-  onCreateProject: (input: CreateProjectInput) => void; onOpenProject: (id: string) => void
+  onCreateProject: (input: CreateProjectInput) => void | Promise<void>; onOpenProject: (id: string) => void
   onOpenNode: (node: ActionNode, mode: ActionDocumentMode) => void
   onOpenReference: (reference: ActionReference) => void
 }) {

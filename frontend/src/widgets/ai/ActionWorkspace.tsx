@@ -34,7 +34,7 @@ type ActionWorkspaceProps = {
   initialDocument?: string
   initialMessages?: ChatMessage[]
   onBack: () => void
-  onConfirm: (markdown: string, details: { title: string; description: string; points: string[]; note: string }, messages: ChatMessage[], expressionMarkdown?: string, agreementMarkdown?: string, referenceAgreements?: ActionReferenceAgreement[], mergedParentIds?: string[]) => boolean
+  onConfirm: (markdown: string, details: { title: string; description: string; points: string[]; note: string }, messages: ChatMessage[], expressionMarkdown?: string, agreementMarkdown?: string, referenceAgreements?: ActionReferenceAgreement[], mergedParentIds?: string[]) => boolean | Promise<boolean>
 }
 
 /** Maintains action and expression documents through one continuous AI conversation. */
@@ -62,6 +62,7 @@ export function ActionWorkspace({ profileName, profile, aiConfig, draftKey, hasP
   const { messages, input, document, details, generated, expression, agreementMode, agreementDraft, agreementReviews, mergedParentIds, sourcesChanged } = local.value
   const update = (patch: Partial<ActionWorkspaceDraft>) => local.update((current) => ({ ...current, ...patch }))
   const [sending, setSending] = useState(false)
+  const [publishing, setPublishing] = useState(false)
   const [publishError, setPublishError] = useState('')
   const continuation = actions && sourceNodeId ? getActionContinuationContext(actions, sourceNodeId, mergedParentIds) : undefined
   const knownFacts = continuation?.facts ?? historyFacts
@@ -76,7 +77,7 @@ export function ActionWorkspace({ profileName, profile, aiConfig, draftKey, hasP
     ? expressionOriginNumber !== undefined ? `继承自 节点 #${expressionOriginNumber}` : '继承表达'
     : '本次对话更新'
   const contextValid = !actions || !hasParent || Boolean(continuation)
-  const canPublish = local.ready && Boolean(document.trim()) && generated && !sending && contextValid
+  const canPublish = local.ready && Boolean(document.trim()) && generated && !sending && !publishing && contextValid
     && local.value.contextSignature === signatureFor(mergedParentIds) && !(agreementMode === 'update' && !agreementDraft.trim())
   const changeMergedSources = (ids: string[]) => {
     if (sending || !actions || !sourceNodeId) return
@@ -84,17 +85,21 @@ export function ActionWorkspace({ profileName, profile, aiConfig, draftKey, hasP
     if (!onlyRemoving && !getActionContinuationContext(actions, sourceNodeId, ids)) return
     update({ mergedParentIds: ids, generated: false, agreementReviews: [], sourcesChanged: true })
   }
-  const publish = () => {
+  const publish = async () => {
     if (!canPublish) return
+    setPublishing(true); setPublishError('')
     const assessments = getReferenceAgreementRecords(directSources, agreementReviews)
-    if (onConfirm(document, details, messages.filter(isSavedMessage), expressionMarkdown, agreementMarkdown, assessments, mergedParentIds)) local.remove()
-    else setPublishError('节点状态已变化，无法发布行动')
+    try {
+      if (await onConfirm(document, details, messages.filter(isSavedMessage), expressionMarkdown, agreementMarkdown, assessments, mergedParentIds)) local.remove()
+      else setPublishError('节点状态已变化，无法发布行动')
+    } catch (error) { setPublishError(error instanceof Error ? error.message : '发布失败，请重试') }
+    finally { setPublishing(false) }
   }
 
   const send = async (event: FormEvent) => {
     event.preventDefault()
     const clean = input.trim()
-    if (!local.ready || !clean || sending || !contextValid) return
+    if (!local.ready || !clean || sending || publishing || !contextValid) return
     const next = [...messages.filter((message) => !message.id.startsWith('error-')), { id: 'user-' + Date.now(), speaker: 'user' as const, body: clean }]
     update({ messages: next, input: '', generated: false, agreementReviews: [] }); setSending(true); setPublishError('')
     try {
@@ -116,15 +121,15 @@ export function ActionWorkspace({ profileName, profile, aiConfig, draftKey, hasP
 
   return <WorkspaceFrame title={hasParent ? '接续行动' : '记录第一次行动'} tabLabel="接续行动工作区"
     view={local.value.view} onViewChange={(view) => update({ view })} restoring={!local.ready}
-    draftControls={<LocalDraftControls status={local.status} hasDraft={local.hasDraft} disabled={sending || !local.ready} onDiscard={() => { local.discard(); setPublishError('') }} />}
+    draftControls={<LocalDraftControls status={local.status} hasDraft={local.hasDraft} disabled={sending || publishing || !local.ready} onDiscard={() => { local.discard(); setPublishError('') }} />}
     help={<HelpPopover title="行动与表达的整理"><p>在同一条对话中描述实际行动、讨论看法，AI 分别整理行动和表达。表达的修改、继承与清空都可在对话中说明，切换到行动或表达查看文档预览，切换到约定设置后续引用要求。</p><p>{hasParent ? '未提出修改时沿用承接节点的表达，合入来源不会自动覆盖表达。' : '首次行动没有上级表达，可以暂不填写。'}发布后修改表达也会接着这条对话继续。</p></HelpPopover>}
     context={hasParent ? { label: sourceNodeNumber !== undefined ? `承接 #${sourceNodeNumber}` : '承接', title: contextTitle, facts: knownFacts } : undefined}
-    contextControls={hasParent && actions && sourceNodeId ? <MergeActionSources actions={actions} parentId={sourceNodeId} selectedIds={mergedParentIds} reviews={agreementReviews} disabled={sending || !local.ready} onChange={changeMergedSources} /> : undefined}
+    contextControls={hasParent && actions && sourceNodeId ? <MergeActionSources actions={actions} parentId={sourceNodeId} selectedIds={mergedParentIds} reviews={agreementReviews} disabled={sending || publishing || !local.ready} onChange={changeMergedSources} /> : undefined}
     messages={messages} profileName={profileName} profile={profile} input={input} placeholder="说说做了什么，或想表达什么"
-    sending={sending} disabled={!local.ready || !contextValid} onInputChange={(input) => update({ input })} onSend={send} onBack={onBack}
+    sending={sending} disabled={publishing || !local.ready || !contextValid} onInputChange={(input) => update({ input })} onSend={send} onBack={onBack}
     action={{ markdown: document, status: sourcesChanged && document ? '引用背景已更新，文档待重新整理' : undefined, empty: '在 AI 对话中描述这次行动' }}
     expression={{ markdown: effectiveExpression, images: expression.mode === 'inherit' ? inheritedExpressionImages : [], status: expressionLabel, empty: '暂无表达' }}
-    agreement={<ActionAgreementEditor hasParent={hasParent} inheritedAgreement={inheritedAgreement} mode={agreementMode} draft={agreementDraft} onModeChange={(agreementMode) => update({ agreementMode })} onDraftChange={(agreementDraft) => update({ agreementDraft })} disabled={sending || !local.ready} sourceNodeNumber={sourceNodeNumber} sourceReview={sourceReview} sources={continuation?.sources} reviews={agreementReviews} />}
+    agreement={<ActionAgreementEditor hasParent={hasParent} inheritedAgreement={inheritedAgreement} mode={agreementMode} draft={agreementDraft} onModeChange={(agreementMode) => update({ agreementMode })} onDraftChange={(agreementDraft) => update({ agreementDraft })} disabled={sending || publishing || !local.ready} sourceNodeNumber={sourceNodeNumber} sourceReview={sourceReview} sources={continuation?.sources} reviews={agreementReviews} />}
     footer={<><span className="text-xs text-muted" role="status">{publishError || (sending ? '正在整理…' : !contextValid ? '引用来源已变化，请返回重新选择' : sourcesChanged ? '引用背景已更新，请继续对话后发布' : !document ? '尚未生成' : !generated ? '本轮未完成' : '待发布')}</span>
       <button className="primary-button" type="button" onClick={publish} disabled={!canPublish}><Check size={15} />发布行动</button></>} />
 }

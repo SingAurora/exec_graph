@@ -36,12 +36,12 @@ export type ProjectDetailProps = {
   onCreateAction: (projectId: string) => void
   onContinueAction: (node: ActionNode, mode: BranchMode) => void
   onOpenActionArchive: (node: ActionNode) => void
-  onUpdateProject: (projectId: string, patch: Pick<Project, 'title' | 'description' | 'avatar' | 'backgroundImage'>) => void
+  onUpdateProject: (projectId: string, patch: Pick<Project, 'title' | 'description' | 'avatar' | 'backgroundImage'>) => void | Promise<void>
   onEditExpression: (node: ActionNode) => void
-  onUpdateAgreement: (nodeId: string, markdown: string) => boolean
-  onDeleteProject: (projectId: string, expectedNodeCount: number) => boolean
+  onUpdateAgreement: (nodeId: string, markdown: string) => boolean | Promise<boolean>
+  onDeleteProject: (projectId: string, expectedNodeCount: number) => boolean | Promise<boolean>
   following: boolean
-  onSetGraphFollow: (projectId: string, following: boolean) => boolean
+  onSetGraphFollow: (projectId: string, following: boolean) => boolean | Promise<boolean>
 }
 
 type GraphSelection = { kind: 'node' | 'reference'; id: string }
