@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 
 const batchSize = 6
 
-/** Observes one visible-list boundary once; cleanup also ignores already queued callbacks. */
+/** 观察列表底部进入视野后加载一次；断开观察时也忽略已排队的过时回调。 */
 export function observeListEnd(element: Element | null, enabled: boolean, loadMore: () => void): () => void {
   if (!element || !enabled) return () => {}
   let listening = true
@@ -16,7 +16,7 @@ export function observeListEnd(element: Element | null, enabled: boolean, loadMo
   return () => { listening = false; observer.disconnect() }
 }
 
-/** Retains loaded items across hidden tabs and loads another batch only while active. */
+/** 对内存中的完整列表逐批展示，隐藏 Tab 保留数量但暂停观察；这里不请求远端下一页。 */
 export function useInfiniteList({ itemCount, infinite, active }: { itemCount: number; infinite: boolean; active: boolean }) {
   const [visibleCount, setVisibleCount] = useState(batchSize)
   const endRef = useRef<HTMLParagraphElement>(null)

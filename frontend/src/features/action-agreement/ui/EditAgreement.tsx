@@ -4,7 +4,7 @@ import { useLocalDraft } from '../../../shared/lib/local-draft/useLocalDraft'
 import { LocalDraftControls } from '../../../shared/ui/LocalDraftControls'
 import { isAgreementDraft, type AgreementDraft } from '../model/draft'
 
-/** Edits the current effective agreement without rewriting the inherited source. */
+/** 修改当前有效约定，只在本节点形成新版本，不回写被继承的来源节点。 */
 export function EditAgreement({ markdown, draftKey, onSave, onSaved, onCancel }: {
   markdown: string
   draftKey?: string

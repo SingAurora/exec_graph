@@ -1,7 +1,7 @@
 import type { ActionExpressionContext, ActionNode } from '../model/types'
 import { getActionContextIds } from './graph'
 
-/** Includes current and cited facts across all parents, excluding unrelated branches and other graphs. */
+/** 修改表达的事实背景包含当前节点及承接／合入历史，排除无关分支和其他图。 */
 export function getActionExpressionContext(nodes: ActionNode[], nodeId: string): ActionExpressionContext | undefined {
   const node = nodes.find((item) => item.id === nodeId)
   if (!node) return undefined

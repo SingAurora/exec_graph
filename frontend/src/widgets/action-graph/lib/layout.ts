@@ -7,12 +7,12 @@ import { getActionContextIds } from '../../../entities/action/lib/graph'
 
 cytoscape.use(dagre)
 
-/** The graph grows vertically while its width and node sizes remain fixed. */
+/** 图按固定宽度排布，节点尺寸固定，历史增多时只向纵向延伸。 */
 export const GRAPH_WIDTH = 340
 const PADDING = 42
 const ROW_GAP = 56
 
-/** The layout is independent of hover and selection state. */
+/** 布局结果包含坐标、层级和引用关系，不混入悬浮或选中状态。 */
 export type ActionGraphLayout = {
   elements: ElementDefinition[]
   positions: Map<string, Position>
@@ -21,7 +21,7 @@ export type ActionGraphLayout = {
   height: number
 }
 
-/** Arranges sources below newer actions and allows independent branches to share a rank. */
+/** 使用 Dagre 计算分支布局，旧来源在下、新行动在上；独立分支可以处于同层。 */
 export function createActionLayout(actions: ActionNode[], mainPath: ActionNode[]): ActionGraphLayout {
   const references = getActionReferences(actions)
   const levels = getActionLevels(actions)
@@ -42,6 +42,7 @@ export function createActionLayout(actions: ActionNode[], mainPath: ActionNode[]
         reference.agreementStatus === 'exception' ? 'exception' : ''].join(' '),
     })
   }
+  // headless 实例只计算坐标，不绑定 DOM；最终坐标交给可见画布使用，计算后立即销毁。
   const graph = cytoscape({ headless: true, styleEnabled: true, elements,
     style: [{ selector: 'node', style: { width: 36, height: 36 } }],
   })

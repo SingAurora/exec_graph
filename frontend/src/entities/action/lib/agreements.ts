@@ -1,27 +1,27 @@
 import type { ActionAgreement, ActionAgreementOrigin, ActionDocumentRevision, ActionNode } from '../model/types'
 import { canEditActionDocument, getInheritedActionDocument, getInheritedActionDocumentOrigin, getInheritedActionDocuments, updateActionDocument } from './inherited-document'
 
-/** Resolves all effective agreement versions once for graph-wide reference assessment. */
+/** 一次解析全图各节点的有效约定，供引用关系批量核对使用。 */
 export function getActionAgreements(nodes: ActionNode[]): Map<string, ActionAgreement> {
   return getInheritedActionDocuments(nodes, 'agreementMarkdown')
 }
 
-/** Resolves the effective agreement, ignoring merged sources and honoring explicit clears. */
+/** 读取本节点传给后续引用者的有效约定；只沿承接链继承，尊重主动清空。 */
 export function getActionAgreement(nodes: ActionNode[], nodeId: string): ActionAgreement {
   return getInheritedActionDocument(nodes, nodeId, 'agreementMarkdown')
 }
 
-/** Skips unchanged intermediates when identifying the inherited or revised agreement version. */
+/** 跳过仅继承的中间节点，定位约定的真实来源版本。 */
 export function getActionAgreementOrigin(nodes: ActionNode[], nodeId: string): ActionAgreementOrigin | undefined {
   return getInheritedActionDocumentOrigin(nodes, nodeId, 'agreementMarkdown')
 }
 
-/** Uses the same endpoint eligibility as editing an expression, including inherited versions. */
+/** 与表达共用编辑资格：只有未被后续引用的节点可以修改当前有效约定。 */
 export function canEditActionAgreement(nodes: ActionNode[], nodeId: string): boolean {
   return canEditActionDocument(nodes, nodeId)
 }
 
-/** Updates downstream conditions without changing facts, source requirements or the conversation. */
+/** 修改本节点向后的约定，不改行动事实、本次来源约定核对和既有对话。 */
 export function updateActionAgreement(nodes: ActionNode[], nodeId: string, markdown: string, editor: Pick<ActionDocumentRevision, 'authorId' | 'createdAt'>): ActionNode[] {
   return updateActionDocument(nodes, nodeId, 'agreementMarkdown', markdown, editor)
 }

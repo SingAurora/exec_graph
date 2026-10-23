@@ -5,7 +5,7 @@ type EditExpressionProps = {
   onOpen: () => void
 }
 
-/** Opens the contextual AI dialogue instead of editing a published expression inline. */
+/** 打开带行动背景的 AI 对话来修改表达，保留形成过程，不直接在详情中改写正文。 */
 export function EditExpression({ markdown, onOpen }: EditExpressionProps) {
   const hasContent = Boolean(markdown.trim())
   const label = hasContent ? '修改表达' : '补充表达'

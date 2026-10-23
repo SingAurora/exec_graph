@@ -35,7 +35,7 @@ type Props = {
   onClearHighlight: () => void
 }
 
-/** Interactive action canvas; line style shows authorship and crosses show agreement exceptions. */
+/** Cytoscape 行动图：实虚线表示作者关系，叉号表示不满足约定；React 管理选择和工具栏。 */
 export function ActionGraph({ actions, highlightedPath, users, selectedId, selectedReferenceId, showLegend, background, active = true, focusRequest = 0, locateRequest = 0, detailsVisible = true, onSelect, onSelectReference, onFitViewport, onClearHighlight }: Props) {
   const container = useRef<HTMLDivElement>(null)
   const targets = useRef<HTMLDivElement>(null)
@@ -43,7 +43,7 @@ export function ActionGraph({ actions, highlightedPath, users, selectedId, selec
   const tooltipId = useId()
   const [hover, setHover] = useState<GraphHover | null>(null)
   const [hitPaths, setHitPaths] = useState<EdgeHitPath[]>([])
-  // Highlighting changes styles only, so cancelling it never rebuilds or moves the graph.
+  // 高亮和选择只改样式；布局仅随行动数据变化，避免点击节点时整个图重新排列。
   const layout = useMemo(() => createActionLayout(actions, []), [actions])
   const highlightTip = highlightedPath.at(-1)
   const userById = useMemo(() => new Map(users.map((user) => [user.id, user])), [users])
@@ -53,6 +53,7 @@ export function ActionGraph({ actions, highlightedPath, users, selectedId, selec
   const hoveredReference = hover?.kind === 'reference' ? referenceById.get(hover.id) : undefined
 
   useEffect(() => {
+    // Cytoscape 直接管理画布 DOM，放入 effect 创建；清理时销毁实例，避免重复监听和资源泄漏。
     if (!container.current) return
     const graph = cytoscape({
       container: container.current,
@@ -86,6 +87,7 @@ export function ActionGraph({ actions, highlightedPath, users, selectedId, selec
     const pathIds = new Set(highlightedPath.map((node) => node.id))
     const selected = actions.find((node) => node.id === selectedId)
     const sources = new Set(reference ? [reference.source.id, reference.target.id] : selected ? getActionParentIds(selected) : [])
+    // 批量更新视觉类；承接主链、合入背景、来源和当前选择各自独立，颜色不表示路线优劣。
     graph.batch(() => {
       graph.elements().removeClass('active source outside main context')
       graph.nodes().forEach((node) => {
@@ -173,7 +175,7 @@ export function ActionGraph({ actions, highlightedPath, users, selectedId, selec
       else if (event.key === '0') { event.preventDefault(); fit() }
     }}>
         <GraphBackground preferences={background} />
-        {/* Cytoscape injects an unlayered relative-position rule; keep the canvas frame absolute. */}
+        {/* Cytoscape 会注入 relative 定位，这里显式保持画布绝对定位，避免改变容器布局。 */}
         <div className="action-graph-surface" style={{ position: 'absolute' }} ref={container} aria-hidden="true" />
       <div className="action-graph-targets" ref={targets} style={{ width: GRAPH_WIDTH, height: layout.height }}>
         <svg className="action-graph-edge-targets" width={GRAPH_WIDTH} height={layout.height} role="group" aria-label="节点引用关系">

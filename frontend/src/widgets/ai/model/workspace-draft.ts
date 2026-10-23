@@ -3,13 +3,13 @@ import type { ChatMessage } from '../../../shared/model/content'
 import type { AIDocumentDetails, AIDocumentResult } from '../../../features/ai-key/api/chat'
 import type { AIActionAgreementReview } from '../../../features/ai-key/lib/action-agreement-review'
 
-/** A workspace's selected preview and its independent panel scroll positions. */
+/** 编辑器阅读状态：当前预览栏目，以及每个面板独立的滚动位置。 */
 export type WorkspaceView = {
   tab: 'conversation' | 'objective' | 'expression' | 'agreement'
   positions: Partial<Record<WorkspaceView['tab'], number>>
 }
 
-/** Everything the user has not yet published from a continuous action dialogue. */
+/** 一次连续对话中尚未发布的全部内容；本地保存不等于服务已接受发布。 */
 export type ActionWorkspaceDraft = {
   messages: ChatMessage[]
   input: string
@@ -26,7 +26,7 @@ export type ActionWorkspaceDraft = {
   view: WorkspaceView
 }
 
-/** Unpublished expression turns continue the existing node's original conversation. */
+/** 已有节点表达的追加对话草稿；draftDocument 为空字符串时表示明确清空。 */
 export type ExpressionWorkspaceDraft = {
   messages: ActionExpressionMessage[]
   input: string
@@ -36,7 +36,7 @@ export type ExpressionWorkspaceDraft = {
   view: WorkspaceView
 }
 
-/** Starts a new editor on its continuous conversation. */
+/** 新工作区默认打开对话，不预设各文档的阅读位置。 */
 export function createWorkspaceView(): WorkspaceView {
   return { tab: 'conversation', positions: {} }
 }
@@ -56,7 +56,7 @@ function isView(value: unknown): boolean {
     && Object.entries(value.positions).every(([key, top]) => tabs.includes(key) && typeof top === 'number' && Number.isFinite(top) && top >= 0)
 }
 
-/** Validates persisted action data before it can become editable state. */
+/** 本地存储可能含旧版或损坏数据，恢复前逐项验证结构；TS 类型不会自动校验存储内容。 */
 export function isActionWorkspaceDraft(value: unknown): value is ActionWorkspaceDraft {
   if (!isRecord(value) || !isRecord(value.details) || !isRecord(value.expression)) return false
   const { details, expression } = value
@@ -72,14 +72,14 @@ export function isActionWorkspaceDraft(value: unknown): value is ActionWorkspace
     && typeof value.sourcesChanged === 'boolean' && typeof value.contextSignature === 'string' && isView(value.view)
 }
 
-/** Validates expression drafts while preserving an explicitly empty generated expression. */
+/** 校验表达草稿，同时允许“已生成的空表达”，保留主动清空语义。 */
 export function isExpressionWorkspaceDraft(value: unknown): value is ExpressionWorkspaceDraft {
   return isRecord(value) && isMessages(value.messages) && typeof value.input === 'string'
     && (value.draftDocument === undefined || typeof value.draftDocument === 'string')
     && typeof value.generated === 'boolean' && typeof value.contextSignature === 'string' && isView(value.view)
 }
 
-/** Changed factual backgrounds keep the draft readable but require another AI turn before publishing. */
+/** 背景变化时保留可读草稿，但撤销已生成标记，要求重新对话核实后再提交。 */
 export function reconcileWorkspaceDraft<T extends { generated: boolean; contextSignature: string }>(draft: T, contextSignature: string): T {
   return draft.contextSignature === contextSignature ? draft : { ...draft, generated: false }
 }

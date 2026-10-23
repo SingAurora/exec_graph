@@ -27,7 +27,7 @@ type Props = {
   onSetUserFollow: (id: string, following: boolean) => boolean | Promise<boolean>
 }
 
-/** Retains followed activity, graph and people directories across navigation. */
+/** 关注动态及图／用户目录；往返页面保留各栏目的阅读和筛选状态。 */
 export function Following({ sources, actions, projects, users, active, onOpenProject, onOpenNode, onOpenReference, onSetGraphFollow, onSetUserFollow }: Props) {
   const [tab, setTab] = useState<FollowingTab>('expressions')
   const scrollPositions = useRef<Partial<Record<FollowingTab, number>>>({})

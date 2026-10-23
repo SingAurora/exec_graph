@@ -2,7 +2,7 @@ import type { AIKeyConfig } from '../../../entities/ai-key/model/types'
 import { aiProviders, platformAIConfig } from '../../../entities/ai-key/model/catalog'
 import { postJSON } from '../../../shared/api/client'
 
-/** Message shared by document generation and connection checks. */
+/** 文档生成与连接测试共用的模型消息；system 提供规则，user／assistant 表示连续对话。 */
 export type AICompletionMessage = { role: 'system' | 'user' | 'assistant'; content: string }
 
 type CompletionRequest = {
@@ -15,7 +15,7 @@ type CompletionRequest = {
 
 type CompletionResponse = { choices?: Array<{ message?: { content?: string } }> }
 
-/** Calls an allowed official model using either the platform key or the user's own key. */
+/** 校验允许的模型和官方地址，经代理调用；平台密钥由代理注入，个人密钥由请求头传递。 */
 export async function requestAICompletion(config: AIKeyConfig, messages: AICompletionMessage[], json = false): Promise<CompletionResponse> {
   const provider = aiProviders.find((item) => item.id === config.provider)
   if (!provider || !provider.models.some((model) => model.id === config.model)) throw new Error('请选择支持的 DeepSeek 或 GPT 模型。')

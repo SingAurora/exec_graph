@@ -1,7 +1,7 @@
 import type { ActionExpressionChange, ActionNode } from '../model/types'
 import { getActionExpression, getActionExpressionOrigin } from './expressions'
 
-/** Distinguishes an explicit clear from inherited emptiness and identifies actual document sources. */
+/** 形成过程用的表达状态：区分主动清空和原本为空，同时标识继承或修改来源。 */
 export function getActionExpressionChange(actions: ActionNode[], nodeId: string): ActionExpressionChange {
   const node = actions.find((action) => action.id === nodeId)
   if (!node) return { kind: 'empty' }

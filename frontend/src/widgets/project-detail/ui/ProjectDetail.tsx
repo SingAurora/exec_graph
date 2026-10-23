@@ -23,7 +23,7 @@ import { GraphSearch } from '../../graph-search/ui/GraphSearch'
 import { FollowButton } from '../../../features/follow/ui/FollowButton'
 import type { GraphBackgroundPreferences } from '../../../shared/ui/graph-background/model'
 
-/** Inputs and application callbacks for the retained graph-detail workspace. */
+/** 图详情接收业务数据及应用层回调；界面不直接发请求或导入演示数据。 */
 export type ProjectDetailProps = {
   project: Project
   active?: boolean
@@ -47,7 +47,7 @@ export type ProjectDetailProps = {
 type GraphSelection = { kind: 'node' | 'reference'; id: string }
 type ProjectTab = 'expressions' | 'agreements' | 'facts' | 'explore' | 'search' | 'settings'
 
-/** Coordinates graph content tabs, exploration selection and independent reading positions. */
+/** 图详情协调中心：装配表达、约定、行动和探索，管理选择、定位及各栏目阅读状态。 */
 export function ProjectDetail({ project, active = true, externalFocus, currentUserId, users, actions, showActionGraphLegend, graphBackground, onCreateAction, onContinueAction, onOpenActionArchive, onUpdateProject, onEditExpression, onUpdateAgreement, onDeleteProject, following, onSetGraphFollow }: ProjectDetailProps) {
   const handledExternalFocus = useRef<string | undefined>(undefined)
   const workspaceRef = useRef<HTMLDivElement>(null)
@@ -62,6 +62,7 @@ export function ProjectDetail({ project, active = true, externalFocus, currentUs
   const [nodeLocateRequest, setNodeLocateRequest] = useState(0)
   const [detailsVisible, setDetailsVisible] = useState(true)
   const [documentMode, setDocumentMode] = useState<ActionDocumentMode>('objective')
+  // 表达展示路线终点的有效看法，行动展示全部记录，约定展示真实引用回应；三者不是同一列表。
   const endpoints = useMemo(() => getActionExpressionNodes(actions), [actions])
   const expressionNodes = useMemo(() => getPublishedExpressions(actions), [actions])
   const facts = useMemo(() => sortActionsNewestFirst(actions), [actions])
@@ -79,6 +80,7 @@ export function ProjectDetail({ project, active = true, externalFocus, currentUs
   const isParticipant = isProjectParticipant(project, currentUserId, actions)
   const deletionDisabledReason = getProjectDeletionDisabledReason(project, currentUserId, actions)
   const canAccessSettings = canEditProject || isParticipant
+  // 当前选择可以是节点或箭头；它和高亮路线终点分离，浏览其他节点不会改变高亮主链。
   const [selection, setSelection] = useState<GraphSelection>()
   const selectedReference = selection?.kind === 'reference' ? references.find((reference) => reference.id === selection.id) : undefined
   const selected = selectedReference ? undefined : actions.find((node) => selection?.kind === 'node' && node.id === selection.id) ?? defaultNode
@@ -112,7 +114,7 @@ export function ProjectDetail({ project, active = true, externalFocus, currentUs
     lastTab.current = activeTab
     const locate = pendingLocate.current && activeTab === 'explore'
     pendingLocate.current = false
-    // Wait for the tab panels to finish changing visibility before aligning the page.
+    // 等 Tab 面板完成显隐后再定位；离开时取消动画帧，避免隐藏页面的回调抢走滚动位置。
     const frame = window.requestAnimationFrame(() => {
       if (locate) {
         workspaceRef.current?.focus({ preventScroll: true })
@@ -133,6 +135,7 @@ export function ProjectDetail({ project, active = true, externalFocus, currentUs
     pendingLocate.current = true
     switchTab('explore')
   }
+  // 约定条目定位的是具体引用箭头，两端人物、约定和核对结果在右侧一起展示。
   const openReferenceInExplore = (reference: ActionReference) => {
     setDetailsVisible(true)
     setHighlightTipId(undefined)
@@ -146,6 +149,7 @@ export function ProjectDetail({ project, active = true, externalFocus, currentUs
     leavingPage.current = true
   }
   useLayoutEffect(() => {
+    // 消费 URL 深链接传来的单次定位请求；普通重新渲染不能反复打断用户当前阅读。
     if (!active || !externalFocus || externalFocus.requestId === handledExternalFocus.current) return
     const reference = 'referenceId' in externalFocus ? references.find((item) => item.id === externalFocus.referenceId) : undefined
     const node = 'nodeId' in externalFocus ? actions.find((item) => item.id === externalFocus.nodeId) : undefined

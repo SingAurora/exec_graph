@@ -9,17 +9,20 @@ import { createAction, reviseAgreement, reviseExpression } from '../../features/
 import { setFollowing } from '../../features/follow/api/commands'
 import { updateProfile } from '../../features/profile/api/commands'
 
+// 同一内容的失败重试复用幂等键，避免服务已写入、响应却丢失时创建两份记录。
 function submissionKey(current: { fingerprint: string; key: string } | undefined, input: unknown) {
   const fingerprint = JSON.stringify(input)
   return current?.fingerprint === fingerprint ? current : { fingerprint, key: crypto.randomUUID() }
 }
 
-/** Executes explicit remote writes and updates only server-confirmed Query data. */
+/** 集中装配 mutation（写入操作）；只把服务已确认的数据更新到 Query 缓存。 */
 export function useAppCommands(scope: string, csrfToken: string) {
   const client = useQueryClient()
+  // useRef 跨渲染保留值，修改 .current 不触发重绘；这里保留尚未确认成功的提交身份。
   const graphSubmission = useRef<{ fingerprint: string; key: string }>(undefined)
   const actionSubmission = useRef<{ fingerprint: string; key: string }>(undefined)
   const options = { csrfToken }
+  // 先用响应替换当前账号相关缓存里的节点，再标记失效，让活跃查询与服务重新对齐。
   const updateNode = (view: ActionContextNode) => {
     const node = actionFromView(view)
     for (const query of client.getQueryCache().findAll({ queryKey: actionKeys.scope(scope) })) {
@@ -29,6 +32,7 @@ export function useAppCommands(scope: string, csrfToken: string) {
     }
     void client.invalidateQueries({ queryKey: actionKeys.scope(scope) })
   }
+  // mutationFn 发起请求；onSuccess 仅在成功后执行。界面等待 mutateAsync 后才清理草稿。
   const graphCreate = useMutation({ mutationFn: (input: Parameters<typeof createGraph>[0]) => {
     graphSubmission.current = submissionKey(graphSubmission.current, input)
     return createGraph(input, { ...options, idempotencyKey: graphSubmission.current.key })

@@ -16,7 +16,7 @@ import { HelpPopover } from '../../../shared/ui/help/HelpPopover'
 import { DetailPanelControls } from '../../../shared/ui/DetailPanelControls'
 import { ActionOwnAgreement, ActionSourceAgreements } from './ActionAgreements'
 
-/** Shows only direct sources; full historical context belongs to the formation archive. */
+/** 头部只显示承接和合入的直接来源；完整祖先背景留在形成过程展示。 */
 function ActionSources({ node, actions, users, onSelect }: { node: ActionNode; actions: ActionNode[]; users: UserProfile[]; onSelect: (id: string) => void }) {
   const parents = getActionParentIds(node).map((id) => actions.find((action) => action.id === id)).filter((action) => action !== undefined)
   const continuation = parents.find((parent) => parent.id === node.parentId)
@@ -56,7 +56,7 @@ function ActionSources({ node, actions, users, onSelect }: { node: ActionNode; a
   </div>
 }
 
-/** Reads an action or effective expression, with compact metadata and a sticky document switch. */
+/** 当前节点阅读区：切换行动／有效表达，提供接续、编辑与形成过程入口。 */
 export function ActionDetail({ node, actions, users, author, currentUserId, isHighlightTip, onHighlight, onHide, onLocate, recordMode, onModeChange, branches, onOpenArchive, onContinue, onSelect, onEditExpression, onUpdateAgreement }: {
   node: ActionNode
   actions: ActionNode[]

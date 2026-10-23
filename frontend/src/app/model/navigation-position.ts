@@ -1,4 +1,4 @@
-/** Own-profile aliases share a reading position; explicit content deep links keep their own entry. */
+/** “我的”和不指定栏目时的本人主页共享位置；明确指定内容的深链接保留独立位置。 */
 export function getNavigationPositionKey(hash: string, currentUserId: string): string {
   const [view, search] = hash.split('?')
   const query = new URLSearchParams(search)

@@ -7,7 +7,7 @@ import type { GraphView } from '../../entities/project/api/graphs'
 import type { AccountProfile } from '../../entities/profile/api/profiles'
 import type { FollowedSources } from '../../entities/following/model/types'
 
-/** Server-owned simulation state; only the application mock boundary imports fixed seeds. */
+/** 模拟服务持有的会话状态；固定种子仅在 app 层注入，界面仍通过 HTTP 读取。 */
 export type MockDatabase = {
   graphs: GraphView[]
   actions: (ActionNode & { version: number })[]
@@ -17,7 +17,7 @@ export type MockDatabase = {
   submissions: Map<string, { fingerprint: string; data: unknown; createdAt: number }>
 }
 
-/** Starts a fresh, nonpersistent demo server session, retaining existing fixture IDs for old URLs. */
+/** 从演示种子复制新会话，刷新即重置；保留原有短 ID 兼容链接，不代表云端持久化。 */
 export function createMockDatabase(): MockDatabase {
   return {
     graphs: structuredClone(initialProjects).map((graph) => ({ ...graph, version: 1 })),
@@ -27,5 +27,5 @@ export function createMockDatabase(): MockDatabase {
   }
 }
 
-/** The prototype's pre-authenticated demo account; real authentication remains a backend task. */
+/** 原型固定使用已登录的演示账号；这里没有实现真实账户认证。 */
 export function mockAccount(db: MockDatabase): AccountProfile { return db.users[0] }

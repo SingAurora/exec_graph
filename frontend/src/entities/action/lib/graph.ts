@@ -1,12 +1,12 @@
 import type { ActionNode } from '../model/types'
 
-/** Lists the primary continuation first, followed by distinct incorporated contexts. */
+/** 直接来源先放主要承接，再放去重后的合入节点，同时排除自我引用。 */
 export function getActionParentIds(node: ActionNode): string[] {
   return [...new Set([...(node.parentId ? [node.parentId] : []), ...(node.mergedParentIds ?? [])])]
     .filter((id) => id !== node.id)
 }
 
-/** Returns the current endpoint of every published action route. */
+/** 旧帖子计数口径：返回有来源的路线终点，不包含孤立起点；现有表达流使用 published.ts。 */
 export function getActionPostNodes(nodes: ActionNode[]): ActionNode[] {
   if (!nodes.length) return []
   const parentIds = new Set(nodes.flatMap((node) => [
@@ -18,12 +18,12 @@ export function getActionPostNodes(nodes: ActionNode[]): ActionNode[] {
     .sort((a, b) => b.number - a.number)
 }
 
-/** Counts posts by route endpoint; a graph containing only its starting node has no post yet. */
+/** 按旧口径统计有来源的终点；不要用此函数代替当前有效表达数量。 */
 export function getActionPostCount(nodes: ActionNode[]): number {
   return getActionPostNodes(nodes).length
 }
 
-/** Collects the selected action and all of its source contexts, including merges. */
+/** 收集当前节点及所有引用历史的 ID，遍历承接和合入两种来源，集合避免重复和循环。 */
 export function getActionContextIds(nodes: ActionNode[], nodeId: string): Set<string> {
   const byId = new Map(nodes.map((node) => [node.id, node]))
   const included = new Set<string>()
@@ -38,7 +38,7 @@ export function getActionContextIds(nodes: ActionNode[], nodeId: string): Set<st
   return included
 }
 
-/** Returns the ancestors and selected node in reading order, even for incomplete imports. */
+/** 仅沿主要承接关系追溯，从起点到选中节点排序，用于主链高亮；合入背景另行处理。 */
 export function getAncestors(nodes: ActionNode[], nodeId: string): ActionNode[] {
   const byId = new Map(nodes.map((node) => [node.id, node]))
   const path: ActionNode[] = []
@@ -52,7 +52,7 @@ export function getAncestors(nodes: ActionNode[], nodeId: string): ActionNode[] 
   return path
 }
 
-/** Selects the longest continuation; equal lengths retain the earlier published route. */
+/** 选择最长承接路线，同长度保留编号较早的路线；用于阅读路径选择，不代表内容排名。 */
 export function getPreferredPath(nodes: ActionNode[], fromId?: string): ActionNode[] {
   const ids = new Set(nodes.map((node) => node.id))
   const children = new Map<string | undefined, ActionNode[]>()
@@ -60,7 +60,7 @@ export function getPreferredPath(nodes: ActionNode[], fromId?: string): ActionNo
     const parent = node.parentId && ids.has(node.parentId) ? node.parentId : undefined
     children.set(parent, [...(children.get(parent) ?? []), node])
   }
-  // An explicit stack avoids exhausting the call stack on long project histories.
+  // 先用显式栈遍历，再反向计算各节点的最长后续路线，避免长历史耗尽递归调用栈。
   const visit = [...(fromId ? nodes.filter((node) => node.id === fromId) : children.get(undefined) ?? [])]
   const order: ActionNode[] = []
   const seen = new Set<string>()
@@ -91,7 +91,7 @@ export function getPreferredPath(nodes: ActionNode[], fromId?: string): ActionNo
   return path
 }
 
-/** Includes a selected branch's ancestors and its preferred continuation. */
+/** 拼接选中节点的承接祖先和首选后续路线，并去掉拼接点处重复的当前节点。 */
 export function getPathThrough(nodes: ActionNode[], nodeId: string): ActionNode[] {
   return [...getAncestors(nodes, nodeId).slice(0, -1), ...getPreferredPath(nodes, nodeId)]
 }

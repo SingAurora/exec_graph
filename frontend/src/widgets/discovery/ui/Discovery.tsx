@@ -28,7 +28,7 @@ type Props = {
   onSearchGraphs: (keyword: string) => void
 }
 
-/** Discovers public content across graphs, retaining each tab's loaded items and reading position. */
+/** 跨图发现表达与约定回应，两个栏目分别保留搜索内容、加载数量和阅读位置。 */
 export function Discovery({ actions, projects, users, active, onOpenNode, onOpenReference, onOpenProject, onSearchGraphs }: Props) {
   const [tab, setTab] = useState<DiscoveryTab>('expressions')
   const [queries, setQueries] = useState<Record<DiscoveryTab, string>>({ expressions: '', agreements: '' })

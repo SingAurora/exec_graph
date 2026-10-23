@@ -10,7 +10,7 @@ const agreementLabels: Record<ActionReference['agreementStatus'], string> = {
   unrestricted: '未设置约定', satisfied: '满足来源约定', exception: '× 不满足原约定', unreviewed: '尚未记录约定核对结果',
 }
 
-/** Describes cited graph history without claiming it is a log of the AI's actual input. */
+/** 展示引用背景、来源约定和已保存的指引；图关系不等同于当时完整的 AI 请求日志。 */
 export function ArchiveBackground({ node, actions, onSelectSource }: { node: ActionNode; actions: ActionNode[]; onSelectSource: (id: string) => void }) {
   const graphActions = actions.filter((action) => action.projectId === node.projectId)
   const references = getActionReferences(graphActions).filter((reference) => reference.target.id === node.id)

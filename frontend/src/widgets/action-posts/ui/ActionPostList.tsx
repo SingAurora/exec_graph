@@ -28,7 +28,7 @@ type ActionPostListProps = {
   renderContext?: (node: ActionNode) => ReactNode
 }
 
-/** Shows compact expressions or actions with separate document, profile, and image interactions. */
+/** 表达／行动共用内容条目；文档、用户资料和图片各有独立入口，不互相触发跳转。 */
 export function ActionPostList({ nodes, actions, users, mode, searchQuery, infinite = false, active = true, emptyContent, presentation = 'default', onExplore, renderContext }: ActionPostListProps) {
   const levels = useMemo(() => getActionLevels(actions), [actions])
   const contextCounts = useMemo(() => presentation === 'feed' && mode === 'expression'

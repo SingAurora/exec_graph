@@ -1,7 +1,7 @@
 import type { ActionNode } from '../model/types'
 import { getActionExpression, getActionExpressionNodes, sortActionsNewestFirst } from './expressions'
 
-/** Resolves all route endpoints before filtering by author; cleared expressions stay absent. */
+/** 先按完整图找路线终点，再按作者筛选非空表达；先筛作者会把中间节点误判成终点。 */
 export function getPublishedExpressions(actions: ActionNode[], authorIds?: string[]): ActionNode[] {
   const graphs = new Map<string, ActionNode[]>()
   for (const node of actions) {

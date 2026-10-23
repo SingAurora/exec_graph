@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type SetStateAction } from 'react'
 import { readLocalDraft, writeLocalDraft } from './storage'
 
-/** State of automatic saving in the current browser. */
+/** 当前浏览器的草稿恢复／自动保存状态，不表示已向服务发布。 */
 export type LocalDraftStatus = 'loading' | 'empty' | 'saving' | 'saved' | 'error'
 
-/** Restores and saves one editor's local draft, including edits just before leaving. */
+/** 恢复并自动保存一个编辑器的本地草稿；离开或切到后台时尽力写入最新修改。 */
 export function useLocalDraft<T>({ draftKey, initialValue, validate, restore, hasContent }: {
   draftKey?: string
   initialValue: T
@@ -15,6 +15,7 @@ export function useLocalDraft<T>({ draftKey, initialValue, validate, restore, ha
   const [value, setValue] = useState(initialValue)
   const [ready, setReady] = useState(!draftKey)
   const [status, setStatus] = useState<LocalDraftStatus>(draftKey ? 'loading' : 'empty')
+  // ref 让异步回调读取最新内容，不受旧渲染闭包影响；value 负责让界面随修改重绘。
   const latest = useRef(initialValue)
   const options = useRef({ initialValue, validate, restore, hasContent })
   options.current = { initialValue, validate, restore, hasContent }
@@ -27,6 +28,7 @@ export function useLocalDraft<T>({ draftKey, initialValue, validate, restore, ha
   const persist = () => {
     if (!draftKey || !loaded.current || !dirty.current || stopped.current) return
     dirty.current = false
+    // 版本号避免较早一次异步保存完成后，把更新内容的状态错误地标成“已保存”。
     const currentRevision = ++revision.current
     const content = options.current.hasContent(latest.current)
     if (active.current) setStatus('saving')
@@ -50,6 +52,7 @@ export function useLocalDraft<T>({ draftKey, initialValue, validate, restore, ha
       setReady(false)
       void readLocalDraft(draftKey).then((record) => {
         if (cancelled) return
+        // 先验证存储版本和业务结构再恢复；loaded 未就绪时 update／persist 都不能覆盖旧草稿。
         const valid = record?.version === 1 && options.current.validate(record.value)
         const restored = valid ? options.current.restore?.(record.value as T) ?? record.value as T : options.current.initialValue
         latest.current = restored
@@ -66,6 +69,7 @@ export function useLocalDraft<T>({ draftKey, initialValue, validate, restore, ha
     window.addEventListener('pagehide', flush)
     document.addEventListener('visibilitychange', hide)
     return () => {
+      // 清理时忽略未完成的恢复回调，并补存最新修改，避免旧页面回调影响新编辑器。
       cancelled = true
       flush()
       active.current = false
@@ -84,6 +88,7 @@ export function useLocalDraft<T>({ draftKey, initialValue, validate, restore, ha
     setStatus('saving')
     persistRef.current()
   }
+  // 发布成功后停止后续自动写入再删草稿，防止卸载时的 flush 把已发布草稿写回来。
   const remove = () => {
     stopped.current = true
     dirty.current = false

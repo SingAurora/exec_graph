@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState, type ComponentProps } from 'react'
 import { PublicProfile } from '../widgets/profile/PublicProfile'
 
+// “我的”和用户主页共用界面；URL 可指定用户及直接打开的栏目。
 function readProfileRoute(currentUserId: string) {
   const view = window.location.hash.split('?')[0]
   const query = new URLSearchParams(window.location.hash.split('?')[1])
@@ -11,7 +12,7 @@ function readProfileRoute(currentUserId: string) {
 
 type ProfilePageProps = Omit<ComponentProps<typeof PublicProfile>, 'profile' | 'following' | 'activityTabRequest'> & { followingIds: string[] }
 
-/** Shares the personal and public routes, retaining each visited person's tabs and timeline state. */
+/** 本人和公开主页共用页面；已访问用户保持挂载，分别保留栏目、筛选和时间线位置。 */
 export function ProfilePage({ followingIds, ...props }: ProfilePageProps) {
   const [profileRoute, setProfileRoute] = useState(() => readProfileRoute(props.currentUserId))
   const [visited, setVisited] = useState(() => new Map([[profileRoute.userId, profileRoute.activityTabRequest]]))
@@ -35,6 +36,7 @@ export function ProfilePage({ followingIds, ...props }: ProfilePageProps) {
     window.addEventListener('hashchange', syncProfile)
     return () => window.removeEventListener('hashchange', syncProfile)
   }, [props.currentUserId])
+  // hidden 只隐藏而不卸载；active 再通知内部滚动监听等 effect 暂停，避免后台面板继续工作。
   return <>
     {[...visited].map(([userId, request]) => {
       const profile = props.users.find((user) => user.id === userId)

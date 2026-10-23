@@ -27,7 +27,7 @@ export type AIDocumentResult = {
   agreementReviews?: AIActionAgreementReview[]
 }
 
-/** Uses the active OpenAI-compatible configuration to update an AI-owned document. */
+/** 组合系统规则、引用事实和连续对话，请求 AI 返回结构化文档及约定核对；不负责业务发布。 */
 export async function generateAIDocument(input: {
   config: AIKeyConfig
   mode: AIWorkspaceMode

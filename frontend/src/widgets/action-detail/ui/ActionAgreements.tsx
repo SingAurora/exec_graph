@@ -9,7 +9,7 @@ import { HelpPopover } from '../../../shared/ui/help/HelpPopover'
 import { EditAgreement } from '../../../features/action-agreement/ui/EditAgreement'
 import { getActionDraftKey } from '../../../entities/action/lib/draft-key'
 
-/** Summarizes every direct source agreement independently of the node's own downstream agreement. */
+/** 本次来源约定：逐条展示直接引用的条件及核对结果，与本节点的后续约定独立。 */
 export function ActionSourceAgreements({ node, actions, users, onSelect }: { node: ActionNode; actions: ActionNode[]; users: UserProfile[]; onSelect: (id: string) => void }) {
   const references = getActionSourceAgreements(actions, node.id)
   if (!references.length) return null
@@ -49,7 +49,7 @@ export function ActionSourceAgreements({ node, actions, users, onSelect }: { nod
   </details>
 }
 
-/** Shows conditions this node sets for future references, separately from its incoming obligations. */
+/** 本节点约定：留给后来引用者的条件；修改它不会改变本次已记录的来源核对。 */
 export function ActionOwnAgreement({ node, actions, currentUserId, onSelect, onUpdate }: { node: ActionNode; actions: ActionNode[]; currentUserId?: string; onSelect: (id: string) => void; onUpdate?: (markdown: string) => boolean | Promise<boolean> }) {
   const [expanded, setExpanded] = useState(false)
   const [editing, setEditing] = useState(false)

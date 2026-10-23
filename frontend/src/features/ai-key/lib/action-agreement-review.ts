@@ -1,10 +1,10 @@
 import type { ActionReferenceAgreement } from '../../../entities/action/model/types'
 import type { AIActionSourceAgreement } from './action-agreement-context'
 
-/** AI assessment of a direct source; null leaves compliance unreviewed. */
+/** AI 对一份直接来源约定的核对结果；null 表示信息不足或未核对，不代表满足。 */
 export type AIActionAgreementReview = { nodeNumber: number; complies: boolean | null; reason: string }
 
-/** Validates source-specific assessments without accepting unrelated or duplicate node numbers. */
+/** 校验 AI 核对结果，只接受真实来源且不允许重复；不满足必须说明原因，缺项补为未知。 */
 export function readActionAgreementReviews(value: unknown, sources: AIActionSourceAgreement[]): AIActionAgreementReview[] {
   const numbers = new Set(sources.filter((source) => source.markdown.trim()).map((source) => source.nodeNumber))
   const reviews = new Map<number, AIActionAgreementReview>()
@@ -24,7 +24,7 @@ export function readActionAgreementReviews(value: unknown, sources: AIActionSour
   return [...numbers].map((nodeNumber) => reviews.get(nodeNumber) ?? { nodeNumber, complies: null, reason: '' })
 }
 
-/** Maps reviewed source numbers to trusted IDs; unknown assessments stay absent in published records. */
+/** 用可信来源表将 AI 返回的编号映射为节点 ID；未知结果暂不写入模型，由提交层转为 null。 */
 export function getReferenceAgreementRecords(sources: { sourceId: string; nodeNumber: number }[], reviews: AIActionAgreementReview[]): ActionReferenceAgreement[] {
   return sources.flatMap(({ sourceId, nodeNumber }) => {
     const review = reviews.find((item) => item.nodeNumber === nodeNumber)

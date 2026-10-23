@@ -24,10 +24,11 @@ type Props = {
   renderContext?: (reference: ActionReference) => ReactNode
 }
 
-/** Shows who fulfilled whose agreement, with every document click opening the real reference. */
+/** 展示“谁以行动满足了谁的约定”；正文进入真实引用箭头，人物与图片保留独立交互。 */
 export function AgreementResponseList({ references, users, active, infinite = true, searchQuery, emptyContent, presentation = 'default', onExplore, renderContext }: Props) {
   const feed = presentation === 'feed'
   const responses = useMemo(() => getSatisfiedAgreementResponses(references), [references])
+  // 配图必须来自被满足的那份约定，不能借用回应行动或新设置的后续约定图片。
   const agreementImages = useMemo(() => new Map(responses.map((reference) => [reference.id, getMarkdownImages(reference.agreement.markdown)])), [responses])
   const usersById = useMemo(() => new Map(users.map((user) => [user.id, user])), [users])
   const { visibleCount, endRef, hasMore } = useInfiniteList({ itemCount: responses.length, infinite, active })
@@ -44,6 +45,7 @@ export function AgreementResponseList({ references, users, active, infinite = tr
         const inherited = origin && origin.id !== reference.source.id
         const viaAuthor = usersById.get(reference.source.authorId)
         const summary = getMarkdownSummary(reference.agreement.markdown)
+        // 底层整条点击区域与上层资料／图片入口分离，避免嵌套按钮和点头像却误跳转图详情。
         return <article className={`group relative isolate min-w-0 px-1 ${feed ? 'py-4' : 'py-5'}`} key={reference.id} data-reference-id={reference.id}>
           <button className="absolute inset-0 z-0 w-full cursor-pointer rounded-lg border-0 bg-transparent p-0 text-left transition hover:bg-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal" type="button"
             aria-label={`查看约定回应：节点 #${reference.source.number} → #${reference.target.number}`} onClick={() => onExplore(reference)} />

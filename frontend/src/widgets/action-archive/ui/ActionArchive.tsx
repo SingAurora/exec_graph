@@ -19,7 +19,7 @@ import { AgreementContent } from '../../../entities/action/ui/AgreementContent'
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from '../../../shared/ui/tabs/Tabs'
 import { ArchiveConversation } from './ArchiveConversation'
 
-/** Shows one continuous conversation followed by its two document results. */
+/** 形成过程：先追溯引用与约定，再连续展示原始及追加对话，最后阅读行动／表达结果。 */
 export function ActionArchive({ project, node, actions, users, onBack, onSelectSource }: {
   project: Project
   node: ActionNode

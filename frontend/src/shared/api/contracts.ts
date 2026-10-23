@@ -1,4 +1,4 @@
-/** Stable general business error codes shared by the API contract and development mocks. */
+/** 业务契约与开发模拟共用的稳定错误码；界面按 code 判断，不依赖中文提示文本。 */
 export const API_ERROR_CODES = {
   invalidArgument: 10001,
   unauthenticated: 10002,
@@ -11,32 +11,32 @@ export const API_ERROR_CODES = {
   upstream: 10009,
 } as const
 
-/** A decoded business JSON envelope; nonzero codes, including unknown codes, indicate failure. */
+/** 统一业务响应外壳：仅 code 为 0 表示成功，所有非零值（包括未知码）都按失败处理。 */
 export type APIResponse<T> = {
   code: number
   msg: string
   data: T | null
 }
 
-/** Continuation parameters for an ordinary content stream; an absent cursor starts the stream. */
+/** 普通内容流的游标参数契约；不传 cursor 从第一批开始，当前完整上下文接口尚未分页。 */
 export type CursorPaginationInput = {
   cursor?: string
   limit?: number
 }
 
-/** One stream batch; a null nextCursor is the only end-of-stream indicator. */
+/** 一批远端列表结果；nextCursor 为 null 才表示结束。 */
 export type CursorPage<T> = {
   items: T[]
   nextCursor: string | null
 }
 
-/** Explicit numbered pagination for submitted searches, starting at page one. */
+/** 显式提交搜索使用页码分页，page 从 1 开始。 */
 export type SearchPaginationInput = {
   page: number
   pageSize: number
 }
 
-/** A search page with the total number of matches for the same submitted criteria. */
+/** 搜索结果页，total 是相同已提交条件下的总匹配数。 */
 export type SearchPage<T> = {
   items: T[]
   page: number
@@ -44,7 +44,7 @@ export type SearchPage<T> = {
   total: number
 }
 
-/** First-version defaults for business requests, shared by future clients and mock handlers. */
+/** 首版请求契约的默认分页和超时值，供客户端及模拟接口共用。 */
 export const API_REQUEST_DEFAULTS = {
   pageSize: 6,
   maxPageSize: 50,

@@ -27,7 +27,7 @@ const globalNavigation: { view: AppView; label: string; icon: typeof Home }[] = 
   { view: 'settings', label: '设置', icon: Settings2 },
 ]
 
-/** Application frame with a single navigation vocabulary for actions, expressions and public graphs. */
+/** 应用外壳：左侧导航和本人资料、顶部标题与返回入口；children 是当前业务页面。 */
 export function AppShell({ profile, profileStats, activeView, darkMode, onLogout, onToggleTheme, backAction, projectTitle, publishTitle, children }: AppShellProps) {
   const globalView = activeView === 'graph-search' ? 'home' : ['projects', 'publish', 'project', 'action-archive'].includes(activeView) ? 'my' : activeView
   const pageTitle: Record<AppView, string> = { my: '我的', following: '关注', home: '发现', settings: '设置', project: projectTitle ?? '行动图', projects: '行动图', publish: publishTitle ?? '记录行动', topic: '发现', 'action-archive': '形成过程', profile: '主页', 'graph-search': '搜索图' }

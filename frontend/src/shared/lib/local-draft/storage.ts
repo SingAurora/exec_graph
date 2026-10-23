@@ -1,8 +1,9 @@
-/** One versioned, unpublished document saved in this browser. */
+/** 浏览器 IndexedDB 中的一份未发布草稿；version 是存储格式版本，不是业务节点版本。 */
 export type LocalDraftRecord = { version: 1; value: unknown; updatedAt: string }
 
 let database: Promise<IDBDatabase> | undefined
 
+// 复用数据库连接；升级时关闭旧连接，下次访问重新打开。
 function openDatabase(): Promise<IDBDatabase> {
   if (!database) {
     database = new Promise<IDBDatabase>((resolve, reject) => {
@@ -18,7 +19,7 @@ function openDatabase(): Promise<IDBDatabase> {
   return database
 }
 
-/** Reads a draft without treating its contents as a published node. */
+/** 按隔离键读取本地草稿，调用方仍需校验格式；读取结果不是已发布行动。 */
 export async function readLocalDraft(key: string): Promise<LocalDraftRecord | undefined> {
   const db = await openDatabase()
   return new Promise((resolve, reject) => {
@@ -30,7 +31,7 @@ export async function readLocalDraft(key: string): Promise<LocalDraftRecord | un
   })
 }
 
-/** Commits a draft or removes it after an explicit save or discard. */
+/** 写入草稿，或在发布成功／明确丢弃后删除；等待事务完成才向调用方报告成功。 */
 export async function writeLocalDraft(key: string, value: unknown, remove = false): Promise<void> {
   const db = await openDatabase()
   return new Promise((resolve, reject) => {

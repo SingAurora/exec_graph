@@ -5,7 +5,7 @@ import { Avatar } from '../../../shared/ui/Avatar'
 import { ProfilePreview } from '../../../entities/profile/ui/ProfilePreview'
 import { MarkdownContent } from '../../../shared/ui/MarkdownContent'
 
-/** Renders recorded turns without inventing a separate generation history for shared dialogue. */
+/** 按顺序展示真实保存的对话；行动和表达共用连续消息，不重复成两套生成历史。 */
 export function ArchiveConversation({ label, messages, authorId, projectId, users }: {
   label: string
   messages: ActionExpressionMessage[]

@@ -8,7 +8,7 @@ import { Dialog } from '../../../shared/ui/dialog/Dialog'
 import { HelpPopover } from '../../../shared/ui/help/HelpPopover'
 import { MarkdownContent } from '../../../shared/ui/MarkdownContent'
 
-/** Selects other route endpoints without replacing the primary continuation. */
+/** 从其他路线终点选择合入背景；保留主要承接关系，各来源约定独立展示。 */
 export function MergeActionSources({ actions, parentId, selectedIds, reviews, disabled, onChange }: {
   actions: ActionNode[]
   parentId: string

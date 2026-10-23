@@ -1,9 +1,9 @@
-/** Identifies an editor independently of transient application state. */
+/** 工作区地址：记录新行动与修改已有表达使用不同参数，不依赖临时组件状态识别目标。 */
 export type ActionWorkspaceRoute = { projectId: string } & (
   { mode: 'action'; parentId?: string } | { mode: 'expression'; nodeId: string }
 )
 
-/** Restores the same editor after refresh or browser-back navigation. */
+/** 从 URL 恢复编辑目标，使刷新和浏览器后退仍能找到同一工作区。 */
 export function readActionWorkspaceRoute(params: URLSearchParams): ActionWorkspaceRoute | undefined {
   const projectId = params.get('projectId')
   if (!projectId) return undefined
@@ -15,7 +15,7 @@ export function readActionWorkspaceRoute(params: URLSearchParams): ActionWorkspa
   return { projectId, mode: 'action', parentId: params.get('parentId') || undefined }
 }
 
-/** Builds a shareable editor address without putting private draft contents into the URL. */
+/** 生成工作区地址；URL 只保存目标标识，私人对话和草稿正文不进入地址。 */
 export function actionWorkspaceHash(target: ActionWorkspaceRoute): string {
   const params = new URLSearchParams({ projectId: target.projectId, mode: target.mode })
   if (target.mode === 'expression') params.set('nodeId', target.nodeId)

@@ -40,7 +40,7 @@ type WorkspaceFrameProps = {
   footer: ReactNode
 }
 
-/** Shared full-width conversation and document tabs for creating actions and revising expressions. */
+/** 两类工作区共用的界面框架：对话、行动、表达、约定四个 Tab，不负责生成或发布。 */
 export function WorkspaceFrame({ title, tabLabel, help, draftControls, view, onViewChange, restoring = false, context, contextControls, messages, profileName, profile, users = [], defaultAuthorId, input, inputLabel = '对话内容', placeholder, sending, disabled = false, onInputChange, onSend, onBack, action, expression, agreement, footer }: WorkspaceFrameProps) {
   const [localTab, setTab] = useState<WorkspaceTab>('conversation')
   const tab = view?.tab ?? localTab
@@ -57,6 +57,7 @@ export function WorkspaceFrame({ title, tabLabel, help, draftControls, view, onV
     if (onViewChange) onViewChange({ tab: value as WorkspaceTab, positions: { ...view?.positions, ...positions.current } })
     setTab(value as WorkspaceTab)
   }
+  // useLayoutEffect 在浏览器绘制前恢复滚动，减少切 Tab 后先显示顶部再跳回原位置的闪动。
   useLayoutEffect(() => {
     if (restoring) return
     const element = panels.current[tab]

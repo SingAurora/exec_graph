@@ -17,7 +17,7 @@ import { CreateGraphButton } from '../../features/project/ui/CreateGraphButton'
 import type { CreateProjectInput } from '../../features/project/model/types'
 import { ProfileHome } from './ProfileHome'
 
-/** Public actions, expressions and agreement exchanges of one person, with a follow control. */
+/** 本人与他人共用的公开主页，组织热力图、表达、约定回应、行动和图等栏目。 */
 export function PublicProfile({ profile, currentUserId, following, users, projects, actions, active, activityTabRequest, onCreateProject, onSetUserFollow, onOpenProject, onOpenNode, onOpenReference }: {
   profile: UserProfile; currentUserId: string; following: boolean; users: UserProfile[]
   projects: Project[]; actions: ActionNode[]; active?: boolean

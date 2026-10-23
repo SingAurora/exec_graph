@@ -10,7 +10,7 @@ type ActionReadingPaneProps = {
   children: ReactNode
 }
 
-/** Retains each node/document's reading position across selections and tab changes. */
+/** 用 readingKey 分别保存每个节点／文档的位置；普通切换恢复，显式重新定位则从顶部读。 */
 export function ActionReadingPane({ readingKey, focusRequest, active, hidden = false, label, children }: ActionReadingPaneProps) {
   const pane = useRef<HTMLDivElement>(null)
   const positions = useRef(new Map<string, number>())

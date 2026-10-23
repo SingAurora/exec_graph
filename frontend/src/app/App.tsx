@@ -40,7 +40,7 @@ import { ActionArchivePage } from '../pages/ActionArchivePage'
 
 const legendPreferenceKey = 'execg.actionGraph.showLegend'
 
-/** Loads remote facts before mounting retained reading screens; no demo fallback is used. */
+/** 应用的数据入口：先加载业务资料，再挂载页面；加载失败展示重试入口，不回退演示数据。 */
 export function App() {
   const resources = useAppResources()
   if (!resources.ready || !resources.profile || !resources.projects || !resources.actions || !resources.sources || !resources.csrfToken) return <main className="grid min-h-dvh place-content-center gap-4 bg-paper p-8 text-center text-sm text-copy" role="status">
@@ -52,13 +52,16 @@ export function App() {
   </>
 }
 
+/** 应用装配层：把 Query 中的业务数据、路由和写入回调连接到页面及工作区。 */
 function AppContent({ profile, projects, actions, allUsers, sources, csrfToken }: {
   profile: AccountProfile; projects: GraphView[]; actions: VersionedAction[]; allUsers: UserProfile[]; sources: FollowedSources; csrfToken: string
 }) {
   const commands = useAppCommands(profile.id, csrfToken)
   const queryClient = useQueryClient()
   const { hash, revision, route, authRoute, graphBackHash, profileBackHash, navigate } = useAppNavigation(profile.id)
+  // useMemo 缓存从现有数据计算出的结果；这里仅在 hash 改变时重新解析路由参数。
   const query = useMemo(() => new URLSearchParams(hash.split('?')[1]), [hash])
+  // useState 保存客户端交互状态。AI 密钥配置只在内存中；业务资料由传入的 Query 数据提供。
   const [aiConfigs, setAIConfigs] = useState<AIKeyConfig[]>([platformAIConfig])
   const followingIds = sources.userIds, followingGraphIds = sources.graphIds
   const [darkMode, setDarkMode] = useState(() => {
@@ -69,6 +72,7 @@ function AppContent({ profile, projects, actions, allUsers, sources, csrfToken }
   const [showActionGraphLegend, setShowActionGraphLegend] = useState(() => {
     try { return window.localStorage.getItem(legendPreferenceKey) === 'true' } catch { return false }
   })
+  // 离开图进入编辑器或形成过程时，仍保留最近一张图，供返回后恢复阅读。
   const [lastProjectId, setLastProjectId] = useState(query.get('projectId') ?? 'cooking')
   const workspaceRoute = route === 'publish' ? readActionWorkspaceRoute(query) : undefined
   const workspaceMode = workspaceRoute?.mode ?? 'action'
@@ -83,12 +87,14 @@ function AppContent({ profile, projects, actions, allUsers, sources, csrfToken }
   const expressionAction = actions.find((node) => node.id === workspaceActionId && node.projectId === workspaceProjectId)
   const workspaceProject = projects.find((project) => project.id === workspaceProjectId)
   const archiveAction = actions.find((action) => action.id === archiveActionId)
+  // 表达数按路线终点计算；约定数按已满足的跨用户引用计算，都不是简单数 Markdown 字段。
   const profileStats = useMemo(() => ({
     actions: actions.filter((node) => node.authorId === profile.id).length,
     expressions: getPublishedExpressions(actions, [profile.id]).length,
     agreements: getProfileAgreementResponses(getActionReferences(actions), profile.id).length,
   }), [actions, profile.id])
   const activeAIConfig = aiConfigs.find((config) => config.isDefault) ?? aiConfigs[0]
+  // 列表的深链接转成图内定位请求；revision 让重复进入同一地址也能重新定位。
   const externalFocus = useMemo(() => {
     if (route !== 'project') return undefined
     const requestId = hash + ':' + revision
@@ -98,19 +104,21 @@ function AppContent({ profile, projects, actions, allUsers, sources, csrfToken }
     return nodeId ? { requestId, nodeId, mode: query.get('document') === 'expression' ? 'expression' as const : 'objective' as const } : undefined
   }, [hash, query, route, revision])
 
+  // useEffect 在渲染提交后同步浏览器外部状态；主题属于本机偏好，与业务发布无关。
   useEffect(() => {
     if (darkMode) document.documentElement.setAttribute('data-theme', 'dark')
     else document.documentElement.removeAttribute('data-theme')
     try { window.localStorage.setItem('exact.appearance.theme', darkMode ? 'dark' : 'light') }
-    catch { /* Theme changes still apply when browser storage is unavailable. */ }
+    catch { /* 本地存储不可用时，当前页面仍可切换主题。 */ }
   }, [darkMode])
   useEffect(() => {
-    try { window.localStorage.setItem(legendPreferenceKey, String(showActionGraphLegend)) } catch { /* Storage may be unavailable. */ }
+    try { window.localStorage.setItem(legendPreferenceKey, String(showActionGraphLegend)) } catch { /* 存储失败不阻止本次显示图例。 */ }
   }, [showActionGraphLegend])
   useEffect(() => {
     if (route === 'project' && query.get('projectId')) setLastProjectId(query.get('projectId')!)
   }, [route, query])
 
+  // 这些导航函数只描述目标地址；节点、文档和引用的实际选中状态由图详情组件接手。
   const openProject = (projectId: string) => {
     setLastProjectId(projectId)
     navigate('project?projectId=' + encodeURIComponent(projectId))
@@ -138,6 +146,7 @@ function AppContent({ profile, projects, actions, allUsers, sources, csrfToken }
     if (!canEditActionExpression(actions, node.id)) return
     navigate(actionWorkspaceHash({ mode: 'expression', projectId: node.projectId, nodeId: node.id }))
   }
+  // mutateAsync 等待服务确认后才返回成功；expectedVersion 防止覆盖已被别人修改的版本。
   const confirmExpression = async (markdown: string, conversation: ChatMessage[]) => {
     if (!workspaceActionId || !workspaceProjectId) return false
     const node = actions.find((item) => item.id === workspaceActionId)
@@ -175,11 +184,13 @@ function AppContent({ profile, projects, actions, allUsers, sources, csrfToken }
     if (workspaceParent ? !nodes.some((node) => node.id === workspaceParent.id) : nodes.length > 0) return false
     const context = workspaceParent ? getActionContinuationContext(nodes, workspaceParent.id, mergedParentIds) : undefined
     if (workspaceParent ? !context : mergedParentIds.length > 0) return false
+    // 来源只包含主要承接和显式合入。表达／约定独立选择继承、更新或清空，首次行动不可继承。
     const sourceIds = context?.sources.map(({ node }) => node.id) ?? []
     const action = await commands.actionCreate.mutateAsync({ graphId: workspaceProject.id, parentId: workspaceParent?.id, mergedParentIds,
       sourceVersions: sourceIds.map((id) => ({ nodeId: id, version: actions.find((node) => node.id === id)!.version })),
       title: details.title || '一次行动记录', objectiveMarkdown: markdown, expression: documentUpdate(!workspaceParent && expressionMarkdown === undefined ? '' : expressionMarkdown),
       agreement: documentUpdate(!workspaceParent && agreementMarkdown === undefined ? '' : agreementMarkdown),
+      // 未核对明确传 null，不能把缺少结果解释成已满足；不满足约定本身不阻止发布。
       referenceAgreements: sourceIds.map((sourceId) => referenceAgreements.find((item) => item.sourceId === sourceId) ?? { sourceId, complies: null }), conversation })
     openNode({ ...action, projectId: action.graphId }, 'objective')
     return true

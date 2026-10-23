@@ -1,7 +1,7 @@
 import type { ActionNode } from '../model/types'
 import { getActionReferences } from './references'
 
-/** Counts layers from one at each root; a multi-source action follows its deepest source. */
+/** 起点为第 1 层，多来源节点取最深来源层级加一；层级不等于稳定展示编号。 */
 export function getActionLevels(actions: ActionNode[]): Map<string, number> {
   const remainingSources = new Map(actions.map((node) => [node.id, 0]))
   const children = new Map<string, string[]>()
@@ -11,7 +11,7 @@ export function getActionLevels(actions: ActionNode[]): Map<string, number> {
   }
   const levels = new Map(actions.map((node) => [node.id, 1]))
   const ready = actions.filter((node) => remainingSources.get(node.id) === 0).map((node) => node.id)
-  // A queue supports long histories without recursive traversal or relying on publish order.
+  // 拓扑队列确保所有来源先处理，再计算后续层级；不依赖数组顺序，也避免深递归。
   for (let index = 0; index < ready.length; index++) {
     const id = ready[index]
     for (const childId of children.get(id) ?? []) {

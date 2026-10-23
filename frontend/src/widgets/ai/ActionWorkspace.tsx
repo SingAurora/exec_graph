@@ -37,14 +37,16 @@ type ActionWorkspaceProps = {
   onConfirm: (markdown: string, details: { title: string; description: string; points: string[]; note: string }, messages: ChatMessage[], expressionMarkdown?: string, agreementMarkdown?: string, referenceAgreements?: ActionReferenceAgreement[], mergedParentIds?: string[]) => boolean | Promise<boolean>
 }
 
-/** Maintains action and expression documents through one continuous AI conversation. */
+/** 行动发布工作区：同一条 AI 对话整理行动事实与表达，另行设置后续约定并核对来源。 */
 export function ActionWorkspace({ profileName, profile, aiConfig, draftKey, hasParent, contextTitle, contextGuide, inheritedExpression = '', inheritedExpressionImages = [], inheritedAgreement = '', sourceNodeId, sourceNodeNumber, actions, expressionSourceNumber, historyFacts = [], initialDocument = '', initialMessages, onBack, onConfirm }: ActionWorkspaceProps) {
   const welcome: ChatMessage = { id: 'welcome', speaker: 'ai', body: '先说说这次实际做了什么，也可以一起聊聊你的看法。' }
+  // 背景签名用于判断草稿是否仍对应当前引用事实；来源变化后必须再对话核实，不能直接发布旧结果。
   const signatureFor = (mergedIds: string[]) => {
     const context = actions && sourceNodeId ? getActionContinuationContext(actions, sourceNodeId, mergedIds) : undefined
     return JSON.stringify({ sourceNodeId, mergedIds, contextGuide, inheritedExpression, inheritedAgreement,
       facts: context?.facts ?? historyFacts, sources: context?.sources.map(({ node, agreement }) => [node.id, agreement.markdown]) })
   }
+  // 对话、文档和预览位置作为一份本地草稿保存；恢复完成前禁止编辑，避免初始空值覆盖旧草稿。
   const local = useLocalDraft<ActionWorkspaceDraft>({
     draftKey,
     initialValue: { messages: initialMessages?.length ? initialMessages : [welcome], input: '', document: initialDocument,
@@ -68,6 +70,7 @@ export function ActionWorkspace({ profileName, profile, aiConfig, draftKey, hasP
   const knownFacts = continuation?.facts ?? historyFacts
   const directSources = continuation?.sources.map(({ node, agreement }) => ({ sourceId: node.id, nodeNumber: node.number, markdown: agreement.markdown }))
     ?? (hasParent && sourceNodeId && sourceNodeNumber !== undefined ? [{ sourceId: sourceNodeId, nodeNumber: sourceNodeNumber, markdown: inheritedAgreement }] : [])
+  // 传给应用层的 undefined 表示继承，空字符串表示清空，两者不能用 || 互相替代。
   const agreementMarkdown = agreementMode === 'inherit' ? undefined : agreementMode === 'clear' ? '' : agreementDraft.trim()
   const expressionMarkdown = expression.mode === 'inherit' ? undefined : expression.markdown.trim()
   const effectiveExpression = expression.mode === 'inherit' ? inheritedExpression : expression.markdown
@@ -77,12 +80,14 @@ export function ActionWorkspace({ profileName, profile, aiConfig, draftKey, hasP
     ? expressionOriginNumber !== undefined ? `继承自 节点 #${expressionOriginNumber}` : '继承表达'
     : '本次对话更新'
   const contextValid = !actions || !hasParent || Boolean(continuation)
+  // 发布要求本轮生成完整且背景未变；约定核对为不满足或未知时，仍允许发布并如实保留状态。
   const canPublish = local.ready && Boolean(document.trim()) && generated && !sending && !publishing && contextValid
     && local.value.contextSignature === signatureFor(mergedParentIds) && !(agreementMode === 'update' && !agreementDraft.trim())
   const changeMergedSources = (ids: string[]) => {
     if (sending || !actions || !sourceNodeId) return
     const onlyRemoving = ids.every((id) => mergedParentIds.includes(id))
     if (!onlyRemoving && !getActionContinuationContext(actions, sourceNodeId, ids)) return
+    // 合入影响 AI 可用事实，因此保留旧文稿供阅读，同时清除过时的核对结果和可发布标记。
     update({ mergedParentIds: ids, generated: false, agreementReviews: [], sourcesChanged: true })
   }
   const publish = async () => {
@@ -90,6 +95,7 @@ export function ActionWorkspace({ profileName, profile, aiConfig, draftKey, hasP
     setPublishing(true); setPublishError('')
     const assessments = getReferenceAgreementRecords(directSources, agreementReviews)
     try {
+      // 父层确认业务写入成功后才能删除草稿；失败时对话和文档继续保留，允许重试。
       if (await onConfirm(document, details, messages.filter(isSavedMessage), expressionMarkdown, agreementMarkdown, assessments, mergedParentIds)) local.remove()
       else setPublishError('节点状态已变化，无法发布行动')
     } catch (error) { setPublishError(error instanceof Error ? error.message : '发布失败，请重试') }
@@ -97,6 +103,7 @@ export function ActionWorkspace({ profileName, profile, aiConfig, draftKey, hasP
   }
 
   const send = async (event: FormEvent) => {
+    // 阻止浏览器表单整页刷新，改由 React 管理异步请求和输入状态。
     event.preventDefault()
     const clean = input.trim()
     if (!local.ready || !clean || sending || publishing || !contextValid) return
@@ -105,6 +112,7 @@ export function ActionWorkspace({ profileName, profile, aiConfig, draftKey, hasP
     try {
       if (!aiConfig) throw new Error('还没有可用的 AI 配置，请先前往设置。')
       const turns: AIConversationTurn[] = next.filter(isSavedMessage).map((message) => ({ role: message.speaker === 'ai' ? 'assistant' : 'user', content: message.body }))
+      // AI 返回文档和来源核对只是更新本地草稿；用户点击“发布行动”才会提交业务接口。
       const result = await generateAIDocument({
         config: aiConfig, mode: 'action', turns, currentDocument: document, contextGuide,
         sourceAgreements: directSources,

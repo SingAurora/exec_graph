@@ -6,7 +6,7 @@ import { MarkdownContent } from '../../../shared/ui/MarkdownContent'
 import { Select } from '../../../shared/ui/select/Select'
 import { SourceAgreementReviews } from './SourceAgreementReviews'
 
-/** Lets an unpublished action inherit, revise or clear its downstream agreement. */
+/** 编辑本节点向后提出的约定；下方单独展示本次引用需核对的来源约定，两者互不覆盖。 */
 export function ActionAgreementEditor({ hasParent, inheritedAgreement, mode, draft, onModeChange, onDraftChange, disabled = false, sourceNodeNumber, sourceReview, sources, reviews = [] }: {
   hasParent: boolean
   inheritedAgreement: string

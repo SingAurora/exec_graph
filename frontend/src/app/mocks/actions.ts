@@ -9,7 +9,7 @@ import { idempotent, mockResponse, readBody, requireCurrent, requireInput, requi
 
 function view({ projectId, ...node }: MockDatabase['actions'][number]): ActionContextNode { return { ...node, graphId: projectId } }
 
-/** Scoped context and publication handlers validate against the simulated server's latest facts. */
+/** 模拟行动读取、发布和文档修改；写入时根据模拟服务的最新状态重新校验。 */
 export function actionHandlers(db: MockDatabase) {
   return [
     http.get('*/api/commands/actions/context', mockResponse(db, (request) => {
@@ -30,6 +30,7 @@ export function actionHandlers(db: MockDatabase) {
         requireCurrent(body.parentId ? context : nodes.length === 0 && mergedParentIds.length === 0, '引用来源已变化，请重新选择')
         const sourceIds = context?.sources.map(({ node }) => node.id) ?? []
         requireInput(Array.isArray(body.sourceVersions) && body.sourceVersions.length === sourceIds.length)
+        // 客户端看到的来源可能已变更；逐项检查版本并去重，不能只相信页面上的校验。
         const seen = new Set<string>()
         for (const source of body.sourceVersions) {
           requireInput(source && typeof source === 'object' && typeof source.nodeId === 'string' && sourceIds.includes(source.nodeId) && !seen.has(source.nodeId))
@@ -41,6 +42,7 @@ export function actionHandlers(db: MockDatabase) {
         requireInput(Boolean(body.parentId) || (expression.mode !== 'inherit' && agreement.mode !== 'inherit'), '首次行动没有可继承的内容')
         const conversation = readMessages(body.conversation)
         requireInput(conversation.at(-1)?.speaker === 'ai' && conversation.some((message) => message.speaker === 'user'), '请先完成 AI 对话')
+        // ID、编号、作者、时间和初始版本由模拟服务分配，客户端只提交内容及引用意图。
         const node: MockDatabase['actions'][number] = {
           id: crypto.randomUUID(), projectId: graph.id, number: Math.max(0, ...nodes.map((item) => item.number)) + 1,
           parentId: body.parentId, mergedParentIds, authorId: mockAccount(db).id, title: body.title.trim(), markdown: body.objectiveMarkdown,

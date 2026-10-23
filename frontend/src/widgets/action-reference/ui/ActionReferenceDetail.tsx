@@ -26,7 +26,7 @@ const agreementLabels: Record<ActionReference['agreementStatus'], string> = {
   unreviewed: '尚未记录约定核对结果',
 }
 
-/** Shows the selected reference, its source agreement and any noncompliance reason. */
+/** 选中箭头的详情：展示引用双方、来源有效约定、核对状态和不满足原因，不设审批流程。 */
 export function ActionReferenceDetail({ reference, actions, users, onSelectNode, onHide }: Props) {
   const { source, target, incorporated, agreementStatus } = reference
   const levels = getActionLevels(actions)
