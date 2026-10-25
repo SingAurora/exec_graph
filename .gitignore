@@ -4,3 +4,7 @@
 /frontend/.env.local
 
 *.log
+
+/backend/etc/config.local.yaml
+/backend/.env.local
+/backend/bin/

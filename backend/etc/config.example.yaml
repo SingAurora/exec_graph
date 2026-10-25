@@ -1,0 +1,36 @@
+app:
+  host: 127.0.0.1
+  port: 8081
+  session_ttl_hours: 168
+  allowed_origins:
+    - http://localhost:5174
+  environment: development
+  enable_demo_login: false
+database:
+  host: 127.0.0.1
+  port: 3306
+  schema: exec_graph_v1
+  user: exec_graph
+  password: ""
+  charset: utf8mb4
+redis:
+  host: 127.0.0.1
+  port: 6379
+  password: ""
+  database: 0
+  prefix: "exec_graph:v1:"
+# 以下保持旧配置兼容，前两阶段不发送邮件、不写入云存储。
+credentials:
+  access_key_id: ""
+  access_key_secret: ""
+mail:
+  region: ""
+  template_id: 0
+  from_email: ""
+  code_ttl_minutes: 10
+storage:
+  region: ""
+  bucket: ""
+  avatar_prefix: avatars
+security:
+  credential_encryption_key: ""
