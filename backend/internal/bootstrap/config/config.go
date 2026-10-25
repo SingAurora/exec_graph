@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/url"
 	"os"
 	"regexp"
 	"strconv"
@@ -111,6 +112,9 @@ func Load(path string) (Config, error) {
 	if environment := os.Getenv("EXEC_GRAPH_ENV"); environment != "" {
 		c.App.Environment = environment
 	}
+	if origins := os.Getenv("EXEC_GRAPH_ALLOWED_ORIGINS"); origins != "" {
+		c.App.AllowedOrigins = strings.Split(origins, ",")
+	}
 	if enabled := os.Getenv("EXEC_GRAPH_ENABLE_DEMO_LOGIN"); enabled != "" {
 		c.App.EnableDemoLogin, err = strconv.ParseBool(enabled)
 		if err != nil {
@@ -142,6 +146,12 @@ func Load(path string) (Config, error) {
 	}
 	if !port(c.App.Port) || c.App.SessionTTLHours < 1 || c.App.SessionTTLHours > 720 || len(c.App.AllowedOrigins) == 0 {
 		return Config{}, fmt.Errorf("app 配置不完整或不合法")
+	}
+	for _, origin := range c.App.AllowedOrigins {
+		parsed, err := url.Parse(origin)
+		if err != nil || parsed.Host == "" || parsed.User != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.Path != "" {
+			return Config{}, fmt.Errorf("app.allowed_origins 必须是明确的 HTTP Origin")
+		}
 	}
 	if c.App.Environment != "development" && c.App.Environment != "production" && c.App.Environment != "test" {
 		return Config{}, fmt.Errorf("app.environment 不合法")

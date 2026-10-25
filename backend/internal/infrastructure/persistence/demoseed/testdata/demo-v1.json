@@ -1,0 +1,2285 @@
+{
+  "dataset": "frontend-demo-v1",
+  "users": [
+    {
+      "id": "jo",
+      "name": "乔",
+      "email": "qiao@example.com",
+      "gender": "unknown",
+      "bio": "从 92kg 开始减肥，带相机在厦门到处走，也试着从厦门骑到漳州。\n\n最近想继续开《伯明翰》，也在慢慢探索《马里奥奥德赛》。想找能一起出发、开桌，或者交换经历的人。",
+      "avatar": "",
+      "activeDays": 12,
+      "isTestAccount": true,
+      "highlights": {
+        "expressionNodeIds": [
+          "weight-3",
+          "cycling-3",
+          "photography-3",
+          "board-games-3",
+          "gaming-3"
+        ]
+      }
+    },
+    {
+      "id": "lin",
+      "name": "林岚",
+      "email": "lin@example.com",
+      "gender": "female",
+      "bio": "把手上的事情认真做完。",
+      "avatar": "",
+      "activeDays": 28
+    },
+    {
+      "id": "miao",
+      "name": "miao",
+      "email": "miao@example.com",
+      "gender": "unknown",
+      "bio": "从生活里找到下一步。",
+      "avatar": "",
+      "activeDays": 9
+    },
+    {
+      "id": "che",
+      "name": "阿澈",
+      "email": "che@example.com",
+      "gender": "unknown",
+      "bio": "从一人食开始练习。",
+      "avatar": "",
+      "activeDays": 4
+    },
+    {
+      "id": "xiaoman",
+      "name": "小满",
+      "email": "xiaoman@example.com",
+      "gender": "unknown",
+      "bio": "慢慢找到自己喜欢的口感。",
+      "avatar": "",
+      "activeDays": 6
+    },
+    {
+      "id": "chenhe",
+      "name": "陈禾",
+      "email": "chenhe@example.com",
+      "gender": "unknown",
+      "bio": "把每顿饭做过的步骤记下来。",
+      "avatar": "",
+      "activeDays": 3
+    },
+    {
+      "id": "robin",
+      "name": "Robin",
+      "email": "robin@example.com",
+      "gender": "unknown",
+      "bio": "换一种做法，也留下没做好的地方。",
+      "avatar": "",
+      "activeDays": 5
+    }
+  ],
+  "graphs": [
+    {
+      "id": "weight",
+      "ownerId": "jo",
+      "participantIds": [
+        "lin"
+      ],
+      "title": "减肥：从92kg开始记录",
+      "description": "从 92kg 开始，把每周体重、实际吃的饭和走过的路记下来，看看哪些改变能坚持。",
+      "avatar": "seed-asset:demo-weight-meal.jpg",
+      "backgroundImage": "seed-asset:demo-weight-meal.jpg",
+      "createdAt": "2026-10-04T21:40:00+08:00",
+      "updatedAt": "2026-10-24T20:10:00+08:00"
+    },
+    {
+      "id": "cycling",
+      "ownerId": "jo",
+      "participantIds": [
+        "miao"
+      ],
+      "title": "骑行：从厦门骑到漳州",
+      "description": "从集美出发，经灌口、角美骑到漳州古城，记录路程、补给和第一次骑出厦门的体验。",
+      "avatar": "seed-asset:demo-cycling.jpg",
+      "backgroundImage": "seed-asset:demo-cycling.jpg",
+      "createdAt": "2026-10-05T11:20:00+08:00",
+      "updatedAt": "2026-10-24T15:30:00+08:00"
+    },
+    {
+      "id": "photography",
+      "ownerId": "jo",
+      "participantIds": [
+        "lin"
+      ],
+      "title": "摄影：带着相机在厦门到处走",
+      "description": "沙坡尾的水面、八市收摊的街道、环岛路的海边，记录在厦门走拍时看见的东西。",
+      "avatar": "seed-asset:demo-street-photo.jpg",
+      "backgroundImage": "seed-asset:demo-street-photo.jpg",
+      "createdAt": "2026-10-08T19:15:00+08:00",
+      "updatedAt": "2026-10-23T19:50:00+08:00"
+    },
+    {
+      "id": "board-games",
+      "ownerId": "jo",
+      "participantIds": [
+        "miao"
+      ],
+      "title": "桌游：再开一局《工业革命：伯明翰》",
+      "description": "从忘记留啤酒到借用别人的铁路卖货，复盘伯明翰里的资源、连线和一桌人的决策。",
+      "avatar": "seed-asset:demo-board-games.jpg",
+      "backgroundImage": "seed-asset:demo-board-games.jpg",
+      "createdAt": "2026-10-06T22:15:00+08:00",
+      "updatedAt": "2026-10-23T23:00:00+08:00"
+    },
+    {
+      "id": "gaming",
+      "ownerId": "jo",
+      "participantIds": [
+        "lin"
+      ],
+      "title": "游戏：《马里奥奥德赛》里再逛一会儿",
+      "description": "从沙之国一路玩到都市国，记录附身、跳跃、找月亮，以及没看攻略时自己发现的路。",
+      "avatar": "seed-asset:demo-gaming.jpg",
+      "backgroundImage": "seed-asset:demo-gaming.jpg",
+      "createdAt": "2026-10-07T22:00:00+08:00",
+      "updatedAt": "2026-10-24T21:45:00+08:00"
+    },
+    {
+      "id": "cooking",
+      "ownerId": "jo",
+      "participantIds": [
+        "lin",
+        "miao",
+        "che",
+        "xiaoman",
+        "chenhe",
+        "robin"
+      ],
+      "title": "一盘番茄炒蛋：练出可复现的好吃",
+      "description": "从番茄和鸡蛋出发，各自在真实晚餐里练习、复做和借用彼此的经验，留下做法的变化与不同的口味取舍。",
+      "avatar": "seed-asset:cooking-graph-avatar.jpg",
+      "backgroundImage": "seed-asset:cooking-graph-background.jpg",
+      "contextGuide": "持续关注做法是否容易复做、时间紧张时是否仍然成立；把个人偏好和实际观察分开记录。",
+      "createdAt": "2026-10-03T19:30:00+08:00",
+      "updatedAt": "2026-10-21T19:20:00+08:00"
+    },
+    {
+      "id": "daily",
+      "ownerId": "jo",
+      "participantIds": [
+        "lin",
+        "miao"
+      ],
+      "title": "日常空间整理",
+      "description": "让每天使用的空间更容易进入和维持。",
+      "createdAt": "2026-09-28T10:00:00+08:00",
+      "updatedAt": "2026-10-11T10:20:00+08:00"
+    },
+    {
+      "id": "learning",
+      "ownerId": "jo",
+      "participantIds": [],
+      "title": "阅读与思考",
+      "description": "把阅读变成可以回看的理解和行动。",
+      "createdAt": "2026-10-01T19:30:00+08:00",
+      "updatedAt": "2026-10-11T09:10:00+08:00"
+    },
+    {
+      "id": "practice",
+      "ownerId": "lin",
+      "participantIds": [],
+      "title": "生活技能练习",
+      "description": "通过一次次实际完成积累生活经验。",
+      "createdAt": "2025-09-20T08:00:00+08:00",
+      "updatedAt": "2025-10-11T08:10:00+08:00"
+    }
+  ],
+  "actions": [
+    {
+      "number": 1,
+      "authorId": "jo",
+      "title": "第一盘：鸡蛋留在锅里等番茄，吃到后来发硬",
+      "createdAt": "2026-10-08T18:20:00+08:00",
+      "markdown": "今晚做了两人份：番茄去蒂后 400g、鸡蛋 4 个、油 12g、盐 2g，没有放糖。用家里的 24cm 不粘锅和电磁炉。\n\n鸡蛋炒到完全凝固后没盛出来，直接倒进切成大块的番茄，一起炒到番茄变软。从开始洗菜到装盘用了 23 分钟，不含煮饭和洗锅。\n\n刚出锅时我觉得能吃。十分钟后吃剩下的半盘，鸡蛋边缘发硬，盘底积了一圈水。没有测锅温，也没有分别记录两个食材的在锅时间。",
+      "id": "cooking-1",
+      "mergedParentIds": [],
+      "images": [
+        {
+          "url": "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=1200&q=80",
+          "alt": "番茄食材示意图 · 非本次行动实拍"
+        }
+      ],
+      "objectiveMarkdown": "今晚做了两人份：番茄去蒂后 400g、鸡蛋 4 个、油 12g、盐 2g，没有放糖。用家里的 24cm 不粘锅和电磁炉。\n\n鸡蛋炒到完全凝固后没盛出来，直接倒进切成大块的番茄，一起炒到番茄变软。从开始洗菜到装盘用了 23 分钟，不含煮饭和洗锅。\n\n刚出锅时我觉得能吃。十分钟后吃剩下的半盘，鸡蛋边缘发硬，盘底积了一圈水。没有测锅温，也没有分别记录两个食材的在锅时间。",
+      "contextSnapshot": {
+        "directNodeIds": [],
+        "historyNodeCount": 0,
+        "guide": "持续关注做法是否容易复做、时间紧张时是否仍然成立；把个人偏好和实际观察分开记录。"
+      },
+      "conversation": [
+        {
+          "speaker": "user",
+          "body": "刚炒完番茄鸡蛋，两个人吃。400g 番茄、四个蛋、12g 油、2g 盐，没有糖。24cm 不粘锅和电磁炉。鸡蛋没盛出，直接等大块番茄炒软，吃到后面发硬，还有一圈水。",
+          "id": "cooking-1-message-1"
+        },
+        {
+          "speaker": "ai",
+          "body": "用时从哪一步开始算？你说吃到后面发硬，是装盘多久以后？这两项会影响别人怎么理解这次结果。",
+          "id": "cooking-1-message-2"
+        },
+        {
+          "speaker": "user",
+          "body": "洗菜到装盘 23 分钟，不含煮饭洗锅。留了半盘，十分钟后吃，边缘明显硬。没记各自在锅里多久，也没测温。",
+          "id": "cooking-1-message-3"
+        },
+        {
+          "speaker": "ai",
+          "body": "这次行动向后传递的约定，要沿用、修改，还是不设置？",
+          "id": "cooking-1-message-4"
+        },
+        {
+          "speaker": "user",
+          "body": "暂不设置约定。",
+          "id": "cooking-1-message-5"
+        },
+        {
+          "speaker": "ai",
+          "body": "这些实际发生的过程和结果会写进行动记录。这次要填写表达，还是暂不填写？",
+          "id": "cooking-1-message-6"
+        },
+        {
+          "speaker": "user",
+          "body": "我还说不清到底是哪一步造成的，别直接替我写成结论。我想知道锅里发生什么，先把不好吃的第一盘留住。\n\n先只记录这次行动，暂不填写表达。",
+          "id": "cooking-1-message-7"
+        },
+        {
+          "speaker": "ai",
+          "body": "已整理本次行动，表达保持为空。",
+          "id": "cooking-1-message-8"
+        }
+      ],
+      "graphId": "cooking"
+    },
+    {
+      "number": 2,
+      "authorId": "lin",
+      "title": "鸡蛋先盛出，静置十分钟后仍能用勺子切开",
+      "createdAt": "2026-10-09T18:10:00+08:00",
+      "agreementMarkdown": "引用这次先盛蛋的做法时，请记录盛蛋时的状态，并留出一份静置十分钟后的口感观察。不能把热时或五分钟后的口感写成十分钟后的结果。",
+      "markdown": "参考乔的 #1，用番茄 400g、鸡蛋 4 个、油 12g、盐 2g 做了一盘。我用自己的 26cm 不粘锅和燃气灶，并没有吃过乔的那一盘。\n\n蛋液大部分凝固、表面还有湿润光泽时，我把鸡蛋盛进碗里。番茄单独炒软，再让鸡蛋回锅翻拌约 15 秒。全程没有计时。\n\n装盘后留出半盘，十分钟后再吃。鸡蛋还能用勺子切开，我没吃到明显的硬边；番茄汁仍偏稀。",
+      "id": "cooking-2",
+      "parentId": "cooking-1",
+      "mergedParentIds": [],
+      "images": [],
+      "objectiveMarkdown": "参考乔的 #1，用番茄 400g、鸡蛋 4 个、油 12g、盐 2g 做了一盘。我用自己的 26cm 不粘锅和燃气灶，并没有吃过乔的那一盘。\n\n蛋液大部分凝固、表面还有湿润光泽时，我把鸡蛋盛进碗里。番茄单独炒软，再让鸡蛋回锅翻拌约 15 秒。全程没有计时。\n\n装盘后留出半盘，十分钟后再吃。鸡蛋还能用勺子切开，我没吃到明显的硬边；番茄汁仍偏稀。",
+      "expressionMarkdown": "乔在 #1 留下了“等番茄时鸡蛋还在锅里”的过程，我这次把两段加热分开了。至少在我的锅上，静置后的鸡蛋仍是我能接受的口感。\n\n这还不是一次严格对照：人、锅和灶具都换了。我更愿意把“表面还有光泽时先盛出”留作一个可尝试的判断，而不是宣称已经找到所有锅都适用的起锅秒数。",
+      "contextSnapshot": {
+        "directNodeIds": [
+          "cooking-1"
+        ],
+        "historyNodeCount": 1,
+        "guide": "持续关注做法是否容易复做、时间紧张时是否仍然成立；把个人偏好和实际观察分开记录。"
+      },
+      "conversation": [
+        {
+          "speaker": "user",
+          "body": "我从乔那盘接着做，份量和油盐一样，换成自己的26cm不粘锅和燃气灶。鸡蛋大部分凝固、表面还有光泽就先盛出来，番茄软了再回锅十五秒左右。",
+          "id": "cooking-2-message-1"
+        },
+        {
+          "speaker": "ai",
+          "body": "你尝过乔那盘吗？这次也留出静置样本了吗？不要把不同人的两盘直接写成严格对照。",
+          "id": "cooking-2-message-2"
+        },
+        {
+          "speaker": "user",
+          "body": "没尝过他的。我的留了半盘十分钟，勺子还能切开，没吃到硬边。番茄汁还是稀的。没计总用时。",
+          "id": "cooking-2-message-3"
+        },
+        {
+          "speaker": "ai",
+          "body": "这次行动向后传递的约定，要沿用、修改，还是不设置？",
+          "id": "cooking-2-message-4"
+        },
+        {
+          "speaker": "user",
+          "body": "本节点的约定设为：\n\n引用这次先盛蛋的做法时，请记录盛蛋时的状态，并留出一份静置十分钟后的口感观察。不能把热时或五分钟后的口感写成十分钟后的结果。",
+          "id": "cooking-2-message-5"
+        },
+        {
+          "speaker": "ai",
+          "body": "这些实际发生的过程和结果会写进行动记录。表达要沿用、修改，还是清空？",
+          "id": "cooking-2-message-6"
+        },
+        {
+          "speaker": "user",
+          "body": "可以说在我的锅上这个判断能用，但别写所有锅都应该提前多少秒。我更想传达看状态。\n\n把这些想法整理为本节点的表达。",
+          "id": "cooking-2-message-7"
+        },
+        {
+          "speaker": "ai",
+          "body": "已整理本次行动，并按你的选择写入表达。保留已说明的差异与尚未验证的部分。",
+          "id": "cooking-2-message-8"
+        }
+      ],
+      "graphId": "cooking"
+    },
+    {
+      "number": 3,
+      "authorId": "miao",
+      "title": "这一批番茄加了 2g 糖，第一口柔和，吃完仍偏甜",
+      "createdAt": "2026-10-09T18:30:00+08:00",
+      "agreementMarkdown": "这一轮用去蒂番茄 400g、鸡蛋 4 个比较调味。引用本轮做比例复验时，请保留这组用量，并写明糖的克数和番茄生尝的酸甜感受。",
+      "markdown": "从乔的 #1 接着试。我这次仍把鸡蛋和番茄一起炒，使用番茄 400g、鸡蛋 4 个、油 12g、盐 2g，另加白糖 2g。\n\n下锅前尝了一小块番茄，入口偏酸，之后才有一点甜味。加糖后的成菜，第一口的酸味对我柔和了；配半碗米饭吃到最后，我又觉得甜味重了。\n\n这次没有同时做不加糖的一盘，也没有请其他人试吃，不能把我的偏好当成对照结果。鸡蛋边缘仍偏硬。",
+      "id": "cooking-3",
+      "parentId": "cooking-1",
+      "mergedParentIds": [],
+      "images": [
+        {
+          "url": "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=1200&q=80",
+          "alt": "番茄食材示意图 · 非本次行动实拍"
+        }
+      ],
+      "objectiveMarkdown": "从乔的 #1 接着试。我这次仍把鸡蛋和番茄一起炒，使用番茄 400g、鸡蛋 4 个、油 12g、盐 2g，另加白糖 2g。\n\n下锅前尝了一小块番茄，入口偏酸，之后才有一点甜味。加糖后的成菜，第一口的酸味对我柔和了；配半碗米饭吃到最后，我又觉得甜味重了。\n\n这次没有同时做不加糖的一盘，也没有请其他人试吃，不能把我的偏好当成对照结果。鸡蛋边缘仍偏硬。",
+      "expressionMarkdown": "我沿着同一个起点先处理了酸甜，但没有解决鸡蛋发硬。调味和口感是两个问题，加糖不能替代对加热过程的处理。\n\n2g 是这次实际加过的量，不是我推荐给所有番茄的答案。对这一批番茄、这一盘菜和我的口味，它到最后仍然偏甜。",
+      "contextSnapshot": {
+        "directNodeIds": [
+          "cooking-1"
+        ],
+        "historyNodeCount": 1,
+        "guide": "持续关注做法是否容易复做、时间紧张时是否仍然成立；把个人偏好和实际观察分开记录。"
+      },
+      "conversation": [
+        {
+          "speaker": "user",
+          "body": "从乔第一盘接着试酸甜，还是一起炒。400g 番茄、四个蛋、12g 油、2g 盐，再加2g糖。生尝番茄先酸后有点甜，成菜第一口柔和，但吃到最后还是甜重。蛋边也硬。",
+          "id": "cooking-3-message-1"
+        },
+        {
+          "speaker": "ai",
+          "body": "有没有同时做不加糖的一盘，或者其他人试吃？你想给后面的比例复验留下什么约定？",
+          "id": "cooking-3-message-2"
+        },
+        {
+          "speaker": "user",
+          "body": "都没有，就是我自己的感受。这轮先固定400g番茄四个蛋，后面记糖克数和生尝口味；改份量就不满足固定份量要求，不要混成同一组对照。",
+          "id": "cooking-3-message-3"
+        },
+        {
+          "speaker": "ai",
+          "body": "这次行动向后传递的约定，要沿用、修改，还是不设置？",
+          "id": "cooking-3-message-4"
+        },
+        {
+          "speaker": "user",
+          "body": "本节点的约定设为：\n\n这一轮用去蒂番茄 400g、鸡蛋 4 个比较调味。引用本轮做比例复验时，请保留这组用量，并写明糖的克数和番茄生尝的酸甜感受。",
+          "id": "cooking-3-message-5"
+        },
+        {
+          "speaker": "ai",
+          "body": "这些实际发生的过程和结果会写进行动记录。表达要沿用、修改，还是清空？",
+          "id": "cooking-3-message-6"
+        },
+        {
+          "speaker": "user",
+          "body": "2g是发生过的量，不是万能答案。我试了调味，鸡蛋硬的问题还在。\n\n把这些想法整理为本节点的表达。",
+          "id": "cooking-3-message-7"
+        },
+        {
+          "speaker": "ai",
+          "body": "已整理本次行动，并按你的选择写入表达。保留已说明的差异与尚未验证的部分。",
+          "id": "cooking-3-message-8"
+        }
+      ],
+      "graphId": "cooking"
+    },
+    {
+      "number": 4,
+      "authorId": "jo",
+      "title": "赶晚饭做了十六分钟，番茄中心还硬",
+      "createdAt": "2026-10-09T19:00:00+08:00",
+      "agreementMarkdown": "引用这次省时尝试时，请记录从开始洗菜到装盘的总用时（不含煮饭和洗锅），并说明番茄中心是否炒软，不能只比较出锅速度。",
+      "markdown": "还是 #1 那口锅、那台电磁炉，番茄 400g、鸡蛋 4 个、油 12g、盐 2g。饿得着急，番茄切成约 3cm 大块，鸡蛋炒凝固后直接加入番茄。\n\n从开始洗菜到装盘用了 16 分钟，不含煮饭和洗锅。为了早点吃上，我在番茄还没完全软时就关了火。\n\n吃的时候，番茄中心仍有硬芯，皮肉没有分开，鸡蛋边缘也偏硬。我把这一盘吃完了，但不愿意用同样的口感换这七分钟。",
+      "id": "cooking-4",
+      "parentId": "cooking-1",
+      "mergedParentIds": [],
+      "images": [],
+      "objectiveMarkdown": "还是 #1 那口锅、那台电磁炉，番茄 400g、鸡蛋 4 个、油 12g、盐 2g。饿得着急，番茄切成约 3cm 大块，鸡蛋炒凝固后直接加入番茄。\n\n从开始洗菜到装盘用了 16 分钟，不含煮饭和洗锅。为了早点吃上，我在番茄还没完全软时就关了火。\n\n吃的时候，番茄中心仍有硬芯，皮肉没有分开，鸡蛋边缘也偏硬。我把这一盘吃完了，但不愿意用同样的口感换这七分钟。",
+      "expressionMarkdown": "和自己的 #1 相比，这次的确少用了七分钟，但我同时减少了番茄的加热时间。它只能说明我做出了一盘更快、却不满意的晚饭，不能说明“十六分钟一定做不好”。\n\n我在意的是下班后能用得上的做法。以后讨论快不快，也得把实际吃到的东西留在记录里，否则速度很容易变成一个脱离晚饭的数字。",
+      "contextSnapshot": {
+        "directNodeIds": [
+          "cooking-1"
+        ],
+        "historyNodeCount": 1,
+        "guide": "持续关注做法是否容易复做、时间紧张时是否仍然成立；把个人偏好和实际观察分开记录。"
+      },
+      "conversation": [
+        {
+          "speaker": "user",
+          "body": "今晚饿了做快一点。还是自己24cm锅电磁炉、400g番茄四个蛋、12g油2g盐。番茄大概3cm，蛋没盛出，十六分钟就装盘吃了，番茄中心还有硬芯，蛋边也硬。",
+          "id": "cooking-4-message-1"
+        },
+        {
+          "speaker": "ai",
+          "body": "十六分钟包括什么？这次的速度和口感，你愿意怎么一起记录？",
+          "id": "cooking-4-message-2"
+        },
+        {
+          "speaker": "user",
+          "body": "从洗菜开始，不含煮饭和洗锅。没等番茄完全软就关火，吃完了但不愿用这个口感换七分钟。后面引用也得按这个范围记时间，并说明中心软没软。",
+          "id": "cooking-4-message-3"
+        },
+        {
+          "speaker": "ai",
+          "body": "这次行动向后传递的约定，要沿用、修改，还是不设置？",
+          "id": "cooking-4-message-4"
+        },
+        {
+          "speaker": "user",
+          "body": "本节点的约定设为：\n\n引用这次省时尝试时，请记录从开始洗菜到装盘的总用时（不含煮饭和洗锅），并说明番茄中心是否炒软，不能只比较出锅速度。",
+          "id": "cooking-4-message-5"
+        },
+        {
+          "speaker": "ai",
+          "body": "这些实际发生的过程和结果会写进行动记录。表达要沿用、修改，还是清空？",
+          "id": "cooking-4-message-6"
+        },
+        {
+          "speaker": "user",
+          "body": "只代表我这盘做快却没做好，不是说十六分钟一定不行。不能只看时间。\n\n把这些想法整理为本节点的表达。",
+          "id": "cooking-4-message-7"
+        },
+        {
+          "speaker": "ai",
+          "body": "已整理本次行动，并按你的选择写入表达。保留已说明的差异与尚未验证的部分。",
+          "id": "cooking-4-message-8"
+        }
+      ],
+      "graphId": "cooking"
+    },
+    {
+      "number": 5,
+      "authorId": "miao",
+      "title": "沿用先盛蛋，再把番茄炒到能用铲子压散",
+      "createdAt": "2026-10-10T18:40:00+08:00",
+      "agreementMarkdown": "引用本轮做法时，请保留从洗菜到装盘的总用时、盛蛋和回蛋时的食材状态。切块、去皮或回锅时间有变化时如实记录，不把同时改变多个步骤后的结果归给单一原因。\n\n![约定配图：成菜示意，非行动实拍](seed-asset:cooking-graph-avatar.jpg)\n\n![约定配图：番茄食材示意，非行动实拍](https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=1200&q=80)\n\n![约定配图：装盘示意，非行动实拍](seed-asset:cooking-graph-background.jpg)\n\n![约定配图：成菜示意（重复图片演示）](seed-asset:cooking-graph-avatar.jpg)",
+      "referenceAgreements": [
+        {
+          "sourceId": "cooking-2",
+          "complies": false,
+          "exceptionReason": "本次只观察了装盘五分钟后的口感，没有做约定要求的十分钟静置观察，不能说明十分钟后的口感。"
+        }
+      ],
+      "markdown": "这次直接参考林岚的 #2：鸡蛋表面还有光泽时先盛出来。我用番茄 400g、鸡蛋 4 个、油 12g、盐 2g，不加糖，锅是自己的 24cm 不粘锅。\n\n## 本次下锅过程\n\n- 番茄切成约 1.5cm 小块，单独炒约四分钟，直到铲子轻压就能散开。\n- 锅底汁液变稠后倒回鸡蛋，翻拌约十秒装盘。\n- 洗菜到装盘 21 分钟；放五分钟后，盘底只有少量汁，鸡蛋能用勺子切开。\n\n我喜欢鸡蛋表面挂着汁的状态。这一盘没有刻意留出拌饭的汤汁，也没有和别人的成菜并排比较。\n\n没有做 #2 约定的十分钟静置观察，本次引用不满足来源约定，只能保留为五分钟的样本。",
+      "id": "cooking-5",
+      "parentId": "cooking-2",
+      "mergedParentIds": [],
+      "images": [],
+      "objectiveMarkdown": "这次直接参考林岚的 #2：鸡蛋表面还有光泽时先盛出来。我用番茄 400g、鸡蛋 4 个、油 12g、盐 2g，不加糖，锅是自己的 24cm 不粘锅。\n\n## 本次下锅过程\n\n- 番茄切成约 1.5cm 小块，单独炒约四分钟，直到铲子轻压就能散开。\n- 锅底汁液变稠后倒回鸡蛋，翻拌约十秒装盘。\n- 洗菜到装盘 21 分钟；放五分钟后，盘底只有少量汁，鸡蛋能用勺子切开。\n\n我喜欢鸡蛋表面挂着汁的状态。这一盘没有刻意留出拌饭的汤汁，也没有和别人的成菜并排比较。\n\n没有做 #2 约定的十分钟静置观察，本次引用不满足来源约定，只能保留为五分钟的样本。",
+      "expressionMarkdown": "#2 先把鸡蛋从等待里拿出来，我这次再给番茄足够的独立加热时间。对我来说，这让“先盛蛋”从一句提醒变成了能接着操作的顺序。\n\n但我同时改变了切块大小、番茄加热和回锅时长，不能把结果全归给某一步。现在可以借给别人的，是这些能看见的状态和本次结果，而不是一份已经验证完的标准答案。",
+      "contextSnapshot": {
+        "directNodeIds": [
+          "cooking-2"
+        ],
+        "historyNodeCount": 2,
+        "guide": "持续关注做法是否容易复做、时间紧张时是否仍然成立；把个人偏好和实际观察分开记录。"
+      },
+      "conversation": [
+        {
+          "speaker": "user",
+          "body": "照林岚先盛蛋的做法，自己的24cm不粘锅，400g番茄四个蛋12g油2g盐没糖。番茄改成1.5cm，单炒四分钟左右能压散，汁稠了回蛋十秒左右。",
+          "id": "cooking-5-message-1"
+        },
+        {
+          "speaker": "ai",
+          "body": "装盘以后实际观察到什么？这次切块、番茄加热和回锅时间都变了，记录里需要保留这些差异。",
+          "id": "cooking-5-message-2"
+        },
+        {
+          "speaker": "user",
+          "body": "洗菜到装盘21分钟。五分钟后盘底只有少量汁，蛋能用勺子切开。我喜欢挂着汁的感觉，但没并排尝别人的菜，也没留拌饭汤汁。",
+          "id": "cooking-5-message-3"
+        },
+        {
+          "speaker": "ai",
+          "body": "本次对直接来源约定的核对结果是什么？如不满足，请说明原因。",
+          "id": "cooking-5-message-4"
+        },
+        {
+          "speaker": "user",
+          "body": "没有做#2约定的十分钟静置，只留了五分钟的观察。本次引用不满足来源约定，不能说十分钟后也一样。",
+          "id": "cooking-5-message-5"
+        },
+        {
+          "speaker": "ai",
+          "body": "这次行动向后传递的约定，要沿用、修改，还是不设置？",
+          "id": "cooking-5-message-6"
+        },
+        {
+          "speaker": "user",
+          "body": "本节点的约定设为：\n\n引用本轮做法时，请保留从洗菜到装盘的总用时、盛蛋和回蛋时的食材状态。切块、去皮或回锅时间有变化时如实记录，不把同时改变多个步骤后的结果归给单一原因。\n\n![约定配图：成菜示意，非行动实拍](seed-asset:cooking-graph-avatar.jpg)\n\n![约定配图：番茄食材示意，非行动实拍](https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=1200&q=80)\n\n![约定配图：装盘示意，非行动实拍](seed-asset:cooking-graph-background.jpg)\n\n![约定配图：成菜示意（重复图片演示）](seed-asset:cooking-graph-avatar.jpg)",
+          "id": "cooking-5-message-7"
+        },
+        {
+          "speaker": "ai",
+          "body": "这些实际发生的过程和结果会写进行动记录。表达要沿用、修改，还是清空？",
+          "id": "cooking-5-message-8"
+        },
+        {
+          "speaker": "user",
+          "body": "先盛蛋这句话变成了可操作的顺序，但不能说只改一个步骤就验证成功。\n\n把这些想法整理为本节点的表达。",
+          "id": "cooking-5-message-9"
+        },
+        {
+          "speaker": "ai",
+          "body": "已整理本次行动，并按你的选择写入表达。保留已说明的差异与尚未验证的部分。",
+          "id": "cooking-5-message-10"
+        }
+      ],
+      "graphId": "cooking"
+    },
+    {
+      "number": 6,
+      "authorId": "lin",
+      "title": "缩成三蛋份量，按比例加糖后仍觉得偏甜",
+      "createdAt": "2026-10-10T20:10:00+08:00",
+      "referenceAgreements": [
+        {
+          "sourceId": "cooking-3",
+          "complies": false,
+          "exceptionReason": "只剩三个鸡蛋，本次改用番茄 300g、鸡蛋 3 个、糖 1.5g，不满足原约定的固定份量；作为缩份量尝试单独记录，不并入原份量的对照。"
+        }
+      ],
+      "markdown": "引用 miao 的 #3，但家里只剩三个鸡蛋。我用另一批番茄 300g、鸡蛋 3 个、油 9g、盐 1.5g、糖 1.5g 做了一盘，不满足来源约定的固定份量要求。\n\n这批番茄生尝时已经明显偏甜。成菜配饭吃，对我仍然偏甜；我吃完了，没有再补其他调料。这次照 #3 一起炒，没有另外采用别的分支步骤。\n\n份量、番茄批次、锅灶和试吃的人都变了。这不是 #3 的固定份量对照，只保留为一次实际发生的缩份量尝试。",
+      "id": "cooking-6",
+      "parentId": "cooking-3",
+      "mergedParentIds": [],
+      "images": [],
+      "objectiveMarkdown": "引用 miao 的 #3，但家里只剩三个鸡蛋。我用另一批番茄 300g、鸡蛋 3 个、油 9g、盐 1.5g、糖 1.5g 做了一盘，不满足来源约定的固定份量要求。\n\n这批番茄生尝时已经明显偏甜。成菜配饭吃，对我仍然偏甜；我吃完了，没有再补其他调料。这次照 #3 一起炒，没有另外采用别的分支步骤。\n\n份量、番茄批次、锅灶和试吃的人都变了。这不是 #3 的固定份量对照，只保留为一次实际发生的缩份量尝试。",
+      "expressionMarkdown": "#3 留下的是 miao 对那一盘的感受，我留下的是自己对这一盘的感受。两次都写到偏甜，并不足以证明同一个糖量对所有人都不合适。\n\n我想保留的分歧是：对已经偏甜的原料，我更愿意先不加糖，再尝成菜。引用这段经验，并没有让两次不同条件的结果变成可直接比较的数据。",
+      "contextSnapshot": {
+        "directNodeIds": [
+          "cooking-3"
+        ],
+        "historyNodeCount": 2,
+        "guide": "持续关注做法是否容易复做、时间紧张时是否仍然成立；把个人偏好和实际观察分开记录。"
+      },
+      "conversation": [
+        {
+          "speaker": "user",
+          "body": "引用miao的糖量那盘，但只剩三个蛋。我改成300g番茄三个蛋、9g油1.5g盐1.5g糖，不满足来源约定的固定份量，单独记，不放进原份量对照。",
+          "id": "cooking-6-message-1"
+        },
+        {
+          "speaker": "ai",
+          "body": "这批番茄生尝是什么感觉？你实际用了哪条路线的烹饪步骤？",
+          "id": "cooking-6-message-2"
+        },
+        {
+          "speaker": "user",
+          "body": "另一批，已经明显甜。照她#3一起炒，没有用别的分支。成菜我觉得偏甜，没补调料，配饭吃完。锅灶和人也都不一样。",
+          "id": "cooking-6-message-3"
+        },
+        {
+          "speaker": "ai",
+          "body": "这次行动向后传递的约定，要沿用、修改，还是不设置？",
+          "id": "cooking-6-message-4"
+        },
+        {
+          "speaker": "user",
+          "body": "约定沿用承接节点的有效版本，不做修改。",
+          "id": "cooking-6-message-5"
+        },
+        {
+          "speaker": "ai",
+          "body": "这些实际发生的过程和结果会写进行动记录。表达要沿用、修改，还是清空？",
+          "id": "cooking-6-message-6"
+        },
+        {
+          "speaker": "user",
+          "body": "我倾向先不放糖，但别把两个人都觉得甜写成普遍结论。引用她的记录不等于两次就可直接比较了。\n\n把这些想法整理为本节点的表达。",
+          "id": "cooking-6-message-7"
+        },
+        {
+          "speaker": "ai",
+          "body": "已整理本次行动，并按你的选择写入表达。保留已说明的差异与尚未验证的部分。",
+          "id": "cooking-6-message-8"
+        }
+      ],
+      "graphId": "cooking"
+    },
+    {
+      "number": 7,
+      "authorId": "miao",
+      "title": "先备齐再开火，十八分钟，番茄中心已经软了",
+      "createdAt": "2026-10-11T18:15:00+08:00",
+      "agreementMarkdown": "引用这次集中备菜的顺序时，请记录洗菜到装盘的总用时（不含煮饭和洗锅）、锅碗数量，以及番茄中心是否软化；同时改了切块大小时，不把省时全部归因于备齐工具。",
+      "referenceAgreements": [
+        {
+          "sourceId": "cooking-4",
+          "complies": true
+        }
+      ],
+      "markdown": "从乔的 #4 接着试省时。番茄 400g、鸡蛋 4 个、油 12g、盐 2g，不加糖，用我的 24cm 不粘锅和燃气灶。\n\n开火前把番茄切成约 1cm 小块、蛋打散，盐和锅铲放在手边。我把炒凝固的鸡蛋临时盛进耐热碗，让番茄单独炒到中心可以用铲子压散，再倒回鸡蛋翻拌装盘。\n\n从开始洗菜到装盘 18 分钟，不含煮饭和洗锅。番茄没有硬芯，鸡蛋边缘仍有几块偏硬；实际使用了一口锅和两个碗。",
+      "id": "cooking-7",
+      "parentId": "cooking-4",
+      "mergedParentIds": [],
+      "images": [],
+      "objectiveMarkdown": "从乔的 #4 接着试省时。番茄 400g、鸡蛋 4 个、油 12g、盐 2g，不加糖，用我的 24cm 不粘锅和燃气灶。\n\n开火前把番茄切成约 1cm 小块、蛋打散，盐和锅铲放在手边。我把炒凝固的鸡蛋临时盛进耐热碗，让番茄单独炒到中心可以用铲子压散，再倒回鸡蛋翻拌装盘。\n\n从开始洗菜到装盘 18 分钟，不含煮饭和洗锅。番茄没有硬芯，鸡蛋边缘仍有几块偏硬；实际使用了一口锅和两个碗。",
+      "expressionMarkdown": "乔的 #4 提醒我，快出锅也可能留下硬番茄。我这次把准备工作集中在开火之前，给切小的番茄留出了加热时间，至少没有再吃到硬芯。\n\n我和乔的锅灶不同，也同时改了准备顺序和盛蛋动作，所以不能声称仅靠切小就省了多少时间。十八分钟只是这顿晚饭的结果，鸡蛋口感仍然有可以继续处理的地方。",
+      "contextSnapshot": {
+        "directNodeIds": [
+          "cooking-4"
+        ],
+        "historyNodeCount": 2,
+        "guide": "持续关注做法是否容易复做、时间紧张时是否仍然成立；把个人偏好和实际观察分开记录。"
+      },
+      "conversation": [
+        {
+          "speaker": "user",
+          "body": "从乔十六分钟那次试省时。自己24cm不粘锅燃气灶，400g番茄四个蛋12g油2g盐。先切1cm小块打好蛋取好盐再开火，凝固的蛋先盛碗里，番茄软了再合。",
+          "id": "cooking-7-message-1"
+        },
+        {
+          "speaker": "ai",
+          "body": "按来源约定，时间从哪里算？番茄中心软了吗？鸡蛋和用具也请一起补充。",
+          "id": "cooking-7-message-2"
+        },
+        {
+          "speaker": "user",
+          "body": "洗菜到装盘十八分钟，不含煮饭洗锅。中心能用铲子压散没硬芯，鸡蛋有几块硬边。一口锅两个碗。",
+          "id": "cooking-7-message-3"
+        },
+        {
+          "speaker": "ai",
+          "body": "这次行动向后传递的约定，要沿用、修改，还是不设置？",
+          "id": "cooking-7-message-4"
+        },
+        {
+          "speaker": "user",
+          "body": "本节点的约定设为：\n\n引用这次集中备菜的顺序时，请记录洗菜到装盘的总用时（不含煮饭和洗锅）、锅碗数量，以及番茄中心是否软化；同时改了切块大小时，不把省时全部归因于备齐工具。",
+          "id": "cooking-7-message-5"
+        },
+        {
+          "speaker": "ai",
+          "body": "这些实际发生的过程和结果会写进行动记录。表达要沿用、修改，还是清空？",
+          "id": "cooking-7-message-6"
+        },
+        {
+          "speaker": "user",
+          "body": "准备集中一点对我有用，但我和乔条件不同，不能只归功切小，也不是已经找到最好的快手版。\n\n把这些想法整理为本节点的表达。",
+          "id": "cooking-7-message-7"
+        },
+        {
+          "speaker": "ai",
+          "body": "已整理本次行动，并按你的选择写入表达。保留已说明的差异与尚未验证的部分。",
+          "id": "cooking-7-message-8"
+        }
+      ],
+      "graphId": "cooking"
+    },
+    {
+      "number": 8,
+      "authorId": "jo",
+      "title": "下班后照这个顺序做了一盘，接电话时鸡蛋多热了",
+      "createdAt": "2026-10-11T20:05:00+08:00",
+      "referenceAgreements": [
+        {
+          "sourceId": "cooking-5",
+          "complies": true
+        }
+      ],
+      "markdown": "今晚在家复做 miao 的 #5，仍用自己的 24cm 不粘锅和电磁炉。番茄 400g、鸡蛋 4 个、油 12g、盐 2g，没有加糖，也没有提前洗切。\n\n番茄切约 1.5cm 小块。鸡蛋表面还有光泽时先盛出；番茄炒到能压散、汁液变稠，再倒回鸡蛋。从洗菜到装盘共 19 分钟。\n\n回锅时接了电话，挂电话后才关火，没有记录通话持续多久。刚装盘的鸡蛋大部分仍软，贴着锅边的几块偏硬。饭后洗了一口锅、一个打蛋碗和一个盛蛋碗。",
+      "id": "cooking-8",
+      "parentId": "cooking-5",
+      "mergedParentIds": [],
+      "images": [],
+      "objectiveMarkdown": "今晚在家复做 miao 的 #5，仍用自己的 24cm 不粘锅和电磁炉。番茄 400g、鸡蛋 4 个、油 12g、盐 2g，没有加糖，也没有提前洗切。\n\n番茄切约 1.5cm 小块。鸡蛋表面还有光泽时先盛出；番茄炒到能压散、汁液变稠，再倒回鸡蛋。从洗菜到装盘共 19 分钟。\n\n回锅时接了电话，挂电话后才关火，没有记录通话持续多久。刚装盘的鸡蛋大部分仍软，贴着锅边的几块偏硬。饭后洗了一口锅、一个打蛋碗和一个盛蛋碗。",
+      "contextSnapshot": {
+        "directNodeIds": [
+          "cooking-5"
+        ],
+        "historyNodeCount": 3,
+        "guide": "持续关注做法是否容易复做、时间紧张时是否仍然成立；把个人偏好和实际观察分开记录。"
+      },
+      "conversation": [
+        {
+          "speaker": "user",
+          "body": "今天下班只做这一顿，照#5先盛蛋、番茄压散汁稠后回蛋。自己的24cm锅电磁炉，400g番茄四个蛋12g油2g盐没糖，块大概1.5cm，没有提前洗切。",
+          "id": "cooking-8-message-1"
+        },
+        {
+          "speaker": "ai",
+          "body": "这顿做完有什么顺利和不顺利的地方？别把一次复做写成长期稳定。",
+          "id": "cooking-8-message-2"
+        },
+        {
+          "speaker": "user",
+          "body": "洗菜到装盘十九分钟。回蛋时接电话，挂了才关火，没记通话多久。大部分软，锅边几块硬。最后洗了锅、打蛋碗、盛蛋碗。",
+          "id": "cooking-8-message-3"
+        },
+        {
+          "speaker": "ai",
+          "body": "本次对直接来源约定的核对结果是什么？如不满足，请说明原因。",
+          "id": "cooking-8-message-4"
+        },
+        {
+          "speaker": "user",
+          "body": "#5要求的洗菜到装盘用时、盛蛋和回蛋状态都已记录，变化和没记录的电话时长也保留了，我确认满足这份来源约定。",
+          "id": "cooking-8-message-5"
+        },
+        {
+          "speaker": "ai",
+          "body": "这次行动向后传递的约定，要沿用、修改，还是不设置？",
+          "id": "cooking-8-message-6"
+        },
+        {
+          "speaker": "user",
+          "body": "约定沿用承接节点的有效版本，不做修改。",
+          "id": "cooking-8-message-7"
+        },
+        {
+          "speaker": "ai",
+          "body": "这些实际发生的过程和结果会写进行动记录。表达要沿用、修改，还是清空？",
+          "id": "cooking-8-message-8"
+        },
+        {
+          "speaker": "user",
+          "body": "顺序有用了，但还要知道什么时候停，不能用十九分钟掩盖电话造成的过度加热。\n\n这次不修改表达，沿用承接节点的表达。",
+          "id": "cooking-8-message-9"
+        },
+        {
+          "speaker": "ai",
+          "body": "已整理本次行动，表达沿用承接节点，没有重新生成。",
+          "id": "cooking-8-message-10"
+        }
+      ],
+      "graphId": "cooking"
+    },
+    {
+      "number": 9,
+      "authorId": "lin",
+      "title": "不照抄回锅秒数，看到挂汁就关火",
+      "createdAt": "2026-10-12T19:10:00+08:00",
+      "agreementMarkdown": "引用本轮经验时，请区分自己尝到的结果与来源记录中的结果，写明观察对象和未验证的部分。没有测量或对照时，不把单次感受写成普遍结论或确定的因果关系。",
+      "markdown": "看了乔的 #8，我在自己的 26cm 不粘锅、燃气灶上做了一盘。用番茄 400g、鸡蛋 4 个、油 12g、盐 2g，不加糖。\n\n先盛鸡蛋，再把约 1.5cm 的番茄块炒到能压散、汁液略稠。鸡蛋回锅后没有照抄 #5 的十秒，看到表面挂上汁就关火装盘。没有计总用时，也没有记录回锅秒数。\n\n我和家人各吃了半盘，都没挑出硬边。家人只说“这次不干”，没有给它和其他人的菜排名。这次没有静置十分钟再试。",
+      "id": "cooking-9",
+      "parentId": "cooking-8",
+      "mergedParentIds": [],
+      "images": [],
+      "objectiveMarkdown": "看了乔的 #8，我在自己的 26cm 不粘锅、燃气灶上做了一盘。用番茄 400g、鸡蛋 4 个、油 12g、盐 2g，不加糖。\n\n先盛鸡蛋，再把约 1.5cm 的番茄块炒到能压散、汁液略稠。鸡蛋回锅后没有照抄 #5 的十秒，看到表面挂上汁就关火装盘。没有计总用时，也没有记录回锅秒数。\n\n我和家人各吃了半盘，都没挑出硬边。家人只说“这次不干”，没有给它和其他人的菜排名。这次没有静置十分钟再试。",
+      "expressionMarkdown": "从 #1 到 #8，大家逐步留下了鸡蛋和番茄各自的状态，也留下了分心时发生的失败。我这次借的是这些判断，而不是另一口锅上的秒数。\n\n“不干”是这次同桌两个人的反馈，还不等于长时间放凉也一样。对我来说，可以解释自己为什么关火，比记住一个在不同灶具上可能失效的数字更有用。",
+      "contextSnapshot": {
+        "directNodeIds": [
+          "cooking-8"
+        ],
+        "historyNodeCount": 4,
+        "guide": "持续关注做法是否容易复做、时间紧张时是否仍然成立；把个人偏好和实际观察分开记录。"
+      },
+      "conversation": [
+        {
+          "speaker": "user",
+          "body": "看乔#8后，在自己的26cm不粘锅燃气灶做了一盘，份量还是400g番茄四个蛋12g油2g盐无糖。1.5cm块炒到压散略稠，先盛蛋，最后看到挂汁就关火，不抄十秒。",
+          "id": "cooking-9-message-1"
+        },
+        {
+          "speaker": "ai",
+          "body": "这次有哪些人的实际反馈？有没有计时或放凉再尝？",
+          "id": "cooking-9-message-2"
+        },
+        {
+          "speaker": "user",
+          "body": "我和家人各吃半盘，没挑到硬边。家人说不干，没做排名。没有计总用时和回锅时间，也没静置测试。",
+          "id": "cooking-9-message-3"
+        },
+        {
+          "speaker": "ai",
+          "body": "本次对直接来源约定的核对结果是什么？如不满足，请说明原因。",
+          "id": "cooking-9-message-4"
+        },
+        {
+          "speaker": "user",
+          "body": "关于#8的来源约定，这次还没有完成核对，不要替我标成满足。",
+          "id": "cooking-9-message-5"
+        },
+        {
+          "speaker": "ai",
+          "body": "这次行动向后传递的约定，要沿用、修改，还是不设置？",
+          "id": "cooking-9-message-6"
+        },
+        {
+          "speaker": "user",
+          "body": "本节点的约定设为：\n\n引用本轮经验时，请区分自己尝到的结果与来源记录中的结果，写明观察对象和未验证的部分。没有测量或对照时，不把单次感受写成普遍结论或确定的因果关系。",
+          "id": "cooking-9-message-7"
+        },
+        {
+          "speaker": "ai",
+          "body": "这些实际发生的过程和结果会写进行动记录。表达要沿用、修改，还是清空？",
+          "id": "cooking-9-message-8"
+        },
+        {
+          "speaker": "user",
+          "body": "我能说清为什么关火了。但这顿不干不能推成放凉也一样，更不能代表别人的锅。\n\n把这些想法整理为本节点的表达。",
+          "id": "cooking-9-message-9"
+        },
+        {
+          "speaker": "ai",
+          "body": "已整理本次行动，并按你的选择写入表达。保留已说明的差异与尚未验证的部分。",
+          "id": "cooking-9-message-10"
+        }
+      ],
+      "graphId": "cooking"
+    },
+    {
+      "number": 10,
+      "authorId": "jo",
+      "title": "换到爸爸家的燃气灶，第一次炒蛋还是盛晚了",
+      "createdAt": "2026-10-19T19:30:00+08:00",
+      "referenceAgreements": [
+        {
+          "sourceId": "cooking-9",
+          "complies": true
+        }
+      ],
+      "agreementMarkdown": "这一轮只讨论爸爸家的 26cm 不粘锅与燃气灶。引用本轮复做时请保留这组锅灶条件，并记录蛋液刚下锅与盛出时的状态，不能把这里的秒数当作通用火候。",
+      "markdown": "这天去爸爸家做晚饭，我给他看了林岚的 #9。这次用他家的 26cm 不粘锅、燃气灶，番茄 400g、鸡蛋 4 个、油 12g、盐 2g，没有加糖。\n\n爸爸切番茄，我负责炒。蛋液刚倒入，底部就很快凝固，我还在等整面都出现熟悉的状态，边缘已经变褐。盛出时主体仍有光泽，但几块边缘明显硬了，没有记录确切秒数。\n\n番茄炒软后回蛋，挂汁就关火。两个人从洗菜到装盘共 17 分钟；我和爸爸都吃到了偏硬的边缘。这个用时包含两人同时备菜，不能当成我独立做菜的速度。",
+      "id": "cooking-10",
+      "parentId": "cooking-9",
+      "mergedParentIds": [],
+      "images": [],
+      "objectiveMarkdown": "这天去爸爸家做晚饭，我给他看了林岚的 #9。这次用他家的 26cm 不粘锅、燃气灶，番茄 400g、鸡蛋 4 个、油 12g、盐 2g，没有加糖。\n\n爸爸切番茄，我负责炒。蛋液刚倒入，底部就很快凝固，我还在等整面都出现熟悉的状态，边缘已经变褐。盛出时主体仍有光泽，但几块边缘明显硬了，没有记录确切秒数。\n\n番茄炒软后回蛋，挂汁就关火。两个人从洗菜到装盘共 17 分钟；我和爸爸都吃到了偏硬的边缘。这个用时包含两人同时备菜，不能当成我独立做菜的速度。",
+      "expressionMarkdown": "#9 让我愿意看状态而不抄秒数，但换一台灶后，我仍然没及时认出凝固的速度。能说出“先盛蛋”，和真的在这口锅上盛得及时，是两件事。\n\n这条路线积累的是更具体的判断，不是越往后的节点就一定做得更好。这次我能向爸爸说明自己为什么要盛出，也需要把盛晚了的部分一起留下。",
+      "contextSnapshot": {
+        "directNodeIds": [
+          "cooking-9"
+        ],
+        "historyNodeCount": 5,
+        "guide": "持续关注做法是否容易复做、时间紧张时是否仍然成立；把个人偏好和实际观察分开记录。"
+      },
+      "conversation": [
+        {
+          "speaker": "user",
+          "body": "今天去爸爸家，给他看#9。他切番茄我炒，26cm不粘锅燃气灶，400g番茄四个蛋12g油2g盐无糖。蛋刚下去底部就凝了，我等整面熟悉的状态，边缘已经褐了。",
+          "id": "cooking-10-message-1"
+        },
+        {
+          "speaker": "ai",
+          "body": "最后吃到的情况如何？两个人同时做的用时不要和独立做菜直接比。这轮锅灶经验需要什么引用条件？",
+          "id": "cooking-10-message-2"
+        },
+        {
+          "speaker": "user",
+          "body": "主体还有光泽才盛，但晚了，回锅挂汁就关火，我和爸爸仍吃到硬边。洗菜到装盘两人共17分钟，没记蛋的秒数。这轮限定这口26cm锅和燃气灶，记录下锅和盛出状态，换设备就不满足这组条件。",
+          "id": "cooking-10-message-3"
+        },
+        {
+          "speaker": "ai",
+          "body": "本次对直接来源约定的核对结果是什么？如不满足，请说明原因。",
+          "id": "cooking-10-message-4"
+        },
+        {
+          "speaker": "user",
+          "body": "我确认满足#9的约定：只记录我和爸爸吃到的结果，不把换灶后的这次失败说成所有锅都这样。",
+          "id": "cooking-10-message-5"
+        },
+        {
+          "speaker": "ai",
+          "body": "这次行动向后传递的约定，要沿用、修改，还是不设置？",
+          "id": "cooking-10-message-6"
+        },
+        {
+          "speaker": "user",
+          "body": "本节点的约定设为：\n\n这一轮只讨论爸爸家的 26cm 不粘锅与燃气灶。引用本轮复做时请保留这组锅灶条件，并记录蛋液刚下锅与盛出时的状态，不能把这里的秒数当作通用火候。",
+          "id": "cooking-10-message-7"
+        },
+        {
+          "speaker": "ai",
+          "body": "这些实际发生的过程和结果会写进行动记录。表达要沿用、修改，还是清空？",
+          "id": "cooking-10-message-8"
+        },
+        {
+          "speaker": "user",
+          "body": "知道先盛和真的盛得及时不是一回事。后来节点不一定更成功，也要留下换灶后失败。\n\n把这些想法整理为本节点的表达。",
+          "id": "cooking-10-message-9"
+        },
+        {
+          "speaker": "ai",
+          "body": "已整理本次行动，并按你的选择写入表达。保留已说明的差异与尚未验证的部分。",
+          "id": "cooking-10-message-10"
+        }
+      ],
+      "graphId": "cooking"
+    },
+    {
+      "number": 11,
+      "authorId": "miao",
+      "title": "留些番茄汁拌饭，我更喜欢这一盘",
+      "createdAt": "2026-10-20T20:00:00+08:00",
+      "agreementMarkdown": "引用这个多汁版本时，请说明汁的状态、实际吃法，以及品尝时是热的还是放置后的；个人拌饭偏好不能写成所有人都更喜欢，也不能补写没有做过的放凉观察。",
+      "referenceAgreements": [
+        {
+          "sourceId": "cooking-9",
+          "complies": true
+        }
+      ],
+      "markdown": "承接林岚的 #9，用自己的 24cm 不粘锅和燃气灶，食材是番茄 400g、鸡蛋 4 个、油 12g、盐 2g，不加糖。这次是我独立做，没有尝过林岚那盘。\n\n鸡蛋表面还有光泽时盛出。番茄切约 1.5cm 小块，炒到中心软、锅底还有能流动的汁，就回蛋关火，没有继续收到浓稠。洗菜到装盘 22 分钟。\n\n我把半碗饭拌进盘里，米饭能吸到汁，鸡蛋没有吃到硬边。单独夹菜时觉得偏湿，但拌饭时更合我的口味。",
+      "id": "cooking-11",
+      "parentId": "cooking-9",
+      "mergedParentIds": [],
+      "images": [
+        {
+          "url": "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=1200&q=80",
+          "alt": "番茄食材示意图 · 非本次行动实拍"
+        }
+      ],
+      "objectiveMarkdown": "承接林岚的 #9，用自己的 24cm 不粘锅和燃气灶，食材是番茄 400g、鸡蛋 4 个、油 12g、盐 2g，不加糖。这次是我独立做，没有尝过林岚那盘。\n\n鸡蛋表面还有光泽时盛出。番茄切约 1.5cm 小块，炒到中心软、锅底还有能流动的汁，就回蛋关火，没有继续收到浓稠。洗菜到装盘 22 分钟。\n\n我把半碗饭拌进盘里，米饭能吸到汁，鸡蛋没有吃到硬边。单独夹菜时觉得偏湿，但拌饭时更合我的口味。",
+      "expressionMarkdown": "这条引用历史里的 #5 把挂汁当成满意的状态；#9 强调看状态关火。我保留后一个判断，但没有继续追求同样稠的汁。\n\n不是证明浓汁做错了，而是我这顿饭的吃法不同。对我来说，好吃包括能不能把米饭拌得舒服。别人可以沿用我的操作，也可以在同一个节点之后保留另一种取舍。",
+      "contextSnapshot": {
+        "directNodeIds": [
+          "cooking-9"
+        ],
+        "historyNodeCount": 5,
+        "guide": "持续关注做法是否容易复做、时间紧张时是否仍然成立；把个人偏好和实际观察分开记录。"
+      },
+      "conversation": [
+        {
+          "speaker": "user",
+          "body": "从#9继续，但我想拌饭。自己24cm锅燃气灶400g番茄四个蛋12g油2g盐无糖，1.5cm块。蛋还有光泽先出，番茄中心软、汁能流动时回蛋关火，没收稠。",
+          "id": "cooking-11-message-1"
+        },
+        {
+          "speaker": "ai",
+          "body": "你是尝过林岚那盘后比较，还是这顿独立吃到的感受？用时和汁的实际吃法是什么？",
+          "id": "cooking-11-message-2"
+        },
+        {
+          "speaker": "user",
+          "body": "没尝过她的，这顿我独立做。洗菜到装盘22分钟，半碗饭拌进去能吸汁，蛋没硬边。单夹偏湿，拌饭更合我口味。",
+          "id": "cooking-11-message-3"
+        },
+        {
+          "speaker": "ai",
+          "body": "本次对直接来源约定的核对结果是什么？如不满足，请说明原因。",
+          "id": "cooking-11-message-4"
+        },
+        {
+          "speaker": "user",
+          "body": "我确认满足#9的约定：没尝过她的那盘，也没做并排对照；我只表达自己热着拌饭时的偏好。",
+          "id": "cooking-11-message-5"
+        },
+        {
+          "speaker": "ai",
+          "body": "这次行动向后传递的约定，要沿用、修改，还是不设置？",
+          "id": "cooking-11-message-6"
+        },
+        {
+          "speaker": "user",
+          "body": "本节点的约定设为：\n\n引用这个多汁版本时，请说明汁的状态、实际吃法，以及品尝时是热的还是放置后的；个人拌饭偏好不能写成所有人都更喜欢，也不能补写没有做过的放凉观察。",
+          "id": "cooking-11-message-7"
+        },
+        {
+          "speaker": "ai",
+          "body": "这些实际发生的过程和结果会写进行动记录。表达要沿用、修改，还是清空？",
+          "id": "cooking-11-message-8"
+        },
+        {
+          "speaker": "user",
+          "body": "不是浓汁做错了，只是我想怎么吃饭不同。我想留下这种偏好。\n\n把这些想法整理为本节点的表达。",
+          "id": "cooking-11-message-9"
+        },
+        {
+          "speaker": "ai",
+          "body": "已整理本次行动，并按你的选择写入表达。保留已说明的差异与尚未验证的部分。",
+          "id": "cooking-11-message-10"
+        }
+      ],
+      "graphId": "cooking"
+    },
+    {
+      "number": 12,
+      "authorId": "lin",
+      "title": "油减到 6g，鸡蛋粘底，先留下这次失败",
+      "createdAt": "2026-10-14T12:20:00+08:00",
+      "agreementMarkdown": "",
+      "referenceAgreements": [
+        {
+          "sourceId": "cooking-9",
+          "complies": true
+        }
+      ],
+      "markdown": "中午仍用 #9 的 26cm 不粘锅、燃气灶，番茄 400g、鸡蛋 4 个、盐 2g，不加糖，把总油量从 12g 减到 6g。\n\n没有测锅温。蛋液倒下去后底部很快粘住，铲起时碎了，几块边缘焦黄。没有重做，直接把碎蛋盛出，再炒番茄、回蛋装盘。\n\n最后吃完了这一盘，番茄是软的，鸡蛋碎且有焦边。这次没有计时，也没有在同一顿做一盘 12g 油的对照。",
+      "id": "cooking-12",
+      "parentId": "cooking-9",
+      "mergedParentIds": [],
+      "images": [
+        {
+          "url": "seed-asset:cooking-graph-avatar.jpg",
+          "alt": "番茄炒蛋成菜示意图 · 非本次行动实拍"
+        },
+        {
+          "url": "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=1200&q=80",
+          "alt": "番茄食材示意图 · 非本次行动实拍"
+        },
+        {
+          "url": "seed-asset:cooking-graph-background.jpg",
+          "alt": "番茄炒蛋装盘示意图 · 非本次行动实拍"
+        }
+      ],
+      "objectiveMarkdown": "中午仍用 #9 的 26cm 不粘锅、燃气灶，番茄 400g、鸡蛋 4 个、盐 2g，不加糖，把总油量从 12g 减到 6g。\n\n没有测锅温。蛋液倒下去后底部很快粘住，铲起时碎了，几块边缘焦黄。没有重做，直接把碎蛋盛出，再炒番茄、回蛋装盘。\n\n最后吃完了这一盘，番茄是软的，鸡蛋碎且有焦边。这次没有计时，也没有在同一顿做一盘 12g 油的对照。",
+      "expressionMarkdown": "",
+      "contextSnapshot": {
+        "directNodeIds": [
+          "cooking-9"
+        ],
+        "historyNodeCount": 5,
+        "guide": "持续关注做法是否容易复做、时间紧张时是否仍然成立；把个人偏好和实际观察分开记录。"
+      },
+      "conversation": [
+        {
+          "speaker": "user",
+          "body": "从自己#9试少油，同一26cm锅燃气灶400g番茄四个蛋2g盐无糖，油改6g。蛋很快粘住，铲碎了还有焦黄边。我照样盛出炒番茄再回蛋，没重做。",
+          "id": "cooking-12-message-1"
+        },
+        {
+          "speaker": "ai",
+          "body": "锅温有记录吗？有没有同一顿的原油量对照？这些决定能不能把失败归给减油。",
+          "id": "cooking-12-message-2"
+        },
+        {
+          "speaker": "user",
+          "body": "都没有，也没计时。番茄软了，碎蛋有焦边，吃完了。暂时不推荐这个少油做法。",
+          "id": "cooking-12-message-3"
+        },
+        {
+          "speaker": "ai",
+          "body": "本次对直接来源约定的核对结果是什么？如不满足，请说明原因。",
+          "id": "cooking-12-message-4"
+        },
+        {
+          "speaker": "user",
+          "body": "这次按#9的约定保留未测锅温、没有原油量对照的限制，不能把粘底直接归因为少油，我确认满足。",
+          "id": "cooking-12-message-5"
+        },
+        {
+          "speaker": "ai",
+          "body": "这次行动向后传递的约定，要沿用、修改，还是不设置？",
+          "id": "cooking-12-message-6"
+        },
+        {
+          "speaker": "user",
+          "body": "清空本节点向后传递的约定。这不改变本次行动需要核对的来源约定。",
+          "id": "cooking-12-message-7"
+        },
+        {
+          "speaker": "ai",
+          "body": "这些实际发生的过程和结果会写进行动记录。表达要沿用、修改，还是清空？",
+          "id": "cooking-12-message-8"
+        },
+        {
+          "speaker": "user",
+          "body": "别写成成功减油，也别断言一定是油少导致。失败和不知道原因都是这次记录的一部分。\n\n这次主动清空表达，只保留行动记录，不沿用之前的表达。",
+          "id": "cooking-12-message-9"
+        },
+        {
+          "speaker": "ai",
+          "body": "已整理本次行动，并清空本节点的表达；后续未更新时也不会恢复更早的表达。",
+          "id": "cooking-12-message-10"
+        }
+      ],
+      "graphId": "cooking"
+    },
+    {
+      "number": 13,
+      "authorId": "jo",
+      "title": "回到自己的锅，十九分钟，番茄软了，鸡蛋也没硬边",
+      "createdAt": "2026-10-20T19:40:00+08:00",
+      "referenceAgreements": [
+        {
+          "sourceId": "cooking-10",
+          "complies": false,
+          "exceptionReason": "这次回到自己的 24cm 不粘锅和电磁炉，独立操作，改变了 #10 约定的锅灶条件。我只借用识别凝固状态的经验，不沿用那次两人备菜的 17 分钟或未记录的加热秒数。"
+        },
+        {
+          "sourceId": "cooking-4",
+          "complies": true
+        }
+      ],
+      "markdown": "这次承接爸爸家那次 #10，也合入自己十六分钟快做的 #4。回到家里的 24cm 不粘锅、电磁炉，一个人做番茄 400g、鸡蛋 4 个、油 12g、盐 2g，没有加糖。\n\n## 这次实际怎么做\n\n先把番茄切成约 1cm 小块、打蛋、取好盐再开火。鸡蛋主体刚凝固、表面还有光泽就盛出，不再等边缘全部干透。番茄单独炒到中心一压能散，鸡蛋回锅挂汁后立即关火，没有中途离开锅边。\n\n## 装盘与静置后的结果\n\n从开始洗菜到装盘 19 分钟，不含煮饭和洗锅。我没吃到番茄硬芯；留半盘十分钟后再吃，也没挑出鸡蛋硬边。汁能挂在鸡蛋上，盘底还有少量能流动的汁。\n\n饭后清洗了一口锅、一个打蛋碗和一个盛蛋碗。比自己的 #4 多用三分钟，也多了一次盛蛋和一个碗；这是一次复做结果，还没有在同样条件下连续做过。",
+      "id": "cooking-13",
+      "parentId": "cooking-10",
+      "mergedParentIds": [
+        "cooking-4"
+      ],
+      "images": [
+        {
+          "url": "seed-asset:cooking-graph-avatar.jpg",
+          "alt": "番茄炒蛋成菜示意图 · 非本次行动实拍"
+        },
+        {
+          "url": "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=1200&q=80",
+          "alt": "番茄食材示意图 · 非本次行动实拍"
+        },
+        {
+          "url": "seed-asset:cooking-graph-background.jpg",
+          "alt": "番茄炒蛋装盘示意图 · 非本次行动实拍"
+        },
+        {
+          "url": "seed-asset:cooking-graph-avatar.jpg",
+          "alt": "番茄炒蛋成菜示意图 · 非本次行动实拍"
+        }
+      ],
+      "objectiveMarkdown": "这次承接爸爸家那次 #10，也合入自己十六分钟快做的 #4。回到家里的 24cm 不粘锅、电磁炉，一个人做番茄 400g、鸡蛋 4 个、油 12g、盐 2g，没有加糖。\n\n## 这次实际怎么做\n\n先把番茄切成约 1cm 小块、打蛋、取好盐再开火。鸡蛋主体刚凝固、表面还有光泽就盛出，不再等边缘全部干透。番茄单独炒到中心一压能散，鸡蛋回锅挂汁后立即关火，没有中途离开锅边。\n\n## 装盘与静置后的结果\n\n从开始洗菜到装盘 19 分钟，不含煮饭和洗锅。我没吃到番茄硬芯；留半盘十分钟后再吃，也没挑出鸡蛋硬边。汁能挂在鸡蛋上，盘底还有少量能流动的汁。\n\n饭后清洗了一口锅、一个打蛋碗和一个盛蛋碗。比自己的 #4 多用三分钟，也多了一次盛蛋和一个碗；这是一次复做结果，还没有在同样条件下连续做过。",
+      "expressionMarkdown": "#4 留下了我的十六分钟和硬番茄，#10 留下了换灶后盛蛋太晚的失败。把两次经历放进同一份背景后，这一盘我既没有为赶时间提前结束番茄加热，也没有等鸡蛋边缘全干。\n\n这次十九分钟的结果，对我比十六分钟更值得接受：番茄软、鸡蛋放一会儿还能吃，多洗一个碗也可以接受。它不是比所有分支都好的答案，更不能证明同样做法在别人的锅上必然成立。\n\n现在我愿意表达的厨艺取舍是：先照顾每种食材需要的状态，再讨论这一顿能省下多少时间。这个看法来自几次真的吃过的晚饭，还会随下一次行动变化。",
+      "contextSnapshot": {
+        "directNodeIds": [
+          "cooking-10",
+          "cooking-4"
+        ],
+        "historyNodeCount": 7,
+        "guide": "持续关注做法是否容易复做、时间紧张时是否仍然成立；把个人偏好和实际观察分开记录。"
+      },
+      "conversation": [
+        {
+          "speaker": "user",
+          "body": "今晚接#10，再合入自己#4。回家用24cm锅电磁炉独立做，400g番茄四个蛋12g油2g盐无糖。换设备不满足我#10的约定，要如实记录这点，别拿爸爸家两人17分钟和我的比。",
+          "id": "cooking-13-message-1"
+        },
+        {
+          "speaker": "ai",
+          "body": "这次实际用了两条来源的哪些经验？时间范围、番茄中心、蛋的状态和代价分别如何？",
+          "id": "cooking-13-message-2"
+        },
+        {
+          "speaker": "user",
+          "body": "洗菜到装盘19分钟不含煮饭洗锅。先切1cm块打蛋取盐，蛋主体刚凝还有光泽先盛，没等边全干；番茄压散再回蛋，挂汁就关火，人没离锅。没硬芯，半盘放10分钟没吃到硬边，挂汁且盘底有少量流汁。洗锅和两个碗，只做过这一次。",
+          "id": "cooking-13-message-3"
+        },
+        {
+          "speaker": "ai",
+          "body": "这次行动向后传递的约定，要沿用、修改，还是不设置？",
+          "id": "cooking-13-message-4"
+        },
+        {
+          "speaker": "user",
+          "body": "约定沿用承接节点的有效版本，不做修改。",
+          "id": "cooking-13-message-5"
+        },
+        {
+          "speaker": "ai",
+          "body": "这些实际发生的过程和结果会写进行动记录。表达要沿用、修改，还是清空？",
+          "id": "cooking-13-message-6"
+        },
+        {
+          "speaker": "user",
+          "body": "比自己十六分钟那盘多三分钟多一个碗，我愿意。先照顾食材状态再说省时，不代表比所有分支好，也没有验证别人的锅。\n\n把这些想法整理为本节点的表达。",
+          "id": "cooking-13-message-7"
+        },
+        {
+          "speaker": "ai",
+          "body": "已整理本次行动，并按你的选择写入表达。保留已说明的差异与尚未验证的部分。",
+          "id": "cooking-13-message-8"
+        }
+      ],
+      "graphId": "cooking"
+    },
+    {
+      "number": 14,
+      "authorId": "miao",
+      "title": "把多汁做法和备菜顺序合起来，十八分钟拌上饭",
+      "createdAt": "2026-10-21T18:15:00+08:00",
+      "agreementMarkdown": "引用这次多汁与集中备菜的组合时，请分别说明实际采用了哪些步骤、总用时和食用状态。没有做静置测试就注明未验证，不把十八分钟或多汁偏好当作通用标准。",
+      "referenceAgreements": [
+        {
+          "sourceId": "cooking-11",
+          "complies": true
+        }
+      ],
+      "markdown": "承接自己的多汁版本 #11，并合入十八分钟那次 #7。还是我的 24cm 不粘锅和燃气灶，番茄 400g、鸡蛋 4 个、油 12g、盐 2g，没有加糖。\n\n![番茄食材示意图 · 非本次行动实拍](https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=1200&q=80)\n\n先把番茄切成约 1cm 小块，蛋打好，工具摆齐再开火。按 #11 的状态提前盛蛋；番茄中心软了、汁仍能流动时回蛋，翻匀关火，没有继续收浓。\n\n![番茄炒蛋成菜示意图 · 非本次行动实拍](seed-asset:cooking-graph-avatar.jpg)\n\n从开始洗菜到装盘 18 分钟，不含煮饭和洗锅。刚出锅就拌了半碗饭，我没吃到硬芯或鸡蛋硬边，盘里有明显汤汁。用了一口锅和两个碗。\n\n![番茄炒蛋装盘示意图 · 非本次行动实拍](seed-asset:cooking-graph-background.jpg)\n\n我只吃了热的时候，没有留出静置样本。这一盘比自己的 #11 少用四分钟，但切块也更小，不能把省下的时间全算给提前备齐工具。\n\n![番茄炒蛋成菜示意图 · 非本次行动实拍](seed-asset:cooking-graph-avatar.jpg)\n\n![番茄食材示意图 · 非本次行动实拍](https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=1200&q=80)",
+      "id": "cooking-14",
+      "parentId": "cooking-11",
+      "mergedParentIds": [
+        "cooking-7"
+      ],
+      "images": [
+        {
+          "url": "seed-asset:cooking-graph-avatar.jpg",
+          "alt": "番茄炒蛋成菜示意图 · 非本次行动实拍"
+        },
+        {
+          "url": "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=1200&q=80",
+          "alt": "番茄食材示意图 · 非本次行动实拍"
+        },
+        {
+          "url": "seed-asset:cooking-graph-background.jpg",
+          "alt": "番茄炒蛋装盘示意图 · 非本次行动实拍"
+        },
+        {
+          "url": "seed-asset:cooking-graph-avatar.jpg",
+          "alt": "番茄炒蛋成菜示意图 · 非本次行动实拍"
+        },
+        {
+          "url": "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=1200&q=80",
+          "alt": "番茄食材示意图 · 非本次行动实拍"
+        }
+      ],
+      "objectiveMarkdown": "承接自己的多汁版本 #11，并合入十八分钟那次 #7。还是我的 24cm 不粘锅和燃气灶，番茄 400g、鸡蛋 4 个、油 12g、盐 2g，没有加糖。\n\n![番茄食材示意图 · 非本次行动实拍](https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=1200&q=80)\n\n先把番茄切成约 1cm 小块，蛋打好，工具摆齐再开火。按 #11 的状态提前盛蛋；番茄中心软了、汁仍能流动时回蛋，翻匀关火，没有继续收浓。\n\n![番茄炒蛋成菜示意图 · 非本次行动实拍](seed-asset:cooking-graph-avatar.jpg)\n\n从开始洗菜到装盘 18 分钟，不含煮饭和洗锅。刚出锅就拌了半碗饭，我没吃到硬芯或鸡蛋硬边，盘里有明显汤汁。用了一口锅和两个碗。\n\n![番茄炒蛋装盘示意图 · 非本次行动实拍](seed-asset:cooking-graph-background.jpg)\n\n我只吃了热的时候，没有留出静置样本。这一盘比自己的 #11 少用四分钟，但切块也更小，不能把省下的时间全算给提前备齐工具。\n\n![番茄炒蛋成菜示意图 · 非本次行动实拍](seed-asset:cooking-graph-avatar.jpg)\n\n![番茄食材示意图 · 非本次行动实拍](https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=1200&q=80)",
+      "expressionMarkdown": "#11 留下的是我喜欢的吃法，#7 留下了开火前集中准备的经验。合入以后不是把两份记录拼成一句结论，而是今晚确实同时用了两边的操作。\n\n![番茄炒蛋成菜示意图 · 非本次行动实拍](seed-asset:cooking-graph-avatar.jpg)\n\n我这条路线愿意保留能流动的汁，也接受单独夹菜时偏湿。十八分钟对今晚有效，放凉后的口感却还没有验证；不能因为这次做得快，就把没有做过的静置测试也写成结果。\n\n![番茄炒蛋装盘示意图 · 非本次行动实拍](seed-asset:cooking-graph-background.jpg)\n\n对我来说，练厨艺不是最后所有人做出同一盘。可以借用彼此的动作，再用实际吃饭的方式留下自己的偏好。\n\n![番茄食材示意图 · 非本次行动实拍](https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=1200&q=80)\n\n![番茄炒蛋成菜示意图 · 非本次行动实拍](seed-asset:cooking-graph-avatar.jpg)\n\n![番茄食材示意图 · 非本次行动实拍](https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=1200&q=80)",
+      "contextSnapshot": {
+        "directNodeIds": [
+          "cooking-11",
+          "cooking-7"
+        ],
+        "historyNodeCount": 8,
+        "guide": "持续关注做法是否容易复做、时间紧张时是否仍然成立；把个人偏好和实际观察分开记录。"
+      },
+      "conversation": [
+        {
+          "speaker": "user",
+          "body": "今晚接自己#11，再合入#7的准备顺序。自己24cm锅燃气灶400g番茄四个蛋12g油2g盐无糖。切成1cm小块、打蛋、工具放好，蛋有光泽先出，番茄软且汁流动时回蛋关火。",
+          "id": "cooking-14-message-1"
+        },
+        {
+          "speaker": "ai",
+          "body": "实际用了多久？静置后的口感测试过吗？比之前快是否只改变了备菜顺序？",
+          "id": "cooking-14-message-2"
+        },
+        {
+          "speaker": "user",
+          "body": "洗菜到装盘18分钟，不含饭和洗锅，一锅两碗。热时拌半碗饭没硬芯没硬边，有明显汤汁。没有静置样本。比自己#11快四分钟，但块也切小了，不能只算工具先放好。",
+          "id": "cooking-14-message-3"
+        },
+        {
+          "speaker": "ai",
+          "body": "本次对直接来源约定的核对结果是什么？如不满足，请说明原因。",
+          "id": "cooking-14-message-4"
+        },
+        {
+          "speaker": "user",
+          "body": "#11要求的汁、热时品尝和拌饭吃法都已记录，我确认满足。#7的来源约定还没有核对完，先保留为待核对，不能因为是自己的记录就自动算满足。",
+          "id": "cooking-14-message-5"
+        },
+        {
+          "speaker": "ai",
+          "body": "这次行动向后传递的约定，要沿用、修改，还是不设置？",
+          "id": "cooking-14-message-6"
+        },
+        {
+          "speaker": "user",
+          "body": "本节点的约定设为：\n\n引用这次多汁与集中备菜的组合时，请分别说明实际采用了哪些步骤、总用时和食用状态。没有做静置测试就注明未验证，不把十八分钟或多汁偏好当作通用标准。",
+          "id": "cooking-14-message-7"
+        },
+        {
+          "speaker": "ai",
+          "body": "这些实际发生的过程和结果会写进行动记录。表达要沿用、修改，还是清空？",
+          "id": "cooking-14-message-8"
+        },
+        {
+          "speaker": "user",
+          "body": "我保留多汁偏好，再借另一次的操作，不是把两个结论粘起来。只知道热时好吃，没做的放凉测试不能补写。\n\n把这些想法整理为本节点的表达。",
+          "id": "cooking-14-message-9"
+        },
+        {
+          "speaker": "ai",
+          "body": "已整理本次行动，并按你的选择写入表达。保留已说明的差异与尚未验证的部分。",
+          "id": "cooking-14-message-10"
+        }
+      ],
+      "graphId": "cooking"
+    },
+    {
+      "number": 15,
+      "authorId": "che",
+      "title": "第一次做一人份，先盛蛋后没吃到硬边",
+      "createdAt": "2026-10-19T12:30:00+08:00",
+      "referenceAgreements": [
+        {
+          "sourceId": "cooking-2",
+          "complies": false,
+          "exceptionReason": "午饭做完后直接吃完，没有按来源约定留出十分钟静置样本，只知道热时的口感。"
+        }
+      ],
+      "markdown": "参考林岚的 #2，午饭只做自己的一份：番茄 200g、鸡蛋 2 个、油 6g、盐 1g，不加糖，用 20cm 不粘锅和电磁炉。\n\n鸡蛋表面还有光泽时盛出，番茄炒到能压开后回蛋，翻匀就关火。洗菜到装盘 18 分钟，热着配饭吃，没有吃到硬边，但番茄皮有几片卷起来。\n\n没有留出静置样本。这是缩份量、换锅后的独立尝试，不是对原份量的严格复验。未做 #2 约定的十分钟观察，本次引用不满足来源约定，放凉后的口感仍未知。",
+      "id": "cooking-15",
+      "parentId": "cooking-2",
+      "mergedParentIds": [],
+      "images": [
+        {
+          "url": "seed-asset:cooking-graph-avatar.jpg",
+          "alt": "番茄炒蛋成菜示意图 · 非本次行动实拍"
+        }
+      ],
+      "objectiveMarkdown": "参考林岚的 #2，午饭只做自己的一份：番茄 200g、鸡蛋 2 个、油 6g、盐 1g，不加糖，用 20cm 不粘锅和电磁炉。\n\n鸡蛋表面还有光泽时盛出，番茄炒到能压开后回蛋，翻匀就关火。洗菜到装盘 18 分钟，热着配饭吃，没有吃到硬边，但番茄皮有几片卷起来。\n\n没有留出静置样本。这是缩份量、换锅后的独立尝试，不是对原份量的严格复验。未做 #2 约定的十分钟观察，本次引用不满足来源约定，放凉后的口感仍未知。",
+      "expressionMarkdown": "#2 的先盛蛋让我第一次下锅时有了能照着做的顺序。这次热着吃的口感我能接受，但还不知道放凉后如何。\n\n对我来说，一人食的练习先从真的愿意再做一顿开始，不必第一盘就追求和别人一样。",
+      "contextSnapshot": {
+        "directNodeIds": [
+          "cooking-2"
+        ],
+        "historyNodeCount": 2,
+        "guide": "持续关注做法是否容易复做、时间紧张时是否仍然成立；把个人偏好和实际观察分开记录。"
+      },
+      "conversation": [
+        {
+          "speaker": "user",
+          "body": "照林岚#2做了一人份，200g番茄两个蛋6g油1g盐没糖，用20cm不粘锅电磁炉。蛋有光泽时先盛，番茄能压开后回蛋关火。",
+          "id": "cooking-15-message-1"
+        },
+        {
+          "speaker": "ai",
+          "body": "缩份量和换锅以后，实际吃到什么？有没有留出静置样本？",
+          "id": "cooking-15-message-2"
+        },
+        {
+          "speaker": "user",
+          "body": "洗菜到装盘18分钟，热着吃没硬边，皮有几片卷起。没留静置样本，不算原份量严格复验。",
+          "id": "cooking-15-message-3"
+        },
+        {
+          "speaker": "ai",
+          "body": "本次对直接来源约定的核对结果是什么？如不满足，请说明原因。",
+          "id": "cooking-15-message-4"
+        },
+        {
+          "speaker": "user",
+          "body": "没有做#2约定的十分钟静置，本次引用不满足来源约定。只保留热时结果，不知道放凉后如何。",
+          "id": "cooking-15-message-5"
+        },
+        {
+          "speaker": "ai",
+          "body": "这次行动向后传递的约定，要沿用、修改，还是不设置？",
+          "id": "cooking-15-message-6"
+        },
+        {
+          "speaker": "user",
+          "body": "约定沿用承接节点的有效版本，不做修改。",
+          "id": "cooking-15-message-7"
+        },
+        {
+          "speaker": "ai",
+          "body": "这些实际发生的过程和结果会写进行动记录。表达要沿用、修改，还是清空？",
+          "id": "cooking-15-message-8"
+        },
+        {
+          "speaker": "user",
+          "body": "先做出我愿意再做的一顿，不必第一盘就和别人一样。\n\n把这些想法整理为本节点的表达。",
+          "id": "cooking-15-message-9"
+        },
+        {
+          "speaker": "ai",
+          "body": "已整理本次行动，并按你的选择写入表达。保留已说明的差异与尚未验证的部分。",
+          "id": "cooking-15-message-10"
+        }
+      ],
+      "graphId": "cooking"
+    },
+    {
+      "number": 16,
+      "authorId": "xiaoman",
+      "title": "去皮后炒到挂汁，这一盘吃起来更顺口",
+      "createdAt": "2026-10-21T19:10:00+08:00",
+      "referenceAgreements": [
+        {
+          "sourceId": "cooking-5",
+          "complies": true
+        }
+      ],
+      "markdown": "引用 miao 的 #5，保留先盛蛋、番茄炒软后回蛋的顺序。番茄 400g、鸡蛋 4 个、油 12g、盐 2g，不加糖，用 24cm 不粘锅和燃气灶。\n\n这次把番茄烫过后去皮，切约 1.5cm 小块。炒到能压散、汁略稠后回蛋，挂汁就关火。从洗菜、烧水去皮到装盘 28 分钟，五分钟后吃没有咬到番茄皮，鸡蛋也没有明显硬边。\n\n没有同时做带皮的一盘，只能记录我对这次口感的感受。",
+      "id": "cooking-16",
+      "parentId": "cooking-5",
+      "mergedParentIds": [],
+      "images": [],
+      "objectiveMarkdown": "引用 miao 的 #5，保留先盛蛋、番茄炒软后回蛋的顺序。番茄 400g、鸡蛋 4 个、油 12g、盐 2g，不加糖，用 24cm 不粘锅和燃气灶。\n\n这次把番茄烫过后去皮，切约 1.5cm 小块。炒到能压散、汁略稠后回蛋，挂汁就关火。从洗菜、烧水去皮到装盘 28 分钟，五分钟后吃没有咬到番茄皮，鸡蛋也没有明显硬边。\n\n没有同时做带皮的一盘，只能记录我对这次口感的感受。",
+      "expressionMarkdown": "我沿用 #5 的顺序，又愿意为不吃到番茄皮多花一点准备时间。顺口是我的偏好，不代表每个人都值得花这几分钟。\n\n我想保留的是愿意为哪种口感付出时间，而不只是越来越快。",
+      "contextSnapshot": {
+        "directNodeIds": [
+          "cooking-5"
+        ],
+        "historyNodeCount": 3,
+        "guide": "持续关注做法是否容易复做、时间紧张时是否仍然成立；把个人偏好和实际观察分开记录。"
+      },
+      "conversation": [
+        {
+          "speaker": "user",
+          "body": "照miao#5先盛蛋、番茄炒软再回蛋，这次先烫过去皮。400g番茄四蛋12g油2g盐无糖，24cm锅燃气灶，切1.5cm块。",
+          "id": "cooking-16-message-1"
+        },
+        {
+          "speaker": "ai",
+          "body": "去皮用时算进去了吗？这次的口感和比较条件是什么？",
+          "id": "cooking-16-message-2"
+        },
+        {
+          "speaker": "user",
+          "body": "洗菜烧水去皮到装盘28分钟。炒到能压散、汁略稠回蛋挂汁关火。五分钟后吃没皮也没明显硬边，没有同时做带皮对照。",
+          "id": "cooking-16-message-3"
+        },
+        {
+          "speaker": "ai",
+          "body": "本次对直接来源约定的核对结果是什么？如不满足，请说明原因。",
+          "id": "cooking-16-message-4"
+        },
+        {
+          "speaker": "user",
+          "body": "我确认满足#5的约定：用时包括烧水去皮，盛蛋和回蛋的状态都写了，也没有把口感变化全部归给去皮。",
+          "id": "cooking-16-message-5"
+        },
+        {
+          "speaker": "ai",
+          "body": "这次行动向后传递的约定，要沿用、修改，还是不设置？",
+          "id": "cooking-16-message-6"
+        },
+        {
+          "speaker": "user",
+          "body": "约定沿用承接节点的有效版本，不做修改。",
+          "id": "cooking-16-message-7"
+        },
+        {
+          "speaker": "ai",
+          "body": "这些实际发生的过程和结果会写进行动记录。表达要沿用、修改，还是清空？",
+          "id": "cooking-16-message-8"
+        },
+        {
+          "speaker": "user",
+          "body": "我愿为顺口花准备时间，这是我的取舍，不是人人都该去皮。\n\n把这些想法整理为本节点的表达。",
+          "id": "cooking-16-message-9"
+        },
+        {
+          "speaker": "ai",
+          "body": "已整理本次行动，并按你的选择写入表达。保留已说明的差异与尚未验证的部分。",
+          "id": "cooking-16-message-10"
+        }
+      ],
+      "graphId": "cooking"
+    },
+    {
+      "number": 17,
+      "authorId": "chenhe",
+      "title": "照起点一起炒，吃到半盘时鸡蛋边缘偏硬",
+      "createdAt": "2026-10-16T12:15:00+08:00",
+      "markdown": "第一次参与，按乔的 #1 用番茄 400g、鸡蛋 4 个、油 12g、盐 2g，不加糖。锅是自己的 26cm 不粘锅，使用燃气灶。\n\n鸡蛋炒凝固后没有盛出，倒入约 2cm 的番茄块，炒到番茄中心能压开再装盘。洗菜到装盘 24 分钟，没有记分别加热多久。\n\n边吃边聊，大约十分钟后剩下半盘，鸡蛋边缘对我偏硬，盘底有一些水。我吃完了，没有做另一盘作比较。",
+      "id": "cooking-17",
+      "parentId": "cooking-1",
+      "mergedParentIds": [],
+      "images": [],
+      "objectiveMarkdown": "第一次参与，按乔的 #1 用番茄 400g、鸡蛋 4 个、油 12g、盐 2g，不加糖。锅是自己的 26cm 不粘锅，使用燃气灶。\n\n鸡蛋炒凝固后没有盛出，倒入约 2cm 的番茄块，炒到番茄中心能压开再装盘。洗菜到装盘 24 分钟，没有记分别加热多久。\n\n边吃边聊，大约十分钟后剩下半盘，鸡蛋边缘对我偏硬，盘底有一些水。我吃完了，没有做另一盘作比较。",
+      "expressionMarkdown": "我读过 #1 的结果，还是先照着做了一次，才知道自己说的硬边是什么口感。换了锅灶，记录到相似的感受，也不能证明原因完全相同。\n\n先把一次真实吃过的饭说清楚，比急着给出改进结论更适合我的第一步。",
+      "contextSnapshot": {
+        "directNodeIds": [
+          "cooking-1"
+        ],
+        "historyNodeCount": 1,
+        "guide": "持续关注做法是否容易复做、时间紧张时是否仍然成立；把个人偏好和实际观察分开记录。"
+      },
+      "conversation": [
+        {
+          "speaker": "user",
+          "body": "按乔#1一起炒，400g番茄四蛋12g油2g盐没糖，自己的26cm锅燃气灶。鸡蛋凝固后加2cm番茄，炒到中心能压开。",
+          "id": "cooking-17-message-1"
+        },
+        {
+          "speaker": "ai",
+          "body": "这次用了多久，什么时候吃到什么口感？有做对照吗？",
+          "id": "cooking-17-message-2"
+        },
+        {
+          "speaker": "user",
+          "body": "洗菜到装盘24分钟，没记分别加热多久。边聊边吃十分钟后剩半盘，蛋边偏硬，盘底有水，吃完了，没另一盘。",
+          "id": "cooking-17-message-3"
+        },
+        {
+          "speaker": "ai",
+          "body": "这次行动向后传递的约定，要沿用、修改，还是不设置？",
+          "id": "cooking-17-message-4"
+        },
+        {
+          "speaker": "user",
+          "body": "约定沿用承接节点的有效版本，不做修改。",
+          "id": "cooking-17-message-5"
+        },
+        {
+          "speaker": "ai",
+          "body": "这些实际发生的过程和结果会写进行动记录。表达要沿用、修改，还是清空？",
+          "id": "cooking-17-message-6"
+        },
+        {
+          "speaker": "user",
+          "body": "先照做才知道自己说的硬边是什么。相似感受不证明原因一样，我想先说清真实吃过的饭。\n\n把这些想法整理为本节点的表达。",
+          "id": "cooking-17-message-7"
+        },
+        {
+          "speaker": "ai",
+          "body": "已整理本次行动，并按你的选择写入表达。保留已说明的差异与尚未验证的部分。",
+          "id": "cooking-17-message-8"
+        }
+      ],
+      "graphId": "cooking"
+    },
+    {
+      "number": 18,
+      "authorId": "robin",
+      "title": "鸡蛋先盛出，最后加葱，我喜欢这次的香味",
+      "createdAt": "2026-10-21T19:20:00+08:00",
+      "markdown": "从林岚的 #2 接续，番茄 400g、鸡蛋 4 个、油 12g、盐 2g，另加葱花 3g，不加糖。用 24cm 不粘锅和燃气灶。\n\n鸡蛋大部分凝固后先盛出，番茄炒软再回蛋，翻匀后撒葱关火。洗菜到装盘 22 分钟，刚出锅能闻到葱香，我配饭吃没有吃到明显的鸡蛋硬边。\n\n没有与不放葱的版本并排试吃，也没有测试放凉后的口感。",
+      "id": "cooking-18",
+      "parentId": "cooking-2",
+      "mergedParentIds": [],
+      "images": [
+        {
+          "url": "seed-asset:cooking-graph-background.jpg",
+          "alt": "番茄炒蛋装盘示意图 · 非本次行动实拍"
+        }
+      ],
+      "objectiveMarkdown": "从林岚的 #2 接续，番茄 400g、鸡蛋 4 个、油 12g、盐 2g，另加葱花 3g，不加糖。用 24cm 不粘锅和燃气灶。\n\n鸡蛋大部分凝固后先盛出，番茄炒软再回蛋，翻匀后撒葱关火。洗菜到装盘 22 分钟，刚出锅能闻到葱香，我配饭吃没有吃到明显的鸡蛋硬边。\n\n没有与不放葱的版本并排试吃，也没有测试放凉后的口感。",
+      "expressionMarkdown": "#2 给了我分开加热的顺序，这次我又加了喜欢的葱香。它是我愿意常做的一盘，还不是一份能证明比别人的更好的做法。\n\n接着别人的行动往下做，也可以留下自己的味道。",
+      "contextSnapshot": {
+        "directNodeIds": [
+          "cooking-2"
+        ],
+        "historyNodeCount": 2,
+        "guide": "持续关注做法是否容易复做、时间紧张时是否仍然成立；把个人偏好和实际观察分开记录。"
+      },
+      "conversation": [
+        {
+          "speaker": "user",
+          "body": "接林岚#2先盛蛋，400g番茄四蛋12g油2g盐无糖，24cm不粘锅燃气灶。番茄软后回蛋，最后加3g葱花关火。",
+          "id": "cooking-18-message-1"
+        },
+        {
+          "speaker": "ai",
+          "body": "总用时、实际口感和未验证的部分分别是什么？",
+          "id": "cooking-18-message-2"
+        },
+        {
+          "speaker": "user",
+          "body": "洗菜到装盘22分钟，热着闻到葱香，配饭吃没明显硬边。没做不放葱对照，也没放凉测试。",
+          "id": "cooking-18-message-3"
+        },
+        {
+          "speaker": "ai",
+          "body": "本次对直接来源约定的核对结果是什么？如不满足，请说明原因。",
+          "id": "cooking-18-message-4"
+        },
+        {
+          "speaker": "user",
+          "body": "我还没完成#2来源约定的核对，先不要标成满足，也不要补写没有做的静置测试。",
+          "id": "cooking-18-message-5"
+        },
+        {
+          "speaker": "ai",
+          "body": "这次行动向后传递的约定，要沿用、修改，还是不设置？",
+          "id": "cooking-18-message-6"
+        },
+        {
+          "speaker": "user",
+          "body": "约定沿用承接节点的有效版本，不做修改。",
+          "id": "cooking-18-message-7"
+        },
+        {
+          "speaker": "ai",
+          "body": "这些实际发生的过程和结果会写进行动记录。表达要沿用、修改，还是清空？",
+          "id": "cooking-18-message-8"
+        },
+        {
+          "speaker": "user",
+          "body": "沿用别人的顺序，也能留下自己的味道。但不证明比别人的更好。\n\n把这些想法整理为本节点的表达。",
+          "id": "cooking-18-message-9"
+        },
+        {
+          "speaker": "ai",
+          "body": "已整理本次行动，并按你的选择写入表达。保留已说明的差异与尚未验证的部分。",
+          "id": "cooking-18-message-10"
+        }
+      ],
+      "graphId": "cooking"
+    },
+    {
+      "authorId": "jo",
+      "title": "92kg，第一次把一周吃的东西完整记下来",
+      "markdown": "9 月 28 日晨起空腹称重 92kg，决定开始减肥。先记了七天：工作日午饭常点外卖，奶茶喝了三杯，前三天晚饭只吃生菜和鸡蛋，其中两晚九点又点了炒饭。\n\n后四天晚饭恢复半碗米饭、肉和蔬菜，饭后沿筼筜湖走了三次，每次约 30 分钟。七天都在晨起空腹称重，平均 91.8kg。还没做到每餐都称食材，先保留实际吃了什么。",
+      "expressionMarkdown": "我是从 92kg 开始减肥的。第一周记下来才发现，我以为自己晚饭吃得很少，却没把九点的炒饭和下午的奶茶算进去。先把这些照实记全，再决定下一周改哪里。",
+      "agreementMarkdown": "接着聊减肥，请说明自己的起始体重和记录时间，带上一周实际吃的饭、饮料、夜宵及活动。体重尽量在同样条件下测量，不拿某一天的下降替代整周记录。",
+      "createdAt": "2026-10-04T21:40:00+08:00",
+      "id": "weight-1",
+      "number": 1,
+      "objectiveMarkdown": "9 月 28 日晨起空腹称重 92kg，决定开始减肥。先记了七天：工作日午饭常点外卖，奶茶喝了三杯，前三天晚饭只吃生菜和鸡蛋，其中两晚九点又点了炒饭。\n\n后四天晚饭恢复半碗米饭、肉和蔬菜，饭后沿筼筜湖走了三次，每次约 30 分钟。七天都在晨起空腹称重，平均 91.8kg。还没做到每餐都称食材，先保留实际吃了什么。",
+      "referenceAgreements": [],
+      "images": [],
+      "contextSnapshot": {
+        "directNodeIds": [],
+        "historyNodeCount": 0
+      },
+      "conversation": [
+        {
+          "id": "weight-1-user",
+          "speaker": "user",
+          "body": "9 月 28 日晨起空腹称重 92kg，决定开始减肥。先记了七天：工作日午饭常点外卖，奶茶喝了三杯，前三天晚饭只吃生菜和鸡蛋，其中两晚九点又点了炒饭。\n\n后四天晚饭恢复半碗米饭、肉和蔬菜，饭后沿筼筜湖走了三次，每次约 30 分钟。七天都在晨起空腹称重，平均 91.8kg。还没做到每餐都称食材，先保留实际吃了什么。\n\n我想留下的表达：\n我是从 92kg 开始减肥的。第一周记下来才发现，我以为自己晚饭吃得很少，却没把九点的炒饭和下午的奶茶算进去。先把这些照实记全，再决定下一周改哪里。\n\n后续约定：\n接着聊减肥，请说明自己的起始体重和记录时间，带上一周实际吃的饭、饮料、夜宵及活动。体重尽量在同样条件下测量，不拿某一天的下降替代整周记录。"
+        },
+        {
+          "id": "weight-1-ai",
+          "speaker": "ai",
+          "body": "行动保留你提供的具体经历，表达按你的取舍整理，不扩大成普遍结论。后续约定使用你这次提供的版本。"
+        }
+      ],
+      "graphId": "weight"
+    },
+    {
+      "authorId": "lin",
+      "title": "晚饭恢复主食，记录了七天的饥饿感",
+      "markdown": "接着乔的记录，我也从自己的 64kg 起点往回看。这次记录 10 月 9 日到 15 日：晚饭都有米饭、肉或豆腐和蔬菜，两晚加了无糖酸奶，没有点夜宵，也没有喝奶茶；饭后走了四次，每次 25 分钟。\n\n同样在晨起空腹时称重，这周平均 62.3kg，上周 62.4kg。前两晚仍有点饿，后五晚没有再加餐。这周还比平时早睡了半小时，暂时分不清各自的影响。",
+      "expressionMarkdown": "我从 64kg 减到现在，最容易漏记的也是晚上多吃的那一点。这七天把主食留在晚饭里、把酸奶也记进去，终于不用靠回忆猜自己吃了多少。",
+      "agreementMarkdown": "聊减肥请带上起始体重、持续多久，以及最近一周的饭、饮料、加餐和运动；比较体重用同样条件下的七天平均。可以交流怎么坚持，不把自己的食量直接当作对方的食谱。",
+      "createdAt": "2026-10-15T20:30:00+08:00",
+      "id": "weight-2",
+      "number": 2,
+      "parentId": "weight-1",
+      "objectiveMarkdown": "接着乔的记录，我也从自己的 64kg 起点往回看。这次记录 10 月 9 日到 15 日：晚饭都有米饭、肉或豆腐和蔬菜，两晚加了无糖酸奶，没有点夜宵，也没有喝奶茶；饭后走了四次，每次 25 分钟。\n\n同样在晨起空腹时称重，这周平均 62.3kg，上周 62.4kg。前两晚仍有点饿，后五晚没有再加餐。这周还比平时早睡了半小时，暂时分不清各自的影响。",
+      "referenceAgreements": [
+        {
+          "sourceId": "weight-1",
+          "complies": true
+        }
+      ],
+      "images": [],
+      "contextSnapshot": {
+        "directNodeIds": [
+          "weight-1"
+        ],
+        "historyNodeCount": 1
+      },
+      "conversation": [
+        {
+          "id": "weight-2-user",
+          "speaker": "user",
+          "body": "接着乔的记录，我也从自己的 64kg 起点往回看。这次记录 10 月 9 日到 15 日：晚饭都有米饭、肉或豆腐和蔬菜，两晚加了无糖酸奶，没有点夜宵，也没有喝奶茶；饭后走了四次，每次 25 分钟。\n\n同样在晨起空腹时称重，这周平均 62.3kg，上周 62.4kg。前两晚仍有点饿，后五晚没有再加餐。这周还比平时早睡了半小时，暂时分不清各自的影响。\n\n我想留下的表达：\n我从 64kg 减到现在，最容易漏记的也是晚上多吃的那一点。这七天把主食留在晚饭里、把酸奶也记进去，终于不用靠回忆猜自己吃了多少。\n\n后续约定：\n聊减肥请带上起始体重、持续多久，以及最近一周的饭、饮料、加餐和运动；比较体重用同样条件下的七天平均。可以交流怎么坚持，不把自己的食量直接当作对方的食谱。\n本次引用已按直接来源的约定核对，记录为满足。"
+        },
+        {
+          "id": "weight-2-ai",
+          "speaker": "ai",
+          "body": "行动保留你提供的具体经历，表达按你的取舍整理，不扩大成普遍结论。后续约定使用你这次提供的版本。本次对来源约定的核对与向后传递的约定分别保留。"
+        }
+      ],
+      "graphId": "weight"
+    },
+    {
+      "authorId": "jo",
+      "title": "从92kg开始的第四周：周均90.9kg，七天没点夜宵",
+      "markdown": "9 月 28 日从 92kg 开始减肥，到今天接近四周。接着林岚的方法，把 10 月 18 日到 24 日吃的东西记全：七顿晚饭都有一小碗米饭、鸡肉或豆腐和蔬菜，周三睡前加了一杯无糖酸奶，没有点夜宵；下午的奶茶换成了无糖茶。\n\n工作日饭后沿筼筜湖走了四次，每次约半小时，周六从厦门骑到了漳州。都在晨起空腹称重，最近七天平均 90.9kg，上周是 91.2kg。这次称重发生在周六骑行之前，不把一趟骑车后的体重变化当作减脂结果。",
+      "expressionMarkdown": "**我是从 92kg 开始减肥的，现在第四周，最近七天平均 90.9kg。**\n\n这周做的是晚饭照常吃米饭、下午不买奶茶，饭后去筼筜湖走半小时，七天没点夜宵。还想继续往下减，也想找同样从大体重开始的人，互相看看这一周到底吃了什么、动了多少，哪些办法真的能留下来。",
+      "createdAt": "2026-10-24T20:10:00+08:00",
+      "id": "weight-3",
+      "number": 3,
+      "parentId": "weight-2",
+      "objectiveMarkdown": "9 月 28 日从 92kg 开始减肥，到今天接近四周。接着林岚的方法，把 10 月 18 日到 24 日吃的东西记全：七顿晚饭都有一小碗米饭、鸡肉或豆腐和蔬菜，周三睡前加了一杯无糖酸奶，没有点夜宵；下午的奶茶换成了无糖茶。\n\n工作日饭后沿筼筜湖走了四次，每次约半小时，周六从厦门骑到了漳州。都在晨起空腹称重，最近七天平均 90.9kg，上周是 91.2kg。这次称重发生在周六骑行之前，不把一趟骑车后的体重变化当作减脂结果。",
+      "referenceAgreements": [
+        {
+          "sourceId": "weight-2",
+          "complies": true
+        }
+      ],
+      "images": [
+        {
+          "url": "seed-asset:demo-weight-meal.jpg",
+          "alt": "蔬菜与蛋白质搭配的一餐 · 演示配图"
+        }
+      ],
+      "contextSnapshot": {
+        "directNodeIds": [
+          "weight-2"
+        ],
+        "historyNodeCount": 2
+      },
+      "conversation": [
+        {
+          "id": "weight-3-user",
+          "speaker": "user",
+          "body": "9 月 28 日从 92kg 开始减肥，到今天接近四周。接着林岚的方法，把 10 月 18 日到 24 日吃的东西记全：七顿晚饭都有一小碗米饭、鸡肉或豆腐和蔬菜，周三睡前加了一杯无糖酸奶，没有点夜宵；下午的奶茶换成了无糖茶。\n\n工作日饭后沿筼筜湖走了四次，每次约半小时，周六从厦门骑到了漳州。都在晨起空腹称重，最近七天平均 90.9kg，上周是 91.2kg。这次称重发生在周六骑行之前，不把一趟骑车后的体重变化当作减脂结果。\n\n我想留下的表达：\n**我是从 92kg 开始减肥的，现在第四周，最近七天平均 90.9kg。**\n\n这周做的是晚饭照常吃米饭、下午不买奶茶，饭后去筼筜湖走半小时，七天没点夜宵。还想继续往下减，也想找同样从大体重开始的人，互相看看这一周到底吃了什么、动了多少，哪些办法真的能留下来。\n\n后续约定沿用承接来源，不另写一份。\n本次引用已按直接来源的约定核对，记录为满足。"
+        },
+        {
+          "id": "weight-3-ai",
+          "speaker": "ai",
+          "body": "行动保留你提供的具体经历，表达按你的取舍整理，不扩大成普遍结论。后续约定沿承接来源继承。本次对来源约定的核对与向后传递的约定分别保留。"
+        }
+      ],
+      "graphId": "weight"
+    },
+    {
+      "authorId": "jo",
+      "title": "从集美骑到杏林再折返，32公里后开始惦记漳州",
+      "markdown": "周末从厦门集美学村出发，沿杏林湾骑到杏林一带再折返，共 32 公里，爬升约 110 米，移动时间一个半小时。只顾看自己的速度，三次过路口后才发现朋友没跟上，又停下来等。\n\n吃早饭时聊起想从厦门骑去漳州，但朋友说今天后半程已经很吃力。我们还没有准备跨城路线，也没说好补给和怎么回来，暂时没约出发时间。",
+      "expressionMarkdown": "绕完杏林湾，我开始想从厦门骑到漳州，看看平时坐车经过的地方。但今天 32 公里就把同伴骑落下了，下一次先把一起骑的节奏试好，再把路拉长。",
+      "agreementMarkdown": "聊路线请说明起终点、途经点、距离、爬升、骑行时间和补给；结伴骑也写下同伴能否跟上。约跨城路线时，先说清怎么回来、谁累了怎么办。",
+      "createdAt": "2026-10-05T11:20:00+08:00",
+      "id": "cycling-1",
+      "number": 1,
+      "objectiveMarkdown": "周末从厦门集美学村出发，沿杏林湾骑到杏林一带再折返，共 32 公里，爬升约 110 米，移动时间一个半小时。只顾看自己的速度，三次过路口后才发现朋友没跟上，又停下来等。\n\n吃早饭时聊起想从厦门骑去漳州，但朋友说今天后半程已经很吃力。我们还没有准备跨城路线，也没说好补给和怎么回来，暂时没约出发时间。",
+      "referenceAgreements": [],
+      "images": [],
+      "contextSnapshot": {
+        "directNodeIds": [],
+        "historyNodeCount": 0
+      },
+      "conversation": [
+        {
+          "id": "cycling-1-user",
+          "speaker": "user",
+          "body": "周末从厦门集美学村出发，沿杏林湾骑到杏林一带再折返，共 32 公里，爬升约 110 米，移动时间一个半小时。只顾看自己的速度，三次过路口后才发现朋友没跟上，又停下来等。\n\n吃早饭时聊起想从厦门骑去漳州，但朋友说今天后半程已经很吃力。我们还没有准备跨城路线，也没说好补给和怎么回来，暂时没约出发时间。\n\n我想留下的表达：\n绕完杏林湾，我开始想从厦门骑到漳州，看看平时坐车经过的地方。但今天 32 公里就把同伴骑落下了，下一次先把一起骑的节奏试好，再把路拉长。\n\n后续约定：\n聊路线请说明起终点、途经点、距离、爬升、骑行时间和补给；结伴骑也写下同伴能否跟上。约跨城路线时，先说清怎么回来、谁累了怎么办。"
+        },
+        {
+          "id": "cycling-1-ai",
+          "speaker": "ai",
+          "body": "行动保留你提供的具体经历，表达按你的取舍整理，不扩大成普遍结论。后续约定使用你这次提供的版本。"
+        }
+      ],
+      "graphId": "cycling"
+    },
+    {
+      "authorId": "miao",
+      "title": "集美到灌口往返38公里，试了路口等齐和分段补水",
+      "markdown": "接着乔的记录，从集美学村经杏林往灌口骑，再原路返回，实际 38 公里，爬升约 100 米。两个人出发前约定路口等齐，移动时间 2 小时 12 分，途中两次买水休息共 30 分钟，回程不临时加线。\n\n带了两瓶水和一个饭团，灌口补了一次水。同行的人最后五公里腿酸，一起降速骑回起点。如果以后骑到漳州，我们打算只骑单程，提前安排车辆接回，累了就结束这趟。",
+      "expressionMarkdown": "骑到灌口以后，漳州不再只是地图上一个很远的名字。先把 38 公里里的喝水、等人和返程试过一遍，我才觉得可以认真准备下一段路。",
+      "agreementMarkdown": "约骑或交流跨城记录，请给起终点、途经点、距离、爬升、移动与休息时间、补给和返程安排。岔路口等齐再走，累了可缩短或结束，改线先商量，不拿均速催同伴。",
+      "createdAt": "2026-10-17T11:00:00+08:00",
+      "id": "cycling-2",
+      "number": 2,
+      "parentId": "cycling-1",
+      "objectiveMarkdown": "接着乔的记录，从集美学村经杏林往灌口骑，再原路返回，实际 38 公里，爬升约 100 米。两个人出发前约定路口等齐，移动时间 2 小时 12 分，途中两次买水休息共 30 分钟，回程不临时加线。\n\n带了两瓶水和一个饭团，灌口补了一次水。同行的人最后五公里腿酸，一起降速骑回起点。如果以后骑到漳州，我们打算只骑单程，提前安排车辆接回，累了就结束这趟。",
+      "referenceAgreements": [
+        {
+          "sourceId": "cycling-1",
+          "complies": true
+        }
+      ],
+      "images": [],
+      "contextSnapshot": {
+        "directNodeIds": [
+          "cycling-1"
+        ],
+        "historyNodeCount": 1
+      },
+      "conversation": [
+        {
+          "id": "cycling-2-user",
+          "speaker": "user",
+          "body": "接着乔的记录，从集美学村经杏林往灌口骑，再原路返回，实际 38 公里，爬升约 100 米。两个人出发前约定路口等齐，移动时间 2 小时 12 分，途中两次买水休息共 30 分钟，回程不临时加线。\n\n带了两瓶水和一个饭团，灌口补了一次水。同行的人最后五公里腿酸，一起降速骑回起点。如果以后骑到漳州，我们打算只骑单程，提前安排车辆接回，累了就结束这趟。\n\n我想留下的表达：\n骑到灌口以后，漳州不再只是地图上一个很远的名字。先把 38 公里里的喝水、等人和返程试过一遍，我才觉得可以认真准备下一段路。\n\n后续约定：\n约骑或交流跨城记录，请给起终点、途经点、距离、爬升、移动与休息时间、补给和返程安排。岔路口等齐再走，累了可缩短或结束，改线先商量，不拿均速催同伴。\n本次引用已按直接来源的约定核对，记录为满足。"
+        },
+        {
+          "id": "cycling-2-ai",
+          "speaker": "ai",
+          "body": "行动保留你提供的具体经历，表达按你的取舍整理，不扩大成普遍结论。后续约定使用你这次提供的版本。本次对来源约定的核对与向后传递的约定分别保留。"
+        }
+      ],
+      "graphId": "cycling"
+    },
+    {
+      "authorId": "jo",
+      "title": "从厦门集美骑到漳州古城，74.6公里，午饭吃上了卤面",
+      "markdown": "周六 7:00 和朋友从厦门集美学村出发，经杏林、灌口、角美、龙文，12:45 到漳州古城附近。码表记录 74.6 公里、爬升约 260 米，移动时间 4 小时 38 分，停车休息共 1 小时 7 分。\n\n提前按 miao 的约定说好路口等齐、只骑单程，朋友开车接我们和自行车回厦门。灌口买水，角美吃饭团、再补水；过角美后有一段逆风，朋友腿酸，我们把速度降下来，到龙文又停了一次。到古城后坐下来吃了卤面，没有再加绕行。",
+      "expressionMarkdown": "**我从厦门集美骑到了漳州古城，74.6 公里，中午终于坐下来吃上卤面。**\n\n经过灌口、角美，再看见漳州的街道，才觉得两座城市真的被自己一段段骑起来了。逆风那段慢下来、路口等齐，比最后的均速更让我记得。如果你也在厦门，想找不赶路、会等人的骑友，可以从短一点的路线一起试。",
+      "createdAt": "2026-10-24T15:30:00+08:00",
+      "id": "cycling-3",
+      "number": 3,
+      "parentId": "cycling-2",
+      "objectiveMarkdown": "周六 7:00 和朋友从厦门集美学村出发，经杏林、灌口、角美、龙文，12:45 到漳州古城附近。码表记录 74.6 公里、爬升约 260 米，移动时间 4 小时 38 分，停车休息共 1 小时 7 分。\n\n提前按 miao 的约定说好路口等齐、只骑单程，朋友开车接我们和自行车回厦门。灌口买水，角美吃饭团、再补水；过角美后有一段逆风，朋友腿酸，我们把速度降下来，到龙文又停了一次。到古城后坐下来吃了卤面，没有再加绕行。",
+      "referenceAgreements": [
+        {
+          "sourceId": "cycling-2",
+          "complies": true
+        }
+      ],
+      "images": [
+        {
+          "url": "seed-asset:demo-cycling.jpg",
+          "alt": "骑友结伴骑行 · 演示配图"
+        }
+      ],
+      "contextSnapshot": {
+        "directNodeIds": [
+          "cycling-2"
+        ],
+        "historyNodeCount": 2
+      },
+      "conversation": [
+        {
+          "id": "cycling-3-user",
+          "speaker": "user",
+          "body": "周六 7:00 和朋友从厦门集美学村出发，经杏林、灌口、角美、龙文，12:45 到漳州古城附近。码表记录 74.6 公里、爬升约 260 米，移动时间 4 小时 38 分，停车休息共 1 小时 7 分。\n\n提前按 miao 的约定说好路口等齐、只骑单程，朋友开车接我们和自行车回厦门。灌口买水，角美吃饭团、再补水；过角美后有一段逆风，朋友腿酸，我们把速度降下来，到龙文又停了一次。到古城后坐下来吃了卤面，没有再加绕行。\n\n我想留下的表达：\n**我从厦门集美骑到了漳州古城，74.6 公里，中午终于坐下来吃上卤面。**\n\n经过灌口、角美，再看见漳州的街道，才觉得两座城市真的被自己一段段骑起来了。逆风那段慢下来、路口等齐，比最后的均速更让我记得。如果你也在厦门，想找不赶路、会等人的骑友，可以从短一点的路线一起试。\n\n后续约定沿用承接来源，不另写一份。\n本次引用已按直接来源的约定核对，记录为满足。"
+        },
+        {
+          "id": "cycling-3-ai",
+          "speaker": "ai",
+          "body": "行动保留你提供的具体经历，表达按你的取舍整理，不扩大成普遍结论。后续约定沿承接来源继承。本次对来源约定的核对与向后传递的约定分别保留。"
+        }
+      ],
+      "graphId": "cycling"
+    },
+    {
+      "authorId": "jo",
+      "title": "下班绕去沙坡尾，拍了18张，水面清楚、人却糊了",
+      "markdown": "下班带相机去厦门沙坡尾，沿避风坞走到大学路。雨后天阴，想把老楼在水里的倒影和岸边经过的人拍在一起。50mm、f/2.8、1/60 秒、ISO 800，共拍 18 张。\n\n回家发现水面还清楚，多数行人却拖影了。只留下一张没有行人的水面，后期提亮曝光，没有裁切。下次想再去试一次快一点的快门。",
+      "expressionMarkdown": "沙坡尾以前我也去过，今天拿着相机才注意到人走过去时会把水里的老楼打碎。18 张里没留住想要的那一瞬间，我想换个快门再去，而不是马上换一个拍照地点。",
+      "agreementMarkdown": "交流走拍请说明厦门的具体地点、时段、光线、焦段和后期改动；比较拍法时也说说没拍好的地方。拍到可识别的人，不把对方的私人经历编进照片说明。",
+      "createdAt": "2026-10-08T19:15:00+08:00",
+      "id": "photography-1",
+      "number": 1,
+      "objectiveMarkdown": "下班带相机去厦门沙坡尾，沿避风坞走到大学路。雨后天阴，想把老楼在水里的倒影和岸边经过的人拍在一起。50mm、f/2.8、1/60 秒、ISO 800，共拍 18 张。\n\n回家发现水面还清楚，多数行人却拖影了。只留下一张没有行人的水面，后期提亮曝光，没有裁切。下次想再去试一次快一点的快门。",
+      "referenceAgreements": [],
+      "images": [],
+      "contextSnapshot": {
+        "directNodeIds": [],
+        "historyNodeCount": 0
+      },
+      "conversation": [
+        {
+          "id": "photography-1-user",
+          "speaker": "user",
+          "body": "下班带相机去厦门沙坡尾，沿避风坞走到大学路。雨后天阴，想把老楼在水里的倒影和岸边经过的人拍在一起。50mm、f/2.8、1/60 秒、ISO 800，共拍 18 张。\n\n回家发现水面还清楚，多数行人却拖影了。只留下一张没有行人的水面，后期提亮曝光，没有裁切。下次想再去试一次快一点的快门。\n\n我想留下的表达：\n沙坡尾以前我也去过，今天拿着相机才注意到人走过去时会把水里的老楼打碎。18 张里没留住想要的那一瞬间，我想换个快门再去，而不是马上换一个拍照地点。\n\n后续约定：\n交流走拍请说明厦门的具体地点、时段、光线、焦段和后期改动；比较拍法时也说说没拍好的地方。拍到可识别的人，不把对方的私人经历编进照片说明。"
+        },
+        {
+          "id": "photography-1-ai",
+          "speaker": "ai",
+          "body": "行动保留你提供的具体经历，表达按你的取舍整理，不扩大成普遍结论。后续约定使用你这次提供的版本。"
+        }
+      ],
+      "graphId": "photography"
+    },
+    {
+      "authorId": "lin",
+      "title": "去八市拍收摊，1/250秒留住了搬筐的动作",
+      "markdown": "看了乔在沙坡尾的尝试，傍晚去厦门八市，从开禾路走到担水巷。阴天，用 50mm、f/2.8、1/250 秒、ISO 1600 拍了 24 张，留了三张搬筐和清洗摊位的画面，没有给人物编配故事。\n\n另留一张对焦落到背景招牌上的失败样片。后期统一提亮约半档，没有移除路人；动作拖影少了，暗处噪点明显，狭窄街道里也常被别人的肩膀挡住画面。",
+      "expressionMarkdown": "八市收摊时，有人搬筐、有人冲水，比我站在街口拍一张全景更吸引我。提高快门解决了一部分拖影，但要留下一个完整动作，还是得在这里多等一会儿。",
+      "agreementMarkdown": "交流厦门走拍，带上地点、时段、光线、焦段和后期，说明为什么选这张及哪些没拍成。可以约一起走一段，不强求同款器材，也不给照片里的人编故事。",
+      "createdAt": "2026-10-18T19:40:00+08:00",
+      "id": "photography-2",
+      "number": 2,
+      "parentId": "photography-1",
+      "objectiveMarkdown": "看了乔在沙坡尾的尝试，傍晚去厦门八市，从开禾路走到担水巷。阴天，用 50mm、f/2.8、1/250 秒、ISO 1600 拍了 24 张，留了三张搬筐和清洗摊位的画面，没有给人物编配故事。\n\n另留一张对焦落到背景招牌上的失败样片。后期统一提亮约半档，没有移除路人；动作拖影少了，暗处噪点明显，狭窄街道里也常被别人的肩膀挡住画面。",
+      "referenceAgreements": [
+        {
+          "sourceId": "photography-1",
+          "complies": true
+        }
+      ],
+      "images": [],
+      "contextSnapshot": {
+        "directNodeIds": [
+          "photography-1"
+        ],
+        "historyNodeCount": 1
+      },
+      "conversation": [
+        {
+          "id": "photography-2-user",
+          "speaker": "user",
+          "body": "看了乔在沙坡尾的尝试，傍晚去厦门八市，从开禾路走到担水巷。阴天，用 50mm、f/2.8、1/250 秒、ISO 1600 拍了 24 张，留了三张搬筐和清洗摊位的画面，没有给人物编配故事。\n\n另留一张对焦落到背景招牌上的失败样片。后期统一提亮约半档，没有移除路人；动作拖影少了，暗处噪点明显，狭窄街道里也常被别人的肩膀挡住画面。\n\n我想留下的表达：\n八市收摊时，有人搬筐、有人冲水，比我站在街口拍一张全景更吸引我。提高快门解决了一部分拖影，但要留下一个完整动作，还是得在这里多等一会儿。\n\n后续约定：\n交流厦门走拍，带上地点、时段、光线、焦段和后期，说明为什么选这张及哪些没拍成。可以约一起走一段，不强求同款器材，也不给照片里的人编故事。\n本次引用已按直接来源的约定核对，记录为满足。"
+        },
+        {
+          "id": "photography-2-ai",
+          "speaker": "ai",
+          "body": "行动保留你提供的具体经历，表达按你的取舍整理，不扩大成普遍结论。后续约定使用你这次提供的版本。本次对来源约定的核对与向后传递的约定分别保留。"
+        }
+      ],
+      "graphId": "photography"
+    },
+    {
+      "authorId": "jo",
+      "title": "这一周在厦门拍了三个地方：沙坡尾、八市、环岛路",
+      "markdown": "这周带同一支 50mm 镜头在厦门走拍了三次：周二傍晚去沙坡尾拍避风坞和老楼；周四到八市拍收摊；周五沿环岛路走到黄厝，拍退潮的沙滩和散步的人。共 126 张，初选 21 张，最后留九张。\n\n沙坡尾阴天用 f/2.8、1/250 秒、ISO 1600，八市入夜后把 ISO 提到 3200；黄厝日落前用 f/4、1/500 秒、ISO 400。延续林岚的做法，后期只调整曝光和白平衡，没有移除人或替换天空。\n\n八市最热闹的一张被路人肩膀挡住，没选；黄厝有两张地平线歪了，也没选。最后最喜欢沙坡尾那张水面、老楼和岸边行人刚好错开的画面，没有替画面里的人猜测身份或心情。",
+      "expressionMarkdown": "**我喜欢带着相机在厦门到处拍：这周走了沙坡尾、八市和环岛路，126 张里留下九张。**\n\n拍过避风坞的老楼倒影、收摊时的街道，也在黄厝等过日落。现在更想反复走这些地方，看同一条街换个时段会发生什么。如果你也在厦门拍照，可以约着走一段，回来各选三张，聊聊为什么留下它们。",
+      "createdAt": "2026-10-23T19:50:00+08:00",
+      "id": "photography-3",
+      "number": 3,
+      "parentId": "photography-2",
+      "objectiveMarkdown": "这周带同一支 50mm 镜头在厦门走拍了三次：周二傍晚去沙坡尾拍避风坞和老楼；周四到八市拍收摊；周五沿环岛路走到黄厝，拍退潮的沙滩和散步的人。共 126 张，初选 21 张，最后留九张。\n\n沙坡尾阴天用 f/2.8、1/250 秒、ISO 1600，八市入夜后把 ISO 提到 3200；黄厝日落前用 f/4、1/500 秒、ISO 400。延续林岚的做法，后期只调整曝光和白平衡，没有移除人或替换天空。\n\n八市最热闹的一张被路人肩膀挡住，没选；黄厝有两张地平线歪了，也没选。最后最喜欢沙坡尾那张水面、老楼和岸边行人刚好错开的画面，没有替画面里的人猜测身份或心情。",
+      "referenceAgreements": [
+        {
+          "sourceId": "photography-2",
+          "complies": true
+        }
+      ],
+      "images": [
+        {
+          "url": "seed-asset:demo-street-photo.jpg",
+          "alt": "厦门沙坡尾避风坞 · 演示配图"
+        }
+      ],
+      "contextSnapshot": {
+        "directNodeIds": [
+          "photography-2"
+        ],
+        "historyNodeCount": 2
+      },
+      "conversation": [
+        {
+          "id": "photography-3-user",
+          "speaker": "user",
+          "body": "这周带同一支 50mm 镜头在厦门走拍了三次：周二傍晚去沙坡尾拍避风坞和老楼；周四到八市拍收摊；周五沿环岛路走到黄厝，拍退潮的沙滩和散步的人。共 126 张，初选 21 张，最后留九张。\n\n沙坡尾阴天用 f/2.8、1/250 秒、ISO 1600，八市入夜后把 ISO 提到 3200；黄厝日落前用 f/4、1/500 秒、ISO 400。延续林岚的做法，后期只调整曝光和白平衡，没有移除人或替换天空。\n\n八市最热闹的一张被路人肩膀挡住，没选；黄厝有两张地平线歪了，也没选。最后最喜欢沙坡尾那张水面、老楼和岸边行人刚好错开的画面，没有替画面里的人猜测身份或心情。\n\n我想留下的表达：\n**我喜欢带着相机在厦门到处拍：这周走了沙坡尾、八市和环岛路，126 张里留下九张。**\n\n拍过避风坞的老楼倒影、收摊时的街道，也在黄厝等过日落。现在更想反复走这些地方，看同一条街换个时段会发生什么。如果你也在厦门拍照，可以约着走一段，回来各选三张，聊聊为什么留下它们。\n\n后续约定沿用承接来源，不另写一份。\n本次引用已按直接来源的约定核对，记录为满足。"
+        },
+        {
+          "id": "photography-3-ai",
+          "speaker": "ai",
+          "body": "行动保留你提供的具体经历，表达按你的取舍整理，不扩大成普遍结论。后续约定沿承接来源继承。本次对来源约定的核对与向后传递的约定分别保留。"
+        }
+      ],
+      "graphId": "photography"
+    },
+    {
+      "authorId": "jo",
+      "title": "第一次四人伯明翰：厂建好了，卖货时才发现没有啤酒",
+      "markdown": "四个人开《工业革命：伯明翰》，我和另一位是第一次玩。讲规则约 40 分钟，打完运河、铁路两个时代一共四小时。我在铁路时代先建了两座棉纺厂，准备卖货才发现可用的啤酒已经被用完，不得不另花一次行动建酒厂。\n\n最后 118 分，排第四。前半局总想把煤矿、酒厂和线路都自己包办，后半局才开始问哪些资源能借别人的。收桌时拍下了终盘和记分表，没把这一局当成某条路线必然不行的证据。",
+      "expressionMarkdown": "伯明翰第一局，我对着建好的厂等不到酒，才明白自己只是把规则听过了，还没把建造和卖货连起来。下次想在动手建厂前，先沿着棋盘看一遍煤和酒从哪里来。",
+      "agreementMarkdown": "聊伯明翰复盘，请说明人数、大家玩过几局、运河还是铁路时代，以及相关连线和煤铁酒来源；最好带终盘或记分记录。给别人建议前先问，不只凭总分断言某种打法强弱。",
+      "createdAt": "2026-10-06T22:15:00+08:00",
+      "id": "board-games-1",
+      "number": 1,
+      "objectiveMarkdown": "四个人开《工业革命：伯明翰》，我和另一位是第一次玩。讲规则约 40 分钟，打完运河、铁路两个时代一共四小时。我在铁路时代先建了两座棉纺厂，准备卖货才发现可用的啤酒已经被用完，不得不另花一次行动建酒厂。\n\n最后 118 分，排第四。前半局总想把煤矿、酒厂和线路都自己包办，后半局才开始问哪些资源能借别人的。收桌时拍下了终盘和记分表，没把这一局当成某条路线必然不行的证据。",
+      "referenceAgreements": [],
+      "images": [],
+      "contextSnapshot": {
+        "directNodeIds": [],
+        "historyNodeCount": 0
+      },
+      "conversation": [
+        {
+          "id": "board-games-1-user",
+          "speaker": "user",
+          "body": "四个人开《工业革命：伯明翰》，我和另一位是第一次玩。讲规则约 40 分钟，打完运河、铁路两个时代一共四小时。我在铁路时代先建了两座棉纺厂，准备卖货才发现可用的啤酒已经被用完，不得不另花一次行动建酒厂。\n\n最后 118 分，排第四。前半局总想把煤矿、酒厂和线路都自己包办，后半局才开始问哪些资源能借别人的。收桌时拍下了终盘和记分表，没把这一局当成某条路线必然不行的证据。\n\n我想留下的表达：\n伯明翰第一局，我对着建好的厂等不到酒，才明白自己只是把规则听过了，还没把建造和卖货连起来。下次想在动手建厂前，先沿着棋盘看一遍煤和酒从哪里来。\n\n后续约定：\n聊伯明翰复盘，请说明人数、大家玩过几局、运河还是铁路时代，以及相关连线和煤铁酒来源；最好带终盘或记分记录。给别人建议前先问，不只凭总分断言某种打法强弱。"
+        },
+        {
+          "id": "board-games-1-ai",
+          "speaker": "ai",
+          "body": "行动保留你提供的具体经历，表达按你的取舍整理，不扩大成普遍结论。后续约定使用你这次提供的版本。"
+        }
+      ],
+      "graphId": "board-games"
+    },
+    {
+      "authorId": "miao",
+      "title": "四人伯明翰，开局先摆了一次运煤和卖货的例子",
+      "markdown": "也是四人《工业革命：伯明翰》，一位第一次、两位第二次，我玩过五局。照着乔复盘提到的问题，开局用 20 分钟摆了两个例子：煤怎样沿连通的线路运到建造地点，卖货时怎样消耗可用的啤酒；再各走一次示范行动后重开。全程三小时四十分钟。\n\n这一局我在运河时代靠煤矿和运河翻面增加收入，铁路时代借现成线路扩建，没有自己修完每一段。终盘 151 分第二，保留了两个时代的照片和记分表。有人犹豫时，先问要不要一起核对规则，不直接替他选行动。",
+      "expressionMarkdown": "把乔卡住的那次卖货在棋盘上摆出来，比再讲一遍规则有用。这局开始有人主动算别人的路能不能运自己的煤，大家终于在看同一张正在变化的地图。",
+      "agreementMarkdown": "约《伯明翰》请说明人数、熟悉程度，留足三到四小时含教学。复盘带上所处时代、相关线路、资源来源和记分情况；给策略建议先征求同意，不替别人选行动，也不只凭一局输赢下结论。",
+      "createdAt": "2026-10-16T22:10:00+08:00",
+      "id": "board-games-2",
+      "number": 2,
+      "parentId": "board-games-1",
+      "objectiveMarkdown": "也是四人《工业革命：伯明翰》，一位第一次、两位第二次，我玩过五局。照着乔复盘提到的问题，开局用 20 分钟摆了两个例子：煤怎样沿连通的线路运到建造地点，卖货时怎样消耗可用的啤酒；再各走一次示范行动后重开。全程三小时四十分钟。\n\n这一局我在运河时代靠煤矿和运河翻面增加收入，铁路时代借现成线路扩建，没有自己修完每一段。终盘 151 分第二，保留了两个时代的照片和记分表。有人犹豫时，先问要不要一起核对规则，不直接替他选行动。",
+      "referenceAgreements": [
+        {
+          "sourceId": "board-games-1",
+          "complies": true
+        }
+      ],
+      "images": [],
+      "contextSnapshot": {
+        "directNodeIds": [
+          "board-games-1"
+        ],
+        "historyNodeCount": 1
+      },
+      "conversation": [
+        {
+          "id": "board-games-2-user",
+          "speaker": "user",
+          "body": "也是四人《工业革命：伯明翰》，一位第一次、两位第二次，我玩过五局。照着乔复盘提到的问题，开局用 20 分钟摆了两个例子：煤怎样沿连通的线路运到建造地点，卖货时怎样消耗可用的啤酒；再各走一次示范行动后重开。全程三小时四十分钟。\n\n这一局我在运河时代靠煤矿和运河翻面增加收入，铁路时代借现成线路扩建，没有自己修完每一段。终盘 151 分第二，保留了两个时代的照片和记分表。有人犹豫时，先问要不要一起核对规则，不直接替他选行动。\n\n我想留下的表达：\n把乔卡住的那次卖货在棋盘上摆出来，比再讲一遍规则有用。这局开始有人主动算别人的路能不能运自己的煤，大家终于在看同一张正在变化的地图。\n\n后续约定：\n约《伯明翰》请说明人数、熟悉程度，留足三到四小时含教学。复盘带上所处时代、相关线路、资源来源和记分情况；给策略建议先征求同意，不替别人选行动，也不只凭一局输赢下结论。\n本次引用已按直接来源的约定核对，记录为满足。"
+        },
+        {
+          "id": "board-games-2-ai",
+          "speaker": "ai",
+          "body": "行动保留你提供的具体经历，表达按你的取舍整理，不扩大成普遍结论。后续约定使用你这次提供的版本。本次对来源约定的核对与向后传递的约定分别保留。"
+        }
+      ],
+      "graphId": "board-games"
+    },
+    {
+      "authorId": "jo",
+      "title": "伯明翰第二局：借了对手的铁路和酒，终于卖掉两座棉纺厂",
+      "markdown": "周五 19:00 开了四人《工业革命：伯明翰》。我第二次玩，一位新手，另外两位玩过三到五局，提前留四小时。采用 miao 的示范方式先摆了运煤和卖货，再重开，22:40 收桌。\n\n运河时代我先建煤矿和运河，提高收入；铁路时代再转棉纺厂。这次没有自己把供应链全建一遍，最后一轮沿大家连通的铁路使用对手酒厂的啤酒，卖掉了两座棉纺厂。终盘 146 分第二，比首局 118 分高，但参与者和局势不同，不能直接当作打法更强的证明。\n\n保留了两个时代的棋盘照片和分项记分。新手问规则时一起核对，有一次想提醒他修路，先问他想不想听，他说想自己试，我就等他走完。",
+      "expressionMarkdown": "**最近想反复玩的桌游是《工业革命：伯明翰》，第二局四人桌打了三小时四十分钟，146 分第二。**\n\n第一局我把厂建好却没酒卖货，这次借着别人的铁路和酒，终于把两座棉纺厂翻了面。我喜欢这种每个人都在改写棋盘、算好的路又要重想的感觉。想找厦门能留一整晚的人继续开，新手也可以，先把规则摆一遍再玩。",
+      "createdAt": "2026-10-23T23:00:00+08:00",
+      "id": "board-games-3",
+      "number": 3,
+      "parentId": "board-games-2",
+      "objectiveMarkdown": "周五 19:00 开了四人《工业革命：伯明翰》。我第二次玩，一位新手，另外两位玩过三到五局，提前留四小时。采用 miao 的示范方式先摆了运煤和卖货，再重开，22:40 收桌。\n\n运河时代我先建煤矿和运河，提高收入；铁路时代再转棉纺厂。这次没有自己把供应链全建一遍，最后一轮沿大家连通的铁路使用对手酒厂的啤酒，卖掉了两座棉纺厂。终盘 146 分第二，比首局 118 分高，但参与者和局势不同，不能直接当作打法更强的证明。\n\n保留了两个时代的棋盘照片和分项记分。新手问规则时一起核对，有一次想提醒他修路，先问他想不想听，他说想自己试，我就等他走完。",
+      "referenceAgreements": [
+        {
+          "sourceId": "board-games-2",
+          "complies": true
+        }
+      ],
+      "images": [
+        {
+          "url": "seed-asset:demo-board-games.jpg",
+          "alt": "《工业革命：伯明翰》的啤酒桶与棋盘 · 官方配图"
+        }
+      ],
+      "contextSnapshot": {
+        "directNodeIds": [
+          "board-games-2"
+        ],
+        "historyNodeCount": 2
+      },
+      "conversation": [
+        {
+          "id": "board-games-3-user",
+          "speaker": "user",
+          "body": "周五 19:00 开了四人《工业革命：伯明翰》。我第二次玩，一位新手，另外两位玩过三到五局，提前留四小时。采用 miao 的示范方式先摆了运煤和卖货，再重开，22:40 收桌。\n\n运河时代我先建煤矿和运河，提高收入；铁路时代再转棉纺厂。这次没有自己把供应链全建一遍，最后一轮沿大家连通的铁路使用对手酒厂的啤酒，卖掉了两座棉纺厂。终盘 146 分第二，比首局 118 分高，但参与者和局势不同，不能直接当作打法更强的证明。\n\n保留了两个时代的棋盘照片和分项记分。新手问规则时一起核对，有一次想提醒他修路，先问他想不想听，他说想自己试，我就等他走完。\n\n我想留下的表达：\n**最近想反复玩的桌游是《工业革命：伯明翰》，第二局四人桌打了三小时四十分钟，146 分第二。**\n\n第一局我把厂建好却没酒卖货，这次借着别人的铁路和酒，终于把两座棉纺厂翻了面。我喜欢这种每个人都在改写棋盘、算好的路又要重想的感觉。想找厦门能留一整晚的人继续开，新手也可以，先把规则摆一遍再玩。\n\n后续约定沿用承接来源，不另写一份。\n本次引用已按直接来源的约定核对，记录为满足。"
+        },
+        {
+          "id": "board-games-3-ai",
+          "speaker": "ai",
+          "body": "行动保留你提供的具体经历，表达按你的取舍整理，不扩大成普遍结论。后续约定沿承接来源继承。本次对来源约定的核对与向后传递的约定分别保留。"
+        }
+      ],
+      "graphId": "board-games"
+    },
+    {
+      "authorId": "jo",
+      "title": "奥德赛到了沙之国，拿够16颗月亮就走，漏掉了好多岔路",
+      "markdown": "在 Switch 上玩《超级马里奥 奥德赛》，这晚在沙之国玩了约 80 分钟，跟着主线去了倒立金字塔，攒够启航需要的 16 颗月亮就去了下一个王国。\n\n离开前才发现，戴墨镜的石像所在的区域还没认真逛，很多屋顶也没上去。长跳和扔帽后接跳还不熟，有三次想跳到屋顶却掉了下去。没看攻略，也没把漏掉的月亮标成已经收集。",
+      "expressionMarkdown": "玩奥德赛时，我又习惯性地拿够数量就往下一关走。沙之国那些没跳上去的屋顶还惦记着，我想回去试试自己能发现什么，不急着先查一份月亮清单。",
+      "agreementMarkdown": "聊《马里奥奥德赛》请先说明玩到哪个王国、主线还是补收集；说到隐藏月亮前先问能否剧透。我没求攻略时，先给方向或操作提示，不直接贴完整解法。",
+      "createdAt": "2026-10-07T22:00:00+08:00",
+      "id": "gaming-1",
+      "number": 1,
+      "objectiveMarkdown": "在 Switch 上玩《超级马里奥 奥德赛》，这晚在沙之国玩了约 80 分钟，跟着主线去了倒立金字塔，攒够启航需要的 16 颗月亮就去了下一个王国。\n\n离开前才发现，戴墨镜的石像所在的区域还没认真逛，很多屋顶也没上去。长跳和扔帽后接跳还不熟，有三次想跳到屋顶却掉了下去。没看攻略，也没把漏掉的月亮标成已经收集。",
+      "referenceAgreements": [],
+      "images": [],
+      "contextSnapshot": {
+        "directNodeIds": [],
+        "historyNodeCount": 0
+      },
+      "conversation": [
+        {
+          "id": "gaming-1-user",
+          "speaker": "user",
+          "body": "在 Switch 上玩《超级马里奥 奥德赛》，这晚在沙之国玩了约 80 分钟，跟着主线去了倒立金字塔，攒够启航需要的 16 颗月亮就去了下一个王国。\n\n离开前才发现，戴墨镜的石像所在的区域还没认真逛，很多屋顶也没上去。长跳和扔帽后接跳还不熟，有三次想跳到屋顶却掉了下去。没看攻略，也没把漏掉的月亮标成已经收集。\n\n我想留下的表达：\n玩奥德赛时，我又习惯性地拿够数量就往下一关走。沙之国那些没跳上去的屋顶还惦记着，我想回去试试自己能发现什么，不急着先查一份月亮清单。\n\n后续约定：\n聊《马里奥奥德赛》请先说明玩到哪个王国、主线还是补收集；说到隐藏月亮前先问能否剧透。我没求攻略时，先给方向或操作提示，不直接贴完整解法。"
+        },
+        {
+          "id": "gaming-1-ai",
+          "speaker": "ai",
+          "body": "行动保留你提供的具体经历，表达按你的取舍整理，不扩大成普遍结论。后续约定使用你这次提供的版本。"
+        }
+      ],
+      "graphId": "gaming"
+    },
+    {
+      "authorId": "lin",
+      "title": "回沙之国补收集，附身戴墨镜的石像才看见隐藏道路",
+      "markdown": "我在奥德赛主线通关后回沙之国补收集，这晚玩了 50 分钟，没有查攻略。附身戴墨镜的石像，看到了原来没发现的隐藏道路，沿路试走；另外在镇子的屋顶练长跳和帽子跳，掉下去六次才到想去的位置。\n\n最后新拿了四颗月亮。和乔交流前先问了能否说石像区域，他愿意听方向但不要具体月亮位置，我就只说可以试试附身后戴上墨镜，没有把完整路线发过去。",
+      "expressionMarkdown": "回到沙之国，用石像的眼睛看同一块地方，才发现地图里还藏着一层。这种自己试出来的惊喜，我想留给别人，所以聊收集前会先问他想知道多少。",
+      "agreementMarkdown": "聊奥德赛先说王国、主线进度和这次实际尝试；隐藏月亮、机关解法或后续剧情先问再说。要提示可以分步给，不求助时不直接发坐标和视频，也不拿收集数量替别人判断玩得好不好。",
+      "createdAt": "2026-10-19T21:50:00+08:00",
+      "id": "gaming-2",
+      "number": 2,
+      "parentId": "gaming-1",
+      "objectiveMarkdown": "我在奥德赛主线通关后回沙之国补收集，这晚玩了 50 分钟，没有查攻略。附身戴墨镜的石像，看到了原来没发现的隐藏道路，沿路试走；另外在镇子的屋顶练长跳和帽子跳，掉下去六次才到想去的位置。\n\n最后新拿了四颗月亮。和乔交流前先问了能否说石像区域，他愿意听方向但不要具体月亮位置，我就只说可以试试附身后戴上墨镜，没有把完整路线发过去。",
+      "referenceAgreements": [
+        {
+          "sourceId": "gaming-1",
+          "complies": true
+        }
+      ],
+      "images": [],
+      "contextSnapshot": {
+        "directNodeIds": [
+          "gaming-1"
+        ],
+        "historyNodeCount": 1
+      },
+      "conversation": [
+        {
+          "id": "gaming-2-user",
+          "speaker": "user",
+          "body": "我在奥德赛主线通关后回沙之国补收集，这晚玩了 50 分钟，没有查攻略。附身戴墨镜的石像，看到了原来没发现的隐藏道路，沿路试走；另外在镇子的屋顶练长跳和帽子跳，掉下去六次才到想去的位置。\n\n最后新拿了四颗月亮。和乔交流前先问了能否说石像区域，他愿意听方向但不要具体月亮位置，我就只说可以试试附身后戴上墨镜，没有把完整路线发过去。\n\n我想留下的表达：\n回到沙之国，用石像的眼睛看同一块地方，才发现地图里还藏着一层。这种自己试出来的惊喜，我想留给别人，所以聊收集前会先问他想知道多少。\n\n后续约定：\n聊奥德赛先说王国、主线进度和这次实际尝试；隐藏月亮、机关解法或后续剧情先问再说。要提示可以分步给，不求助时不直接发坐标和视频，也不拿收集数量替别人判断玩得好不好。\n本次引用已按直接来源的约定核对，记录为满足。"
+        },
+        {
+          "id": "gaming-2-ai",
+          "speaker": "ai",
+          "body": "行动保留你提供的具体经历，表达按你的取舍整理，不扩大成普遍结论。后续约定使用你这次提供的版本。本次对来源约定的核对与向后传递的约定分别保留。"
+        }
+      ],
+      "graphId": "gaming"
+    },
+    {
+      "authorId": "jo",
+      "title": "奥德赛纽敦市庆典后没走，又逛70分钟，找了八颗月亮",
+      "markdown": "《超级马里奥 奥德赛》这晚玩到都市国，完成纽敦市庆典后没有马上启航。受林岚回去补收集的经历启发，决定不看攻略，再在城里逛 70 分钟。都市国月亮从 20 颗加到 28 颗，还没有打完游戏主线。\n\n骑小摩托沿街转，爬到先前没上过的楼顶，又进了一间有 2D 壁画关卡的小房间。在广场试了十来次跳绳，最好 67 下，拿到了 30 下的月亮，100 下那颗还没拿到。帽子跳有两次没接上，掉下去后换了起跳位置。\n\n准备和朋友聊这晚之前先问进度，他还在沙之国，我就没发都市国的机关和庆典画面，只聊了长跳的操作。",
+      "expressionMarkdown": "**最近在玩《马里奥奥德赛》。纽敦市庆典后，我又逛了 70 分钟，多找了八颗月亮，跳绳最好 67 下。**\n\n骑小摩托、爬楼顶、钻进 2D 小房间，比拿够数量马上去下一国更让我舍不得关机。100 下跳绳还没过，主线也没通关。我想找也喜欢自己乱逛的人聊发现，可以给一点提示，先别把整套解法告诉我。",
+      "createdAt": "2026-10-24T21:45:00+08:00",
+      "id": "gaming-3",
+      "number": 3,
+      "parentId": "gaming-2",
+      "objectiveMarkdown": "《超级马里奥 奥德赛》这晚玩到都市国，完成纽敦市庆典后没有马上启航。受林岚回去补收集的经历启发，决定不看攻略，再在城里逛 70 分钟。都市国月亮从 20 颗加到 28 颗，还没有打完游戏主线。\n\n骑小摩托沿街转，爬到先前没上过的楼顶，又进了一间有 2D 壁画关卡的小房间。在广场试了十来次跳绳，最好 67 下，拿到了 30 下的月亮，100 下那颗还没拿到。帽子跳有两次没接上，掉下去后换了起跳位置。\n\n准备和朋友聊这晚之前先问进度，他还在沙之国，我就没发都市国的机关和庆典画面，只聊了长跳的操作。",
+      "referenceAgreements": [
+        {
+          "sourceId": "gaming-2",
+          "complies": true
+        }
+      ],
+      "images": [
+        {
+          "url": "seed-asset:demo-gaming.jpg",
+          "alt": "《马里奥奥德赛》中的马里奥与凯皮 · 官方配图"
+        }
+      ],
+      "contextSnapshot": {
+        "directNodeIds": [
+          "gaming-2"
+        ],
+        "historyNodeCount": 2
+      },
+      "conversation": [
+        {
+          "id": "gaming-3-user",
+          "speaker": "user",
+          "body": "《超级马里奥 奥德赛》这晚玩到都市国，完成纽敦市庆典后没有马上启航。受林岚回去补收集的经历启发，决定不看攻略，再在城里逛 70 分钟。都市国月亮从 20 颗加到 28 颗，还没有打完游戏主线。\n\n骑小摩托沿街转，爬到先前没上过的楼顶，又进了一间有 2D 壁画关卡的小房间。在广场试了十来次跳绳，最好 67 下，拿到了 30 下的月亮，100 下那颗还没拿到。帽子跳有两次没接上，掉下去后换了起跳位置。\n\n准备和朋友聊这晚之前先问进度，他还在沙之国，我就没发都市国的机关和庆典画面，只聊了长跳的操作。\n\n我想留下的表达：\n**最近在玩《马里奥奥德赛》。纽敦市庆典后，我又逛了 70 分钟，多找了八颗月亮，跳绳最好 67 下。**\n\n骑小摩托、爬楼顶、钻进 2D 小房间，比拿够数量马上去下一国更让我舍不得关机。100 下跳绳还没过，主线也没通关。我想找也喜欢自己乱逛的人聊发现，可以给一点提示，先别把整套解法告诉我。\n\n后续约定沿用承接来源，不另写一份。\n本次引用已按直接来源的约定核对，记录为满足。"
+        },
+        {
+          "id": "gaming-3-ai",
+          "speaker": "ai",
+          "body": "行动保留你提供的具体经历，表达按你的取舍整理，不扩大成普遍结论。后续约定沿承接来源继承。本次对来源约定的核对与向后传递的约定分别保留。"
+        }
+      ],
+      "graphId": "gaming"
+    },
+    {
+      "id": "daily-1",
+      "number": 1,
+      "authorId": "jo",
+      "title": "书桌只留下明天会用到的东西",
+      "markdown": "把桌上的包装盒、旧纸张和杯子移开，只留下电脑、笔记本和明天要读的书。\n\n最费时间的是给散落的充电线找位置。抽屉还没整理，但已经能坐下来直接开始工作。",
+      "expressionMarkdown": "先让空间重新能用起来，比一次整理完所有东西更重要。这次桌面可以直接开始工作，抽屉还可以以后处理。",
+      "images": [
+        {
+          "url": "https://images.unsplash.com/photo-1497215728101-856f4ea42174?auto=format&fit=crop&w=1200&q=80",
+          "alt": "书桌空间 · 配图"
+        }
+      ],
+      "conversation": [
+        {
+          "id": "daily-1-user",
+          "speaker": "user",
+          "body": "清掉了桌上的包装盒、旧纸张和杯子，留下电脑、笔记本和明天要读的书。充电线重新找了位置，抽屉没动，但桌面已经能用了。我觉得先能用比一次收完更重要。"
+        },
+        {
+          "id": "daily-1-ai",
+          "speaker": "ai",
+          "body": "行动中保留桌面已恢复使用、抽屉未整理的事实；表达中保留你对先恢复使用的取舍。"
+        }
+      ],
+      "createdAt": "2026-10-11T08:30:00+08:00",
+      "objectiveMarkdown": "把桌上的包装盒、旧纸张和杯子移开，只留下电脑、笔记本和明天要读的书。\n\n最费时间的是给散落的充电线找位置。抽屉还没整理，但已经能坐下来直接开始工作。",
+      "graphId": "daily"
+    },
+    {
+      "id": "daily-2",
+      "number": 2,
+      "parentId": "daily-1",
+      "authorId": "lin",
+      "title": "阳台终于有一块可以坐下来的地方",
+      "markdown": "没有一口气收完所有旧物，只把挡住椅子和门的箱子移到了墙边，擦了椅子。\n\n晚上真的在这里坐了十分钟。东西还在，但是空间已经重新用起来了。",
+      "images": [],
+      "conversation": [
+        {
+          "id": "daily-2-user",
+          "speaker": "user",
+          "body": "参考乔先恢复使用的思路，今天挪开了阳台挡门和椅子的箱子、擦了椅子。晚上坐了十分钟，其他旧物还没整理。表达保留之前那份就好。"
+        },
+        {
+          "id": "daily-2-ai",
+          "speaker": "ai",
+          "body": "已整理本次阳台的实际变化，表达沿用来源节点，不把尚未整理的旧物写成已经完成。"
+        }
+      ],
+      "createdAt": "2026-10-11T18:20:00+08:00",
+      "objectiveMarkdown": "没有一口气收完所有旧物，只把挡住椅子和门的箱子移到了墙边，擦了椅子。\n\n晚上真的在这里坐了十分钟。东西还在，但是空间已经重新用起来了。",
+      "graphId": "daily"
+    },
+    {
+      "id": "daily-3",
+      "number": 3,
+      "parentId": "daily-1",
+      "authorId": "miao",
+      "title": "先清出走到椅子的通道",
+      "markdown": "从门口开始，只挪动挡路的物品。最后留出了一条通往椅子的路，其他东西暂时原样放着。\n\n这次只花了十五分钟，进出时已经不用侧身。",
+      "expressionMarkdown": "从书桌到通道，我借用的是先恢复使用的思路。这次我更愿意保留一个具体标准：每天走的那条路，不需要再侧身。整理不一定先从收纳开始。",
+      "images": [],
+      "conversation": [
+        {
+          "id": "daily-3-user",
+          "speaker": "user",
+          "body": "沿着乔的书桌记录，我也只处理影响使用的部分。今天花十五分钟挪开通往椅子的东西，进出不用侧身，其他地方没动。对我来说，先走得通比先收纳好更有用。"
+        },
+        {
+          "id": "daily-3-ai",
+          "speaker": "ai",
+          "body": "行动保留十五分钟清出通道的事实；表达在原先恢复使用的判断上，加入你对通道和收纳顺序的取舍。"
+        }
+      ],
+      "createdAt": "2026-10-11T20:05:00+08:00",
+      "objectiveMarkdown": "从门口开始，只挪动挡路的物品。最后留出了一条通往椅子的路，其他东西暂时原样放着。\n\n这次只花了十五分钟，进出时已经不用侧身。",
+      "graphId": "daily"
+    },
+    {
+      "id": "practice-1",
+      "number": 1,
+      "authorId": "lin",
+      "title": "第一次烤酸面包，里面有些湿黏",
+      "markdown": "从喂养酵头、发酵到烤完出炉，记下了这两天的过程。\n\n表皮比想象中脆，切开后里面有些湿黏。我太心急，出炉不到二十分钟就切了，现在还不能确定是不是没烤透。",
+      "expressionMarkdown": "完整做过一遍，才看见自己在哪些地方太心急。湿黏的原因还不确定，先把这一次留下来，比急着给自己贴上失败的标签更有用。",
+      "images": [
+        {
+          "url": "https://images.unsplash.com/photo-1549931319-a545dcf3bc73?auto=format&fit=crop&w=1200&q=80",
+          "alt": "酸面包 · 配图"
+        }
+      ],
+      "conversation": [
+        {
+          "id": "practice-1-user",
+          "speaker": "user",
+          "body": "两天里第一次走完喂酵头、发酵、烤面包的过程。外皮脆，里面湿黏，我出炉不到二十分钟就切了，不能确定是不是没烤透。我想先记录真实结果，不急着判定失败。"
+        },
+        {
+          "id": "practice-1-ai",
+          "speaker": "ai",
+          "body": "行动分别记录过程、切开时间和湿黏的观察，不推断原因；表达保留先完整尝试、暂缓判断的看法。"
+        }
+      ],
+      "createdAt": "2025-10-11T08:10:00+08:00",
+      "objectiveMarkdown": "从喂养酵头、发酵到烤完出炉，记下了这两天的过程。\n\n表皮比想象中脆，切开后里面有些湿黏。我太心急，出炉不到二十分钟就切了，现在还不能确定是不是没烤透。",
+      "graphId": "practice"
+    }
+  ],
+  "following": {
+    "graphIds": [
+      "cooking",
+      "daily",
+      "practice"
+    ],
+    "userIds": [
+      "lin",
+      "miao",
+      "che",
+      "xiaoman",
+      "robin"
+    ]
+  },
+  "assets": [
+    {
+      "key": "cooking-graph-avatar.jpg"
+    },
+    {
+      "key": "cooking-graph-background.jpg"
+    },
+    {
+      "key": "demo-board-games.jpg"
+    },
+    {
+      "key": "demo-cycling.jpg"
+    },
+    {
+      "key": "demo-gaming.jpg"
+    },
+    {
+      "key": "demo-street-photo.jpg"
+    },
+    {
+      "key": "demo-weight-meal.jpg"
+    }
+  ]
+}

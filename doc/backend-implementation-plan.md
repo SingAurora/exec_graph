@@ -37,7 +37,9 @@ backend/
     middleware/                   会话、CSRF、错误、请求追踪
     endpoint/common/              JSON、认证上下文及响应适配
   internal/shared/                无业务归属的常量、错误和 UUID
-  testdata/                       从现有前端演示数据导出的测试夹具
+  scripts/export-demo.ts          显式导出现有前端演示内容与图片
+  internal/infrastructure/persistence/demoseed/testdata/
+                                  编译内嵌的版本化测试夹具
 ```
 
 application 不依赖 Gin、GORM 或配置包；bootstrap 创建并注入所有外部客户端。旧代码仅参考外部依赖调用方式，不恢复旧计划、协作、个人 AI Key 等产品模型。
@@ -72,4 +74,13 @@ application 不依赖 Gin、GORM 或配置包；bootstrap 创建并注入所有�
 - `EXEC_GRAPH_CONFIG=<本地配置绝对路径> EXEC_GRAPH_INTEGRATION=1 go test ./...` 通过；`go vet ./...`、`gofmt` 和 `git diff --check` 通过。
 - 初次实库迁移发现并修复 GORM Connection 回调内的语句状态复用，随机新库重跑通过。
 
-阶段 2～4 尚在实施；以上证据不代表发布、AI 或完整前端联调已完成。
+### 阶段 2：完成
+
+- 从当前前端导入 7 位测试作者、9 张图、37 条行动、7 张本地配图；全部用户带数据库测试标记。使用稳定 UUID 并保存旧链接 alias，原作者、确认形成过程、主要来源、合入、主动清空和 5 个精选得到保留。
+- 导入标记与业务数据同事务提交。同内容重复导入不覆盖已有昵称和密码，内容变化拒绝静默覆盖；演示 AI 记录明确使用 `demo-fixture` 标记。
+- 已在真实 MySQL／Redis 上通过随机隔离库 HTTP 集成测试，覆盖密码登录、受控测试号登录、cookie 策略、CSRF、退出失效、认证版本撤销、UUID 映射、公开资料隐私、确认形成过程、未确认消息隔离及图片读取。
+- 单元测试覆盖主要来源继承、主动清空后继续继承、约定未知状态、跨图引用拒绝、例外理由校验、确定 UUID 及不修改原始夹具。
+- 在 `exec_graph_v1` 持久库独立启动 API，再通过实际 HTTP 验证健康检查、登录、公开 7 位用户、9 张图／37 条行动、5 个精选、CORS 和退出撤销，全部通过；验证后停止临时 API 进程。
+- `EXEC_GRAPH_CONFIG=<本地配置绝对路径> EXEC_GRAPH_INTEGRATION=1 go test ./...`、`go test ./...`、`go vet ./...` 通过。启动、导入和接口清单见 `backend/README.md`。
+
+阶段 3～4 尚未完成：当前没有业务写入、注册邮件、上传和真实 AI 生成接口，前端也尚未切换到真实后端。现有读取 DTO 使用 `graphId`／`graphIds`，前端 `projectId`／`projectIds` 的兼容适配留到联调阶段明确处理。

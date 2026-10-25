@@ -19,7 +19,7 @@ func main() {
 
 func run() error {
 	if len(os.Args) < 2 {
-		return fmt.Errorf("用法: manage check|migrate|verify [--create-database]")
+		return fmt.Errorf("用法: manage check|migrate|verify|seed-demo [--create-database]")
 	}
 	command := os.Args[1]
 	flags := flag.NewFlagSet(command, flag.ContinueOnError)
@@ -30,7 +30,7 @@ func run() error {
 	if flags.NArg() != 0 {
 		return fmt.Errorf("不支持额外位置参数")
 	}
-	if command != "check" && command != "migrate" && command != "verify" {
+	if command != "check" && command != "migrate" && command != "verify" && command != "seed-demo" {
 		return fmt.Errorf("未知管理命令")
 	}
 	if *create {
@@ -48,6 +48,12 @@ func run() error {
 	}
 	defer deps.Close()
 	switch command {
+	case "seed-demo":
+		message, err := bootstrap.SeedDemo(ctx, deps, os.Getenv("EXEC_GRAPH_DEMO_PASSWORD"))
+		if err != nil {
+			return err
+		}
+		fmt.Println(message)
 	case "check":
 		fmt.Println("MySQL 与 Redis 连接可用；未修改表或清空数据")
 	case "migrate":
