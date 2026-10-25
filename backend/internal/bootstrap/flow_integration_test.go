@@ -156,6 +156,9 @@ func TestRealDatabaseSeedAndHTTPFlow(t *testing.T) {
 		if node.Number == 12 && (node.AgreementMarkdown == nil || *node.AgreementMarkdown != "") {
 			t.Fatal("主动清空被错误转换成继承")
 		}
+		if node.Number == 18 && len(node.ReferenceAgreements) != 0 {
+			t.Fatal("未知核对必须适配为缺少记录，避免当前 UI 误当作不满足")
+		}
 		if len(node.Conversation) == 0 {
 			t.Fatal("原始形成过程丢失")
 		}

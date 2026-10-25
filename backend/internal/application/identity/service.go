@@ -39,8 +39,15 @@ type SessionRecord struct {
 
 // SessionView 与前端会话协议一致。
 type SessionView struct {
-	User      AccountView `json:"user"`
-	CSRFToken string      `json:"csrfToken"`
+	User        AccountView `json:"user"`
+	CSRFToken   string      `json:"csrfToken"`
+	AuthVersion uint32      `json:"-"`
+}
+
+// Actor 是通过会话验证的提交者，认证版本在事务内再次校验。
+type Actor struct {
+	UserID      string
+	AuthVersion uint32
 }
 
 // LoginResult 的 Token 仅供 HTTP 设置 HttpOnly cookie，不进入 JSON。
@@ -155,7 +162,19 @@ func (s *Service) Session(ctx context.Context, token string) (SessionView, error
 	if account.View.ID == "" || account.Disabled || account.AuthVersion != record.AuthVersion {
 		return SessionView{}, fault.New(fault.Unauthenticated, "会话已失效，请重新登录")
 	}
-	return SessionView{User: account.View, CSRFToken: record.CSRFToken}, nil
+	return SessionView{User: account.View, CSRFToken: record.CSRFToken, AuthVersion: record.AuthVersion}, nil
+}
+
+// Authorize 验证业务写入的会话及 CSRF，返回不可由请求 JSON 选择的身份。
+func (s *Service) Authorize(ctx context.Context, token, csrf string) (Actor, error) {
+	current, err := s.Session(ctx, token)
+	if err != nil {
+		return Actor{}, err
+	}
+	if subtle.ConstantTimeCompare([]byte(csrf), []byte(current.CSRFToken)) != 1 {
+		return Actor{}, fault.New(fault.Forbidden, "请求校验失败，请刷新页面")
+	}
+	return Actor{UserID: current.User.ID, AuthVersion: current.AuthVersion}, nil
 }
 
 // Logout 先验证 CSRF，再删除服务端会话。

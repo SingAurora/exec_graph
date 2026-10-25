@@ -21,7 +21,7 @@ func New(service *app.Service, secure bool, maxAge int) *Handler {
 }
 
 // Token 读取当前版本专用 cookie，不接管旧项目会话。
-func Token(c *gin.Context) string { value, _ := c.Cookie("exec_graph_v1_session"); return value }
+func Token(c *gin.Context) string { return common.SessionToken(c) }
 
 // Login 绑定密码登录请求。
 func (h *Handler) Login(c *gin.Context) {

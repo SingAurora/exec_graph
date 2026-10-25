@@ -3,16 +3,20 @@ package router
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/singaurora/exec-graph/backend/internal/http/endpoint/action"
 	"github.com/singaurora/exec-graph/backend/internal/http/endpoint/catalogue"
 	"github.com/singaurora/exec-graph/backend/internal/http/endpoint/common"
+	"github.com/singaurora/exec-graph/backend/internal/http/endpoint/following"
+	"github.com/singaurora/exec-graph/backend/internal/http/endpoint/graph"
 	"github.com/singaurora/exec-graph/backend/internal/http/endpoint/identity"
+	"github.com/singaurora/exec-graph/backend/internal/http/endpoint/profile"
 	"github.com/singaurora/exec-graph/backend/internal/http/middleware"
 	"github.com/singaurora/exec-graph/backend/internal/shared/fault"
 	"log/slog"
 )
 
 // New 注册当前阶段已实现的接口，不为未实现业务返回伪成功。
-func New(auth *identity.Handler, read *catalogue.Handler, origins []string, logger *slog.Logger) *gin.Engine {
+func New(auth *identity.Handler, read *catalogue.Handler, graphs *graph.Handler, actions *action.Handler, profiles *profile.Handler, follows *following.Handler, origins []string, logger *slog.Logger) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	engine := gin.New()
 	_ = engine.SetTrustedProxies(nil)
@@ -42,6 +46,24 @@ func New(auth *identity.Handler, read *catalogue.Handler, origins []string, logg
 	group.GET("/following/sources", read.Following)
 	// 读取已就绪的站内图片文件。
 	group.GET("/media/file", read.Media)
+	// 创建空图，使用提交键保证重复请求只创建一次。
+	group.POST("/graphs/create", graphs.Create)
+	// 创建者及贡献前三位用户修改图资料。
+	group.POST("/graphs/update", graphs.Update)
+	// 重新检查参与者、资料版本及行动数量后逻辑删除图。
+	group.POST("/graphs/delete", graphs.Delete)
+	// 确认服务端 AI 文稿，原子发布行动、文档、引用和形成过程。
+	group.POST("/actions/create", actions.Create)
+	// 保存未被引用终点的连续 AI 对话表达。
+	group.POST("/expressions/update", actions.Expression)
+	// 修改未被引用终点向后传递的约定。
+	group.POST("/agreements/update", actions.Agreement)
+	// 保存当前账号公开资料，保持精选不变。
+	group.POST("/profiles/update", profiles.Update)
+	// 集中管理最多五个本人表达精选及其顺序。
+	group.POST("/profiles/highlights-set", profiles.Highlights)
+	// 显式设置用户或图的关注状态。
+	group.POST("/following/set", follows.Set)
 	engine.NoRoute(func(c *gin.Context) { common.Fail(c, fault.New(fault.NotFound, "接口不存在或尚未实现")) })
 	return engine
 }

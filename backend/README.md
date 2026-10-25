@@ -53,21 +53,28 @@ EXEC_GRAPH_DATABASE_SCHEMA=exec_graph_v1 EXEC_GRAPH_ADDR=127.0.0.1:8081 EXEC_GRA
 | GET | `/actions/detail?nodeId=...` | 单个行动 |
 | GET | `/following/sources` | 当前登录账号的关注集合 |
 | GET | `/media/file?assetId=...` | 已就绪图片；成功时返回二进制，不套 JSON |
+| POST | `/graphs/create`、`/graphs/update`、`/graphs/delete` | 图创建、版本更新和受保护删除 |
+| POST | `/actions/create` | 确认服务端 AI 结果并原子发布行动 |
+| POST | `/expressions/update`、`/agreements/update` | 终点表达／约定的版本化确认 |
+| POST | `/profiles/update`、`/profiles/highlights-set` | 公开资料、最多五个表达精选及顺序 |
+| POST | `/following/set` | 显式设置用户／图关注状态 |
 
 使用 HttpOnly cookie 和 Redis 会话；客户端需携带 cookie。每次会话读取检查数据库停用状态及认证版本。密码采用 Argon2id，不提供明文或可逆密码读取。
 
-读取兼容导入数据的旧短 ID，但响应资源 ID 一律为 UUID。行动 DTO 使用 `graphId`，关注 DTO 使用 `graphIds`；前端当前仍使用 `projectId`／`projectIds`，须在后续联调阶段统一适配，不能直接关闭 MSW 当作已完成接入。未确认的 AI 对话不会公开。
+读取兼容导入数据的旧短 ID，但响应资源 ID 一律为 UUID；写入只接受 UUID。行动 DTO 使用 `graphId`，前端已显式映射为 UI 的 `projectId`；关注模型已使用 `graphIds`。未确认的 AI 对话不会公开。
 
-**当前交付止于读取和会话**：注册、验证码、密码重置、图和行动写入、上传及真实 AI 生成尚未实现；前端仍为静态原型。未知接口返回 404，不返回模拟成功。
+写入的准确 DTO、权限和事务行为见 [真实后端写入契约](../doc/backend-write-contract.md)。创建带 `Idempotency-Key`，全部业务写入带 CSRF，修改带 `expectedVersion`。图和资料图片接受已上传的资产 UUID；行动及表达确认使用 `generationId`，不接受浏览器直接伪造的 AI 文稿／对话。
+
+**当前尚未形成完整用户发布流程**：注册、验证码、密码重置、上传及真实 AI 生成尚未实现；前端仍走 MSW，发布和图片 DTO 也需在联调时迁移。写入实库测试中的生成明确为测试夹具，不能当作已验证真实 AI。未知接口返回 404，不返回模拟成功。
 
 ## 验证
 
 ```sh
 go test ./...
 go vet ./...
-EXEC_GRAPH_CONFIG=/absolute/path/to/config.local.yaml EXEC_GRAPH_INTEGRATION=1 go test ./...
+EXEC_GRAPH_CONFIG=/absolute/path/to/config.local.yaml EXEC_GRAPH_INTEGRATION=1 go test -timeout 20m ./...
 ```
 
 `manage check` 探测真实 MySQL 与 Redis。`manage verify` 检查实际 schema、模型表及无外键约定。真实外部服务不可达时返回失败，不使用内存数据库代替。
 
-实库测试创建随机 MySQL schema 和独立 Redis 前缀，测试结束删除自己的 schema，不清空旧库或共享 Redis。覆盖 GORM 迁移、约束、测试号导入、重复导入、真实 HTTP 登录／读取／退出、公开字段隔离、图片、未确认消息隔离及会话撤销。未设置 `EXEC_GRAPH_INTEGRATION=1` 时，这些外部依赖测试明确跳过。
+实库测试创建随机 MySQL schema 和独立 Redis 前缀，测试结束删除自己的 schema，不清空旧库或共享 Redis。覆盖 GORM 迁移、约束、测试号导入、重复导入、真实 HTTP 登录／读取／退出、公开字段隔离、图片、未确认消息隔离及会话撤销，以及业务写入的权限、幂等、版本、继承／清空、精选、失败回滚和并发竞争。未设置 `EXEC_GRAPH_INTEGRATION=1` 时，这些外部依赖测试明确跳过。

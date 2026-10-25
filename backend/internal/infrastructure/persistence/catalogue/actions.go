@@ -118,7 +118,10 @@ func (r *Repository) actions(ctx context.Context, nodes []model.ActionNode) ([]a
 			value := edge.AgreementStatus == "satisfied"
 			complies = &value
 		}
-		node.ReferenceAgreements = append(node.ReferenceAgreements, app.Assessment{SourceID: edge.SourceNodeUUID, Complies: complies, ExceptionReason: edge.ExceptionReason})
+		// 当前 UI 的过渡节点模型用“没有核对记录”表示未知；不能发送 null 后被当成 false。
+		if complies != nil {
+			node.ReferenceAgreements = append(node.ReferenceAgreements, app.Assessment{SourceID: edge.SourceNodeUUID, Complies: complies, ExceptionReason: edge.ExceptionReason})
+		}
 	}
 	for _, s := range states {
 		if s.LocalVersionUUID == nil {
@@ -131,7 +134,7 @@ func (r *Repository) actions(ctx context.Context, nodes []model.ActionNode) ([]a
 		node := byID[s.NodeUUID]
 		text := document.Markdown
 		var revision *app.Revision
-		if document.RevisionNumber > 1 {
+		if document.RevisionNumber > 1 || document.CreatedAt.After(byID[s.NodeUUID].CreatedAt) {
 			revision = &app.Revision{AuthorID: document.ActorUUID, CreatedAt: document.CreatedAt, Kind: document.ChangeKind}
 		}
 		if s.Kind == "expression" {

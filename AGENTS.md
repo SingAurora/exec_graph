@@ -80,7 +80,7 @@
 
 ## 验证
 
-- 未来重新引入后端时，后端改动至少运行：`gofmt -w <改动文件>`、`go test ./...` 和 `go vet ./...`。
+- 后端改动至少运行：`gofmt -w <改动文件>`、`go test ./...` 和 `go vet ./...`；涉及事务、权限和并发时，显式启用 `EXEC_GRAPH_INTEGRATION=1` 连接隔离的真实 MySQL／Redis 验证。
 - 前端改动至少运行：`cd frontend && bun run lint && bun run build`。
 - 前端结构整理及共享状态逻辑改动同时运行 `cd frontend && bun run test`；涉及可见交互变化时再补浏览器验证。`test:graph` 只覆盖部分图相关行为，不能代替全量测试。
 - 提交前运行 `git diff --check`。涉及接口、权限、事务或状态流时补充针对该行为的测试。

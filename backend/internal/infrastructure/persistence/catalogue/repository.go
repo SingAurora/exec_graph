@@ -91,7 +91,7 @@ func (r *Repository) profiles(ctx context.Context, users []model.User) ([]app.Pr
 		days[n.AuthorUUID][n.CreatedAt.UTC().Format("2006-01-02")] = true
 	}
 	var highlights []model.ProfileHighlight
-	if err := r.db.WithContext(ctx).Table("profile_highlights AS h").Select("h.*").Joins("JOIN action_nodes n ON n.uuid = h.node_uuid").Joins("JOIN graphs g ON g.uuid = n.graph_uuid").Joins("JOIN action_document_states s ON s.node_uuid = n.uuid AND s.kind = 'expression'").Joins("JOIN action_document_versions v ON v.uuid = s.effective_version_uuid").Where("h.user_uuid IN ? AND g.deleted_at IS NULL AND v.mode = ?", ids, "update").Order("h.position").Find(&highlights).Error; err != nil {
+	if err := r.db.WithContext(ctx).Table("profile_highlights AS h").Select("h.*").Joins("JOIN action_nodes n ON n.uuid = h.node_uuid").Joins("JOIN graphs g ON g.uuid = n.graph_uuid").Joins("JOIN action_document_states s ON s.node_uuid = n.uuid AND s.kind = 'expression'").Joins("JOIN action_document_versions v ON v.uuid = s.effective_version_uuid").Joins("LEFT JOIN action_document_versions lv ON lv.uuid = s.local_version_uuid").Where("h.user_uuid IN ? AND g.deleted_at IS NULL AND v.mode = ? AND v.actor_uuid = h.user_uuid AND (n.author_uuid = h.user_uuid OR lv.actor_uuid = h.user_uuid)", ids, "update").Order("h.position").Find(&highlights).Error; err != nil {
 		return nil, err
 	}
 	selected := map[string][]string{}
