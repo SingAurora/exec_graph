@@ -14,6 +14,7 @@ import (
 	"github.com/singaurora/exec-graph/backend/internal/infrastructure/storage"
 	"github.com/singaurora/exec-graph/backend/internal/shared/constants"
 	"gorm.io/gorm"
+	"io/fs"
 )
 
 // Dependencies 集中持有当前启动模式需要的资源。
@@ -24,6 +25,7 @@ type Dependencies struct {
 	Objects  appmedia.Objects
 	AI       appgeneration.Provider
 	Mail     appaccount.Sender
+	Frontend fs.FS
 }
 
 // Open 加载旧配置并创建 MySQL、Redis 连接。

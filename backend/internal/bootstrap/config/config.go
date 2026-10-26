@@ -37,6 +37,7 @@ type App struct {
 	AllowedOrigins  []string `yaml:"allowed_origins"`
 	Environment     string   `yaml:"environment"`
 	EnableDemoLogin bool     `yaml:"enable_demo_login"`
+	FrontendDir     string   `yaml:"frontend_dir"`
 }
 
 // Database 是 MySQL 配置，业务模型不感知连接信息。
@@ -165,6 +166,9 @@ func Load(path string) (Config, error) {
 	}
 	if environment := os.Getenv("EXEC_GRAPH_ENV"); environment != "" {
 		c.App.Environment = environment
+	}
+	if directory := os.Getenv("EXEC_GRAPH_FRONTEND_DIR"); directory != "" {
+		c.App.FrontendDir = directory
 	}
 	if origins := os.Getenv("EXEC_GRAPH_ALLOWED_ORIGINS"); origins != "" {
 		c.App.AllowedOrigins = strings.Split(origins, ",")

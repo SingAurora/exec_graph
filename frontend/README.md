@@ -5,7 +5,7 @@ bun install
 bun run dev --port 5174
 ```
 
-先按 [后端说明](../backend/README.md) 启动真实 API。默认关闭 MSW，由 Vite 的 `/api` 代理转发到 `http://127.0.0.1:8081`；后端使用其他端口时通过 `API_PROXY_TARGET` 指定，生产部署配置同源反向代理。平台密钥只配置在后端。开发测试号入口需同时开启前端 `VITE_ENABLE_DEMO_LOGIN=true` 和后端 `EXEC_GRAPH_ENABLE_DEMO_LOGIN=true`。
+先按 [后端说明](../backend/README.md) 启动真实 API。默认关闭 MSW，由 Vite 的 `/api` 代理转发到 `http://127.0.0.1:8081`；后端使用其他端口时通过 `API_PROXY_TARGET` 指定。部署时运行 `bun run build`，让 Go 通过 `EXEC_GRAPH_FRONTEND_DIR` 提供生成的 `dist`，页面与 API 共用一个端口，`VITE_API_BASE_URL` 留空，不再运行 Vite。完整命令见 [Go 同时提供前端与 API](../backend/README.md#go-同时提供前端与-api)。平台密钥只配置在后端。开发测试号入口需同时开启前端 `VITE_ENABLE_DEMO_LOGIN=true` 和后端 `EXEC_GRAPH_ENABLE_DEMO_LOGIN=true`。
 
 ## 请求与缓存
 

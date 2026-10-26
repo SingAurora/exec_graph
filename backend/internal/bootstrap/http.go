@@ -86,6 +86,6 @@ func HTTP(deps *Dependencies, logger *slog.Logger) http.Handler {
 		httpmedia.New(appmedia.New(media.New(deps.DB), objects, mediaLimits(deps.Config)), identityService),
 		httpgeneration.New(appgeneration.New(generation.New(deps.DB), provider, generationLimits(deps.Config)), identityService),
 		httpaccount.New(appaccount.New(account.New(deps.DB, identityRepository), deps.Sessions, sender, security.Passwords{}, identityService, codeTTL), identityService, deps.Config.App.Environment == "production", int(deps.Config.App.SessionTTL().Seconds())),
-		deps.Config.App.AllowedOrigins, logger,
+		deps.Config.App.AllowedOrigins, logger, deps.Frontend,
 	)
 }

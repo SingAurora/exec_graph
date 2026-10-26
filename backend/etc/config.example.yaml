@@ -6,6 +6,8 @@ app:
     - http://localhost:5174
   environment: development
   enable_demo_login: false
+  # 留空只提供 API；部署时设为前端 dist 的路径，相对路径以进程工作目录为准。
+  frontend_dir: ""
 database:
   host: 127.0.0.1
   port: 3306

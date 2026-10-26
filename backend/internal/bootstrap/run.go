@@ -25,6 +25,10 @@ func Run() error {
 		return err
 	}
 	defer deps.Close()
+	deps.Frontend, err = frontendFiles(deps.Config.App.FrontendDir)
+	if err != nil {
+		return err
+	}
 	if err := schema.Check(ctx, deps.DB); err != nil {
 		return err
 	}
@@ -35,7 +39,10 @@ func Run() error {
 	defer func() { endMaintenance(); <-maintenanceDone }()
 	server := &http.Server{Addr: net.JoinHostPort(deps.Config.App.Host, strconv.Itoa(deps.Config.App.Port)), Handler: HTTP(deps, logger), ReadHeaderTimeout: constants.HTTPHeaderTimeout, ReadTimeout: constants.HTTPRequestTimeout, WriteTimeout: constants.AIRequestTimeout, IdleTimeout: constants.HTTPRequestTimeout}
 	failures := make(chan error, 1)
-	go func() { logger.Info("引序后端启动", "address", server.Addr); failures <- server.ListenAndServe() }()
+	go func() {
+		logger.Info("引序服务启动", "address", server.Addr, "frontend_dir", deps.Config.App.FrontendDir)
+		failures <- server.ListenAndServe()
+	}()
 	select {
 	case err := <-failures:
 		if errors.Is(err, http.ErrServerClosed) {

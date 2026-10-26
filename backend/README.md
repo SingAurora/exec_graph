@@ -18,7 +18,72 @@ EXEC_GRAPH_DATABASE_SCHEMA=exec_graph_v1 go run ./cmd/manage verify
 
 仅数据库创建与迁移管理锁使用 GORM 无法直接表达的 MySQL 管理语句；业务和表结构均通过 GORM。禁止对旧库直接套用新的结构。
 
-可用环境变量：`EXEC_GRAPH_CONFIG`、`EXEC_GRAPH_DATABASE_SCHEMA`、`EXEC_GRAPH_REDIS_PREFIX`、`EXEC_GRAPH_ADDR`、`EXEC_GRAPH_ENV`、`EXEC_GRAPH_ENABLE_DEMO_LOGIN`、`EXEC_GRAPH_ALLOWED_ORIGINS`（逗号分隔的精确 Origin）。生产环境禁止演示登录，默认不开启。
+可用环境变量：`EXEC_GRAPH_CONFIG`、`EXEC_GRAPH_DATABASE_SCHEMA`、`EXEC_GRAPH_REDIS_PREFIX`、`EXEC_GRAPH_ADDR`、`EXEC_GRAPH_ENV`、`EXEC_GRAPH_ENABLE_DEMO_LOGIN`、`EXEC_GRAPH_ALLOWED_ORIGINS`（逗号分隔的精确 Origin）、`EXEC_GRAPH_FRONTEND_DIR`。生产环境禁止演示登录，默认不开启。
+
+## Go 同时提供前端与 API
+
+部署后只运行一个 Go 进程：`/` 提供前端首页，构建资源从 `frontend/dist` 读取，`/api/commands/...` 继续提供业务接口。不需要运行 Vite，也不需要 Nginx。原有 `/#my`、`/#project?...` 等 hash 路由保持不变。
+
+从仓库根目录构建（服务器需安装 Bun 和 Go）：
+
+```sh
+cd frontend
+bun install --frozen-lockfile
+VITE_API_BASE_URL= VITE_ENABLE_API_MOCKS=false VITE_ENABLE_DEMO_LOGIN=false bun run build
+cd ../backend
+go build -o bin/exec-graph ./cmd/api
+go build -o bin/exec-graph-manage ./cmd/manage
+```
+
+首次部署，复制 `etc/config.example.yaml` 为 `etc/config.local.yaml`，填写 MySQL、Redis 和所需外部能力配置，再显式初始化数据库：
+
+```sh
+./bin/exec-graph-manage migrate --create-database
+```
+
+在 `backend` 目录启动，将下面的 `服务器IP` 换成实际公网 IP：
+
+```sh
+EXEC_GRAPH_ADDR=0.0.0.0:8081 \
+EXEC_GRAPH_FRONTEND_DIR=../frontend/dist \
+EXEC_GRAPH_ALLOWED_ORIGINS=http://服务器IP:8081 \
+EXEC_GRAPH_ENV=development \
+EXEC_GRAPH_ENABLE_DEMO_LOGIN=false \
+./bin/exec-graph
+```
+
+浏览器访问 `http://服务器IP:8081/`；服务器需放行 TCP 8081。前端 API 地址留空，页面和 API 使用同一个来源。`allowed_origins` 必须与浏览器访问的协议、IP 和端口完全一致，登录和写入请求也检查此配置。
+
+当前直接使用 HTTP，显式采用 `development` 环境：现有 `production` 环境会设置仅 HTTPS 可用的 Secure 会话 cookie。演示登录仍关闭，构建后的前端也不启动 MSW；MySQL、Redis、邮件、图片和 AI 继续使用真实配置。以后启用 HTTPS 时再切换 `production`。
+
+`app.frontend_dir` 与 `EXEC_GRAPH_FRONTEND_DIR` 都可以指定构建目录，环境变量优先；相对路径以 Go 进程的工作目录为准，后台托管进程时建议使用绝对路径。留空保持原有只提供 API 的开发方式；显式配置但缺少 `index.html` 时拒绝启动。仅发布构建目录，不列出目录内容，未知 API 和缺失资源返回 404，不回退成首页。
+
+后续更新时重新拉取代码、构建前后端并重启这个 Go 进程即可；有新增迁移时，启动前显式执行 `exec-graph-manage migrate`。服务托管与一键更新脚本可以围绕这个单进程完成。
+
+### 当前服务器与一键更新
+
+当前部署目标为 `115.159.206.123`（腾讯云上海轻量实例 `lhins-18mt4ili`），应用访问地址为 `http://yinxu.fun/`，仍可通过 `http://115.159.206.123/` 访问。域名 A 记录指向该 IP。Go 直接监听 TCP 80；配置中的 `app.port` 为 `80`，`app.allowed_origins` 包含 `http://yinxu.fun` 和 `http://115.159.206.123`。当前只提供 HTTP，尚未配置 HTTPS。原先为 Forgejo 提供网页的 Nginx 已停用并关闭开机启动，Forgejo 容器和数据保留。本应用由 `exec-graph.service` 托管，以 `execgraph` 账号运行，通过 `CAP_NET_BIND_SERVICE` 获得监听 80 所需的权限，开机自动启动。
+
+- `/etc/exec-graph/config.yaml`：服务端私有配置，不进入 Git。
+- `/opt/exec-graph/current`：当前运行版本，包含 Go 程序和前端 dist。
+- `/usr/local/bin/exec-graph-update`：安装自 `backend/deploy/update.sh` 的更新命令。
+
+先把待部署代码推送到 GitHub `main`，再在服务器执行：
+
+```sh
+exec-graph-update
+```
+
+命令自动拉取、构建、检查 MySQL／Redis、执行显式迁移，再切换版本并重启，最后检查首页和 API。构建或切换前的检查失败时，当前服务继续运行。首次部署可以通过 `EXEC_GRAPH_SOURCE_DIR` 使用上传的工作区快照；未推送的本地改动不会自动出现在 GitHub 拉取结果中。
+
+更新脚本默认检查本机 80 端口；如以后改用其他端口，需同步修改服务配置，并通过 `EXEC_GRAPH_HEALTH_BASE_URL` 和 `EXEC_GRAPH_PUBLIC_URL` 指定健康检查与公开访问地址。
+
+查看服务与日志：
+
+```sh
+systemctl status exec-graph --no-pager
+journalctl -u exec-graph -n 50 --no-pager
+```
 
 ## 导入与启动
 

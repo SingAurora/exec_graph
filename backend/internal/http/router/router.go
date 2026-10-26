@@ -6,7 +6,6 @@ import (
 	"github.com/singaurora/exec-graph/backend/internal/http/endpoint/account"
 	"github.com/singaurora/exec-graph/backend/internal/http/endpoint/action"
 	"github.com/singaurora/exec-graph/backend/internal/http/endpoint/catalogue"
-	"github.com/singaurora/exec-graph/backend/internal/http/endpoint/common"
 	"github.com/singaurora/exec-graph/backend/internal/http/endpoint/following"
 	"github.com/singaurora/exec-graph/backend/internal/http/endpoint/generation"
 	"github.com/singaurora/exec-graph/backend/internal/http/endpoint/graph"
@@ -14,12 +13,12 @@ import (
 	"github.com/singaurora/exec-graph/backend/internal/http/endpoint/media"
 	"github.com/singaurora/exec-graph/backend/internal/http/endpoint/profile"
 	"github.com/singaurora/exec-graph/backend/internal/http/middleware"
-	"github.com/singaurora/exec-graph/backend/internal/shared/fault"
+	"io/fs"
 	"log/slog"
 )
 
 // New 注册当前阶段已实现的接口，不为未实现业务返回伪成功。
-func New(auth *identity.Handler, read *catalogue.Handler, graphs *graph.Handler, actions *action.Handler, profiles *profile.Handler, follows *following.Handler, images *media.Handler, ai *generation.Handler, accounts *account.Handler, origins []string, logger *slog.Logger) *gin.Engine {
+func New(auth *identity.Handler, read *catalogue.Handler, graphs *graph.Handler, actions *action.Handler, profiles *profile.Handler, follows *following.Handler, images *media.Handler, ai *generation.Handler, accounts *account.Handler, origins []string, logger *slog.Logger, frontend fs.FS) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	engine := gin.New()
 	_ = engine.SetTrustedProxies(nil)
@@ -85,6 +84,7 @@ func New(auth *identity.Handler, read *catalogue.Handler, graphs *graph.Handler,
 	group.POST("/profiles/highlights-set", profiles.Highlights)
 	// 显式设置用户或图的关注状态。
 	group.POST("/following/set", follows.Set)
-	engine.NoRoute(func(c *gin.Context) { common.Fail(c, fault.New(fault.NotFound, "接口不存在或尚未实现")) })
+	// 业务接口优先匹配；其余请求仅提供前端首页和实际存在的构建资源。
+	engine.NoRoute(frontendOrNotFound(frontend))
 	return engine
 }

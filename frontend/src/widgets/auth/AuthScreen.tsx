@@ -167,7 +167,8 @@ export function AuthScreen({view, darkMode, onToggleTheme, onEnter}: AuthScreenP
                             <FieldFeedback name="password" error={errors.password}/>
                         </div>
                         <button className="auth-submit" type="submit"
-                                disabled={pending || codeSending}>{pending ? '处理中…' : content.submit}</button>
+                                disabled={pending || codeSending}>{pending ? '处理中…' : content.submit}
+                        </button>
                     </form>
                     <p className="auth-switcher">
                         {isLogin ? '还没有账号？' : isRegister ? '已经有账号？' : '想起密码了？'}
@@ -193,7 +194,11 @@ export function AuthScreen({view, darkMode, onToggleTheme, onEnter}: AuthScreenP
 function FieldFeedback({name, error}: { name: AuthFieldName; error?: string }) {
     return (
         <p id={`auth-${name}-error`} className="auth-field-feedback">
-            {error && <><CircleAlert size={13}/><span>{error}</span></>}
+            {error && <>
+                <CircleAlert size={13}/>
+                <span>{error}</span>
+            </>
+            }
         </p>
     )
 }
