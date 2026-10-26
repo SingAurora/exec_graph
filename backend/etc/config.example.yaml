@@ -8,6 +8,12 @@ app:
   enable_demo_login: false
   # 留空只提供 API；部署时设为前端 dist 的路径，相对路径以进程工作目录为准。
   frontend_dir: ""
+  # 开启后 Go 监听 80/443，域名 HTTP 自动跳转 HTTPS，IP 仍可使用 HTTP。
+  # 证书只为 domains 中的域名签发，缓存目录必须独立于发布目录。
+  tls:
+    enabled: false
+    domains: []
+    cache_dir: /var/lib/exec-graph/autocert
 database:
   host: 127.0.0.1
   port: 3306

@@ -54,7 +54,7 @@ EXEC_GRAPH_ENABLE_DEMO_LOGIN=false \
 
 浏览器访问 `http://服务器IP:8081/`；服务器需放行 TCP 8081。前端 API 地址留空，页面和 API 使用同一个来源。`allowed_origins` 必须与浏览器访问的协议、IP 和端口完全一致，登录和写入请求也检查此配置。
 
-当前直接使用 HTTP，显式采用 `development` 环境：现有 `production` 环境会设置仅 HTTPS 可用的 Secure 会话 cookie。演示登录仍关闭，构建后的前端也不启动 MSW；MySQL、Redis、邮件、图片和 AI 继续使用真实配置。以后启用 HTTPS 时再切换 `production`。
+上面的 IP HTTP 示例显式采用 `development` 环境，以允许 HTTP 会话 Cookie；直接 HTTPS 请求始终设置 Secure Cookie。`production` 环境无论请求协议均要求 Secure Cookie，适合只提供 HTTPS 登录的部署。演示登录仍关闭，构建后的前端也不启动 MSW；MySQL、Redis、邮件、图片和 AI 继续使用真实配置。
 
 `app.frontend_dir` 与 `EXEC_GRAPH_FRONTEND_DIR` 都可以指定构建目录，环境变量优先；相对路径以 Go 进程的工作目录为准，后台托管进程时建议使用绝对路径。留空保持原有只提供 API 的开发方式；显式配置但缺少 `index.html` 时拒绝启动。仅发布构建目录，不列出目录内容，未知 API 和缺失资源返回 404，不回退成首页。
 
@@ -62,10 +62,39 @@ EXEC_GRAPH_ENABLE_DEMO_LOGIN=false \
 
 ### 当前服务器与一键更新
 
-当前部署目标为 `115.159.206.123`（腾讯云上海轻量实例 `lhins-18mt4ili`），应用访问地址为 `http://yinxu.fun/`，仍可通过 `http://115.159.206.123/` 访问。域名 A 记录指向该 IP。Go 直接监听 TCP 80；配置中的 `app.port` 为 `80`，`app.allowed_origins` 包含 `http://yinxu.fun` 和 `http://115.159.206.123`。当前只提供 HTTP，尚未配置 HTTPS。原先为 Forgejo 提供网页的 Nginx 已停用并关闭开机启动，Forgejo 容器和数据保留。本应用由 `exec-graph.service` 托管，以 `execgraph` 账号运行，通过 `CAP_NET_BIND_SERVICE` 获得监听 80 所需的权限，开机自动启动。
+当前部署目标为 `115.159.206.123`（腾讯云上海轻量实例 `lhins-18mt4ili`），公开地址为 `https://yinxu.fun/` 和 `https://www.yinxu.fun/`，两个域名的 A 记录均指向该 IP。Go 通过 `autocert` 自动申请和续期免费的 Let's Encrypt 证书，直接监听 TCP 80/443；域名的 HTTP 请求以 308 跳转 HTTPS，IP 保留 `http://115.159.206.123/` 访问。本次不为 IP 配置 HTTPS 证书。
+
+服务器的私有配置中设置以下 app 字段（其他数据库、邮件等配置保留）：
+
+```yaml
+app:
+  host: 0.0.0.0
+  port: 80
+  environment: development
+  enable_demo_login: false
+  session_ttl_hours: 168
+  frontend_dir: /opt/exec-graph/current/frontend/dist
+  allowed_origins:
+    - https://yinxu.fun
+    - https://www.yinxu.fun
+    - http://115.159.206.123
+  tls:
+    enabled: true
+    domains:
+      - yinxu.fun
+      - www.yinxu.fun
+    cache_dir: /var/lib/exec-graph/autocert
+```
+
+保留 `development` 是为兼容 IP 的 HTTP 登录；域名 HTTPS 登录仍使用 Secure、HttpOnly、SameSite=Lax 的 Cookie。各域名和 IP 的登录状态相互独立。仅将域名加入 `allowed_origins` 不会申请证书，必须同时加入 `tls.domains`；不支持通配域名。首次 HTTPS 访问会触发申请，可能稍慢，后续从缓存读取并自动续期。开启此配置表示同意 Let's Encrypt 服务条款。
+
+云防火墙与主机防火墙均需放行 TCP 80/443，并保持域名解析到本机；80 用于 HTTP-01 验证，443 同时支持 TLS-ALPN-01 验证。证书缓存含私钥，不能提交到 Git、放入前端 dist 或随发布版本删除。systemd 的 `StateDirectory=exec-graph` 创建归服务账号所有的 `/var/lib/exec-graph`，更新脚本不改动此目录。
+
+原先为 Forgejo 提供网页的 Nginx 已停用并关闭开机启动，Forgejo 容器和数据保留。本应用由 `exec-graph.service` 托管，以 `execgraph` 账号运行，通过 `CAP_NET_BIND_SERVICE` 获得监听 80/443 所需的权限，开机自动启动。
 
 - `/etc/exec-graph/config.yaml`：服务端私有配置，不进入 Git。
 - `/opt/exec-graph/current`：当前运行版本，包含 Go 程序和前端 dist。
+- `/var/lib/exec-graph/autocert`：自动证书及 ACME 账号缓存，仅服务账号可读写。
 - `/usr/local/bin/exec-graph-update`：安装自 `backend/deploy/update.sh` 的更新命令。
 
 先把待部署代码推送到 GitHub `main`，再在服务器执行：
@@ -76,7 +105,7 @@ exec-graph-update
 
 命令自动拉取、构建、检查 MySQL／Redis、执行显式迁移，再切换版本并重启，最后检查首页和 API。构建或切换前的检查失败时，当前服务继续运行。首次部署可以通过 `EXEC_GRAPH_SOURCE_DIR` 使用上传的工作区快照；未推送的本地改动不会自动出现在 GitHub 拉取结果中。
 
-更新脚本默认检查本机 80 端口；如以后改用其他端口，需同步修改服务配置，并通过 `EXEC_GRAPH_HEALTH_BASE_URL` 和 `EXEC_GRAPH_PUBLIC_URL` 指定健康检查与公开访问地址。
+更新脚本默认通过本机 IP 检查 80 端口的首页和 API（不触发域名跳转），公开访问地址默认为 `https://yinxu.fun`。可以通过 `EXEC_GRAPH_HEALTH_BASE_URL` 和 `EXEC_GRAPH_PUBLIC_URL` 覆盖；开启自动 HTTPS 时 HTTP 端口固定为 80，HTTPS 固定为 443。证书首次启用或新增域名后，还需从公网检查对应 HTTPS 地址，确认云防火墙、解析和证书签发成功。
 
 查看服务与日志：
 

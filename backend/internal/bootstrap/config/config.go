@@ -38,6 +38,7 @@ type App struct {
 	Environment     string   `yaml:"environment"`
 	EnableDemoLogin bool     `yaml:"enable_demo_login"`
 	FrontendDir     string   `yaml:"frontend_dir"`
+	TLS             TLS      `yaml:"tls"`
 }
 
 // Database 是 MySQL 配置，业务模型不感知连接信息。
@@ -216,6 +217,9 @@ func Load(path string) (Config, error) {
 	}
 	if c.App.Environment == "production" && c.App.EnableDemoLogin {
 		return Config{}, fmt.Errorf("生产环境禁止启用演示登录")
+	}
+	if err := c.App.TLS.validate(c.App.Port); err != nil {
+		return Config{}, err
 	}
 	return c, nil
 }

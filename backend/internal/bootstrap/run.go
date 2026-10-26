@@ -2,18 +2,12 @@ package bootstrap
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"log/slog"
-	"net"
-	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 
 	"github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/schema"
-	"github.com/singaurora/exec-graph/backend/internal/shared/constants"
 )
 
 // Run 验证 schema 后启动业务进程，退出时依次关闭 HTTP 和外部连接。
@@ -37,25 +31,9 @@ func Run() error {
 	maintenanceDone := make(chan struct{})
 	go func() { defer close(maintenanceDone); maintainMedia(maintenanceCtx, deps, logger) }()
 	defer func() { endMaintenance(); <-maintenanceDone }()
-	server := &http.Server{Addr: net.JoinHostPort(deps.Config.App.Host, strconv.Itoa(deps.Config.App.Port)), Handler: HTTP(deps, logger), ReadHeaderTimeout: constants.HTTPHeaderTimeout, ReadTimeout: constants.HTTPRequestTimeout, WriteTimeout: constants.AIRequestTimeout, IdleTimeout: constants.HTTPRequestTimeout}
-	failures := make(chan error, 1)
-	go func() {
-		logger.Info("引序服务启动", "address", server.Addr, "frontend_dir", deps.Config.App.FrontendDir)
-		failures <- server.ListenAndServe()
-	}()
-	select {
-	case err := <-failures:
-		if errors.Is(err, http.ErrServerClosed) {
-			return nil
-		}
-		return fmt.Errorf("启动 HTTP: %w", err)
-	case <-ctx.Done():
-	}
-	shutdown, cancel := context.WithTimeout(context.Background(), constants.ShutdownTimeout)
-	defer cancel()
-	if err := server.Shutdown(shutdown); err != nil {
-		_ = server.Close()
+	servers, err := webServers(deps.Config.App, HTTP(deps, logger))
+	if err != nil {
 		return err
 	}
-	return nil
+	return serveWeb(ctx, servers, logger)
 }

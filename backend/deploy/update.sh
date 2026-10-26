@@ -7,7 +7,7 @@ repository_url=${EXEC_GRAPH_REPOSITORY_URL:-https://github.com/SingAurora/exec_g
 branch=${EXEC_GRAPH_DEPLOY_BRANCH:-main}
 config_path=/etc/exec-graph/config.yaml
 health_base_url=${EXEC_GRAPH_HEALTH_BASE_URL:-http://127.0.0.1}
-public_url=${EXEC_GRAPH_PUBLIC_URL:-http://yinxu.fun}
+public_url=${EXEC_GRAPH_PUBLIC_URL:-https://yinxu.fun}
 
 if [[ $(id -u) -ne 0 ]]; then
     echo '请使用 root 或 sudo 执行部署。' >&2
