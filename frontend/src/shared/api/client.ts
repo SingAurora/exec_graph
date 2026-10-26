@@ -24,7 +24,7 @@ export class APIRequestError extends Error {
 
 /** 下载图片等文件并保留 MIME 类型，返回 Blob 供浏览器预览或保存。 */
 export async function getBlob(url: string): Promise<Blob> {
-  const response = await fetch(url)
+  const response = await fetch(url, { credentials: 'include' })
   if (!response.ok) throw new APIRequestError(`图片下载失败（${response.status}）`, response.status)
   return response.blob()
 }
@@ -83,6 +83,11 @@ export function postAPI<T, TBody>(path: BusinessAPIPath, body: TBody, options: B
   return requestBusiness<T>(path, undefined, body, options)
 }
 
+/** 文件请求沿用统一认证与错误边界，Content-Type 的 boundary 由浏览器生成。 */
+export function postFormAPI<T>(path: BusinessAPIPath, body: FormData, options: BusinessRequestOptions = {}): Promise<T> {
+  return requestBusiness<T>(path, undefined, body, options)
+}
+
 /** 统一业务请求边界：处理身份、超时、取消、响应校验和错误分类，不在这里弹提示。 */
 async function requestBusiness<T>(path: BusinessAPIPath, query: URLSearchParams | undefined, body: unknown, options: BusinessRequestOptions): Promise<T> {
   const timeout = new AbortController()
@@ -96,11 +101,11 @@ async function requestBusiness<T>(path: BusinessAPIPath, query: URLSearchParams 
     if (query) url.search = query.toString()
     const headers = new Headers({ Accept: 'application/json' })
     if (body !== undefined) {
-      headers.set('Content-Type', 'application/json')
+      if (!(body instanceof FormData)) headers.set('Content-Type', 'application/json')
       if (options.csrfToken) headers.set('X-CSRF-Token', options.csrfToken)
       if (options.idempotencyKey) headers.set('Idempotency-Key', options.idempotencyKey)
     }
-    const response = await fetch(url, { method: body === undefined ? 'GET' : 'POST', credentials: 'include', headers, signal, ...(body === undefined ? {} : { body: JSON.stringify(body) }) })
+    const response = await fetch(url, { method: body === undefined ? 'GET' : 'POST', credentials: 'include', headers, signal, ...(body === undefined ? {} : { body: body instanceof FormData ? body : JSON.stringify(body) }) })
     const requestId = response.headers.get('X-Request-Id') ?? undefined
     let payload: unknown
     try { payload = await response.json() } catch {

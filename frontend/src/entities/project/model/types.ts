@@ -1,11 +1,14 @@
 /** 类似贴吧的公共社区空间，承载多人的表达与约定回应；创建图不自动生成第一次行动。 */
 export type Project = {
+  legacyId?: string
   id: string
   ownerId: string
   participantIds: string[]
   title: string
   description: string
   avatar?: string
+  avatarAssetId?: string | null
+  backgroundAssetId?: string | null
   backgroundImage?: string
   createdAt: string
   updatedAt: string

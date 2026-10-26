@@ -16,6 +16,7 @@ import { FollowButton } from '../../features/follow/ui/FollowButton'
 import { CreateGraphButton } from '../../features/project/ui/CreateGraphButton'
 import type { CreateProjectInput } from '../../features/project/model/types'
 import { ProfileHome } from './ProfileHome'
+import { ProfileHighlights } from './ProfileHighlights'
 
 /** 本人与他人共用的公开主页，组织热力图、表达、约定回应、行动和图等栏目。 */
 export function PublicProfile({ profile, currentUserId, following, users, projects, actions, active, activityTabRequest, onCreateProject, onSetUserFollow, onOpenProject, onOpenNode, onOpenReference }: {
@@ -47,7 +48,7 @@ export function PublicProfile({ profile, currentUserId, following, users, projec
       <div className="mt-4 flex flex-wrap gap-x-7 gap-y-2 px-5 text-sm text-muted"><span><strong className="font-semibold text-ink">{expressionCount}</strong> 表达</span><span><strong className="font-semibold text-ink">{agreementResponses.length}</strong> 约定</span><span><strong className="font-semibold text-ink">{authorActions.length}</strong> 行动</span><span><strong className="font-semibold text-ink">{related.length}</strong> 图</span></div>
     </header>
     <ActivityFeed actions={actions} projects={projects} users={users} authorIds={[profile.id]} graphItems={related} agreementResponses={agreementResponses} active={active} tabRequest={activityTabRequest}
-      home={(homeActive) => <ProfileHome userId={profile.id} actions={actions} active={homeActive} onOpenNode={onOpenNode} />}
+      home={(homeActive) => <><ProfileHighlights profile={profile} self={self} actions={actions} projects={projects} users={users} onOpenNode={onOpenNode} /><ProfileHome userId={profile.id} actions={actions} active={homeActive} onOpenNode={onOpenNode} /></>}
       graphToolbar={self && onCreateProject && <div className="flex items-center justify-between gap-3 pt-4"><a href="#projects" className="text-button text-xs">管理行动图</a><CreateGraphButton onCreate={onCreateProject} compact /></div>}
       onOpenNode={onOpenNode} onOpenProject={onOpenProject} onOpenReference={onOpenReference} />
   </section>

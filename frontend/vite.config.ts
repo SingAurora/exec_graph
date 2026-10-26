@@ -9,23 +9,11 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), tailwindcss()],
     server: {
-      // 这些代理只在 Vite 开发服务器生效；生产部署需另外配置 AI 请求转发。
+      // 开发环境同源访问业务后端；模型凭据与上游调用全部由后端管理。
       proxy: {
-        '/platform-ai-api': {
-          target: 'https://api.deepseek.com',
+        '/api': {
+          target: env.API_PROXY_TARGET || 'http://127.0.0.1:8080',
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/platform-ai-api/, ''),
-          headers: { Authorization: env.DEEPSEEK_API_KEY ? `Bearer ${env.DEEPSEEK_API_KEY}` : '' },
-        },
-        '/deepseek-api': {
-          target: 'https://api.deepseek.com',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/deepseek-api/, ''),
-        },
-        '/openai-api': {
-          target: 'https://api.openai.com',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/openai-api/, ''),
         },
       },
     },

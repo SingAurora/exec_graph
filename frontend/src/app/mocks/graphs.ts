@@ -22,7 +22,7 @@ export function graphHandlers(db: MockDatabase) {
       })
     })),
     http.post('*/api/commands/graphs/update', mockResponse(db, async (request) => {
-      const body = await readBody(request, ['graphId', 'expectedVersion', 'title', 'description', 'avatar', 'backgroundImage'])
+      const body = await readBody(request, ['graphId', 'expectedVersion', 'title', 'description', 'avatarAssetId', 'backgroundAssetId'])
       const graph = requireResource(db.graphs.find((item) => item.id === body.graphId))
       requireVersion(graph.version, body.expectedVersion)
       const counts = new Map<string, number>()
@@ -31,8 +31,8 @@ export function graphHandlers(db: MockDatabase) {
       if (graph.ownerId !== mockAccount(db).id && !editors.includes(mockAccount(db).id)) throw new MockFailure('没有编辑此图的权限', API_ERROR_CODES.forbidden, 403)
       requireInput(typeof body.title === 'string' && body.title.trim().length > 0 && body.title.trim().length <= 60)
       requireInput(typeof body.description === 'string' && body.description.length <= 240)
-      requireInput((body.avatar === undefined || typeof body.avatar === 'string') && (body.backgroundImage === undefined || typeof body.backgroundImage === 'string'))
-      Object.assign(graph, { title: body.title.trim(), description: body.description.trim(), avatar: body.avatar, backgroundImage: body.backgroundImage, updatedAt: new Date().toISOString(), version: graph.version + 1 })
+      requireInput(body.avatarAssetId === null && body.backgroundAssetId === null, '模拟环境不提供对象存储')
+      Object.assign(graph, { title: body.title.trim(), description: body.description.trim(), avatar: undefined, backgroundImage: undefined, avatarAssetId: null, backgroundAssetId: null, updatedAt: new Date().toISOString(), version: graph.version + 1 })
       return graph
     })),
     http.post('*/api/commands/graphs/delete', mockResponse(db, async (request) => {

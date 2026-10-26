@@ -1,8 +1,7 @@
 import { afterEach, describe, expect, spyOn, test } from 'bun:test'
 import { generateAIDocument } from './chat.ts'
 
-const config = { provider: 'deepseek', model: 'deepseek-flash', baseUrl: 'https://api.deepseek.com/v1', apiKey: 'test-personal-key' }
-const input = { config, mode: 'action', hasParent: true, currentDocument: '', inheritedExpression: '上次的表达', turns: [{ role: 'user', content: '做完了这顿饭，我更在意口感' }] }
+const input = { mode: 'action', hasParent: true, currentDocument: '', inheritedExpression: '上次的表达', turns: [{ role: 'user', content: '做完了这顿饭，我更在意口感' }] }
 let request
 let fetchSpy
 function respond(expression, agreementReviews) {

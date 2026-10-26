@@ -1,6 +1,5 @@
 import { postAPI, type BusinessRequestOptions } from '../../../shared/api/client'
 import type { ActionContextNode } from '../../../entities/action/api/context'
-import type { ChatMessage } from '../../../shared/model/content'
 
 /** 请求显式传递文档处理意图；JSON 无法保留 undefined，必须区分继承、更新和清空。 */
 export type DocumentUpdate = { mode: 'inherit' } | { mode: 'clear' } | { mode: 'update'; markdown: string }
@@ -11,15 +10,12 @@ export type SourceAssessment = { sourceId: string; complies: boolean | null; exc
 /** 发布参数携带引用来源版本，节点编号由服务分配；表达和后续约定各自声明处理方式。 */
 export type CreateActionInput = {
   graphId: string
+  generationId: string
   parentId?: string
   mergedParentIds: string[]
   sourceVersions: { nodeId: string; version: number }[]
-  title: string
-  objectiveMarkdown: string
-  expression: DocumentUpdate
-  agreement: DocumentUpdate
   referenceAgreements: SourceAssessment[]
-  conversation: ChatMessage[]
+  images: { assetId: string; alt: string }[]
 }
 
 /** 发布一次行动，连同表达、后续约定、引用核对和形成对话提交业务接口。 */
@@ -28,7 +24,7 @@ export function createAction(input: CreateActionInput, options: BusinessRequestO
 }
 
 /** 在已有节点保存连续 AI 对话形成的表达修改，不创建新行动。 */
-export function reviseExpression(input: { nodeId: string; expectedVersion: number; document: DocumentUpdate; conversation: ChatMessage[] }, options: BusinessRequestOptions): Promise<ActionContextNode> {
+export function reviseExpression(input: { nodeId: string; expectedVersion: number; generationId: string }, options: BusinessRequestOptions): Promise<ActionContextNode> {
   return postAPI('/api/commands/expressions/update', input, options)
 }
 

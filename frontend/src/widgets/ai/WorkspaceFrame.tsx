@@ -35,13 +35,14 @@ type WorkspaceFrameProps = {
   onSend: (event: FormEvent) => void
   onBack: () => void
   action: DocumentPreview
+  actionControls?: ReactNode
   expression: DocumentPreview
   agreement: ReactNode
   footer: ReactNode
 }
 
 /** 两类工作区共用的界面框架：对话、行动、表达、约定四个 Tab，不负责生成或发布。 */
-export function WorkspaceFrame({ title, tabLabel, help, draftControls, view, onViewChange, restoring = false, context, contextControls, messages, profileName, profile, users = [], defaultAuthorId, input, inputLabel = '对话内容', placeholder, sending, disabled = false, onInputChange, onSend, onBack, action, expression, agreement, footer }: WorkspaceFrameProps) {
+export function WorkspaceFrame({ title, tabLabel, help, draftControls, view, onViewChange, restoring = false, context, contextControls, messages, profileName, profile, users = [], defaultAuthorId, input, inputLabel = '对话内容', placeholder, sending, disabled = false, onInputChange, onSend, onBack, action, actionControls, expression, agreement, footer }: WorkspaceFrameProps) {
   const [localTab, setTab] = useState<WorkspaceTab>('conversation')
   const tab = view?.tab ?? localTab
   const panels = useRef<Partial<Record<WorkspaceTab, HTMLDivElement | null>>>({})
@@ -132,6 +133,7 @@ export function WorkspaceFrame({ title, tabLabel, help, draftControls, view, onV
           const preview = value === 'objective' ? action : expression
           return <TabsContent value={value} keepMounted className="min-h-0 flex-1" key={value}>
             <div ref={(element) => { panels.current[value] = element }} onScroll={(event) => rememberScroll(value, event)} className="h-full overflow-y-auto overscroll-contain px-6 py-5" aria-label={value === 'objective' ? '行动文档预览' : '表达文档预览'}>
+              {value === 'objective' && actionControls}
               {preview.status && <p className="mb-4 text-xs leading-5 text-muted">{preview.status}</p>}
               {preview.markdown.trim() ? <MarkdownContent markdown={preview.markdown} images={preview.images} /> : <p className="py-5 text-sm leading-7 text-muted">{preview.empty}</p>}
             </div>

@@ -1,4 +1,4 @@
-import { KeyRound, LockKeyhole, Palette, PanelsTopLeft, UserRound } from 'lucide-react'
+import { LockKeyhole, Palette, PanelsTopLeft, UserRound } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { AvatarEditor } from '../../features/profile/ui/AvatarEditor'
 import { ProfileBackgroundEditor } from '../../features/profile/ui/ProfileBackgroundEditor'
@@ -8,39 +8,33 @@ import { Select } from '../../shared/ui/select/Select'
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from '../../shared/ui/tabs/Tabs'
 import { useToast } from '../../shared/ui/toast/useToast'
 import { HelpPopover } from '../../shared/ui/help/HelpPopover'
-import type { AIKeyConfig, SaveAIKeyInput } from '../../entities/ai-key/model/types'
-import { AIKeySettings } from '../../features/ai-key/ui/AIKeySettings'
 import type { UserProfile } from '../../entities/profile/model/types'
 import { ComponentShowcase } from './components/ComponentShowcase'
 import { AppearanceSettings } from './AppearanceSettings'
 import type { GraphBackgroundPreferences } from '../../shared/ui/graph-background/model'
 
 type SettingsPanelProps = {
+  csrfToken: string
   profile: UserProfile
   darkMode: boolean
   showActionGraphLegend: boolean
   graphBackground: GraphBackgroundPreferences
   onGraphBackgroundChange: (preferences: GraphBackgroundPreferences) => void
-  aiConfigs: AIKeyConfig[]
   onSave: (profile: UserProfile) => void | Promise<void>
   onToggleTheme: () => void
   onShowActionGraphLegendChange: (show: boolean) => void
-  onSaveAIConfig: (input: SaveAIKeyInput) => void
-  onSetDefaultAIConfig: (id: string) => void
-  onDeleteAIConfig: (id: string) => void
 }
 
-type SettingsTab = 'profile' | 'ai' | 'account' | 'preferences' | 'components'
+type SettingsTab = 'profile' | 'account' | 'preferences' | 'components'
 const categories = [
   { id: 'profile', label: '个人资料', icon: UserRound },
-  { id: 'ai', label: 'AI 服务', icon: KeyRound },
   { id: 'account', label: '账户安全', icon: LockKeyhole },
   { id: 'preferences', label: '外观', icon: Palette },
   { id: 'components', label: '组件演示', icon: PanelsTopLeft },
 ] as const
 
 /** Global preferences with consistent forms and retained tab drafts. */
-export function SettingsPanel({ profile, darkMode, showActionGraphLegend, graphBackground, onGraphBackgroundChange, aiConfigs, onSave, onToggleTheme, onShowActionGraphLegendChange, onSaveAIConfig, onSetDefaultAIConfig, onDeleteAIConfig }: SettingsPanelProps) {
+export function SettingsPanel({ profile, csrfToken, darkMode, showActionGraphLegend, graphBackground, onGraphBackgroundChange, onSave, onToggleTheme, onShowActionGraphLegendChange }: SettingsPanelProps) {
   const [draft, setDraft] = useState(profile)
   const [backgroundLoading, setBackgroundLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -83,9 +77,8 @@ export function SettingsPanel({ profile, darkMode, showActionGraphLegend, graphB
           </form>
         </div>
       </TabsContent>
-      <TabsContent value="ai" keepMounted><AIKeySettings configs={aiConfigs} onSave={onSaveAIConfig} onSetDefault={onSetDefaultAIConfig} onDelete={onDeleteAIConfig} /></TabsContent>
       <TabsContent value="account" keepMounted>
-        <AccountSecurity email={profile.email} />
+        <AccountSecurity email={profile.email} csrfToken={csrfToken} />
       </TabsContent>
       <TabsContent value="preferences" keepMounted>
         <AppearanceSettings darkMode={darkMode} onToggleTheme={onToggleTheme} graphBackground={graphBackground} onGraphBackgroundChange={onGraphBackgroundChange} showActionGraphLegend={showActionGraphLegend} onShowActionGraphLegendChange={onShowActionGraphLegendChange} />

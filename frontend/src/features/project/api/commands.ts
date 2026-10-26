@@ -3,7 +3,7 @@ import type { GraphView } from '../../../entities/project/api/graphs'
 import type { CreateProjectInput } from '../model/types'
 
 /** Graph settings accepted by the versioned update command. */
-export type UpdateGraphInput = { graphId: string; expectedVersion: number; title: string; description: string; avatar?: string; backgroundImage?: string }
+export type UpdateGraphInput = { graphId: string; expectedVersion: number; title: string; description: string; avatarAssetId: string | null; backgroundAssetId: string | null }
 
 /** Creates an empty graph; its first action is a separate command. */
 export function createGraph(input: CreateProjectInput, options: BusinessRequestOptions): Promise<GraphView> {

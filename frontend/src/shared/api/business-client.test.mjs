@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
-import { getAPI, postAPI } from './client.ts'
+import { getAPI, postAPI, postFormAPI } from './client.ts'
+import { readSession } from '../../entities/profile/api/profiles.ts'
 
-const { URL, Response, AbortController } = globalThis
+const { URL, Response, AbortController, FormData, File } = globalThis
 
 const originalFetch = globalThis.fetch
 const originalLocation = Object.getOwnPropertyDescriptor(globalThis, 'location')
@@ -13,6 +14,24 @@ afterEach(() => {
 })
 
 describe('business transport', () => {
+  test('preserves multipart files and lets the browser assign the boundary', async () => {
+    let requested
+    globalThis.fetch = async (_url, options) => { requested = options; return Response.json({ code: 0, msg: '', data: { assetId: 'asset' } }) }
+    const body = new FormData()
+    body.append('file', new File(['image bytes'], 'image.jpg', { type: 'image/jpeg' }))
+    expect(await postFormAPI('/api/commands/media/upload', body, { csrfToken: 'csrf' })).toEqual({ assetId: 'asset' })
+    expect(requested.body).toBe(body)
+    expect(requested.headers.has('Content-Type')).toBe(false)
+    expect(requested.headers.get('X-CSRF-Token')).toBe('csrf')
+    expect(requested.credentials).toBe('include')
+  })
+
+  test('treats only an unauthenticated session as anonymous, retaining service failures', async () => {
+    globalThis.fetch = async () => Response.json({ code: 10002, msg: '请登录', data: null }, { status: 401 })
+    expect(await readSession()).toBeNull()
+    globalThis.fetch = async () => Response.json({ code: 10008, msg: '服务不可用', data: null }, { status: 503 })
+    await expect(readSession()).rejects.toMatchObject({ code: 10008, status: 503 })
+  })
   test('encodes queries once, omits absent values and keeps empty responses', async () => {
     let requested
     globalThis.fetch = async (url, options) => {

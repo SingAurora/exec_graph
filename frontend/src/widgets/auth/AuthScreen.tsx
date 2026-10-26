@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent, type FocusEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type FocusEvent } from 'react'
 import { CircleAlert, Eye, EyeOff, Moon, Sun } from 'lucide-react'
 import accessImage from '../../../assets/auth-mountain-walk.jpg'
 import registerImage from '../../../assets/auth-valley-hike.jpg'
@@ -7,12 +7,14 @@ import { validateAuthField, validateAuthForm, type AuthFieldErrors, type AuthFie
 import { Brand } from '../../shared/ui/Brand'
 import { useToast } from '../../shared/ui/toast/useToast'
 import './auth-screen.css'
+import { demoLogin, login, register, resetPassword, sendCode as requestCode } from '../../features/auth/api/account'
+import type { SessionView } from '../../entities/profile/api/profiles'
 
 type AuthScreenProps = {
   view: AuthView
   darkMode: boolean
   onToggleTheme: () => void
-  onEnter: () => void
+  onEnter: (session: SessionView) => void | Promise<void>
 }
 
 const copy = {
@@ -26,14 +28,24 @@ export function AuthScreen({ view, darkMode, onToggleTheme, onEnter }: AuthScree
   const [showPassword, setShowPassword] = useState(false)
   const [errors, setErrors] = useState<AuthFieldErrors>({})
   const formRef = useRef<HTMLFormElement>(null)
+  const [pending, setPending] = useState(false)
+  const [codeSending, setCodeSending] = useState(false)
+  const [countdown, setCountdown] = useState(0)
+  useEffect(() => {
+    if (countdown <= 0) return
+    const timer = window.setTimeout(() => setCountdown((seconds) => seconds - 1), 1000)
+    return () => window.clearTimeout(timer)
+  }, [countdown])
   const { showToast } = useToast()
   const isRegister = view === 'register'
   const isLogin = view === 'login'
   const content = copy[view]
   const themeLabel = darkMode ? '切换浅色模式' : '切换深色模式'
-  const submit = (event: FormEvent<HTMLFormElement>) => {
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const nextErrors = validateAuthForm(view, new FormData(event.currentTarget))
+    if (pending) return
+    const fields = new FormData(event.currentTarget)
+    const nextErrors = validateAuthForm(view, fields)
     setErrors(nextErrors)
     const firstError = Object.keys(nextErrors)[0]
     if (firstError) {
@@ -41,9 +53,23 @@ export function AuthScreen({ view, darkMode, onToggleTheme, onEnter }: AuthScree
       if (input instanceof HTMLInputElement) input.focus()
       return
     }
-    showToast({ message: '账户服务暂未接入，可点击「体验演示」浏览网站。', kind: 'info' })
+    setPending(true)
+    const email = String(fields.get('email')).trim().toLowerCase()
+    const password = String(fields.get('password'))
+    try {
+      if (view === 'forgot') {
+        await resetPassword({ email, password, code: String(fields.get('code')).trim() })
+        showToast({ kind: 'info', message: '密码已重设，请重新登录' })
+        window.location.hash = 'login'
+      } else {
+        const session = isLogin ? await login(email, password) : await register({ email, password, code: String(fields.get('code')).trim(), name: String(fields.get('nickname')).trim() })
+        await onEnter(session)
+      }
+    } catch (error) { showToast({ kind: 'error', message: error instanceof Error ? error.message : '操作失败，请重试' }) }
+    finally { setPending(false) }
   }
-  const sendCode = () => {
+  const sendCode = async () => {
+    if (codeSending || countdown > 0 || pending) return
     const input = formRef.current?.elements.namedItem('email')
     if (!(input instanceof HTMLInputElement)) return
     const error = validateAuthField(view, 'email', input.value)
@@ -52,7 +78,13 @@ export function AuthScreen({ view, darkMode, onToggleTheme, onEnter }: AuthScree
       input.focus()
       return
     }
-    showToast({ message: '验证码服务暂未接入，未发送邮件。', kind: 'info' })
+    setCodeSending(true)
+    try {
+      const result = await requestCode(isRegister ? 'register' : 'reset-password', input.value.trim().toLowerCase())
+      setCountdown(result.retryAfter)
+      showToast({ message: '验证码已发送，请查收邮箱', kind: 'info' })
+    } catch (error) { showToast({ kind: 'error', message: error instanceof Error ? error.message : '发送失败，请重试' }) }
+    finally { setCodeSending(false) }
   }
   const updateError = (event: FormEvent<HTMLFormElement> | FocusEvent<HTMLFormElement>) => {
     const input = event.target
@@ -96,7 +128,7 @@ export function AuthScreen({ view, darkMode, onToggleTheme, onEnter }: AuthScree
             <label htmlFor="auth-code">邮箱验证码</label>
             <div className="auth-code-row">
               <input id="auth-code" name="code" required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} placeholder="6 位验证码" {...feedbackProps('code')} />
-              <button className="auth-send" type="button" onClick={sendCode}>发送验证码</button>
+              <button className="auth-send" type="button" disabled={pending || codeSending || countdown > 0} onClick={sendCode}>{codeSending ? '发送中…' : countdown > 0 ? `${countdown}s 后重发` : '发送验证码'}</button>
             </div>
             <FieldFeedback name="code" error={errors.code} />
           </div>}
@@ -116,13 +148,18 @@ export function AuthScreen({ view, darkMode, onToggleTheme, onEnter }: AuthScree
             </div>
             <FieldFeedback name="password" error={errors.password} />
           </div>
-          <button className="auth-submit" type="submit">{content.submit}</button>
+          <button className="auth-submit" type="submit" disabled={pending || codeSending}>{pending ? '处理中…' : content.submit}</button>
         </form>
         <p className="auth-switcher">
           {isLogin ? '还没有账号？' : isRegister ? '已经有账号？' : '想起密码了？'}
           <a href={isLogin ? '#register' : '#login'}>{isLogin ? '注册账号' : '返回登录'}</a>
         </p>
-        <button className="auth-demo" type="button" onClick={onEnter}>体验演示</button>
+        {import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_LOGIN === 'true' && <button className="auth-demo" type="button" disabled={pending} onClick={async () => {
+          setPending(true)
+          try { await onEnter(await demoLogin()) }
+          catch (error) { showToast({ kind: 'error', message: error instanceof Error ? error.message : '演示登录失败' }) }
+          finally { setPending(false) }
+        }}>体验演示</button>}
       </div>
     </section>
   </main>

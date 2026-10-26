@@ -1,4 +1,3 @@
-import type { AIKeyConfig } from '../../../entities/ai-key/model/types'
 import { requestAICompletion } from './completion'
 import { buildActionAgreementContext, type AIActionSourceAgreement } from '../lib/action-agreement-context'
 import type { ActionDocumentUpdateMode, ActionExpressionContext } from '../../../entities/action/model/types'
@@ -29,7 +28,6 @@ export type AIDocumentResult = {
 
 /** 组合系统规则、引用事实和连续对话，请求 AI 返回结构化文档及约定核对；不负责业务发布。 */
 export async function generateAIDocument(input: {
-  config: AIKeyConfig
   mode: AIWorkspaceMode
   turns: AIConversationTurn[]
   currentDocument: string
@@ -46,7 +44,7 @@ export async function generateAIDocument(input: {
 }): Promise<AIDocumentResult> {
   if (input.mode === 'expression' && !input.expressionContext) throw new Error('缺少表达的行动背景，请返回节点重试。')
 
-  const payload = await requestAICompletion(input.config, [
+  const payload = await requestAICompletion([
       { role: 'system', content: [
         buildSystemPrompt(input.mode, input.currentDocument, input.plan, input.planMarkdown, input.contextGuide),
         input.mode === 'action' || input.mode === 'expression' ? buildActionAgreementContext(input.sourceAgreements, input.downstreamAgreement) : '',

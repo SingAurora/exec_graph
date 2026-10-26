@@ -26,5 +26,5 @@ export function useAppResources() {
   const error = session.error ?? graphs.error ?? users.error ?? following.error ?? contexts.error
   const ready = Boolean(profile && graphs.data && users.data && following.data && contexts.data)
   const retry = () => { void session.refetch(); if (enabled) { void graphs.refetch(); void users.refetch(); void following.refetch(); if (graphs.data) void contexts.refetch() } }
-  return { profile, projects: graphs.data, actions: contexts.data, allUsers, sources: following.data, csrfToken: session.data?.csrfToken, scope, ready, error, retry }
+  return { anonymous: session.isSuccess && session.data === null, profile, projects: graphs.data, actions: contexts.data, allUsers, sources: following.data, csrfToken: session.data?.csrfToken, scope, ready, error, retry }
 }

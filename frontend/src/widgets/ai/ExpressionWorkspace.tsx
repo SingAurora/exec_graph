@@ -1,14 +1,14 @@
 import { Check } from 'lucide-react'
 import { useMemo, useState, type FormEvent } from 'react'
 import type { ActionExpressionMessage, ActionNode } from '../../entities/action/model/types'
-import type { AIKeyConfig } from '../../entities/ai-key/model/types'
 import type { ChatMessage } from '../../shared/model/content'
 import type { UserProfile } from '../../entities/profile/model/types'
 import { canEditActionExpression, getActionExpression, getActionExpressionOrigin } from '../../entities/action/lib/expressions'
 import { getActionExpressionContext } from '../../entities/action/lib/expression-context'
 import { getActionSourceAgreements } from '../../entities/action/lib/references'
 import { getActionAgreement } from '../../entities/action/lib/agreements'
-import { generateAIDocument, type AIConversationTurn } from '../../features/ai-key/api/chat'
+import { useGeneration } from '../../features/action-generation/model/useGeneration'
+import type { GenerateInput, GenerationRequest, GenerationView } from '../../features/action-generation/api/generation'
 import { HelpPopover } from '../../shared/ui/help/HelpPopover'
 import { useToast } from '../../shared/ui/toast/useToast'
 import { WorkspaceFrame } from './WorkspaceFrame'
@@ -19,34 +19,36 @@ import { LocalDraftControls } from '../../shared/ui/LocalDraftControls'
 import { createWorkspaceView, isExpressionWorkspaceDraft, reconcileWorkspaceDraft, type ExpressionWorkspaceDraft } from './model/workspace-draft'
 
 /** 延续已有节点的对话修改表达；行动事实和约定在此只读，不创建新行动。 */
-export function ExpressionWorkspace({ node, actions, profileName, profileId, profile, users = [], aiConfig, contextGuide, onBack, onConfirm }: {
-  node: ActionNode
+export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profileName, profileId, profile, users = [], contextGuide, onBack, onConfirm }: {
+  node: ActionNode & { version: number }
+  csrfToken: string
+  draftKey?: string
   actions: ActionNode[]
   profileName: string
   profileId: string
   profile?: UserProfile
   users?: UserProfile[]
-  aiConfig?: AIKeyConfig
   contextGuide?: string
   onBack: () => void
-  onConfirm: (markdown: string, conversation: ChatMessage[]) => boolean | Promise<boolean>
+  onConfirm: (input: NonNullable<GenerationView['updateExpression']>) => boolean | Promise<boolean>
 }) {
+  const generate = useGeneration(csrfToken)
   const expression = getActionExpression(actions, node.id)
   const context = useMemo(() => getActionExpressionContext(actions, node.id), [actions, node.id])
   // 当前事实、文档或对话变化都会让旧生成结果失效；草稿保留，但需再对话才能保存。
-  const contextSignature = JSON.stringify({ context, guide: contextGuide, expression: expression.markdown,
+  const contextSignature = JSON.stringify({ context, version: node.version, guide: contextGuide, expression: expression.markdown,
     conversation: node.conversation, expressionConversation: node.expressionConversation,
     sourceAgreements: getActionSourceAgreements(actions, node.id).map((reference) => [reference.source.id, reference.agreement.markdown]),
     downstreamAgreement: getActionAgreement(actions, node.id).markdown })
   const initialMessages = node.expressionConversation?.filter(isConversationMessage) ?? []
   const local = useLocalDraft<ExpressionWorkspaceDraft>({
-    draftKey: getActionDraftKey(profileId, node.projectId, 'expression', node.id),
+    draftKey: draftKey ?? getActionDraftKey(profileId, node.projectId, 'expression', node.id),
     initialValue: { messages: initialMessages, input: '', generated: false, contextSignature, view: createWorkspaceView() },
     validate: isExpressionWorkspaceDraft,
     restore: (saved) => reconcileWorkspaceDraft(saved, contextSignature),
     hasContent: (value) => Boolean(value.input || value.draftDocument !== undefined || JSON.stringify(value.messages) !== JSON.stringify(initialMessages)),
   })
-  const { messages, input, draftDocument, generated } = local.value
+  const { messages, input, draftDocument, generated, generation, generationRequest } = local.value
   const update = (patch: Partial<ExpressionWorkspaceDraft>) => local.update((current) => ({ ...current, ...patch }))
   // ?? 只对 null／undefined 回退；生成空字符串是用户清空表达的有效选择，不能回退旧正文。
   const document = draftDocument ?? expression.markdown
@@ -55,7 +57,7 @@ export function ExpressionWorkspace({ node, actions, profileName, profileId, pro
   const { showToast } = useToast()
   const label = expression.markdown.trim() ? '修改表达' : '补充表达'
   const canEdit = canEditActionExpression(actions, node.id)
-  const canSave = local.ready && canEdit && generated && local.value.contextSignature === contextSignature && !sending && !saving && document.trim() !== expression.markdown.trim()
+  const canSave = local.ready && canEdit && generated && Boolean(generation?.updateExpression) && local.value.contextSignature === contextSignature && !sending && !saving && document.trim() !== expression.markdown.trim()
   const originalMessages = node.conversation.filter(isConversationMessage)
   const origin = getActionExpressionOrigin(actions, node.id)
   const expressionStatus = !document.trim() ? '表达为空' : draftDocument !== undefined ? '本次对话更新'
@@ -67,20 +69,20 @@ export function ExpressionWorkspace({ node, actions, profileName, profileId, pro
     if (!local.ready || !clean || sending || saving || !canEdit || !context) return
     const savedMessages = messages.filter(isConversationMessage)
     const next = [...savedMessages, { id: `expression-user-${Date.now()}`, speaker: 'user' as const, body: clean, authorId: profileId }]
-    update({ messages: next, input: '', generated: false })
+    const requestInput: GenerateInput = { mode: 'expression', graphId: node.projectId, nodeId: node.id, expectedVersion: node.version, message: clean,
+      conversationId: generation?.conversationId, mergedParentIds: [], sourceVersions: [], agreement: { mode: 'inherit' } }
+    const request: GenerationRequest = !generated && generationRequest && generation?.status !== 'failed' && JSON.stringify(generationRequest.input) === JSON.stringify(requestInput)
+      ? generationRequest : { key: crypto.randomUUID(), input: requestInput }
+    update({ messages: next, input: '', generated: false, generationRequest: request })
     setSending(true)
     try {
-      if (!aiConfig) throw new Error('还没有可用的 AI 配置，请先前往设置。')
-      // AI 看到原始行动对话和后续表达对话的连续记录；欢迎语、失败提示不作为真实消息发送。
-      const turns: AIConversationTurn[] = [...originalMessages, ...next].filter(isConversationMessage)
-        .map((message) => ({ role: message.speaker === 'ai' ? 'assistant' : 'user', content: message.body }))
-      const result = await generateAIDocument({
-        config: aiConfig, mode: 'expression', turns, currentDocument: document, expressionContext: context, contextGuide,
-        sourceAgreements: getActionSourceAgreements(actions, node.id).map((reference) => ({ nodeNumber: reference.source.number, markdown: reference.agreement.markdown })),
-        downstreamAgreement: getActionAgreement(actions, node.id).markdown,
-      })
-      local.update((current) => ({ ...current, draftDocument: result.document, generated: true, contextSignature,
-        messages: [...current.messages, { id: `expression-ai-${Date.now()}`, speaker: 'ai', body: result.reply }] }))
+      const result = await generate(request)
+      update({ generation: result })
+      if (result.status !== 'succeeded' || !result.draft || !result.updateExpression) throw new Error(result.status === 'pending' ? '仍在整理，请稍后重试读取结果' : '整理失败，请重新发送')
+      const draft = result.draft
+      if (draft.expression.mode === 'inherit') throw new Error('表达没有变化，请说明想调整的内容')
+      local.update((current) => ({ ...current, generation: result, draftDocument: draft.expression.mode === 'update' ? draft.expression.markdown : '', generated: true, contextSignature,
+        messages: [...current.messages, { id: 'expression-ai-' + result.generationId, speaker: 'ai', body: draft.reply }] }))
     } catch (error) {
       update({ messages: [...savedMessages, { id: `error-${Date.now()}`, speaker: 'ai', body: '暂时无法更新表达：' + (error instanceof Error ? error.message : '请求失败，请稍后重试。') }], input: clean })
     } finally {
@@ -110,7 +112,7 @@ export function ExpressionWorkspace({ node, actions, profileName, profileId, pro
             if (!canSave) return
             setSaving(true)
             try {
-              if (!await onConfirm(document, messages.filter(isConversationMessage))) { showToast({ kind: 'error', message: '节点状态已变化，无法保存表达' }); return }
+              if (!generation?.updateExpression || !await onConfirm(generation.updateExpression)) { showToast({ kind: 'error', message: '节点状态已变化，无法保存表达' }); return }
               local.remove()
               showToast({ kind: 'info', message: document.trim() ? `已${label}` : '已清空表达' })
             } catch (error) { showToast({ kind: 'error', message: error instanceof Error ? error.message : '保存失败，请重试' }) }

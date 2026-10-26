@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState, type ComponentProps } from 'react'
 import { PublicProfile } from '../widgets/profile/PublicProfile'
+import { resourceId } from '../shared/lib/resource-id'
 
 // “我的”和用户主页共用界面；URL 可指定用户及直接打开的栏目。
 function readProfileRoute(currentUserId: string) {
@@ -39,9 +40,9 @@ export function ProfilePage({ followingIds, ...props }: ProfilePageProps) {
   // hidden 只隐藏而不卸载；active 再通知内部滚动监听等 effect 暂停，避免后台面板继续工作。
   return <>
     {[...visited].map(([userId, request]) => {
-      const profile = props.users.find((user) => user.id === userId)
-      return profile && <div hidden={userId !== profileRoute.userId} key={userId}><PublicProfile {...props} profile={profile} active={Boolean(props.active && userId === profileRoute.userId)} activityTabRequest={request} following={followingIds.includes(userId)} /></div>
+      const profile = props.users.find((user) => user.id === resourceId(props.users, userId))
+      return profile && <div hidden={userId !== profileRoute.userId} key={userId}><PublicProfile {...props} profile={profile} active={Boolean(props.active && userId === profileRoute.userId)} activityTabRequest={request} following={followingIds.includes(profile.id)} /></div>
     })}
-    {!props.users.some((user) => user.id === profileRoute.userId) && <p className="empty-state" role="status">用户不存在</p>}
+    {!props.users.some((user) => user.id === resourceId(props.users, profileRoute.userId)) && <p className="empty-state" role="status">用户不存在</p>}
   </>
 }

@@ -2,6 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAppResources } from './model/useAppResources'
 import { useAppCommands } from './model/useAppCommands'
+import { useAppearance } from './model/useAppearance'
+import { isAuthView, useHashRoute } from '../shared/lib/navigation'
+import { profileKeys, type SessionView } from '../entities/profile/api/profiles'
+import { logout } from '../features/auth/api/account'
+import { useToast } from '../shared/ui/toast/useToast'
+import { useImageAssets } from '../features/media-upload/model/useImageAssets'
+import { resourceId } from '../shared/lib/resource-id'
 import { useAppNavigation } from './model/useAppNavigation'
 import { actionWorkspaceHash, readActionWorkspaceRoute } from './model/action-workspace-route'
 import { getActionDraftKey } from '../entities/action/lib/draft-key'
@@ -10,21 +17,18 @@ import type { GraphView } from '../entities/project/api/graphs'
 import type { AccountProfile } from '../entities/profile/api/profiles'
 import type { VersionedAction } from '../entities/action/api/context'
 import type { UserProfile } from '../entities/profile/model/types'
-import { documentUpdate } from '../features/action/api/commands'
+import { documentUpdate, type CreateActionInput } from '../features/action/api/commands'
+import type { GenerationView } from '../features/action-generation/api/generation'
 import { FollowingPage } from '../pages/FollowingPage'
-import type { ActionDocumentMode, ActionNode, ActionReferenceAgreement } from '../entities/action/model/types'
+import type { ActionDocumentMode, ActionNode } from '../entities/action/model/types'
 import { getActionReferences, type ActionReference } from '../entities/action/lib/references'
-import { getActionContinuationContext } from '../entities/action/lib/continuation'
 import { getActionExpressionContext } from '../entities/action/lib/expression-context'
 import { getPublishedExpressions } from '../entities/action/lib/published'
 import { getProfileAgreementResponses } from '../entities/action/lib/agreement-responses'
 import { canEditActionExpression, getActionExpression } from '../entities/action/lib/expressions'
 import { getActionAgreement } from '../entities/action/lib/agreements'
-import type { AIKeyConfig, SaveAIKeyInput } from '../entities/ai-key/model/types'
-import { platformAIConfig } from '../entities/ai-key/model/catalog'
 import type { CreateProjectInput } from '../features/project/model/types'
 import { useGraphBackground } from '../features/graph-appearance/model/useGraphBackground'
-import type { ChatMessage } from '../shared/model/content'
 import type { Project } from '../entities/project/model/types'
 import { FeedPage } from '../pages/FeedPage'
 import { GraphSearchResultsPage } from '../pages/GraphSearchResultsPage'
@@ -43,37 +47,107 @@ const legendPreferenceKey = 'execg.actionGraph.showLegend'
 /** 应用的数据入口：先加载业务资料，再挂载页面；加载失败展示重试入口，不回退演示数据。 */
 export function App() {
   const resources = useAppResources()
-  if (!resources.ready || !resources.profile || !resources.projects || !resources.actions || !resources.sources || !resources.csrfToken) return <main className="grid min-h-dvh place-content-center gap-4 bg-paper p-8 text-center text-sm text-copy" role="status">
-    <p>{resources.error?.message ?? '正在加载…'}</p>
-    {resources.error && <button className="quiet-button" type="button" onClick={resources.retry}>重试</button>}
-  </main>
-  return <><AppContent profile={resources.profile} projects={resources.projects} actions={resources.actions} allUsers={resources.allUsers} sources={resources.sources} csrfToken={resources.csrfToken} />
-    {resources.error && <div className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-lg border border-line bg-surface px-4 py-3 text-sm text-copy" role="status"><span>{resources.error.message}</span><button className="text-button" type="button" onClick={resources.retry}>重试</button></div>}
-  </>
+  const client = useQueryClient()
+  const [darkMode, toggleTheme] = useAppearance()
+  const [authView] = useHashRoute('login', isAuthView)
+  const { showToast } = useToast()
+  const enter = async (session: SessionView) => {
+    await client.cancelQueries()
+    client.removeQueries({ predicate: (query) => query.queryKey[0] !== 'session' })
+    client.setQueryData(profileKeys.session, session)
+    if (isAuthView(window.location.hash.slice(1).split('?')[0])) window.location.hash = 'my'
+  }
+  const exit = async () => {
+    if (!resources.csrfToken) return
+    try {
+      await logout(resources.csrfToken)
+      await client.cancelQueries()
+      client.removeQueries({ predicate: (query) => query.queryKey[0] !== 'session' })
+      client.setQueryData(profileKeys.session, null)
+      window.location.hash = 'login'
+    } catch (error) { showToast({ kind: 'error', message: error instanceof Error ? error.message : '退出失败，请重试' }) }
+  }
+  if (resources.anonymous) return <AuthScreen key={authView} view={authView} darkMode={darkMode} onToggleTheme={toggleTheme} onEnter={enter} />
+  if (
+    !resources.ready ||
+    !resources.profile ||
+    !resources.projects ||
+    !resources.actions ||
+    !resources.sources ||
+    !resources.csrfToken
+  ) {
+    return (
+      <main
+        className="grid min-h-dvh place-content-center gap-4 bg-paper p-8 text-center text-sm text-copy"
+        role="status"
+      >
+        <p>{resources.error?.message ?? '正在加载…'}</p>
+        {resources.error && (
+          <button className="quiet-button" type="button" onClick={resources.retry}>
+            重试
+          </button>
+        )}
+      </main>
+    )
+  }
+
+  return (
+    <>
+      <AppContent
+        key={resources.profile.id}
+        darkMode={darkMode} toggleTheme={toggleTheme} onLogout={exit}
+        profile={resources.profile}
+        projects={resources.projects}
+        actions={resources.actions}
+        allUsers={resources.allUsers}
+        sources={resources.sources}
+        csrfToken={resources.csrfToken}
+      />
+      {resources.error && (
+        <div
+          className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-lg border border-line bg-surface px-4 py-3 text-sm text-copy"
+          role="status"
+        >
+          <span>{resources.error.message}</span>
+          <button className="text-button" type="button" onClick={resources.retry}>
+            重试
+          </button>
+        </div>
+      )}
+    </>
+  )
 }
 
 /** 应用装配层：把 Query 中的业务数据、路由和写入回调连接到页面及工作区。 */
-function AppContent({ profile, projects, actions, allUsers, sources, csrfToken }: {
+function AppContent({ profile, projects, actions, allUsers, sources, csrfToken, darkMode, toggleTheme, onLogout }: {
   profile: AccountProfile; projects: GraphView[]; actions: VersionedAction[]; allUsers: UserProfile[]; sources: FollowedSources; csrfToken: string
+  darkMode: boolean; toggleTheme: () => void; onLogout: () => Promise<void>
 }) {
   const commands = useAppCommands(profile.id, csrfToken)
-  const queryClient = useQueryClient()
-  const { hash, revision, route, authRoute, graphBackHash, profileBackHash, navigate } = useAppNavigation(profile.id)
+  const imageAsset = useImageAssets(csrfToken)
+  const { hash, revision, route, graphBackHash, profileBackHash, navigate } = useAppNavigation(profile.id)
   // useMemo 缓存从现有数据计算出的结果；这里仅在 hash 改变时重新解析路由参数。
-  const query = useMemo(() => new URLSearchParams(hash.split('?')[1]), [hash])
-  // useState 保存客户端交互状态。AI 密钥配置只在内存中；业务资料由传入的 Query 数据提供。
-  const [aiConfigs, setAIConfigs] = useState<AIKeyConfig[]>([platformAIConfig])
+  const query = useMemo(() => {
+    const params = new URLSearchParams(hash.split('?')[1])
+    for (const name of ['projectId', 'fromGraph']) {
+      const id = resourceId(projects, params.get(name)); if (id) params.set(name, id)
+    }
+    for (const name of ['nodeId', 'parentId']) {
+      const id = resourceId(actions, params.get(name)); if (id) params.set(name, id)
+    }
+    const userId = resourceId(allUsers, params.get('userId')); if (userId) params.set('userId', userId)
+    const reference = params.get('referenceId')?.split(':')
+    if (reference?.length === 2) params.set('referenceId', reference.map((id) => resourceId(actions, id)).join(':'))
+    return params
+  }, [hash, projects, actions, allUsers])
+  // useState 保存客户端交互状态；业务资料由传入的 Query 数据提供。
   const followingIds = sources.userIds, followingGraphIds = sources.graphIds
-  const [darkMode, setDarkMode] = useState(() => {
-    try { return window.localStorage.getItem('exact.appearance.theme') === 'dark' }
-    catch { return false }
-  })
   const [graphBackground, setGraphBackground] = useGraphBackground()
   const [showActionGraphLegend, setShowActionGraphLegend] = useState(() => {
     try { return window.localStorage.getItem(legendPreferenceKey) === 'true' } catch { return false }
   })
   // 离开图进入编辑器或形成过程时，仍保留最近一张图，供返回后恢复阅读。
-  const [lastProjectId, setLastProjectId] = useState(query.get('projectId') ?? 'cooking')
+  const [lastProjectId, setLastProjectId] = useState(query.get('projectId') ?? resourceId(projects, 'cooking') ?? projects[0]?.id ?? '')
   const workspaceRoute = route === 'publish' ? readActionWorkspaceRoute(query) : undefined
   const workspaceMode = workspaceRoute?.mode ?? 'action'
   const workspaceProjectId = workspaceRoute?.projectId
@@ -93,29 +167,27 @@ function AppContent({ profile, projects, actions, allUsers, sources, csrfToken }
     expressions: getPublishedExpressions(actions, [profile.id]).length,
     agreements: getProfileAgreementResponses(getActionReferences(actions), profile.id).length,
   }), [actions, profile.id])
-  const activeAIConfig = aiConfigs.find((config) => config.isDefault) ?? aiConfigs[0]
   // 列表的深链接转成图内定位请求；revision 让重复进入同一地址也能重新定位。
   const externalFocus = useMemo(() => {
-    if (route !== 'project') return undefined
+    if (route !== 'project') {
+      return undefined
+    }
     const requestId = hash + ':' + revision
     const referenceId = query.get('referenceId')
-    if (referenceId) return { requestId, referenceId }
+    if (referenceId) {
+      return { requestId, referenceId }
+    }
     const nodeId = query.get('nodeId')
     return nodeId ? { requestId, nodeId, mode: query.get('document') === 'expression' ? 'expression' as const : 'objective' as const } : undefined
   }, [hash, query, route, revision])
 
-  // useEffect 在渲染提交后同步浏览器外部状态；主题属于本机偏好，与业务发布无关。
-  useEffect(() => {
-    if (darkMode) document.documentElement.setAttribute('data-theme', 'dark')
-    else document.documentElement.removeAttribute('data-theme')
-    try { window.localStorage.setItem('exact.appearance.theme', darkMode ? 'dark' : 'light') }
-    catch { /* 本地存储不可用时，当前页面仍可切换主题。 */ }
-  }, [darkMode])
   useEffect(() => {
     try { window.localStorage.setItem(legendPreferenceKey, String(showActionGraphLegend)) } catch { /* 存储失败不阻止本次显示图例。 */ }
   }, [showActionGraphLegend])
   useEffect(() => {
-    if (route === 'project' && query.get('projectId')) setLastProjectId(query.get('projectId')!)
+    if (route === 'project' && query.get('projectId')) {
+      setLastProjectId(query.get('projectId')!)
+    }
   }, [route, query])
 
   // 这些导航函数只描述目标地址；节点、文档和引用的实际选中状态由图详情组件接手。
@@ -134,7 +206,9 @@ function AppContent({ profile, projects, actions, allUsers, sources, csrfToken }
   }
   const startAction = (projectId: string, parent?: ActionNode) => {
     const nodes = actions.filter((node) => node.projectId === projectId)
-    if (!projects.some((project) => project.id === projectId) || (parent ? !nodes.some((node) => node.id === parent.id) : nodes.length > 0)) return
+    if (!projects.some((project) => project.id === projectId) || (parent ? !nodes.some((node) => node.id === parent.id) : nodes.length > 0)) {
+      return
+    }
     setLastProjectId(projectId)
     navigate(actionWorkspaceHash({ mode: 'action', projectId, parentId: parent?.id }))
   }
@@ -143,55 +217,59 @@ function AppContent({ profile, projects, actions, allUsers, sources, csrfToken }
     openProject(graph.id)
   }
   const startExpression = (node: ActionNode) => {
-    if (!canEditActionExpression(actions, node.id)) return
+    if (!canEditActionExpression(actions, node.id)) {
+      return
+    }
     navigate(actionWorkspaceHash({ mode: 'expression', projectId: node.projectId, nodeId: node.id }))
   }
   // mutateAsync 等待服务确认后才返回成功；expectedVersion 防止覆盖已被别人修改的版本。
-  const confirmExpression = async (markdown: string, conversation: ChatMessage[]) => {
-    if (!workspaceActionId || !workspaceProjectId) return false
+  const confirmExpression = async (input: NonNullable<GenerationView['updateExpression']>) => {
+    if (!workspaceActionId || !workspaceProjectId) {
+      return false
+    }
     const node = actions.find((item) => item.id === workspaceActionId)
-    if (!node) return false
-    await commands.expressionUpdate.mutateAsync({ nodeId: node.id, expectedVersion: node.version, document: documentUpdate(markdown), conversation })
+    if (!node) {
+      return false
+    }
+    if (input.nodeId !== node.id) return false
+    await commands.expressionUpdate.mutateAsync(input)
     openProject(workspaceProjectId)
     return true
   }
   const updateAgreement = async (nodeId: string, markdown: string) => {
     const node = actions.find((item) => item.id === nodeId)
-    if (!node) return false
+    if (!node) {
+      return false
+    }
     await commands.agreementUpdate.mutateAsync({ nodeId, expectedVersion: node.version, document: documentUpdate(markdown) })
     return true
   }
   const updateProject = async (projectId: string, patch: Pick<Project, 'title' | 'description' | 'avatar' | 'backgroundImage'>) => {
     const graph = projects.find((item) => item.id === projectId)
-    if (!graph) throw new Error('行动图不存在')
-    await commands.graphUpdate.mutateAsync({ graphId: projectId, expectedVersion: graph.version, ...patch })
+    if (!graph) {
+      throw new Error('行动图不存在')
+    }
+    const avatarAssetId = await imageAsset(patch.avatar, graph.avatar, graph.avatarAssetId)
+    const backgroundAssetId = await imageAsset(patch.backgroundImage, graph.backgroundImage, graph.backgroundAssetId)
+    await commands.graphUpdate.mutateAsync({ graphId: projectId, expectedVersion: graph.version, title: patch.title, description: patch.description, avatarAssetId, backgroundAssetId })
   }
   const deleteProject = async (projectId: string, expectedNodeCount: number) => {
     const graph = projects.find((item) => item.id === projectId)
-    if (!graph) return false
+    if (!graph) {
+      return false
+    }
     await commands.graphDelete.mutateAsync({ graphId: projectId, expectedVersion: graph.version, expectedNodeCount })
     setLastProjectId('')
     setArchiveActionId(undefined)
     navigate('projects')
     return true
   }
-  const saveAIConfig = (input: SaveAIKeyInput) => setAIConfigs((current) => [...current, { ...input, source: 'personal', id: crypto.randomUUID(), createdAt: new Date().toISOString(), isDefault: current.length === 0 }])
-  const setDefaultAIConfig = (id: string) => setAIConfigs((current) => current.some((config) => config.id === id) ? current.map((config) => ({ ...config, isDefault: config.id === id })) : current)
-  const deleteAIConfig = (id: string) => setAIConfigs((current) => { const remaining = current.filter((config) => config.id !== id || config.source === 'platform'); if (remaining.length && !remaining.some((config) => config.isDefault)) remaining[0] = { ...remaining[0], isDefault: true }; return remaining })
-  const confirmAction = async (markdown: string, details: { title: string }, conversation: ChatMessage[], expressionMarkdown?: string, agreementMarkdown?: string, referenceAgreements: ActionReferenceAgreement[] = [], mergedParentIds: string[] = []) => {
-    if (!workspaceProject || (workspaceParentId && !workspaceParent)) return false
-    const nodes = actions.filter((node) => node.projectId === workspaceProject.id)
-    if (workspaceParent ? !nodes.some((node) => node.id === workspaceParent.id) : nodes.length > 0) return false
-    const context = workspaceParent ? getActionContinuationContext(nodes, workspaceParent.id, mergedParentIds) : undefined
-    if (workspaceParent ? !context : mergedParentIds.length > 0) return false
-    // 来源只包含主要承接和显式合入。表达／约定独立选择继承、更新或清空，首次行动不可继承。
-    const sourceIds = context?.sources.map(({ node }) => node.id) ?? []
-    const action = await commands.actionCreate.mutateAsync({ graphId: workspaceProject.id, parentId: workspaceParent?.id, mergedParentIds,
-      sourceVersions: sourceIds.map((id) => ({ nodeId: id, version: actions.find((node) => node.id === id)!.version })),
-      title: details.title || '一次行动记录', objectiveMarkdown: markdown, expression: documentUpdate(!workspaceParent && expressionMarkdown === undefined ? '' : expressionMarkdown),
-      agreement: documentUpdate(!workspaceParent && agreementMarkdown === undefined ? '' : agreementMarkdown),
-      // 未核对明确传 null，不能把缺少结果解释成已满足；不满足约定本身不阻止发布。
-      referenceAgreements: sourceIds.map((sourceId) => referenceAgreements.find((item) => item.sourceId === sourceId) ?? { sourceId, complies: null }), conversation })
+  const confirmAction = async (input: CreateActionInput) => {
+    if (!workspaceProject || (workspaceParentId && !workspaceParent)) {
+      return false
+    }
+    if (input.graphId !== workspaceProject.id || input.parentId !== workspaceParent?.id) return false
+    const action = await commands.actionCreate.mutateAsync(input)
     openNode({ ...action, projectId: action.graphId }, 'objective')
     return true
   }
@@ -204,39 +282,157 @@ function AppContent({ profile, projects, actions, allUsers, sources, csrfToken }
     return true
   }
   const saveProfile = async (value: UserProfile) => {
-    await commands.profileUpdate.mutateAsync({ name: value.name, bio: value.bio, gender: value.gender, avatar: value.avatar, backgroundImage: value.backgroundImage, expectedVersion: profile.version })
+    const avatarAssetId = await imageAsset(value.avatar, profile.avatar, profile.avatarAssetId)
+    const backgroundAssetId = await imageAsset(value.backgroundImage, profile.backgroundImage, profile.backgroundAssetId)
+    await commands.profileUpdate.mutateAsync({ name: value.name, bio: value.bio, gender: value.gender, avatarAssetId, backgroundAssetId, expectedVersion: profile.version })
   }
   const profileReturnGraph = route === 'profile' ? query.get('fromGraph') : null
   const profileReturn = profileReturnGraph ? () => openProject(profileReturnGraph) : () => navigate(profileBackHash)
   const viewingOwnProfile = route === 'profile' && query.get('userId') === profile.id
   const personalAreaActive = route === 'my' || route === 'profile'
 
-  if (authRoute) return <AuthScreen key={authRoute} view={authRoute} darkMode={darkMode} onToggleTheme={() => setDarkMode((current) => !current)} onEnter={() => navigate('my')} />
-  return <AppShell profile={profile} profileStats={profileStats} activeView={viewingOwnProfile ? 'my' : route} darkMode={darkMode} projectTitle={selectedProject?.title} publishTitle={workspaceMode === 'expression' ? '整理表达' : undefined}
-    backAction={route === 'graph-search' ? { label: '返回发现', onBack: () => navigate('home') } : route === 'projects' ? { label: '返回我的', onBack: () => navigate('my') } : route === 'project' ? { label: '返回列表', onBack: () => navigate(graphBackHash) } : route === 'profile' && (!viewingOwnProfile || profileBackHash !== 'my') ? { label: profileReturnGraph ? '返回行动图' : '返回', onBack: profileReturn } : undefined}
-    onToggleTheme={() => setDarkMode((current) => !current)} onLogout={() => { navigate('login'); void queryClient.cancelQueries().then(() => queryClient.resetQueries()) }}>
-    <div hidden={!personalAreaActive}><ProfilePage users={allUsers} projects={projects} actions={actions} currentUserId={profile.id} followingIds={followingIds} active={personalAreaActive} onCreateProject={createProject} onSetUserFollow={setUserFollow} onOpenProject={openProject} onOpenNode={openNode} onOpenReference={openReference} /></div>
-    <div hidden={route !== 'home'}><FeedPage actions={actions} projects={projects} users={allUsers} active={route === 'home'} onOpenProject={openProject} onOpenNode={openNode} onOpenReference={openReference} onSearchGraphs={openGraphSearch} /></div>
-    {route === 'graph-search' && <GraphSearchResultsPage params={query} projects={projects} actions={actions} onOpenProject={openProject} onSearch={openGraphSearch} onPageChange={(page) => openGraphSearch(query.get('query') ?? '', page)} />}
-    <div hidden={route !== 'following'}><FollowingPage actions={actions} projects={projects} users={allUsers} sources={{ userIds: followingIds, graphIds: followingGraphIds }} active={route === 'following'} onOpenProject={openProject} onOpenNode={openNode} onOpenReference={openReference} onSetGraphFollow={setGraphFollow} onSetUserFollow={setUserFollow} /></div>
-    <div hidden={route !== 'projects'}><ProjectsPage currentUserId={profile.id} projects={projects} actions={actions} onCreateProject={createProject} onOpenProject={openProject} /></div>
-    {selectedProject && <div hidden={route !== 'project'}><ProjectPage key={selectedProject.id} active={route === 'project'} project={selectedProject} externalFocus={externalFocus} currentUserId={profile.id} users={allUsers} actions={selectedProjectActions} showActionGraphLegend={showActionGraphLegend} graphBackground={graphBackground}
-      onCreateAction={startAction} onContinueAction={(node) => startAction(selectedProject.id, node)}
-      onOpenActionArchive={(node) => { setLastProjectId(node.projectId); setArchiveActionId(node.id); navigate('action-archive') }}
-      onUpdateProject={updateProject} onEditExpression={startExpression} onUpdateAgreement={updateAgreement} onDeleteProject={deleteProject} following={followingGraphIds.includes(selectedProject.id)} onSetGraphFollow={setGraphFollow} /></div>}
-    {route === 'publish' && (workspaceMode === 'expression' && expressionAction ? <ExpressionWorkspace key={profile.id + ':expression-' + expressionAction.id} node={expressionAction} actions={actions.filter((node) => node.projectId === expressionAction.projectId)}
-      profileName={profile.name} profileId={profile.id} profile={profile} users={allUsers} aiConfig={activeAIConfig} contextGuide={workspaceProject?.contextGuide} onBack={() => openProject(expressionAction.projectId)} onConfirm={confirmExpression} />
-      : workspaceMode === 'action' && workspaceProject && (!workspaceParentId || workspaceParent) && (workspaceParent || !actions.some((node) => node.projectId === workspaceProject.id)) ? <ActionWorkspace key={getActionDraftKey(profile.id, workspaceProject.id, 'action', workspaceParentId)} draftKey={getActionDraftKey(profile.id, workspaceProject.id, 'action', workspaceParentId)} profileName={profile.name} profile={profile} aiConfig={activeAIConfig} hasParent={Boolean(workspaceParent)}
-        contextTitle={workspaceParent?.title} sourceNodeId={workspaceParent?.id} sourceNodeNumber={workspaceParent?.number} actions={actions.filter((node) => node.projectId === workspaceProject.id)}
-        expressionSourceNumber={workspaceParent ? getActionExpression(actions, workspaceParent.id).sourceNode?.number : undefined}
-        inheritedExpression={workspaceParent ? getActionExpression(actions, workspaceParent.id).markdown : ''}
-        inheritedExpressionImages={workspaceParent ? getActionExpression(actions, workspaceParent.id).sourceNode?.images : []}
-        historyFacts={workspaceParent ? getActionExpressionContext(actions, workspaceParent.id)?.facts : []}
-        inheritedAgreement={workspaceParent ? getActionAgreement(actions, workspaceParent.id).markdown : ''} contextGuide={workspaceProject.contextGuide}
-        onBack={() => openProject(workspaceProject.id)} onConfirm={confirmAction} />
-      : <div className="empty-state"><p>请先选择行动图和接续节点</p><a className="quiet-button" href="#projects">浏览行动图</a></div>)}
-    {route === 'action-archive' && (archiveAction && selectedProject ? <ActionArchivePage project={selectedProject} node={archiveAction} actions={selectedProjectActions} users={allUsers} onBack={() => openProject(selectedProject.id)} onSelectSource={(id) => { setArchiveActionId(id); window.scrollTo(0, 0) }} /> : <div className="empty-state"><p>请从行动节点查看形成过程</p><a className="quiet-button" href="#projects">浏览行动图</a></div>)}
-    {route === 'project' && !selectedProject && <div className="empty-state"><p>行动图不存在或已删除</p><a className="quiet-button" href="#projects">浏览行动图</a></div>}
-    <div hidden={route !== 'settings'}><SettingsPanel profile={profile} darkMode={darkMode} showActionGraphLegend={showActionGraphLegend} graphBackground={graphBackground} onGraphBackgroundChange={setGraphBackground} aiConfigs={aiConfigs} onSave={saveProfile} onToggleTheme={() => setDarkMode((current) => !current)} onShowActionGraphLegendChange={setShowActionGraphLegend} onSaveAIConfig={saveAIConfig} onSetDefaultAIConfig={setDefaultAIConfig} onDeleteAIConfig={deleteAIConfig} /></div>
-  </AppShell>
+  return (
+    <AppShell
+      profile={profile}
+      profileStats={profileStats}
+      activeView={viewingOwnProfile ? 'my' : route}
+      darkMode={darkMode}
+      projectTitle={selectedProject?.title}
+      publishTitle={workspaceMode === 'expression' ? '整理表达' : undefined}
+      backAction={
+        route === 'graph-search' ? { label: '返回发现', onBack: () => navigate('home') }
+          : route === 'projects' ? { label: '返回我的', onBack: () => navigate('my') }
+            : route === 'project' ? { label: '返回列表', onBack: () => navigate(graphBackHash) }
+              : route === 'profile' && (!viewingOwnProfile || profileBackHash !== 'my')
+                ? { label: profileReturnGraph ? '返回行动图' : '返回', onBack: profileReturn }
+                : undefined
+      }
+      onToggleTheme={toggleTheme}
+      onLogout={onLogout}
+    >
+      <div hidden={!personalAreaActive}>
+        <ProfilePage
+          users={allUsers} projects={projects} actions={actions}
+          currentUserId={profile.id} followingIds={followingIds} active={personalAreaActive}
+          onCreateProject={createProject} onSetUserFollow={setUserFollow}
+          onOpenProject={openProject} onOpenNode={openNode} onOpenReference={openReference}
+        />
+      </div>
+      <div hidden={route !== 'home'}>
+        <FeedPage
+          actions={actions} projects={projects} users={allUsers} active={route === 'home'}
+          onOpenProject={openProject} onOpenNode={openNode}
+          onOpenReference={openReference} onSearchGraphs={openGraphSearch}
+        />
+      </div>
+      {route === 'graph-search' && (
+        <GraphSearchResultsPage
+          params={query} projects={projects} actions={actions}
+          onOpenProject={openProject} onSearch={openGraphSearch}
+          onPageChange={(page) => openGraphSearch(query.get('query') ?? '', page)}
+        />
+      )}
+      <div hidden={route !== 'following'}>
+        <FollowingPage
+          actions={actions} projects={projects} users={allUsers}
+          sources={{ userIds: followingIds, graphIds: followingGraphIds }} active={route === 'following'}
+          onOpenProject={openProject} onOpenNode={openNode} onOpenReference={openReference}
+          onSetGraphFollow={setGraphFollow} onSetUserFollow={setUserFollow}
+        />
+      </div>
+      <div hidden={route !== 'projects'}>
+        <ProjectsPage
+          currentUserId={profile.id} projects={projects} actions={actions}
+          onCreateProject={createProject} onOpenProject={openProject}
+        />
+      </div>
+      {selectedProject && (
+        <div hidden={route !== 'project'}>
+          <ProjectPage
+            key={selectedProject.id} active={route === 'project'} project={selectedProject}
+            externalFocus={externalFocus} currentUserId={profile.id} users={allUsers}
+            actions={selectedProjectActions} showActionGraphLegend={showActionGraphLegend}
+            graphBackground={graphBackground}
+            onCreateAction={startAction}
+            onContinueAction={(node) => startAction(selectedProject.id, node)}
+            onOpenActionArchive={(node) => {
+              setLastProjectId(node.projectId)
+              setArchiveActionId(node.id)
+              navigate('action-archive')
+            }}
+            onUpdateProject={updateProject} onEditExpression={startExpression}
+            onUpdateAgreement={updateAgreement} onDeleteProject={deleteProject}
+            following={followingGraphIds.includes(selectedProject.id)} onSetGraphFollow={setGraphFollow}
+          />
+        </div>
+      )}
+      {route === 'publish' && (
+        workspaceMode === 'expression' && expressionAction ? (
+          <ExpressionWorkspace
+            csrfToken={csrfToken}
+            draftKey={getActionDraftKey(profile.legacyId ?? profile.id, workspaceProject?.legacyId ?? expressionAction.projectId, 'expression', expressionAction.legacyId ?? expressionAction.id)}
+            key={profile.id + ':expression-' + expressionAction.id}
+            node={expressionAction}
+            actions={actions.filter((node) => node.projectId === expressionAction.projectId)}
+            profileName={profile.name} profileId={profile.id} profile={profile} users={allUsers}
+            contextGuide={workspaceProject?.contextGuide}
+            onBack={() => openProject(expressionAction.projectId)} onConfirm={confirmExpression}
+          />
+        ) : workspaceMode === 'action' && workspaceProject && (!workspaceParentId || workspaceParent) && (workspaceParent || !actions.some((node) => node.projectId === workspaceProject.id)) ? (
+          <ActionWorkspace
+            graphId={workspaceProject.id} csrfToken={csrfToken}
+            key={getActionDraftKey(profile.id, workspaceProject.id, 'action', workspaceParentId)}
+            draftKey={getActionDraftKey(profile.legacyId ?? profile.id, workspaceProject.legacyId ?? workspaceProject.id, 'action', workspaceParent?.legacyId ?? workspaceParentId)}
+            profileName={profile.name} profile={profile} hasParent={Boolean(workspaceParent)}
+            contextTitle={workspaceParent?.title} sourceNodeId={workspaceParent?.id}
+            sourceNodeNumber={workspaceParent?.number}
+            actions={actions.filter((node) => node.projectId === workspaceProject.id)}
+            expressionSourceNumber={workspaceParent ? getActionExpression(actions, workspaceParent.id).sourceNode?.number : undefined}
+            inheritedExpression={workspaceParent ? getActionExpression(actions, workspaceParent.id).markdown : ''}
+            inheritedExpressionImages={workspaceParent ? getActionExpression(actions, workspaceParent.id).sourceNode?.images : []}
+            historyFacts={workspaceParent ? getActionExpressionContext(actions, workspaceParent.id)?.facts : []}
+            inheritedAgreement={workspaceParent ? getActionAgreement(actions, workspaceParent.id).markdown : ''}
+            contextGuide={workspaceProject.contextGuide}
+            onBack={() => openProject(workspaceProject.id)} onConfirm={confirmAction}
+          />
+        ) : (
+          <div className="empty-state">
+            <p>请先选择行动图和接续节点</p>
+            <a className="quiet-button" href="#projects">浏览行动图</a>
+          </div>
+        )
+      )}
+      {route === 'action-archive' && (
+        archiveAction && selectedProject ? (
+          <ActionArchivePage
+            project={selectedProject} node={archiveAction} actions={selectedProjectActions} users={allUsers}
+            onBack={() => openProject(selectedProject.id)}
+            onSelectSource={(id) => {
+              setArchiveActionId(id)
+              window.scrollTo(0, 0)
+            }}
+          />
+        ) : (
+          <div className="empty-state">
+            <p>请从行动节点查看形成过程</p>
+            <a className="quiet-button" href="#projects">浏览行动图</a>
+          </div>
+        )
+      )}
+      {route === 'project' && !selectedProject && (
+        <div className="empty-state">
+          <p>行动图不存在或已删除</p>
+          <a className="quiet-button" href="#projects">浏览行动图</a>
+        </div>
+      )}
+      <div hidden={route !== 'settings'}>
+        <SettingsPanel
+          profile={profile} darkMode={darkMode} showActionGraphLegend={showActionGraphLegend}
+          graphBackground={graphBackground} onGraphBackgroundChange={setGraphBackground}
+          onSave={saveProfile} onToggleTheme={toggleTheme} csrfToken={csrfToken}
+          onShowActionGraphLegendChange={setShowActionGraphLegend}
+        />
+      </div>
+    </AppShell>
+  )
 }

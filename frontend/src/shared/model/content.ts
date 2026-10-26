@@ -1,5 +1,6 @@
 /** An image URL and its accompanying description, shared by previews and Markdown. */
 export type PostImage = {
+  assetId?: string
   url: string
   alt: string
 }

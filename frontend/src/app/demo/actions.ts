@@ -1,5 +1,6 @@
 import type { ActionNode } from '../../entities/action/model/types'
 import { cookingActions } from './cooking'
+import { interestActions } from './interests'
 
 const everydayActions: ActionNode[] = [
   {
@@ -52,4 +53,4 @@ const everydayActions: ActionNode[] = [
 ]
 
 /** Published prototype records share one action model across every reading surface. */
-export const demoActions: ActionNode[] = cookingActions.concat(everydayActions.map((node) => ({ ...node, objectiveMarkdown: node.markdown })))
+export const demoActions: ActionNode[] = cookingActions.concat(interestActions, everydayActions.map((node) => ({ ...node, objectiveMarkdown: node.markdown })))

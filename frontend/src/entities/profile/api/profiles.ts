@@ -1,4 +1,6 @@
 import { getAPI } from '../../../shared/api/client'
+import { BusinessRequestError } from '../../../shared/api/errors'
+import { API_ERROR_CODES } from '../../../shared/api/contracts'
 import type { UserProfile } from '../model/types'
 
 /** 当前账户资料及版本，包含本人邮箱，仅由会话接口返回。 */
@@ -17,8 +19,12 @@ export const profileKeys = {
 }
 
 /** 读取当前账户；真实服务无有效会话时应返回 10002，开发模拟固定为已登录账号。 */
-export function readSession(signal?: AbortSignal): Promise<SessionView> {
-  return getAPI('/api/commands/auth/session', {}, { signal })
+export async function readSession(signal?: AbortSignal): Promise<SessionView | null> {
+  try { return await getAPI('/api/commands/auth/session', {}, { signal }) }
+  catch (error) {
+    if (error instanceof BusinessRequestError && error.code === API_ERROR_CODES.unauthenticated) return null
+    throw error
+  }
 }
 
 /** 读取公开用户目录，为作者展示、资料预览和用户筛选提供数据。 */

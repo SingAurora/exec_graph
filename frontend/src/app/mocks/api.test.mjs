@@ -5,9 +5,11 @@ import { createMockHandlers } from './handlers.ts'
 import { getAPI, postAPI } from '../../shared/api/client.ts'
 import { readActionContexts } from '../../entities/action/api/context.ts'
 import { createGraph, updateGraph, removeGraph } from '../../features/project/api/commands.ts'
-import { createAction, reviseAgreement, reviseExpression } from '../../features/action/api/commands.ts'
+import { createAction as confirmAction, reviseAgreement, reviseExpression as confirmExpression } from '../../features/action/api/commands.ts'
 import { getActionExpression } from '../../entities/action/lib/expressions.ts'
 import { getActionAgreement } from '../../entities/action/lib/agreements.ts'
+import { setProfileHighlights } from '../../features/profile-highlights/api/commands.ts'
+import { updateProfile } from '../../features/profile/api/commands.ts'
 
 const { crypto, URL } = globalThis
 
@@ -17,6 +19,20 @@ let db
 const writeOptions = () => ({ csrfToken: db.csrfToken, idempotencyKey: crypto.randomUUID() })
 const graphInput = { title: '接口测试图', description: '仅用于测试' }
 const dialogue = [{ id: 'u1', speaker: 'user', body: '今天试做了一份炒蛋。' }, { id: 'a1', speaker: 'ai', body: '已整理行动记录。' }]
+// 测试模型输出从模拟服务注入，不作为浏览器生成或发布参数。
+async function createAction(fixture, options) {
+  db.nextGenerationDraft = { reply: dialogue[1].body, title: fixture.title, objective: fixture.objectiveMarkdown, expression: fixture.expression, reviews: fixture.referenceAgreements }
+  const generated = await postAPI('/api/commands/ai/generate', { mode: 'action', graphId: fixture.graphId, parentId: fixture.parentId,
+    mergedParentIds: fixture.mergedParentIds, sourceVersions: fixture.sourceVersions, agreement: fixture.agreement, message: dialogue[0].body }, options)
+  return confirmAction(generated.createAction, options)
+}
+async function reviseExpression(fixture, options) {
+  db.nextGenerationDraft = { reply: '已整理表达。', title: '', objective: '', expression: fixture.document, reviews: [] }
+  const node = db.actions.find((item) => item.id === fixture.nodeId)
+  const generated = await postAPI('/api/commands/ai/generate', { mode: 'expression', graphId: node.projectId, nodeId: node.id, expectedVersion: fixture.expectedVersion,
+    mergedParentIds: [], sourceVersions: [], agreement: { mode: 'inherit' }, message: fixture.conversation?.filter((item) => item.speaker === 'user').at(-1)?.body ?? '请调整表达。' }, options)
+  return confirmExpression(generated.updateExpression, options)
+}
 const firstInput = (graphId) => ({ graphId, mergedParentIds: [], sourceVersions: [], title: '第一次试做', objectiveMarkdown: '实际做了一份炒蛋。',
   expression: { mode: 'update', markdown: '少放盐更合口味。' }, agreement: { mode: 'update', markdown: '请记录用盐量。' }, referenceAgreements: [], conversation: dialogue })
 const createFirst = async () => {
@@ -66,7 +82,7 @@ describe('HTTP mock contract through the real request client', () => {
 
   test('updates confirmed versions and preserves newer data on a stale save', async () => {
     const graph = await createGraph(graphInput, writeOptions())
-    const input = { graphId: graph.id, expectedVersion: 1, ...graphInput, title: '已保存的新标题' }
+    const input = { graphId: graph.id, expectedVersion: 1, ...graphInput, title: '已保存的新标题', avatarAssetId: null, backgroundAssetId: null }
     const updated = await updateGraph(input, writeOptions())
     expect(updated.version).toBe(2)
     await expect(updateGraph({ ...input, title: '旧版本覆盖' }, writeOptions())).rejects.toMatchObject(failure(409, 10005))
@@ -134,16 +150,78 @@ describe('HTTP mock contract through the real request client', () => {
     expect(unfollowed.userIds).not.toContain(targetId)
   })
 
+  test('saves ordered profile highlights publicly and preserves them when editing profile details', async () => {
+    const first = await createFirst()
+    const second = await createFirst()
+    const highlights = { expressionNodeIds: [second.node.id, first.node.id] }
+    const user = await setProfileHighlights({ ...highlights, expectedVersion: 1 }, writeOptions())
+    expect(user.version).toBe(2)
+    expect(user.highlights).toEqual(highlights)
+    const publicUser = (await getAPI('/api/commands/profiles/catalogue')).find((item) => item.id === user.id)
+    expect(publicUser.highlights).toEqual(highlights)
+    expect(publicUser.email).toBeUndefined()
+    const updated = await updateProfile({ expectedVersion: 2, name: user.name, gender: user.gender, bio: '新的个人简介', avatarAssetId: null, backgroundAssetId: null }, writeOptions())
+    expect(updated.highlights).toEqual(highlights)
+    const reordered = await setProfileHighlights({ expressionNodeIds: [first.node.id, second.node.id], expectedVersion: 3 }, writeOptions())
+    expect(reordered.highlights.expressionNodeIds).toEqual([first.node.id, second.node.id])
+    const removed = await setProfileHighlights({ expressionNodeIds: [second.node.id], expectedVersion: 4 }, writeOptions())
+    expect(removed.highlights.expressionNodeIds).toEqual([second.node.id])
+    const cleared = await setProfileHighlights({ expressionNodeIds: [], expectedVersion: 5 }, writeOptions())
+    expect(cleared.highlights).toEqual({ expressionNodeIds: [] })
+    expect(cleared.bio).toBe('新的个人简介')
+  })
+
+  test('rejects invalid highlight ownership, empty content, duplicates and limits atomically', async () => {
+    const previousHighlights = globalThis.structuredClone(db.users[0].highlights)
+    const { node } = await createFirst()
+    const base = { expressionNodeIds: [node.id], expectedVersion: 1 }
+    const foreign = db.actions.find((item) => item.authorId !== db.users[0].id && item.expressionMarkdown?.trim())
+    expect(foreign).toBeTruthy()
+    for (const patch of [
+      { expressionNodeIds: [node.id, node.id] },
+      { expressionNodeIds: [node.id, 'b', 'c', 'd', 'e', 'f'] },
+      { expressionNodeIds: [foreign.id] },
+      { expressionNodeIds: ['missing'] },
+      { expressionNodeIds: [null] },
+      { expressionNodeIds: null },
+      { expressionNodeIds: undefined },
+      { agreementNodeIds: [node.id] },
+    ]) await expect(setProfileHighlights({ ...base, ...patch }, writeOptions())).rejects.toMatchObject(failure(400, 10001))
+    db.actions.find((item) => item.id === node.id).expressionMarkdown = ''
+    await expect(setProfileHighlights(base, writeOptions())).rejects.toMatchObject(failure(400, 10001))
+    expect(db.users[0].highlights).toEqual(previousHighlights)
+    expect(db.users[0].version).toBe(1)
+  })
+
+  test('highlight writes require CSRF and reject stale versions without overwriting the confirmed selection', async () => {
+    const { node } = await createFirst()
+    const input = { expressionNodeIds: [node.id], expectedVersion: 1 }
+    await expect(setProfileHighlights(input, {})).rejects.toMatchObject(failure(403, 10003))
+    await setProfileHighlights(input, writeOptions())
+    await expect(setProfileHighlights({ ...input, expressionNodeIds: [] }, writeOptions())).rejects.toMatchObject(failure(409, 10005))
+    expect((await getAPI('/api/commands/auth/session')).user.highlights.expressionNodeIds).toEqual([node.id])
+  })
+
+  test('accepts exactly five branch selections and rejects a sixth without changing the saved order', async () => {
+    const ids = []
+    for (let index = 0; index < 6; index += 1) ids.push((await createFirst()).node.id)
+    const saved = await setProfileHighlights({ expressionNodeIds: ids.slice(0, 5), expectedVersion: 1 }, writeOptions())
+    expect(saved.highlights.expressionNodeIds).toEqual(ids.slice(0, 5))
+    await expect(setProfileHighlights({ expressionNodeIds: ids, expectedVersion: 2 }, writeOptions())).rejects.toMatchObject(failure(400, 10001))
+    expect((await getAPI('/api/commands/auth/session')).user.highlights).toEqual(saved.highlights)
+  })
+
   test('expression revisions preserve the continuous dialogue and server-confirmed authors', async () => {
     const { node } = await createFirst()
     const document = { mode: 'update', markdown: '经过复做，我愿意再调整一次。' }
     const first = await reviseExpression({ nodeId: node.id, expectedVersion: 1, document, conversation: dialogue }, writeOptions())
-    expect(first.conversation).toEqual(dialogue)
+    expect(first.conversation.map(({ speaker, body }) => ({ speaker, body }))).toEqual(dialogue.map(({ speaker, body }) => ({ speaker, body })))
     expect(first.expressionConversation[0].authorId).toBe(db.users[0].id)
     const continued = [...first.expressionConversation, { id: 'u2', speaker: 'user', body: '继续修改', authorId: 'forged-author' }, { id: 'a2', speaker: 'ai', body: '再次整理' }]
     const second = await reviseExpression({ nodeId: node.id, expectedVersion: 2, document: { mode: 'clear' }, conversation: continued }, writeOptions())
     expect(second.expressionConversation[0].authorId).toBe(db.users[0].id)
     expect(second.expressionConversation[2].authorId).toBe(db.users[0].id)
-    await expect(reviseExpression({ nodeId: node.id, expectedVersion: 3, document, conversation: dialogue }, writeOptions())).rejects.toMatchObject(failure(409, 10005))
+    await expect(postAPI('/api/commands/expressions/update', { nodeId: node.id, expectedVersion: 3, document, conversation: dialogue }, writeOptions())).rejects.toMatchObject(failure(400, 10001))
+    await expect(postAPI('/api/commands/actions/create', { ...firstInput(node.graphId), generationId: crypto.randomUUID() }, writeOptions())).rejects.toMatchObject(failure(400, 10001))
   })
 })
