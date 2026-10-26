@@ -44,4 +44,17 @@ describe('account security validation', () => {
     }
     expect(Object.keys(validateSecurityForm('password', form({}), email, ''))).toEqual(['currentPassword', 'password', 'confirmation', 'code'])
   })
+
+  test('changing a password shares registration rules while preserving the existing password', () => {
+    const values = { currentPassword: ' old\u200bsecret ', password: '😀'.repeat(8), confirmation: '😀'.repeat(8), code: '012345' }
+    expect(validateSecurityForm('password', form(values), email, email)).toEqual({})
+    for (const password of ['pass word', 'password\u3000', 'pass\u200bword', 'pass\u202eword', '😀'.repeat(7), '😀'.repeat(65)]) {
+      const errors = validateSecurityForm('password', form({ ...values, password, confirmation: password }), email, email)
+      expect(Object.keys(errors)).toEqual(['password'])
+    }
+  })
+
+  test('changing email enforces the same UTF-8 length limit as registration', () => {
+    expect(validateNewEmail(`${'é'.repeat(122)}@example.com`, email)).toContain('254')
+  })
 })

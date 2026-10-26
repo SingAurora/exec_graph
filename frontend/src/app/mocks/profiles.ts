@@ -1,4 +1,5 @@
 import { http } from 'msw'
+import { validateNickname } from '../../entities/profile/lib/name-validation'
 import { mockAccount, type MockDatabase } from './database'
 import { mockResponse, readBody, requireInput, requireVersion } from './protocol'
 import { getProfileHighlightCandidates } from '../../entities/action/lib/profile-highlights'
@@ -15,7 +16,7 @@ export function profileHandlers(db: MockDatabase) {
       const body = await readBody(request, ['name', 'gender', 'bio', 'avatarAssetId', 'backgroundAssetId', 'expectedVersion'])
       const user = mockAccount(db)
       requireVersion(user.version, body.expectedVersion)
-      requireInput(typeof body.name === 'string' && body.name.trim().length > 0 && body.name.trim().length <= 30)
+      requireInput(typeof body.name === 'string' && !validateNickname(body.name))
       requireInput(typeof body.bio === 'string' && body.bio.length <= 1000)
       requireInput(body.gender === 'unknown' || body.gender === 'male' || body.gender === 'female')
       requireInput(body.avatarAssetId === null && body.backgroundAssetId === null, '模拟环境不提供对象存储')

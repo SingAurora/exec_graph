@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/singaurora/exec-graph/backend/internal/application/catalogue"
+	"github.com/singaurora/exec-graph/backend/internal/shared/constants"
 	"github.com/singaurora/exec-graph/backend/internal/shared/fault"
 	"github.com/singaurora/exec-graph/backend/internal/shared/id"
 )
@@ -94,7 +95,7 @@ func New(repository Repository, sessions Sessions, passwords Passwords, ttl time
 // Login 使用邮箱和密码认证，拒绝在错误响应中泄露账户存在性。
 func (s *Service) Login(ctx context.Context, email, password, source string) (LoginResult, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
-	if len(email) > 254 || len(password) == 0 || len(password) > 256 {
+	if len(email) > constants.EmailMaxBytes || len(password) == 0 || len(password) > constants.PasswordMaxBytes {
 		return LoginResult{}, fault.New(fault.Invalid, "邮箱或密码格式不正确")
 	}
 	allowed, err := s.sessions.Allow(ctx, "login:"+source+":"+email, 10, 15*time.Minute)

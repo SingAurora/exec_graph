@@ -4,16 +4,31 @@ import (
 	"context"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/singaurora/exec-graph/backend/internal/application/identity"
+	"github.com/singaurora/exec-graph/backend/internal/application/profile"
 	"github.com/singaurora/exec-graph/backend/internal/shared/constants"
 	"github.com/singaurora/exec-graph/backend/internal/shared/fault"
 	"github.com/singaurora/exec-graph/backend/internal/shared/id"
+	"github.com/singaurora/exec-graph/backend/internal/shared/textinput"
 )
 
-func validPassword(password string) bool {
-	return utf8.RuneCountInString(password) >= 8 && len(password) <= 256
+func validateNewPassword(password string) error {
+	if strings.ContainsFunc(password, unicode.IsSpace) {
+		return fault.New(fault.Invalid, "密码不能包含空格或其他空白字符")
+	}
+	if !utf8.ValidString(password) || textinput.HasUnsafeCharacters(password) {
+		return fault.New(fault.Invalid, "密码不能包含控制字符或不可见格式字符")
+	}
+	if utf8.RuneCountInString(password) < constants.PasswordMinCharacters {
+		return fault.New(fault.Invalid, "密码至少需要 8 位")
+	}
+	if len(password) > constants.PasswordMaxBytes {
+		return fault.New(fault.Invalid, "密码最多 256 字节")
+	}
+	return nil
 }
 
 // Register 仅在成功消耗邮箱验证码后建号，再创建真实服务端会话。
@@ -22,9 +37,12 @@ func (s *Service) Register(ctx context.Context, input RegisterInput, source stri
 	if err != nil {
 		return identity.LoginResult{}, err
 	}
-	input.Name = strings.TrimSpace(input.Name)
-	if !validPassword(input.Password) || input.Name == "" || utf8.RuneCountInString(input.Name) > constants.ProfileNameLimit {
-		return identity.LoginResult{}, fault.New(fault.Invalid, "昵称不能为空且最多三十字，密码至少八位且最多 256 字节")
+	input.Name, err = profile.NormalizeName(input.Name)
+	if err != nil {
+		return identity.LoginResult{}, err
+	}
+	if err := validateNewPassword(input.Password); err != nil {
+		return identity.LoginResult{}, err
 	}
 	if err := s.verify(ctx, "register", "", email, input.Code); err != nil {
 		return identity.LoginResult{}, err
@@ -45,8 +63,8 @@ func (s *Service) ResetPassword(ctx context.Context, input ResetInput) error {
 	if err != nil {
 		return err
 	}
-	if !validPassword(input.Password) {
-		return fault.New(fault.Invalid, "新密码至少八位且最多 256 字节")
+	if err := validateNewPassword(input.Password); err != nil {
+		return err
 	}
 	if err := s.verify(ctx, "reset-password", "", email, input.Code); err != nil {
 		return err
@@ -76,7 +94,7 @@ func (s *Service) current(ctx context.Context, actor identity.Actor, password st
 	if account.View.ID == "" || account.Disabled || account.AuthVersion != actor.AuthVersion {
 		return account, fault.New(fault.Unauthenticated, "会话已失效，请重新登录")
 	}
-	if len(password) > 256 || !s.passwords.Verify(account.PasswordHash, password) {
+	if len(password) > constants.PasswordMaxBytes || !s.passwords.Verify(account.PasswordHash, password) {
 		return account, fault.New(fault.Invalid, "当前密码不正确")
 	}
 	return account, nil
@@ -88,8 +106,11 @@ func (s *Service) ChangePassword(ctx context.Context, actor identity.Actor, inpu
 	if err != nil {
 		return struct{}{}, err
 	}
-	if !validPassword(input.Password) || s.passwords.Verify(account.PasswordHash, input.Password) {
-		return struct{}{}, fault.New(fault.Invalid, "新密码至少八位，且不能与当前密码相同")
+	if err := validateNewPassword(input.Password); err != nil {
+		return struct{}{}, err
+	}
+	if s.passwords.Verify(account.PasswordHash, input.Password) {
+		return struct{}{}, fault.New(fault.Invalid, "新密码不能与当前密码相同")
 	}
 	if err := s.verify(ctx, "change-password", actor.UserID, account.View.Email, input.Code); err != nil {
 		return struct{}{}, err

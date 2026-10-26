@@ -1,3 +1,5 @@
+import { validateEmail, validateNewPassword } from '../../../entities/account/lib/validation'
+
 export type SecurityFormKind = 'email' | 'password'
 export type SecurityFieldName = 'email' | 'code' | 'currentPassword' | 'password' | 'confirmation'
 export type SecurityFieldErrors = Partial<Record<SecurityFieldName, string>>
@@ -10,7 +12,8 @@ const fieldOrder: Record<SecurityFormKind, SecurityFieldName[]> = {
 /** Validates a new email without invoking the browser's native error bubble. */
 export function validateNewEmail(value: string, currentEmail: string): string | undefined {
   if (!value.trim()) return '请输入新邮箱'
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())) return '请输入有效的邮箱地址，如 name@example.com'
+  const error = validateEmail(value)
+  if (error) return error
   if (value.trim().toLowerCase() === currentEmail.trim().toLowerCase()) return '新邮箱不能与当前邮箱相同'
 }
 
@@ -33,8 +36,8 @@ export function validateSecurityForm(kind: SecurityFormKind, fields: FormData, c
         if (!value(name)) errors.currentPassword = '请输入当前密码'
         break
       case 'password':
-        if (value(name).length < 8) errors.password = '新密码至少需要 8 位'
-        else if (value(name) === value('currentPassword')) errors.password = '新密码不能与当前密码相同'
+        errors.password = validateNewPassword(value(name))
+        if (!errors.password && value(name) === value('currentPassword')) errors.password = '新密码不能与当前密码相同'
         break
       case 'confirmation':
         if (!value(name)) errors.confirmation = '请再次输入新密码'

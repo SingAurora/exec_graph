@@ -3,6 +3,12 @@ package constants
 import "time"
 
 const (
+	// EmailMaxBytes 限制规范化后的邮箱 UTF-8 字节数，与持久化字段上限一致。
+	EmailMaxBytes = 254
+	// PasswordMinCharacters 限制新密码的 Unicode 码点数，不追溯限制旧密码登录。
+	PasswordMinCharacters = 8
+	// PasswordMaxBytes 限制密码的 UTF-8 字节数。
+	PasswordMaxBytes = 256
 	// MailOperationTimeout 限制单次验证码发送的外部请求时间。
 	MailOperationTimeout = 20 * time.Second
 	// CodeResendInterval 限制同一用途和邮箱的发送频率。

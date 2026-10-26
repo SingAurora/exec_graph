@@ -13,6 +13,7 @@ import (
 	"github.com/singaurora/exec-graph/backend/internal/application/identity"
 	"github.com/singaurora/exec-graph/backend/internal/shared/constants"
 	"github.com/singaurora/exec-graph/backend/internal/shared/fault"
+	"github.com/singaurora/exec-graph/backend/internal/shared/textinput"
 )
 
 // Service 组合认证、验证码与账户仓储，业务层不感知 SDK、Redis 或 HTTP。
@@ -32,8 +33,11 @@ func New(repo Repository, codes Codes, sender Sender, passwords identity.Passwor
 
 func emailAddress(value string) (string, error) {
 	value = strings.ToLower(strings.TrimSpace(value))
+	if len(value) > constants.EmailMaxBytes {
+		return "", fault.New(fault.Invalid, "邮箱最多 254 字节")
+	}
 	parsed, err := mail.ParseAddress(value)
-	if err != nil || parsed.Address != value || len(value) > 254 || !strings.Contains(value, ".") {
+	if err != nil || parsed.Address != value || textinput.HasUnsafeCharacters(value) || !strings.Contains(value, ".") {
 		return "", fault.New(fault.Invalid, "请输入有效的邮箱地址")
 	}
 	return value, nil

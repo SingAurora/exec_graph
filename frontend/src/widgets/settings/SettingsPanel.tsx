@@ -9,6 +9,7 @@ import { TabsContent, TabsList, TabsRoot, TabsTrigger } from '../../shared/ui/ta
 import { useToast } from '../../shared/ui/toast/useToast'
 import { HelpPopover } from '../../shared/ui/help/HelpPopover'
 import type { UserProfile } from '../../entities/profile/model/types'
+import { validateNickname } from '../../entities/profile/lib/name-validation'
 import { ComponentShowcase } from './components/ComponentShowcase'
 import { AppearanceSettings } from './AppearanceSettings'
 import type { GraphBackgroundPreferences } from '../../shared/ui/graph-background/model'
@@ -40,10 +41,11 @@ export function SettingsPanel({ profile, csrfToken, darkMode, showActionGraphLeg
   const [saving, setSaving] = useState(false)
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile')
   const { showToast } = useToast()
+  const nameError = validateNickname(draft.name)
   const update = <K extends keyof UserProfile>(key: K, value: UserProfile[K]) => setDraft((current) => ({ ...current, [key]: value }))
   const saveProfile = async (event: FormEvent) => {
     event.preventDefault()
-    if (!draft.name.trim() || backgroundLoading || saving) return
+    if (nameError || backgroundLoading || saving) return
     setSaving(true)
     try {
       await onSave({ ...draft, name: draft.name.trim(), bio: draft.bio.trim() })
@@ -62,7 +64,11 @@ export function SettingsPanel({ profile, csrfToken, darkMode, showActionGraphLeg
               <fieldset className="contents" disabled={saving}>
               <div className="flex items-center gap-4"><AvatarEditor value={draft.avatar} fallback={draft.name.slice(0, 1)} onChange={(avatar) => update('avatar', avatar)} /><span className="text-sm text-muted">个人头像</span></div>
               <ProfileBackgroundEditor value={draft.backgroundImage} onChange={(image) => update('backgroundImage', image)} onLoadingChange={setBackgroundLoading} />
-              <label className="form-field">昵称<input className="form-input" required maxLength={30} value={draft.name} onChange={(event) => update('name', event.target.value)} placeholder="昵称" /></label>
+              <label className="form-field">
+                昵称
+                <input className="form-input" required value={draft.name} onChange={(event) => update('name', event.target.value)} placeholder="昵称" />
+                {nameError && <span className="text-xs text-coral">{nameError}</span>}
+              </label>
               <div className="form-field"><span>性别</span><Select className="!h-10 w-full !border !border-line !bg-surface !text-sm !font-normal" label="性别" value={draft.gender} onValueChange={(value) => update('gender', value as UserProfile['gender'])} options={[{ value: 'male', label: <span className="inline-flex items-center gap-1.5"><GenderMark gender="male" />男</span> }, { value: 'female', label: <span className="inline-flex items-center gap-1.5"><GenderMark gender="female" />女</span> }, { value: 'unknown', label: '不展示' }]} /></div>
               <div className="form-field">
                 <div className="flex items-center gap-1"><label htmlFor="profile-biography">个人简介</label><HelpPopover title="个人简介">
@@ -73,7 +79,7 @@ export function SettingsPanel({ profile, csrfToken, darkMode, showActionGraphLeg
                 </HelpPopover></div>
                 <textarea id="profile-biography" className="form-input min-h-36 resize-y leading-6" rows={5} maxLength={1000} value={draft.bio} onChange={(event) => update('bio', event.target.value)} placeholder="写一点关于自己的事" />
               </div>
-              <div className="flex justify-end"><button className="primary-button" type="submit" disabled={!draft.name.trim() || backgroundLoading}>保存资料</button></div>
+              <div className="flex justify-end"><button className="primary-button" type="submit" disabled={Boolean(nameError) || backgroundLoading}>保存资料</button></div>
               </fieldset>
             </form>
           </div>

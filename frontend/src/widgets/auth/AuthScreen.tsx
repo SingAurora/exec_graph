@@ -129,7 +129,7 @@ export function AuthScreen({view, darkMode, onToggleTheme, onEnter}: AuthScreenP
                     <form ref={formRef} className="auth-form" noValidate onSubmit={submit} onBlur={updateError} onChange={updateError}>
                         {isRegister && <div className="auth-field">
                             <label htmlFor="auth-name">昵称</label>
-                            <input id="auth-name" name="nickname" required maxLength={30} autoComplete="nickname"
+                            <input id="auth-name" name="nickname" required autoComplete="nickname"
                                    placeholder="怎么称呼你" {...feedbackProps('nickname')} />
                             <FieldFeedback name="nickname" error={errors.nickname}/>
                         </div>}
@@ -157,8 +157,8 @@ export function AuthScreen({view, darkMode, onToggleTheme, onEnter}: AuthScreenP
                             </div>
                             <div className="auth-password">
                                 <input id="auth-password" name="password" required type={showPassword ? 'text' : 'password'}
-                                       minLength={isLogin ? 1 : 8} autoComplete={isLogin ? 'current-password' : 'new-password'}
-                                       placeholder={isLogin ? '输入密码' : '设置至少 8 位密码'} {...feedbackProps('password')} />
+                                       autoComplete={isLogin ? 'current-password' : 'new-password'}
+                                       placeholder={isLogin ? '输入密码' : '至少 8 位，不含空格'} {...feedbackProps('password')} />
                                 <button className="auth-eye" type="button" onClick={() => setShowPassword((value) => !value)}
                                         title={showPassword ? '隐藏密码' : '显示密码'}>
                                     {showPassword ? <EyeOff size={17}/> : <Eye size={17}/>}

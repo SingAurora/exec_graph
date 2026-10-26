@@ -33,4 +33,41 @@ describe('account form validation', () => {
     expect(validateAuthField('forgot', 'code', 'abcdef')).toBe('请输入 6 位数字验证码')
     expect(validateAuthField('forgot', 'password', '1234567')).toBe('密码至少需要 8 位')
   })
+
+  test('nicknames count Unicode code points and reject hidden controls without rejecting joined emoji', () => {
+    expect(validateAuthField('register', 'nickname', ` ${'😀'.repeat(30)} `)).toBeUndefined()
+    expect(validateAuthField('register', 'nickname', '😀'.repeat(31))).toContain('30')
+    expect(validateAuthField('register', 'nickname', '开发者👩‍💻')).toBeUndefined()
+    for (const character of ['\n', '\t', '\u0000', '\u0085', '\u2028', '\u200b', '\u202e', '\u2066', '\ufeff']) {
+      expect(validateAuthField('register', 'nickname', `小${character}明`)).toContain('字符')
+    }
+  })
+
+  test('email limits apply to the normalized UTF-8 bytes', () => {
+    const email = `${'a'.repeat(64)}@${'b'.repeat(63)}.${'c'.repeat(63)}.${'d'.repeat(61)}`
+    expect(validateAuthField('register', 'email', ` ${email.toUpperCase()} `)).toBeUndefined()
+    expect(validateAuthField('login', 'email', `${email}x`)).toContain('254')
+    expect(validateAuthField('forgot', 'email', `${'é'.repeat(122)}@example.com`)).toContain('254')
+  })
+
+  test('new passwords preserve visible symbols and Unicode while enforcing code point and byte limits', () => {
+    for (const view of ['register', 'forgot']) {
+      for (const password of ['Ab!\'"\\;9', '中文密码测试八位', '😀'.repeat(8), 'é'.repeat(128), '😀'.repeat(64), '开发者👩‍💻的密码']) {
+        expect(validateAuthField(view, 'password', password)).toBeUndefined()
+      }
+      expect(validateAuthField(view, 'password', '😀'.repeat(7))).toContain('8 位')
+      for (const password of ['a'.repeat(257), 'é'.repeat(129), '😀'.repeat(65)]) {
+        expect(validateAuthField(view, 'password', password)).toContain('256')
+      }
+      for (const character of [' ', '\t', '\n', '\u00a0', '\u0085', '\u3000', '\u2028', '\u0000', '\u007f', '\u200b', '\u202e', '\u2066', '\ufeff']) {
+        expect(validateAuthField(view, 'password', `pass${character}word`)).toContain('不能包含')
+      }
+    }
+  })
+
+  test('existing passwords remain unchanged and usable in login validation', () => {
+    for (const password of ['old secret', ' password ', 'old\u200bsecret', '😀'.repeat(7)]) {
+      expect(validateAuthField('login', 'password', password)).toBeUndefined()
+    }
+  })
 })

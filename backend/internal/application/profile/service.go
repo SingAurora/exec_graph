@@ -32,11 +32,15 @@ func checkVersion(tx Transaction, expected uint32) error {
 // Update 仅修改当前账户的公开资料，精选保持原样。
 func (s *Service) Update(ctx context.Context, actor identity.Actor, input UpdateProfileInput) (identity.AccountView, error) {
 	var out identity.AccountView
-	if input.ExpectedVersion == 0 || strings.TrimSpace(input.Name) == "" || utf8.RuneCountInString(input.Name) > constants.ProfileNameLimit || utf8.RuneCountInString(input.Bio) > constants.BiographyLimit || (input.Gender != "unknown" && input.Gender != "male" && input.Gender != "female") {
+	name, err := NormalizeName(input.Name)
+	if err != nil {
+		return out, err
+	}
+	if input.ExpectedVersion == 0 || utf8.RuneCountInString(input.Bio) > constants.BiographyLimit || (input.Gender != "unknown" && input.Gender != "male" && input.Gender != "female") {
 		return out, fault.New(fault.Invalid, "昵称、性别或简介格式不合法")
 	}
-	input.Name = strings.TrimSpace(input.Name)
-	err := s.store.Within(ctx, actor, func(tx Transaction) error {
+	input.Name = name
+	err = s.store.Within(ctx, actor, func(tx Transaction) error {
 		if err := checkVersion(tx, input.ExpectedVersion); err != nil {
 			return err
 		}

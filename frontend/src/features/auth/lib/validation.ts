@@ -1,24 +1,18 @@
 import type { AuthView } from '../../../shared/lib/navigation'
+import { validateEmail, validateNewPassword } from '../../../entities/account/lib/validation'
+import { validateNickname } from '../../../entities/profile/lib/name-validation'
 
 export type AuthFieldName = 'nickname' | 'email' | 'code' | 'password'
 export type AuthFieldErrors = Partial<Record<AuthFieldName, string>>
-
-const nicknameMaxLength = 30
-const passwordMinLength = 8
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 /** Validates only the fields used by the current account form. */
 export function validateAuthField(view: AuthView, name: AuthFieldName, value: string): string | undefined {
   switch (name) {
     case 'nickname':
       if (view !== 'register') return
-      if (!value.trim()) return '请输入昵称'
-      if (value.trim().length > nicknameMaxLength) return `昵称最多 ${nicknameMaxLength} 个字`
-      return
+      return validateNickname(value)
     case 'email':
-      if (!value.trim()) return '请输入邮箱地址'
-      if (!emailPattern.test(value.trim())) return '请输入有效的邮箱地址，如 name@example.com'
-      return
+      return validateEmail(value)
     case 'code':
       if (view === 'login') return
       if (!value.trim()) return '请输入邮箱验证码'
@@ -26,7 +20,8 @@ export function validateAuthField(view: AuthView, name: AuthFieldName, value: st
       return
     case 'password':
       if (!value) return view === 'forgot' ? '请设置新密码' : view === 'register' ? '请设置密码' : '请输入密码'
-      if (view !== 'login' && value.length < passwordMinLength) return `密码至少需要 ${passwordMinLength} 位`
+      // 登录只验证已有密码，不把新的字符限制追溯到旧账号。
+      if (view !== 'login') return validateNewPassword(value)
       return
   }
 }
