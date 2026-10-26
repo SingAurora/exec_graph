@@ -26,6 +26,7 @@ type Config struct {
 	Storage     ObjectStorage `yaml:"storage"`
 	AI          AI            `yaml:"ai"`
 	Security    Security      `yaml:"security"`
+	Limits      Limits        `yaml:"limits"`
 }
 
 // App 是 HTTP 和会话配置。
@@ -104,7 +105,7 @@ func Load(path string) (Config, error) {
 	if err != nil {
 		return Config{}, fmt.Errorf("读取配置文件失败: %w", err)
 	}
-	c := Config{App: App{Environment: "development"}, Redis: Redis{Prefix: "exec_graph:v1:"}}
+	c := Config{App: App{Environment: "development"}, Redis: Redis{Prefix: "exec_graph:v1:"}, Limits: defaultLimits()}
 	decoder := yaml.NewDecoder(bytes.NewReader(contents))
 	decoder.KnownFields(true)
 	if err := decoder.Decode(&c); err != nil {
@@ -113,6 +114,12 @@ func Load(path string) (Config, error) {
 	var extra any
 	if err := decoder.Decode(&extra); err != io.EOF {
 		return Config{}, fmt.Errorf("配置只能包含一份 YAML 文档")
+	}
+	if err := validateLimitNumbers(contents); err != nil {
+		return Config{}, err
+	}
+	if err := c.Limits.validate(); err != nil {
+		return Config{}, err
 	}
 	if schema := os.Getenv("EXEC_GRAPH_DATABASE_SCHEMA"); schema != "" {
 		c.Database.Schema = schema

@@ -66,7 +66,7 @@ func TestRealMediaLifecycleAndCleanup(t *testing.T) {
 		mustDB(t, s.deps.DB.Model(&model.MediaRetention{}).Where("asset_uuid IN ?", ids).Updates(model.MediaRetention{RetainUntil: now.Add(-time.Hour), NextAttemptAt: now.Add(-time.Hour)}))
 	}
 	expire(unused.AssetID, saved.AssetID, historical.AssetID)
-	service := app.New(store.New(s.deps.DB), objects)
+	service := app.New(store.New(s.deps.DB), objects, mediaLimits(s.deps.Config))
 	report, err := service.Prune(context.Background(), now)
 	if err != nil || report.Deleted != 1 || report.Failed != 0 {
 		t.Fatalf("应只删除未引用图片: %+v %v", report, err)

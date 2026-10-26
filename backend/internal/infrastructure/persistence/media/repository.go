@@ -23,9 +23,16 @@ type Repository struct{ db *gorm.DB }
 func New(db *gorm.DB) *Repository { return &Repository{db} }
 
 // Reserve 在云端上传之前登记全部元信息，失败及超时上传也有可追踪对象键。
-func (r *Repository) Reserve(ctx context.Context, actor identity.Actor, upload app.Upload) error {
+func (r *Repository) Reserve(ctx context.Context, actor identity.Actor, upload app.Upload, limits app.Limits) error {
 	return transaction.Within(ctx, r.db, actor, func(tx *transaction.Scope) error {
 		now := time.Now().UTC()
+		usage, err := usage(tx.DB, actor.UserID, now)
+		if err != nil {
+			return err
+		}
+		if err := limits.Check(usage, upload.ByteSize); err != nil {
+			return err
+		}
 		asset := model.MediaAsset{UUID: upload.AssetID, OwnerUUID: actor.UserID, ObjectKey: upload.ObjectKey, Status: "pending", MIMEType: &upload.MIMEType, ByteSize: &upload.ByteSize, Width: &upload.Width, Height: &upload.Height, SHA256: upload.SHA256, CreatedAt: now, UpdatedAt: now}
 		if err := tx.DB.Create(&asset).Error; err != nil {
 			return err

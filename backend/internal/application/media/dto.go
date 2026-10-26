@@ -60,7 +60,8 @@ type CleanupReport struct {
 
 // Store 隔离数据库事务、引用检查和删除认领。
 type Store interface {
-	Reserve(context.Context, identity.Actor, Upload) error
+	// Reserve 在同一账号事务中读取用量、执行领域限额规则并登记资产。
+	Reserve(context.Context, identity.Actor, Upload, Limits) error
 	Complete(context.Context, identity.Actor, string) error
 	Retain(context.Context, identity.Actor, []string, time.Time) error
 	File(context.Context, string) (File, error)

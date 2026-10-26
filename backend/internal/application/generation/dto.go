@@ -82,6 +82,7 @@ type Request struct {
 // Transaction 只提供生成所需的事务能力。
 type Transaction interface {
 	Existing(string) (*Request, error)
+	Usage(time.Time) (Usage, error)
 	Graph(string) (action.Graph, error)
 	Facts(string) ([]catalogue.ActionView, error)
 	Conversation(GenerateInput) (Conversation, error)

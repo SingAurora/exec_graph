@@ -21,10 +21,13 @@ import (
 type Service struct {
 	store    Store
 	provider Provider
+	limits   Limits
 }
 
 // New 创建平台生成用例。
-func New(store Store, provider Provider) *Service { return &Service{store, provider} }
+func New(store Store, provider Provider, limits Limits) *Service {
+	return &Service{store, provider, limits}
+}
 
 // Generate 首次调用同步生成；重复键只读取原任务，不再次计费或重复写消息。
 func (s *Service) Generate(ctx context.Context, actor identity.Actor, key string, input GenerateInput) (View, error) {
@@ -63,7 +66,15 @@ func (s *Service) Generate(ctx context.Context, actor identity.Actor, key string
 			out = previous.View
 			return nil
 		}
-		batch, request, err := prepare(tx, actor, key, input, digest[:], s.provider.Model())
+		now := time.Now().UTC()
+		usage, err := tx.Usage(now)
+		if err != nil {
+			return err
+		}
+		if err := s.limits.Check(usage); err != nil {
+			return err
+		}
+		batch, request, err := prepare(tx, actor, key, input, digest[:], s.provider.Model(), now)
 		if err != nil {
 			return err
 		}
@@ -112,8 +123,8 @@ func (s *Service) Get(ctx context.Context, actor identity.Actor, uuid string) (V
 	return out, err
 }
 
-func prepare(tx Transaction, actor identity.Actor, key string, input GenerateInput, digest []byte, model string) (Pending, []Message, error) {
-	batch := Pending{ID: id.New(), RequestKey: key, ActorID: actor.UserID, Mode: input.Mode, GraphID: input.GraphID, NodeID: input.NodeID, ExpectedVersion: input.ExpectedVersion, Model: model, Digest: digest, InputMessage: strings.TrimSpace(input.Message), Agreement: input.Agreement, CreatedAt: time.Now().UTC()}
+func prepare(tx Transaction, actor identity.Actor, key string, input GenerateInput, digest []byte, model string, now time.Time) (Pending, []Message, error) {
+	batch := Pending{ID: id.New(), RequestKey: key, ActorID: actor.UserID, Mode: input.Mode, GraphID: input.GraphID, NodeID: input.NodeID, ExpectedVersion: input.ExpectedVersion, Model: model, Digest: digest, InputMessage: strings.TrimSpace(input.Message), Agreement: input.Agreement, CreatedAt: now}
 	graph, err := tx.Graph(input.GraphID)
 	if err != nil {
 		return batch, nil, err

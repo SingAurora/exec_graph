@@ -16,10 +16,13 @@ import (
 type Service struct {
 	store   Store
 	objects Objects
+	limits  Limits
 }
 
 // New 注入生命周期仓储和对象存储。
-func New(store Store, objects Objects) *Service { return &Service{store, objects} }
+func New(store Store, objects Objects, limits Limits) *Service {
+	return &Service{store, objects, limits}
+}
 
 // Upload 先登记 pending，再上传，最后标记 ready；任何中断仍保留可回收的对象键。
 func (s *Service) Upload(ctx context.Context, actor identity.Actor, body []byte) (AssetView, error) {
@@ -34,7 +37,7 @@ func (s *Service) Upload(ctx context.Context, actor identity.Actor, body []byte)
 	if err != nil {
 		return AssetView{}, err
 	}
-	if err := s.store.Reserve(ctx, actor, asset); err != nil {
+	if err := s.store.Reserve(ctx, actor, asset, s.limits); err != nil {
 		return AssetView{}, err
 	}
 	if err := s.objects.Put(ctx, asset.ObjectKey, asset.MIMEType, body); err != nil {

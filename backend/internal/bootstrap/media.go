@@ -16,7 +16,7 @@ func PruneMedia(ctx context.Context, deps *Dependencies) (app.CleanupReport, err
 	if !deps.Config.Storage.Enabled || deps.Objects == nil {
 		return app.CleanupReport{}, fault.New(fault.Unavailable, "对象存储未启用，不执行图片清理")
 	}
-	return app.New(media.New(deps.DB), deps.Objects).Prune(ctx, time.Now().UTC())
+	return app.New(media.New(deps.DB), deps.Objects, mediaLimits(deps.Config)).Prune(ctx, time.Now().UTC())
 }
 
 // maintainMedia 与 API 生命周期一致；多进程通过数据库认领协调，不依赖本地内存任务状态。

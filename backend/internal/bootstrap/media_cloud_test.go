@@ -59,7 +59,7 @@ func TestRealCloudMediaUploadReadAndCleanup(t *testing.T) {
 	anon.image(t, upload.URL, 200, body)
 	now := time.Now().UTC()
 	mustDB(t, s.deps.DB.Model(&model.MediaRetention{}).Where("asset_uuid = ?", upload.AssetID).Updates(model.MediaRetention{RetainUntil: now.Add(-time.Hour), NextAttemptAt: now.Add(-time.Hour)}))
-	service := app.New(store.New(s.deps.DB), objects)
+	service := app.New(store.New(s.deps.DB), objects, mediaLimits(s.deps.Config))
 	report, err := service.Prune(context.Background(), now)
 	if err != nil || report.Deleted != 0 {
 		t.Fatalf("云端已引用资产被回收: %+v %v", report, err)
