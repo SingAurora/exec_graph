@@ -43,13 +43,13 @@ export function AvatarEditor({ value, fallback, onChange }: AvatarEditorProps) {
   return (
     <>
       <div className="grid shrink-0 justify-items-start gap-2">
-      <button className="group relative grid size-[88px] flex-none place-items-center overflow-hidden rounded-xl border-0 bg-transparent p-0" type="button" onClick={openFilePicker} aria-label="编辑头像" disabled={loading}>
+      <button className="group relative grid size-[88px] flex-none place-items-center overflow-hidden rounded-xl border-0 bg-transparent p-0" type="button" onClick={openFilePicker} title="编辑头像" disabled={loading}>
         <span className={`inline-grid size-[88px] place-items-center overflow-hidden rounded-[11px] bg-signal-soft text-[27px] font-bold text-signal${value ? ' bg-cover bg-center bg-no-repeat' : ''}`} style={value ? { backgroundImage: `url("${value}")` } : undefined}>{value ? '' : getAvatarLabel(fallback)}</span>
         <span className="absolute inset-0 grid place-items-center rounded-xl bg-black/55 text-white opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100"><ImagePlus size={20} /><span className="sr-only">编辑头像</span></span>
       </button>
       <input ref={inputRef} id={inputId} className="sr-only" type="file" accept="image/*" onChange={selectImage} />
       {value && <button className="text-button text-xs" type="button" onClick={() => onChange('')}>使用文字头像</button>}
-      {error && <p className="max-w-48 text-xs text-coral" role="alert">{error}</p>}
+      {error && <p className="max-w-48 text-xs text-coral">{error}</p>}
       </div>
       <ImageCropDialog open={open} image={source} variant="avatar" onOpenChange={setOpen} onConfirm={onChange} />
     </>

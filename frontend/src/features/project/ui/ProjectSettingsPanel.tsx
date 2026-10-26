@@ -41,7 +41,7 @@ export function ProjectSettingsPanel({ id, project, onSave, canEdit = true, dele
   }
 
   return (
-    <section id={id} className="mt-5 rounded-lg border border-line bg-surface px-6 py-5 max-[700px]:px-4" aria-label="图设置">
+    <section id={id} className="mt-5 rounded-lg border border-line bg-surface px-6 py-5 max-[700px]:px-4">
       <div className="border-b border-line pb-4"><h3 className="text-[16px] font-semibold">图设置</h3></div>
       {canEdit && <form className="mt-5 grid gap-3" onSubmit={(event) => { event.preventDefault(); submit() }}>
         <fieldset className="contents" disabled={saving}>
@@ -83,10 +83,10 @@ function ProjectImageField({ label, value, fallback, kind, onChange }: { label: 
       <span className="text-xs font-semibold text-ink">{label}</span>
       <div className="flex items-center gap-3">
         <label className={`group relative grid cursor-pointer place-items-center overflow-hidden border border-dashed border-line bg-paper transition hover:border-signal ${kind === 'avatar' ? 'size-16 rounded-[14px]' : 'h-20 min-w-0 flex-1 max-w-[320px] rounded-md'}`} htmlFor={inputId}>
-          {kind === 'avatar' ? <ProjectAvatar project={{ title: fallback ?? '', avatar: value }} size="settings" /> : <span className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: `url("${previewImage}")` }} aria-hidden="true" />}
+          {kind === 'avatar' ? <ProjectAvatar project={{ title: fallback ?? '', avatar: value }} size="settings" /> : <span className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: `url("${previewImage}")` }} />}
           <span className="absolute inset-0 grid place-items-center bg-black/45 text-[11px] font-semibold text-white opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100"><ImagePlus size={18} /><span className="sr-only">{value ? '更换图片' : '上传图片'}</span></span>
         </label>
-        <input id={inputId} className="sr-only" type="file" accept="image/*" aria-label={`上传${label}`} onChange={selectImage} />
+        <input id={inputId} className="sr-only" type="file" accept="image/*" title={`上传${label}`} onChange={selectImage} />
         {value && <button className="text-button shrink-0" type="button" onClick={() => { setError(''); onChange('') }}><Trash2 size={14} />{kind === 'avatar' ? '使用文字头像' : '恢复默认'}</button>}
       </div>
       {error && <span className="text-[11px] text-coral">{error}</span>}

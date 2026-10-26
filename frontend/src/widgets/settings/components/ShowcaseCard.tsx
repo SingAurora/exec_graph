@@ -12,7 +12,7 @@ type ShowcaseCardProps = {
 export function ShowcaseCard({ name, term, source, description, children }: ShowcaseCardProps) {
   const titleId = useId()
   return (
-    <section className="flex min-w-0 flex-col rounded-lg border border-line bg-surface" aria-labelledby={titleId}>
+    <section className="flex min-w-0 flex-col rounded-lg border border-line bg-surface">
       <header className="px-5 pt-5 pb-4">
         <h3 id={titleId} className="flex flex-wrap items-baseline gap-x-2 gap-y-1"><span className="text-[13px] font-semibold">{name}</span><span className="font-sans text-[11px] font-normal text-muted">{term}</span></h3>
         <p className="mt-2 text-xs leading-[1.8] text-muted">{description}</p>

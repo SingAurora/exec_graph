@@ -13,7 +13,6 @@ type WorkspaceTab = 'conversation' | 'objective' | 'expression' | 'agreement'
 type DocumentPreview = { markdown: string; images?: PostImage[]; status?: string; empty: string }
 type WorkspaceFrameProps = {
   title: string
-  tabLabel: string
   help: ReactNode
   draftControls?: ReactNode
   view?: WorkspaceView
@@ -42,7 +41,7 @@ type WorkspaceFrameProps = {
 }
 
 /** 两类工作区共用的界面框架：对话、行动、表达、约定四个 Tab，不负责生成或发布。 */
-export function WorkspaceFrame({ title, tabLabel, help, draftControls, view, onViewChange, restoring = false, context, contextControls, messages, profileName, profile, users = [], defaultAuthorId, input, inputLabel = '对话内容', placeholder, sending, disabled = false, onInputChange, onSend, onBack, action, actionControls, expression, agreement, footer }: WorkspaceFrameProps) {
+export function WorkspaceFrame({ title, help, draftControls, view, onViewChange, restoring = false, context, contextControls, messages, profileName, profile, users = [], defaultAuthorId, input, inputLabel = '对话内容', placeholder, sending, disabled = false, onInputChange, onSend, onBack, action, actionControls, expression, agreement, footer }: WorkspaceFrameProps) {
   const [localTab, setTab] = useState<WorkspaceTab>('conversation')
   const tab = view?.tab ?? localTab
   const panels = useRef<Partial<Record<WorkspaceTab, HTMLDivElement | null>>>({})
@@ -86,13 +85,13 @@ export function WorkspaceFrame({ title, tabLabel, help, draftControls, view, onV
   }
 
   return (
-    <section className="flex h-[calc(100dvh-116px)] min-h-[500px] flex-col pt-[22px]" aria-label={title}>
+    <section className="flex h-[calc(100dvh-116px)] min-h-[500px] flex-col pt-[22px]">
       <header className="flex min-h-9 shrink-0 items-center gap-3">
-        <button className="icon-button" type="button" onClick={onBack} aria-label="返回行动图"><ArrowLeft size={17} /></button>
+        <button className="icon-button" type="button" onClick={onBack} title="返回行动图"><ArrowLeft size={17} /></button>
         <h2 className="text-lg font-semibold tracking-[-.02em]">{title}</h2>
         <div className="ml-auto flex items-center gap-3">{draftControls}{help}</div>
       </header>
-      {context && <div className="mt-3 shrink-0 rounded-md bg-soft px-3 py-2 text-xs leading-5" aria-label="本次引用背景"><div className="flex min-w-0 items-center gap-3">
+      {context && <div className="mt-3 shrink-0 rounded-md bg-soft px-3 py-2 text-xs leading-5"><div className="flex min-w-0 items-center gap-3">
         <span className="shrink-0 text-muted">{context.label}</span>
         <span className="min-w-0 flex-1 truncate" title={context.title}>{context.title}</span>
         <details className="group/history relative shrink-0">
@@ -105,7 +104,7 @@ export function WorkspaceFrame({ title, tabLabel, help, draftControls, view, onV
       <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-line bg-surface">
         <TabsRoot value={tab} onValueChange={changeTab} className="flex min-h-0 flex-1 flex-col">
           <div className="shrink-0 px-5">
-            <TabsList label={tabLabel} showDivider={false}>
+            <TabsList showDivider={false}>
               <TabsTrigger value="conversation"><span className="inline-flex items-center gap-1.5"><Sparkles size={16} />AI 对话</span></TabsTrigger>
               <TabsTrigger value="objective"><span className="inline-flex items-center gap-1.5"><Footprints size={16} />行动</span></TabsTrigger>
               <TabsTrigger value="expression"><span className="inline-flex items-center gap-1.5"><MessageCircle size={16} />表达</span></TabsTrigger>
@@ -113,7 +112,7 @@ export function WorkspaceFrame({ title, tabLabel, help, draftControls, view, onV
             </TabsList>
           </div>
           <TabsContent value="conversation" keepMounted className="flex min-h-0 flex-1 flex-col">
-            <div ref={(element) => { panels.current.conversation = element }} onScroll={(event) => rememberScroll('conversation', event)} className="grid min-h-0 flex-1 content-start gap-4 overflow-y-auto overscroll-contain px-6 py-6" aria-label="连续 AI 对话" aria-live="polite">
+            <div ref={(element) => { panels.current.conversation = element }} onScroll={(event) => rememberScroll('conversation', event)} className="grid min-h-0 flex-1 content-start gap-4 overflow-y-auto overscroll-contain px-6 py-6">
               {messages.map((message) => {
                 const authorId = message.authorId ?? defaultAuthorId ?? profile?.id
                 const author = users.find((user) => user.id === authorId) ?? (authorId === profile?.id ? profile : undefined)
@@ -121,22 +120,22 @@ export function WorkspaceFrame({ title, tabLabel, help, draftControls, view, onV
                 return (
                   <div className={'flex max-w-[90%] items-end gap-2 ' + (message.speaker === 'user' ? 'ml-auto flex-row-reverse' : '')} key={message.id}>
                     {message.speaker === 'ai' ? <span className="grid size-[25px] shrink-0 place-items-center rounded-full bg-signal-soft text-signal"><Sparkles size={13} /></span> : authorId ? <ProfilePreview profile={author} userId={authorId} className="inline-flex shrink-0 rounded-lg focus-visible:outline-2 focus-visible:outline-signal"><Avatar profile={author} label={authorName} size="small" /></ProfilePreview> : <Avatar label={authorName} size="small" />}
-                    <div className={'min-w-0 rounded-lg px-3 py-2.5 text-[13px] leading-[1.7] ' + (message.id.startsWith('error-') ? 'border border-coral/30 bg-paper text-coral' : message.speaker === 'user' ? 'bg-soft' : 'border border-line bg-paper')} role={message.id.startsWith('error-') ? 'alert' : undefined}><MarkdownContent markdown={message.body} /></div>
+                    <div className={'min-w-0 rounded-lg px-3 py-2.5 text-[13px] leading-[1.7] ' + (message.id.startsWith('error-') ? 'border border-coral/30 bg-paper text-coral' : message.speaker === 'user' ? 'bg-soft' : 'border border-line bg-paper')}><MarkdownContent markdown={message.body} /></div>
                   </div>
                 )
               })}
               {sending && <div className="flex items-center gap-2 text-xs text-muted"><LoaderCircle size={14} className="animate-spin" />正在整理</div>}
             </div>
             <form className="mx-6 mb-5 flex shrink-0 items-end gap-2 rounded-lg border border-line bg-paper px-3 py-2" onSubmit={onSend}>
-              <textarea className="min-h-12 max-h-32 w-full resize-y border-0 bg-transparent py-1.5 text-sm leading-[1.6] outline-none" aria-label={inputLabel} value={input} onChange={(event) => onInputChange(event.target.value)} placeholder={placeholder} disabled={sending || disabled} />
-              <button className="icon-button border-signal bg-signal text-on-signal" type="submit" aria-label="发送" disabled={!input.trim() || sending || disabled}><ArrowUp size={18} /></button>
+              <textarea className="min-h-12 max-h-32 w-full resize-y border-0 bg-transparent py-1.5 text-sm leading-[1.6] outline-none" title={inputLabel} value={input} onChange={(event) => onInputChange(event.target.value)} placeholder={placeholder} disabled={sending || disabled} />
+              <button className="icon-button border-signal bg-signal text-on-signal" type="submit" title="发送" disabled={!input.trim() || sending || disabled}><ArrowUp size={18} /></button>
             </form>
           </TabsContent>
           {(['objective', 'expression'] as const).map((value) => {
             const preview = value === 'objective' ? action : expression
             return (
               <TabsContent value={value} keepMounted className="min-h-0 flex-1" key={value}>
-                <div ref={(element) => { panels.current[value] = element }} onScroll={(event) => rememberScroll(value, event)} className="h-full overflow-y-auto overscroll-contain px-6 py-5" aria-label={value === 'objective' ? '行动文档预览' : '表达文档预览'}>
+                <div ref={(element) => { panels.current[value] = element }} onScroll={(event) => rememberScroll(value, event)} className="h-full overflow-y-auto overscroll-contain px-6 py-5">
                   {value === 'objective' && actionControls}
                   {preview.status && <p className="mb-4 text-xs leading-5 text-muted">{preview.status}</p>}
                   {preview.markdown.trim() ? <MarkdownContent markdown={preview.markdown} images={preview.images} /> : <p className="py-5 text-sm leading-7 text-muted">{preview.empty}</p>}

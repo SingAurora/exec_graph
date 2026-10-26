@@ -6,7 +6,7 @@ import { MarkdownContent } from '../../../shared/ui/MarkdownContent'
 /** 承接与合入的各份来源约定分别展示、分别核对；没有核对结果时显示未知，不能默认满足。 */
 export function SourceAgreementReviews({ sources, reviews }: { sources: ActionContinuationSource[]; reviews: AIActionAgreementReview[] }) {
   return (
-    <section className="border-t border-line px-6 pt-4" aria-label="本次引用的来源约定">
+    <section className="border-t border-line px-6 pt-4">
       <h3 className="mb-2 text-xs font-medium text-muted">来源约定</h3>
       {sources.map(({ node, kind, agreement }) => {
         const review = reviews.find((item) => item.nodeNumber === node.number)

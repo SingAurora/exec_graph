@@ -12,7 +12,7 @@ describe('merge source eligibility display', () => {
   test('keeps a stale selection visible and removable instead of silently accepting or dropping it', () => {
     const html = render([node(1), node(2), node(3, { parentId: '2' })], ['2'])
     expect(html).toContain('已非终端')
-    expect(html).toContain('aria-label="移除合入节点 #2"')
+    expect(html).toContain('title="移除合入节点 #2"')
     expect(html).not.toContain('满足约定')
   })
 

@@ -15,12 +15,12 @@ export function ActionSourceAgreements({ node, actions, users, onSelect }: { nod
   if (!references.length) return null
   const unreviewed = getUnreviewedAgreementCount(references)
   return (
-    <details key={node.id} className="group/agreements rounded-lg border border-line bg-soft/40" aria-label="来源约定">
+    <details key={node.id} className="group/agreements rounded-lg border border-line bg-soft/40">
       <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-xs leading-5 [&::-webkit-details-marker]:hidden">
-        <ScrollText size={14} className="shrink-0 text-muted" aria-hidden="true" />
+        <ScrollText size={14} className="shrink-0 text-muted" />
         <span className="font-medium">来源约定 <span className="ml-1 font-normal tabular-nums text-muted">{references.length}</span></span>
         {unreviewed > 0 && <span className="text-coral">· 待核对 {unreviewed}</span>}
-        <ChevronDown size={14} className="ml-auto shrink-0 text-muted transition-transform group-open/agreements:rotate-180" aria-hidden="true" />
+        <ChevronDown size={14} className="ml-auto shrink-0 text-muted transition-transform group-open/agreements:rotate-180" />
       </summary>
       <div className="border-t border-line px-3">
         <div className="flex items-center justify-between pt-2 text-xs text-muted"><span>处理记录</span><HelpPopover title="来源约定">
@@ -32,9 +32,9 @@ export function ActionSourceAgreements({ node, actions, users, onSelect }: { nod
           const sourceAuthor = users.find((user) => user.id === reference.source.authorId)?.name ?? reference.source.authorId
           const exception = reference.agreementStatus === 'exception'
           return (
-            <section className="py-3" key={reference.id} aria-label={`节点 #${reference.source.number}的来源约定`}>
+            <section className="py-3" key={reference.id}>
               <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs leading-5">
-                <button className="border-0 bg-transparent p-0 text-xs text-signal hover:underline" type="button" title={reference.source.title} aria-label={`查看约定来源节点 #${reference.source.number}`} onClick={() => onSelect(reference.source.id)}>{reference.incorporated ? '合入' : '承接'} #{reference.source.number}</button>
+                <button className="border-0 bg-transparent p-0 text-xs text-signal hover:underline" type="button" title={reference.source.title} onClick={() => onSelect(reference.source.id)}>{reference.incorporated ? '合入' : '承接'} #{reference.source.number}</button>
                 <span className="text-muted">{sourceAuthor}</span>
               </div>
               <p className={`mt-1.5 text-xs leading-5 ${exception ? 'text-coral' : reference.agreementStatus === 'satisfied' ? 'text-signal' : 'text-muted'}`}>
@@ -64,10 +64,10 @@ export function ActionOwnAgreement({ node, actions, currentUserId, onSelect, onU
   const hasContent = Boolean(agreement.markdown.trim())
   const EditIcon = hasContent ? Pencil : FilePlus2
   return (
-    <section className="rounded-lg border border-line bg-soft/40" aria-label="本节点约定">
+    <section className="rounded-lg border border-line bg-soft/40">
       <div className="flex items-center gap-3 px-3">
-        <button className="flex min-h-10 min-w-0 flex-1 items-center gap-2 border-0 bg-transparent p-0 text-left text-xs leading-5 hover:text-signal" type="button" aria-expanded={expanded} aria-controls={contentId} onClick={() => setExpanded((value) => !value)}><ScrollText size={14} className="shrink-0 text-muted" aria-hidden="true" /><span className="font-medium">约定</span>{!agreement.markdown.trim() && <span className="text-muted">无约定</span>}<ChevronDown size={14} className={`ml-auto shrink-0 text-muted transition-transform ${expanded ? 'rotate-180' : ''}`} aria-hidden="true" /></button>
-        {canEdit && <button className="inline-flex min-h-8 shrink-0 items-center gap-1.5 border-0 bg-transparent px-0 text-xs font-medium text-muted hover:text-signal" type="button" aria-expanded={editing} aria-controls={editing ? formId : undefined} onClick={() => setEditing((value) => !value)}><EditIcon size={14} aria-hidden="true" />{hasContent ? '修改约定' : '补充约定'}</button>}
+        <button className="flex min-h-10 min-w-0 flex-1 items-center gap-2 border-0 bg-transparent p-0 text-left text-xs leading-5 hover:text-signal" type="button" onClick={() => setExpanded((value) => !value)}><ScrollText size={14} className="shrink-0 text-muted" /><span className="font-medium">约定</span>{!agreement.markdown.trim() && <span className="text-muted">无约定</span>}<ChevronDown size={14} className={`ml-auto shrink-0 text-muted transition-transform ${expanded ? 'rotate-180' : ''}`} /></button>
+        {canEdit && <button className="inline-flex min-h-8 shrink-0 items-center gap-1.5 border-0 bg-transparent px-0 text-xs font-medium text-muted hover:text-signal" type="button" onClick={() => setEditing((value) => !value)}><EditIcon size={14} />{hasContent ? '修改约定' : '补充约定'}</button>}
       </div>
       <div id={contentId} hidden={!expanded} className="border-t border-line p-3">
         <div className="mb-2 flex items-center justify-between text-xs text-muted"><span>后续引用采用的约定</span><HelpPopover title="约定的继承">

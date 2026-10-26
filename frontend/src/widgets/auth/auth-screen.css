@@ -84,8 +84,8 @@
     transition: border-color .15s, box-shadow .15s;
   }
   .auth-field input:focus { border-color: var(--signal); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--signal) 14%, transparent); }
-  .auth-field input[aria-invalid='true'] { border-color: var(--coral); }
-  .auth-field input[aria-invalid='true']:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--coral) 12%, transparent); }
+  .auth-field input[data-invalid='true'] { border-color: var(--coral); }
+  .auth-field input[data-invalid='true']:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--coral) 12%, transparent); }
   .auth-field input::placeholder { color: var(--muted); opacity: .78; }
   .auth-password { position: relative; }
   .auth-password input { padding-right: 46px; }

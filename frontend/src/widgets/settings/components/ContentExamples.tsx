@@ -17,7 +17,7 @@ export function ContentExamples() {
     <>
       <ShowcaseCard name="标签页" term="Tabs" source="项目封装 · Radix UI" description="在同一位置切换不同内容面板，例如设置分类。切换时只显示一个面板。">
         <TabsRoot value={tab} onValueChange={setTab}>
-          <TabsList label="演示文档标签页"><TabsTrigger value="record">记录</TabsTrigger><TabsTrigger value="expression">表达</TabsTrigger></TabsList>
+          <TabsList><TabsTrigger value="record">记录</TabsTrigger><TabsTrigger value="expression">表达</TabsTrigger></TabsList>
           <TabsContent value="record"><p className="pt-3 text-xs leading-[1.8] text-muted">先盛出鸡蛋，番茄炒软后再回锅。静置十分钟，鸡蛋仍能用勺子切开。</p></TabsContent>
           <TabsContent value="expression"><p className="pt-3 text-xs leading-[1.8] text-muted">多洗一个碗可以接受，我更在意放一会儿之后的口感。</p></TabsContent>
         </TabsRoot>
@@ -35,12 +35,12 @@ export function ContentExamples() {
         <div className="max-w-[240px] [&>div]:mt-0"><RecordImages images={[{ url: previewImage, alt: '项目插画 · 点击预览大图' }]} /></div>
       </ShowcaseCard>
       <ShowcaseCard name="进度条" term="Progress" source="Radix UI 基础组件" description="已知总量时展示进度，例如文件上传。无法确定进度时，不应编造百分比。">
-        <div className="flex items-center justify-between gap-3 text-xs"><span>演示上传</span><span className="font-sans text-muted" aria-live="polite">{progress}%</span></div>
-        <Progress.Root className="h-1.5 overflow-hidden rounded-full bg-line" value={progress} aria-label="演示上传进度"><Progress.Indicator className="h-full rounded-full bg-signal transition-transform" style={{ transform: `translateX(-${100 - progress}%)` }} /></Progress.Root>
+        <div className="flex items-center justify-between gap-3 text-xs"><span>演示上传</span><span className="font-sans text-muted">{progress}%</span></div>
+        <Progress.Root className="h-1.5 overflow-hidden rounded-full bg-line" value={progress}><Progress.Indicator className="h-full rounded-full bg-signal transition-transform" style={{ transform: `translateX(-${100 - progress}%)` }} /></Progress.Root>
         <div className="mt-1 flex gap-3"><button className="border-0 bg-transparent p-0 text-[11px] font-semibold text-signal disabled:text-muted" type="button" disabled={progress === 100} onClick={() => setProgress((value) => Math.min(100, value + 25))}>推进演示</button><button className="inline-flex items-center gap-1 border-0 bg-transparent p-0 text-[11px] text-muted" type="button" onClick={() => setProgress(35)}><RotateCcw size={11} />重置</button></div>
       </ShowcaseCard>
       <ShowcaseCard name="骨架屏" term="Skeleton" source="项目样式" description="内容加载时用占位形状保留布局，减少页面跳动；这里只演示加载前后的样式。">
-        <div className="min-h-[76px]" aria-busy={loading} aria-label="演示内容">{loading ? <div className="flex gap-3 motion-safe:animate-pulse" role="status"><span className="sr-only">正在加载演示内容</span><span className="size-8 shrink-0 rounded-[9px] bg-line" /><div className="flex-1 space-y-3 pt-1"><div className="h-2.5 w-2/3 rounded bg-line" /><div className="h-2 w-full rounded bg-line/70" /><div className="h-2 w-4/5 rounded bg-line/70" /></div></div> : <div className="flex gap-3"><Avatar label="乔" size="small" /><div><p className="text-xs font-semibold">乔的行动记录</p><p className="mt-2 text-xs leading-[1.8] text-muted">先盛出鸡蛋，番茄炒软后再回锅。</p></div></div>}</div>
+        <div className="min-h-[76px]">{loading ? <div className="flex gap-3 motion-safe:animate-pulse"><span className="sr-only">正在加载演示内容</span><span className="size-8 shrink-0 rounded-[9px] bg-line" /><div className="flex-1 space-y-3 pt-1"><div className="h-2.5 w-2/3 rounded bg-line" /><div className="h-2 w-full rounded bg-line/70" /><div className="h-2 w-4/5 rounded bg-line/70" /></div></div> : <div className="flex gap-3"><Avatar label="乔" size="small" /><div><p className="text-xs font-semibold">乔的行动记录</p><p className="mt-2 text-xs leading-[1.8] text-muted">先盛出鸡蛋，番茄炒软后再回锅。</p></div></div>}</div>
         <div><button className="border-0 bg-transparent p-0 text-[11px] font-semibold text-signal" type="button" onClick={() => setLoading((value) => !value)}>{loading ? '显示加载结果' : '重新显示骨架'}</button></div>
       </ShowcaseCard>
     </>

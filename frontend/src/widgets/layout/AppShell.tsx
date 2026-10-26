@@ -35,10 +35,10 @@ export function AppShell({ profile, profileStats, activeView, darkMode, onLogout
   return (
     <div className="relative isolate mx-auto grid min-h-screen w-[min(1200px,calc(100%-72px))] grid-cols-[224px_minmax(0,880px)] gap-[62px] max-[1000px]:w-[min(920px,calc(100%-48px))] max-[1000px]:grid-cols-[190px_minmax(0,1fr)] max-[1000px]:gap-[38px]">
       <AppBackdrop />
-      <aside className="sticky top-0 flex h-screen flex-col py-[30px] pb-6" aria-label="主导航">
-        <a className="inline-flex w-max rounded-sm" href="#my" aria-label="引序 我的"><Brand /></a>
+      <aside className="sticky top-0 flex h-screen flex-col py-[30px] pb-6">
+        <a className="inline-flex w-max rounded-sm" href="#my" title="引序 我的"><Brand /></a>
         <nav className="mt-7 grid gap-1.5">
-          {globalNavigation.map(({ view, label, icon: Icon }) => <a className={'flex items-center gap-3 rounded-lg px-3 py-3 text-[15px] font-medium transition hover:bg-soft hover:text-ink ' + (globalView === view ? 'bg-soft font-semibold text-signal' : 'text-muted')} href={'#' + view} aria-current={globalView === view ? 'page' : undefined} key={view}><Icon size={19} strokeWidth={1.8} />{label}</a>)}
+          {globalNavigation.map(({ view, label, icon: Icon }) => <a className={'flex items-center gap-3 rounded-lg px-3 py-3 text-[15px] font-medium transition hover:bg-soft hover:text-ink ' + (globalView === view ? 'bg-soft font-semibold text-signal' : 'text-muted')} href={'#' + view} key={view}><Icon size={19} strokeWidth={1.8} />{label}</a>)}
         </nav>
         <div className="mt-auto grid gap-5">
           <SidebarProfileCard profile={profile} stats={profileStats} />

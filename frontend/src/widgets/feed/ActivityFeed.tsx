@@ -66,7 +66,7 @@ export function ActivityFeed({ actions, allActions = actions, users, projects, a
   return (
     <div ref={contentRef} className="[overflow-anchor:none]"><TabsRoot value={tab} onValueChange={switchTab} className="flow-root min-h-dvh">
       <div ref={navigationRef} className={`sticky top-0 z-20 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 bg-paper pb-1 ${compactTabs ? '' : 'mt-[23px]'}`}>
-        <TabsList label="动态分类" showDivider={false} compact>
+        <TabsList showDivider={false} compact>
           {home && <TabsTrigger value="home" compact={compactTabs}><span className="inline-flex items-center gap-1.5"><Home size={16} />首页</span></TabsTrigger>}
           <TabsTrigger value="expressions" compact={compactTabs}><span className="inline-flex items-center gap-1.5"><MessageCircle size={16} />表达</span></TabsTrigger>
           {agreementResponses && onOpenReference && <TabsTrigger value="agreements" compact={compactTabs}><span className="inline-flex items-center gap-1.5"><ScrollText size={16} />约定</span></TabsTrigger>}

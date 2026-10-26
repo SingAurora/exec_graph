@@ -35,7 +35,7 @@ export function PublicProfile({ profile, currentUserId, following, users, projec
   const self = profile.id === currentUserId
   const avatar = <Avatar profile={profile} size="xlarge" shape="circle" />
   return (
-    <section className="pt-6" aria-label={profile.name + '的主页'}>
+    <section className="pt-6">
       <header>
         <ProfileCover image={profile.backgroundImage} size="header" preview />
         <div className="relative -mt-12 flex items-end justify-between gap-4 px-5"><span className="inline-flex shrink-0 rounded-full border-4 border-paper bg-paper">{profile.avatar.trim() ? <ImagePreviewTrigger image={{ url: profile.avatar.trim(), alt: profile.name + '的头像' }} className="inline-flex rounded-full">{avatar}</ImagePreviewTrigger> : avatar}</span>

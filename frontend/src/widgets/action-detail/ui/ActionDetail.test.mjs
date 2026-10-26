@@ -12,7 +12,7 @@ function render(actions, id, recordMode = 'expression') {
     onHighlight: noop, onHide: noop, onLocate: noop, onModeChange: noop, onOpenArchive: noop, onContinue: noop, onSelect: noop, onEditExpression: () => true, onUpdateAgreement: () => true,
   })))
 }
-const switches = (html) => html.match(/aria-label="文档类型">([\s\S]*?)<\/div>/)?.[1] ?? ''
+const switches = (html) => html.match(/<div class="flex items-center gap-5">([\s\S]*?)<\/div>/)?.[1] ?? ''
 
 describe('detail expression controls', () => {
   test('an empty endpoint offers agreement supplementation in its own section rather than the primary action row', () => {
@@ -20,8 +20,8 @@ describe('detail expression controls', () => {
     expect(html).toContain('补充表达')
     expect(html).toContain('补充约定')
     expect(html.indexOf('补充约定')).toBeGreaterThan(html.indexOf('</footer>'))
-    expect(html.indexOf('补充约定')).toBeGreaterThan(html.indexOf('aria-label="本节点约定"'))
-    expect(html).not.toContain('aria-label="补充约定表单"')
+    expect(html.indexOf('补充约定')).toBeGreaterThan(html.indexOf('>约定</span>'))
+    expect(html).not.toContain('保存约定')
     expect(html).not.toContain('<textarea')
     expect(html).not.toContain('保存表达')
   })
@@ -39,10 +39,10 @@ describe('detail expression controls', () => {
   test('places both agreement sections below the document and action controls, outside the header', () => {
     const actions = [{ ...node(1), agreementMarkdown: '记录总用时' }, node(2, '1')]
     const html = render(actions, '2')
-    const sourceIndex = html.indexOf('aria-label="来源约定"')
+    const sourceIndex = html.indexOf('>来源约定 ')
     expect(sourceIndex).toBeGreaterThan(html.indexOf('查看形成过程'))
     expect(sourceIndex).toBeGreaterThan(html.indexOf('</footer>'))
-    expect(html.indexOf('aria-label="本节点约定"')).toBeGreaterThan(html.indexOf('</footer>'))
+    expect(html.indexOf('>约定</span>')).toBeGreaterThan(html.indexOf('</footer>'))
     expect(html.slice(0, html.indexOf('</header>'))).not.toContain('来源约定')
   })
   test('an empty non-endpoint hides expression and supplement controls, even when expression was selected', () => {

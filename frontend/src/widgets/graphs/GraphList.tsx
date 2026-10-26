@@ -20,11 +20,11 @@ type Props = {
 export function GraphList({ items, onOpen, empty = '暂无行动图', infinite = false, active = true, dividers = true, searchQuery }: Props) {
   const { visibleCount, endRef, hasMore } = useInfiniteList({ itemCount: items.length, infinite, active })
   if (!items.length) return (
-    <div className="empty-state" role="status"><Network size={24} strokeWidth={1.5} /><p>{empty}</p></div>
+    <div className="empty-state"><Network size={24} strokeWidth={1.5} /><p>{empty}</p></div>
   )
   return (
     <div>
-      <div className={dividers ? 'divide-y divide-line' : ''} aria-label="行动图列表">
+      <div className={dividers ? 'divide-y divide-line' : ''}>
         {(infinite ? items.slice(0, visibleCount) : items).map(({ project, participantCount, actionCount, expressionCount, lastActionAt }) => <button key={project.id} type="button" onClick={() => onOpen(project.id)} className="group flex w-full items-start gap-3.5 rounded-md border-0 bg-transparent px-2 py-5 text-left hover:bg-soft">
           <ProjectAvatar project={project} />
           <span className="grid min-w-0 flex-1 gap-1.5">
@@ -35,7 +35,7 @@ export function GraphList({ items, onOpen, empty = '暂无行动图', infinite =
           <ArrowUpRight size={17} className="mt-1 shrink-0 text-muted group-hover:text-signal" />
         </button>)}
       </div>
-      {infinite && <p ref={endRef} className="py-8 text-center text-xs leading-5 text-muted" role="status">{hasMore ? '加载中…' : '没有更多了'}</p>}
+      {infinite && <p ref={endRef} className="py-8 text-center text-xs leading-5 text-muted">{hasMore ? '加载中…' : '没有更多了'}</p>}
     </div>
   )
 }

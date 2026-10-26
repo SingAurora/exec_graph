@@ -93,7 +93,7 @@ function ImageCropEditor({ image, format, onCancel, onConfirm }: {
     <>
       <div ref={viewportRef} className="relative mx-auto mt-[22px] w-full cursor-grab touch-none overflow-hidden rounded-lg bg-soft active:cursor-grabbing"
         style={{ maxWidth: format.previewWidth, aspectRatio: `${format.outputWidth} / ${format.outputHeight}` }}
-        role="group" tabIndex={0} aria-label="图片裁剪区域，使用方向键调整位置"
+        tabIndex={0}
         onKeyDown={(event) => {
           if (!naturalSize) return
           const directions: Record<string, CropPosition> = { ArrowLeft: { x: -8, y: 0 }, ArrowRight: { x: 8, y: 0 }, ArrowUp: { x: 0, y: -8 }, ArrowDown: { x: 0, y: 8 } }
@@ -110,12 +110,12 @@ function ImageCropEditor({ image, format, onCancel, onConfirm }: {
         <span className="pointer-events-none absolute inset-0 rounded-lg border-2 border-white/70" />
       </div>
       <div className="mt-[19px] flex items-center gap-2.5 text-muted">
-        <button className="inline-grid size-8 shrink-0 place-items-center rounded-md border-0 bg-transparent hover:bg-soft hover:text-signal disabled:opacity-40" type="button" aria-label="缩小图片" onClick={() => changeZoom(zoom - .1)} disabled={!naturalSize || zoom <= 1}><Minus size={16} /></button>
-        <input className="min-w-0 flex-1 accent-signal" aria-label="图片缩放" type="range" min="1" max="3" step="0.01" value={zoom} disabled={!naturalSize} onChange={(event) => changeZoom(Number(event.target.value))} />
-        <button className="inline-grid size-8 shrink-0 place-items-center rounded-md border-0 bg-transparent hover:bg-soft hover:text-signal disabled:opacity-40" type="button" aria-label="放大图片" onClick={() => changeZoom(zoom + .1)} disabled={!naturalSize || zoom >= 3}><Plus size={16} /></button>
+        <button className="inline-grid size-8 shrink-0 place-items-center rounded-md border-0 bg-transparent hover:bg-soft hover:text-signal disabled:opacity-40" type="button" title="缩小图片" onClick={() => changeZoom(zoom - .1)} disabled={!naturalSize || zoom <= 1}><Minus size={16} /></button>
+        <input className="min-w-0 flex-1 accent-signal" title="图片缩放" type="range" min="1" max="3" step="0.01" value={zoom} disabled={!naturalSize} onChange={(event) => changeZoom(Number(event.target.value))} />
+        <button className="inline-grid size-8 shrink-0 place-items-center rounded-md border-0 bg-transparent hover:bg-soft hover:text-signal disabled:opacity-40" type="button" title="放大图片" onClick={() => changeZoom(zoom + .1)} disabled={!naturalSize || zoom >= 3}><Plus size={16} /></button>
       </div>
       <p className="mt-2 text-xs leading-5 text-muted">拖动图片调整位置，保存时自动压缩</p>
-      {error && <p className="mt-2 text-xs text-coral" role="alert">{error}</p>}
+      {error && <p className="mt-2 text-xs text-coral">{error}</p>}
       <div className="mt-5 flex justify-end gap-2"><button className="quiet-button" type="button" onClick={onCancel}>取消</button><button className="primary-button" type="button" onClick={save} disabled={!naturalSize}><Check size={15} />{format.submit}</button></div>
     </>
   )

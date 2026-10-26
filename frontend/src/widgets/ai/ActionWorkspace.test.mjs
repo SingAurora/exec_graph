@@ -12,10 +12,10 @@ describe('first action expression options', () => {
   test('a root uses one conversation and two read-only documents, with an empty initial expression', () => {
     const html = render({ hasParent: false })
     expect(html).toContain('表达为空')
-    expect(html).toContain('aria-label="接续行动工作区"')
-    expect(html).toContain('aria-label="连续 AI 对话"')
+    expect(html).toContain('>记录第一次行动</h2>')
+    expect(html).toContain('trigger-conversation')
     expect(html.match(/<textarea/g)).toHaveLength(1)
-    expect(html).not.toContain('aria-label="本节点的表达"')
+    expect(html).not.toContain('title="本节点的表达"')
     expect(html).not.toContain('继承自 节点')
     expect(html).not.toContain('清空表达')
     expect(html).toContain('先说说这次实际做了什么，也可以一起聊聊你的看法。')
@@ -27,7 +27,7 @@ describe('first action expression options', () => {
     expect(html).toContain('继承自 节点 #2')
     expect(html).toContain('承接 #8')
     expect(html).toContain('历史 1 个节点')
-    expect(html).not.toContain('aria-label="表达处理方式"')
+    expect(html).not.toContain('title="表达处理方式"')
     expect(html).toContain('先盛蛋减少等待')
     expect(html).toContain('alt="继承表达的配图"')
     expect(html).not.toContain('暂不填写')
@@ -35,13 +35,13 @@ describe('first action expression options', () => {
 
   test('a continuation inherits the agreement independently and keeps source conditions at the bottom', () => {
     const html = render({ hasParent: true, inheritedAgreement: '记录总用时', sourceNodeNumber: 8 })
-    expect(html).toContain('aria-label="设置本节点约定"')
-    expect(html).toContain('aria-label="约定处理方式"')
-    expect(html).toContain('role="combobox"')
+    expect(html).toContain('>本节点约定</span>')
+    expect(html).toContain('title="约定处理方式"')
+    expect(html.match(/title="约定处理方式"/g)).toHaveLength(1)
     expect(html).toContain('>沿用上个节点</span>')
     expect(html).toContain('记录总用时')
-    expect(html.indexOf('aria-label="本次引用的来源约定"')).toBeGreaterThan(html.indexOf('aria-label="设置本节点约定"'))
-    expect(html).not.toContain('aria-label="本节点的约定"')
+    expect(html.indexOf('>来源约定')).toBeGreaterThan(html.indexOf('>本节点约定</span>'))
+    expect(html).not.toContain('title="本节点的约定"')
     expect(html).toContain('尚未核对')
   })
 
@@ -52,7 +52,7 @@ describe('first action expression options', () => {
     expect(html).toContain('>不设置约定</span>')
     expect(html).not.toContain('修改约定')
     expect(html).not.toContain('清空约定')
-    expect(html).not.toContain('aria-label="本次引用的来源约定"')
+    expect(html).not.toContain('>来源约定')
   })
 
   test('previews real Markdown without a second document heading or nested scrolling renderer', () => {
@@ -61,7 +61,7 @@ describe('first action expression options', () => {
     expect(html).toContain('<strong>观察</strong>')
     expect(html).toContain('<table>')
     expect(html).not.toContain('只读文档')
-    expect(html).toContain('aria-label="行动文档预览"')
+    expect(html.match(/id="[^"]*-content-objective"[\s\S]*?<\/section>/)?.[0]).toContain('<h2>本次行动</h2>')
   })
 
   test('offers merge selection only for a continuation, keeping initial source compliance unknown', () => {

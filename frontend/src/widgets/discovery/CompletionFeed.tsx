@@ -19,6 +19,6 @@ export function CompletionFeed({ posts, onToggleFollow, followingOnly = false }:
 
 export function DiscoveryPage({ posts, onToggleFollow }: CompletionFeedProps) {
   return (
-    <section aria-labelledby="people-title"><div className="mb-[22px]"><div className="section-kicker">看看大家完成了什么</div><h2 id="people-title" className="mt-[7px] text-[23px] tracking-[-.03em]">发现</h2></div><CompletionFeed posts={posts} onToggleFollow={onToggleFollow} /></section>
+    <section><div className="mb-[22px]"><div className="section-kicker">看看大家完成了什么</div><h2 id="people-title" className="mt-[7px] text-[23px] tracking-[-.03em]">发现</h2></div><CompletionFeed posts={posts} onToggleFollow={onToggleFollow} /></section>
   )
 }

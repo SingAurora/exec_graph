@@ -33,14 +33,14 @@ export function GraphDirectory({ currentUserId, projects, actions, onCreateProje
     <section className="pt-6">
       <div className="flex items-center justify-between gap-5"><span className="text-sm text-muted">{projects.length} 个公开行动图</span><CreateGraphButton onCreate={onCreateProject} /></div>
       <TabsRoot value={group} onValueChange={(value) => { setGroup(value as GraphGroup); setPage(1) }}>
-        <TabsList label="行动图分类" showDivider={false}>{groups.map(({ id, label, icon: Icon }) => <TabsTrigger key={id} value={id}><span className="inline-flex items-center gap-1.5"><Icon size={16} />{label}</span></TabsTrigger>)}</TabsList>
+        <TabsList showDivider={false}>{groups.map(({ id, label, icon: Icon }) => <TabsTrigger key={id} value={id}><span className="inline-flex items-center gap-1.5"><Icon size={16} />{label}</span></TabsTrigger>)}</TabsList>
         <div className="my-5 flex items-center gap-3">
-          <label className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-md border border-line bg-surface px-3 text-muted focus-within:border-signal"><Search size={16} /><input className="min-w-0 flex-1 border-0 bg-transparent text-sm text-ink outline-none" type="search" aria-label="搜索行动图" placeholder="搜索图名称或简介" value={keyword} onChange={(event) => { setKeyword(event.target.value); setPage(1) }} /></label>
-          <span className="flex items-center rounded-md border border-line bg-surface pl-3 text-muted"><ArrowUpDown size={15} /><Select ariaLabel="行动图排序" value={sort} onValueChange={(value) => { setSort(value); setPage(1) }} options={[{ value: 'activity', label: '最近行动' }, { value: 'created', label: '最近创建' }, { value: 'name', label: '名称排序' }]} /></span>
+          <label className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-md border border-line bg-surface px-3 text-muted focus-within:border-signal"><Search size={16} /><input className="min-w-0 flex-1 border-0 bg-transparent text-sm text-ink outline-none" type="search" title="搜索行动图" placeholder="搜索图名称或简介" value={keyword} onChange={(event) => { setKeyword(event.target.value); setPage(1) }} /></label>
+          <span className="flex items-center rounded-md border border-line bg-surface pl-3 text-muted"><ArrowUpDown size={15} /><Select label="行动图排序" value={sort} onValueChange={(value) => { setSort(value); setPage(1) }} options={[{ value: 'activity', label: '最近行动' }, { value: 'created', label: '最近创建' }, { value: 'name', label: '名称排序' }]} /></span>
         </div>
         {groups.map(({ id }) => <TabsContent key={id} value={id}><GraphList items={filtered.slice((currentPage - 1) * graphPageSize, currentPage * graphPageSize)} onOpen={onOpenProject} empty={query ? '没有找到相关行动图' : '暂无行动图'} /></TabsContent>)}
       </TabsRoot>
-      {filtered.length > graphPageSize && <Pagination label="行动图分页" currentPage={currentPage} pageCount={pageCount} onChange={setPage} />}
+      {filtered.length > graphPageSize && <Pagination currentPage={currentPage} pageCount={pageCount} onChange={setPage} />}
     </section>
   )
 }

@@ -6,7 +6,7 @@ type ActionListProps = { actions: Action[]; profile: UserProfile; onComplete: (a
 
 export function ActionList({ actions, profile, onComplete }: ActionListProps) {
   return (
-    <section className="pt-[38px]" aria-labelledby="actions-title">
+    <section className="pt-[38px]">
       <div><div className="section-kicker">正在发生</div><h2 id="actions-title" className="mt-[7px] text-[23px] tracking-[-.03em]">我的行动</h2></div>
       <div className="mt-5 grid gap-0 border-t border-line">
         {actions.map((action) => <article className="grid grid-cols-[40px_minmax(0,1fr)] gap-3 border-b border-line py-6" data-status="active" key={action.id}>

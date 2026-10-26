@@ -24,7 +24,7 @@ export function GraphTooltip({ id, hover, node, reference, users, levels }: Prop
   const status = reference?.agreementStatus
   const author = node ? users.get(node.authorId) : undefined
   return (
-    createPortal(<div id={id} role="tooltip" className="action-graph-tooltip" style={{
+    createPortal(<div id={id} className="action-graph-tooltip" style={{
       left: Math.max(12, Math.min(hover.left + 12, window.innerWidth - 320)),
       top: Math.max(12, Math.min(hover.top - 20, window.innerHeight - 304)),
     }}>

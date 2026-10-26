@@ -23,7 +23,7 @@
 
 .profile-heatmap-day:hover,
 .profile-heatmap-day:focus-visible,
-.profile-heatmap-day[aria-pressed='true'] {
+.profile-heatmap-day[data-selected='true'] {
   outline: 2px solid var(--signal);
   outline-offset: 1px;
 }

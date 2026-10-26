@@ -13,7 +13,7 @@ export function BranchOverview({ plans, completions }: BranchOverviewProps) {
   const mainBranch = branches[0]
 
   return (
-    <section className="border-y border-line py-[18px]" aria-label="执行分支">
+    <section className="border-y border-line py-[18px]">
       <div className="flex items-start justify-between gap-4"><div><span className="section-kicker">执行上下文</span><h2 className="mt-[7px] text-[19px] tracking-[-.025em]">当前主线</h2></div><span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-signal"><GitBranch size={14} />{branches.length} 条路径</span></div>
       <div className="mt-[13px] grid gap-2.5">
         {branches.slice(0, 3).map((branch) => <div className={`grid grid-cols-[24px_minmax(0,1fr)_auto] items-center gap-2.5 border-l-2 px-3 py-2.5 ${branch.isMain ? 'border-signal bg-signal-soft' : 'border-line bg-surface'}`} key={branch.id}>

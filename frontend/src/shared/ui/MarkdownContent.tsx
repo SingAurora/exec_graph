@@ -21,7 +21,7 @@ export function MarkdownContent({ markdown, images = [], showImageCaptions = tru
   }, [])
 
   const renderImage = useCallback(({ src, alt, title }: ComponentPropsWithoutRef<'img'>) => <span className="record-document-figure">
-    <img src={src} alt={alt ?? ''} title={title} loading="lazy" role="button" tabIndex={0} aria-label={`查看图片：${alt || '文档图片'}`}
+    <img src={src} alt={alt ?? ''} title={title ?? `查看图片：${alt || '文档图片'}`} loading="lazy" tabIndex={0}
       onClick={(event) => { event.preventDefault(); event.stopPropagation(); openImage(event.currentTarget) }}
       onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); openImage(event.currentTarget) } }} />
     {showImageCaptions && alt && <span className="record-document-caption">{alt}</span>}

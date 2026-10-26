@@ -25,12 +25,12 @@ export function DraftImages({ images, csrfToken, ready, disabled, onChange, onBu
     return () => { active = false; window.clearInterval(timer) }
   }, [signature, csrfToken, ready])
   return (
-    <div className="mb-5 grid gap-3" aria-label="行动配图">
+    <div className="mb-5 grid gap-3">
       <div className="flex flex-wrap items-center gap-3">
         <button className="quiet-button" type="button" disabled={!ready || disabled || uploading || images.length >= 12} onClick={() => input.current?.click()}><ImagePlus size={15} />{uploading ? '上传中…' : '添加图片'}</button>
         <span className="text-xs text-muted">{images.length}/12</span>
       </div>
-      <input className="sr-only" type="file" accept="image/jpeg,image/png,image/webp" ref={input} aria-label="上传行动配图" disabled={!ready || disabled || uploading} onChange={async (event) => {
+      <input className="sr-only" type="file" accept="image/jpeg,image/png,image/webp" ref={input} title="上传行动配图" disabled={!ready || disabled || uploading} onChange={async (event) => {
         const file = event.target.files?.[0]; event.target.value = ''
         if (!file || images.length >= 12 || uploading) return
         setUploading(true); onBusyChange(true); setError('')
@@ -43,10 +43,10 @@ export function DraftImages({ images, csrfToken, ready, disabled, onChange, onBu
       }} />
       {images.map((image, index) => <div className="flex items-center gap-3" key={image.assetId}>
         <img className="h-16 w-20 flex-none rounded border border-line object-cover" src={image.url} alt={image.alt} />
-        <input className="form-input min-w-0 flex-1" aria-label={`图片 ${index + 1} 说明`} placeholder="图片说明" value={image.alt} maxLength={200} disabled={disabled || uploading} onChange={(event) => onChange(images.map((item, at) => at === index ? { ...item, alt: event.target.value } : item))} />
-        <button className="icon-button" type="button" aria-label={`移除图片 ${index + 1}`} title="移除图片" disabled={disabled || uploading} onClick={() => { setError(''); onChange(images.filter((_, at) => at !== index)) }}><X size={15} /></button>
+        <input className="form-input min-w-0 flex-1" title={`图片 ${index + 1} 说明`} placeholder="图片说明" value={image.alt} maxLength={200} disabled={disabled || uploading} onChange={(event) => onChange(images.map((item, at) => at === index ? { ...item, alt: event.target.value } : item))} />
+        <button className="icon-button" type="button" title="移除图片" disabled={disabled || uploading} onClick={() => { setError(''); onChange(images.filter((_, at) => at !== index)) }}><X size={15} /></button>
       </div>)}
-      {error && <p className="text-xs text-coral" role="alert">{error}</p>}
+      {error && <p className="text-xs text-coral">{error}</p>}
     </div>
   )
 }

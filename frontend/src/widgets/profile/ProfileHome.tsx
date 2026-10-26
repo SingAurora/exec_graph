@@ -46,16 +46,16 @@ export function ProfileHome({ userId, actions, active, onOpenNode }: {
   return (
     <div>
       <ActionHeatmap days={days} selectedDate={selectedDate} onSelectDate={selectDate} />
-      <section className="pt-4" aria-label="行动时间线">
+      <section className="pt-4">
         <div className="mb-5 flex min-h-7 items-center justify-between gap-3">
           <h3 className="text-sm font-semibold">{selectedDate ? selectedDate.replaceAll('-', ' / ') : '时间线'}</h3>
           {selectedDate && <button type="button" className="text-button text-xs" onClick={() => selectDate(selectedDate)}>全部日期<X size={13} /></button>}
         </div>
-        <div ref={timelineRef} className="h-[420px] overflow-y-auto overscroll-contain rounded-lg border border-line px-4 py-4 [scrollbar-gutter:stable]" role="region" aria-label="时间线列表" tabIndex={0}
+        <div ref={timelineRef} className="h-[420px] overflow-y-auto overscroll-contain rounded-lg border border-line px-4 py-4 [scrollbar-gutter:stable]" tabIndex={0}
           onScroll={(event) => { if (active) scrollTop.current = event.currentTarget.scrollTop }}>
-          {!filtered.length && <p className="py-12 text-center text-sm text-muted" role="status">{selectedDate ? '这一天没有行动' : '还没有行动记录'}</p>}
+          {!filtered.length && <p className="py-12 text-center text-sm text-muted">{selectedDate ? '这一天没有行动' : '还没有行动记录'}</p>}
           <div>{visibleActivity.map((item, index) => <ProfileTimelineItem key={item.node.id} node={item.node} last={index === visibleActivity.length - 1} onOpenNode={onOpenNode} />)}</div>
-          {filtered.length > 0 && <p ref={endRef} className="py-6 text-center text-xs text-muted" role="status">{hasMore ? '加载中…' : '没有更多了'}</p>}
+          {filtered.length > 0 && <p ref={endRef} className="py-6 text-center text-xs text-muted">{hasMore ? '加载中…' : '没有更多了'}</p>}
         </div>
       </section>
     </div>

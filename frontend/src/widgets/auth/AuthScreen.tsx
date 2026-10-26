@@ -106,20 +106,21 @@ export function AuthScreen({view, darkMode, onToggleTheme, onEnter}: AuthScreenP
         setErrors((current) => ({...current, [name]: validateAuthField(view, name, input.value)}))
     }
     const feedbackProps = (name: AuthFieldName) => ({
-        'aria-invalid': Boolean(errors[name]),
-        'aria-describedby': `auth-${name}-error`,
+        'data-invalid': Boolean(errors[name]),
     })
 
     return (
-        <main className="auth-layout" aria-label="账户访问">
-            <section className="auth-scene" aria-label="引序">
+        <main className="auth-layout">
+            <section className="auth-scene">
                 <img className={`auth-scene-photo${isRegister ? ' auth-scene-photo-register' : ''}`}
                      src={isRegister ? registerImage : accessImage}
                      alt={isRegister ? '徒步者沿着山谷里的小路向远处行走' : '一个人走在山野中，远处是薄雾笼罩的群山'}/>
-                <a className="auth-brand" href="#login" aria-label="引序 登录"><Brand tone="inverse"/></a>
+                <a className="auth-brand" href="#login" title="引序 登录">
+                    <Brand tone="inverse"/>
+                </a>
             </section>
-            <section className="auth-account" aria-labelledby="auth-title">
-                <button className="auth-appearance" type="button" onClick={onToggleTheme} aria-label={themeLabel} title={themeLabel}>
+            <section className="auth-account">
+                <button className="auth-appearance" type="button" onClick={onToggleTheme} title={themeLabel}>
                     {darkMode ? <Sun size={19}/> : <Moon size={19}/>}
                 </button>
                 <div className="auth-form-shell">
@@ -159,7 +160,7 @@ export function AuthScreen({view, darkMode, onToggleTheme, onEnter}: AuthScreenP
                                        minLength={isLogin ? 1 : 8} autoComplete={isLogin ? 'current-password' : 'new-password'}
                                        placeholder={isLogin ? '输入密码' : '设置至少 8 位密码'} {...feedbackProps('password')} />
                                 <button className="auth-eye" type="button" onClick={() => setShowPassword((value) => !value)}
-                                        aria-label={showPassword ? '隐藏密码' : '显示密码'} aria-pressed={showPassword}>
+                                        title={showPassword ? '隐藏密码' : '显示密码'}>
                                     {showPassword ? <EyeOff size={17}/> : <Eye size={17}/>}
                                 </button>
                             </div>
@@ -191,8 +192,8 @@ export function AuthScreen({view, darkMode, onToggleTheme, onEnter}: AuthScreenP
 
 function FieldFeedback({name, error}: { name: AuthFieldName; error?: string }) {
     return (
-        <p id={`auth-${name}-error`} className="auth-field-feedback" aria-live="polite" aria-atomic="true">
-            {error && <><CircleAlert size={13} aria-hidden="true"/><span>{error}</span></>}
+        <p id={`auth-${name}-error`} className="auth-field-feedback">
+            {error && <><CircleAlert size={13}/><span>{error}</span></>}
         </p>
     )
 }

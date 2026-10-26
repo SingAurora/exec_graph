@@ -37,19 +37,19 @@ export function ActionPostList({ nodes, actions, users, mode, searchQuery, infin
   const { visibleCount, endRef, hasMore } = useInfiniteList({ itemCount: nodes.length, infinite, active })
 
   if (!nodes.length && emptyContent) return (
-    <div className="empty-state" role="status">{emptyContent}</div>
+    <div className="empty-state">{emptyContent}</div>
   )
   if (!nodes.length) return (
-    <div className="py-16 text-center" role="status">
+    <div className="py-16 text-center">
       <h3 className="text-[17px]">{mode === 'expression' ? '暂无表达' : '暂无行动'}</h3>
     </div>
   )
   return (
     <div className="min-w-0">
-      <section aria-label={mode === 'expression' ? '表达列表' : '行动列表'}>
+      <section>
         {(infinite ? nodes.slice(0, visibleCount) : nodes).map((node) => <ActionPostItem key={node.id} node={node} level={levels.get(node.id)} contextCount={contextCounts.get(node.id)} actions={actions} users={users} mode={mode} searchQuery={searchQuery} presentation={presentation} onExplore={onExplore} renderContext={renderContext} />)}
       </section>
-      {infinite && <p ref={endRef} className="py-8 text-center text-xs leading-5 text-muted" role="status">{hasMore ? '加载中…' : '没有更多了'}</p>}
+      {infinite && <p ref={endRef} className="py-8 text-center text-xs leading-5 text-muted">{hasMore ? '加载中…' : '没有更多了'}</p>}
     </div>
   )
 }
@@ -68,7 +68,7 @@ function ActionPostItem({ node, level, contextCount, actions, users, mode, searc
   const documentLabel = mode === 'expression' ? '表达' : '行动'
   return (
     <article className={`group relative isolate min-w-0 px-1 ${feed ? 'py-4' : 'py-5'}`} data-node-id={node.id}>
-      <button className="absolute inset-0 z-0 w-full cursor-pointer rounded-lg border-0 bg-transparent p-0 text-left transition hover:bg-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal" type="button" aria-label={`阅读全文：${documentLabel} · ${node.title}`} onClick={openDocument} />
+      <button className="absolute inset-0 z-0 w-full cursor-pointer rounded-lg border-0 bg-transparent p-0 text-left transition hover:bg-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal" type="button" title={`阅读全文：${documentLabel} · ${node.title}`} onClick={openDocument} />
       <div className="pointer-events-none relative">
         {!feed && renderContext && <div className="pointer-events-auto relative z-10 mb-2 w-fit">{renderContext(node)}</div>}
         {!feed && <h3 className="truncate text-base font-semibold leading-[1.6] tracking-[-.02em] group-hover:text-signal" title={node.title}><HighlightedText text={node.title} query={searchQuery} /></h3>}

@@ -9,7 +9,7 @@ export function ImagePreviewTrigger({ image, children, className = '' }: { image
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Trigger asChild>
-        <button type="button" className={`cursor-zoom-in border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal ${className}`} aria-label={`查看图片：${image.alt}`}>
+        <button type="button" className={`cursor-zoom-in border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal ${className}`} title={`查看图片：${image.alt}`}>
           {children}
         </button>
       </Dialog.Trigger>

@@ -94,7 +94,7 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
   if (!conversation.length) conversation.push({ id: 'welcome', speaker: 'ai', body: '基于这些行动，你想表达什么？' })
 
   return (
-    <WorkspaceFrame title={label} tabLabel="表达工作区"
+    <WorkspaceFrame title={label}
       view={local.value.view} onViewChange={(view) => update({ view })} restoring={!local.ready}
       draftControls={<LocalDraftControls status={local.status} hasDraft={local.hasDraft} disabled={sending || saving || !local.ready} onDiscard={local.discard} />}
       help={<HelpPopover title="表达的背景">
@@ -108,7 +108,7 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
       action={{ markdown: node.objectiveMarkdown ?? node.markdown, images: node.images, status: '只读', empty: '暂无行动记录' }}
       expression={{ markdown: document, images: draftDocument === undefined ? expression.sourceNode?.images : [], status: expressionStatus, empty: '暂无表达' }}
       agreement={<ExpressionAgreements node={node} actions={actions} />}
-      footer={<><span className="text-xs text-muted" role="status">{!canEdit ? '该节点已有后续引用，无法修改表达' : sending ? '正在整理…' : generated ? document.trim() === expression.markdown.trim() ? '表达未变化' : '待保存' : draftDocument !== undefined ? '本轮未完成' : '尚未生成'}</span>
+      footer={<><span className="text-xs text-muted">{!canEdit ? '该节点已有后续引用，无法修改表达' : sending ? '正在整理…' : generated ? document.trim() === expression.markdown.trim() ? '表达未变化' : '待保存' : draftDocument !== undefined ? '本轮未完成' : '尚未生成'}</span>
         <button className="primary-button" type="button" disabled={!canSave} onClick={async () => {
               if (!canSave) return
               setSaving(true)

@@ -36,7 +36,7 @@ export function ArchiveBackground({ node, actions, onSelectSource }: { node: Act
           {references.map((reference) => <section className="py-4" key={reference.id}>
             <div className="flex items-baseline gap-2 text-sm">
               <span className="shrink-0 text-xs text-muted">{reference.incorporated ? '合入' : '承接'}</span>
-              <button className="border-0 bg-transparent p-0 text-left text-sm text-signal hover:underline" type="button" onClick={() => onSelectSource(reference.source.id)} aria-label={`查看来源节点 #${reference.source.number}的形成过程`}>#{reference.source.number} · {reference.source.title}</button>
+              <button className="border-0 bg-transparent p-0 text-left text-sm text-signal hover:underline" type="button" onClick={() => onSelectSource(reference.source.id)} title={`查看来源节点 #${reference.source.number}的形成过程`}>#{reference.source.number} · {reference.source.title}</button>
             </div>
             <p className={`mt-2 text-xs ${reference.agreementStatus === 'exception' ? 'text-coral' : 'text-muted'}`}>{agreementLabels[reference.agreementStatus]}</p>
             {reference.agreementStatus === 'exception' && <div className="mt-2 space-y-1 text-xs leading-6 text-muted">

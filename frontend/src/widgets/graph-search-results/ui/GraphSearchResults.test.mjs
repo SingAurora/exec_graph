@@ -13,14 +13,14 @@ describe('full graph search results', () => {
   test('paginates the complete matching set rather than the sidebar preview', () => {
     const html = render()
     expect(html).toContain('找到 12 个图')
-    expect(html).toContain('aria-label="图搜索分页"')
-    const list = html.match(/aria-label="行动图列表"[\s\S]*?(?=<nav)/)?.[0] ?? ''
+    expect(html).toContain('title="下一页"')
+    const list = html.slice(html.indexOf('</form>'), html.indexOf('<nav'))
     expect(list.match(/<button /g)).toHaveLength(10)
     const second = render({ page: 2 })
     const secondText = second.replace(/<[^>]*>/g, '')
     expect(secondText).toContain('练习 01')
     expect(secondText).not.toContain('练习 11')
-    expect(second).toContain('aria-label="第 2 页" aria-current="page"')
+    expect(second.match(/<button[^>]*title="第 2 页"[^>]*>/)?.[0]).toContain('bg-signal-soft')
     expect(render({ page: 99 })).toEqual(second)
   })
 
@@ -29,7 +29,7 @@ describe('full graph search results', () => {
     const blank = render({ keyword: '' })
     expect(blank).toContain('输入图名称或简介搜索')
     expect(blank).not.toContain('练习 11')
-    expect(blank).not.toContain('图搜索分页')
+    expect(blank).not.toContain('title="下一页"')
   })
 
   test('reads a shared search route and normalizes invalid or negative pages', () => {

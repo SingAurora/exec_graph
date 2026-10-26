@@ -27,22 +27,22 @@ export function ActionHeatmap({ days, selectedDate, onSelectDate }: {
     cellsRef.current?.querySelector<HTMLButtonElement>(`[data-day-index="${target}"]`)?.focus({ preventScroll: true })
   }
   return (
-    <section className="py-6" aria-label="行动热力图">
+    <section className="py-6">
       <div className="mb-5 flex items-baseline justify-between gap-3">
         <h3 className="text-sm font-medium">过去一年 <span className="ml-1 font-semibold tabular-nums text-signal">{total}</span> 次行动</h3>
         <span className="text-xs text-muted">{activeDays} 天有行动</span>
       </div>
       <div className="overflow-x-auto pb-1">
         <div className="min-w-[640px]">
-          <div className="mb-2 ml-7 grid gap-[3px] text-[11px] leading-4 text-muted" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }} aria-hidden="true">
+          <div className="mb-2 ml-7 grid gap-[3px] text-[11px] leading-4 text-muted" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
             {months.map((month, index) => <span className="whitespace-nowrap" style={{ gridColumn: `${month.column} / span ${Math.min(3, columns - month.column + 1)}`, gridRow: 1 }} key={index}>{month.label}</span>)}
           </div>
           <div className="flex gap-2">
-            <div className="grid w-5 shrink-0 grid-rows-7 items-center text-[10px] leading-none text-muted" aria-hidden="true"><span /><span>二</span><span /><span>四</span><span /><span>六</span><span /></div>
+            <div className="grid w-5 shrink-0 grid-rows-7 items-center text-[10px] leading-none text-muted"><span /><span>二</span><span /><span>四</span><span /><span>六</span><span /></div>
             <div className="grid flex-1 grid-flow-col grid-rows-7 gap-[3px]" ref={cellsRef} style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
               {Array.from({ length: offset }, (_, index) => <span key={'blank-' + index} />)}
               {days.map((day, index) => <button key={day.date} type="button" className="profile-heatmap-day" data-level={intensity(day.count)} data-day-index={index}
-                aria-label={`${day.date}，${day.count} 次行动`} title={`${day.date} · ${day.count} 次行动`} aria-pressed={selectedDate === day.date}
+                title={`${day.date} · ${day.count} 次行动`} data-selected={selectedDate === day.date}
                 tabIndex={focusedIndex === index ? 0 : -1} onFocus={() => setFocusedIndex(index)} onKeyDown={(event) => moveFocus(event, index)} onClick={() => onSelectDate(day.date)} />)}
             </div>
           </div>
@@ -50,7 +50,7 @@ export function ActionHeatmap({ days, selectedDate, onSelectDate }: {
       </div>
       <div className="mt-3 flex items-center justify-between gap-3 text-[11px] text-muted">
         <span>{days[0].date.replaceAll('-', '.')} — {days.at(-1)!.date.replaceAll('-', '.')}</span>
-        <div className="flex items-center gap-1.5" aria-label="颜色越深表示当天行动越多"><span>少</span>{[0, 1, 2, 3, 4].map((level) => <span className="profile-heatmap-key size-2.5" data-level={level} key={level} />)}<span>多</span></div>
+        <div className="flex items-center gap-1.5"><span>少</span>{[0, 1, 2, 3, 4].map((level) => <span className="profile-heatmap-key size-2.5" data-level={level} key={level} />)}<span>多</span></div>
       </div>
     </section>
   )

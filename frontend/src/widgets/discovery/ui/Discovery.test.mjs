@@ -20,14 +20,14 @@ const render = (overrides = {}) => renderToStaticMarkup(createElement(Discovery,
 describe('public discovery', () => {
   test('resolves current endpoints and satisfied exchanges with full context while excluding unknown graphs', () => {
     const html = render({ actions: [...actions, { ...actions[0], id: 'orphan', projectId: 'removed', expressionMarkdown: '不可见表达' }] })
-    expect(html).toContain('aria-label="发现分类"')
+    expect(html).toContain('trigger-expressions')
     expect(html).toContain('trigger-agreements')
     expect(html).not.toContain('trigger-graphs')
     expect(html).not.toContain('content-graphs')
     expect(html).toContain('近期活跃的图')
     expect(html).not.toContain('trigger-actions')
     expect(html).not.toContain('content-actions')
-    expect(html).not.toContain('aria-label="行动列表"')
+    expect(html).not.toContain('title="阅读全文：行动')
     expect(html).toContain('data-reference-id="source-7:response-7"')
     expect(html).not.toContain('不可见表达')
     const expressionPanel = html.match(/id="[^"]*-content-expressions"[\s\S]*?(?=<div[^>]*id="[^"]*-content-agreements")/)?.[0] ?? ''
@@ -41,7 +41,7 @@ describe('public discovery', () => {
     expect(aside.match(/<button /g)).toHaveLength(3)
     expect(aside).toContain('图 7')
     expect(aside).not.toContain('图 4')
-    expect(aside).toContain('aria-label="搜索图"')
+    expect(aside).toContain('title="搜索图"')
   })
 
   test('empty discovery keeps every category with empty states and no invented activity', () => {

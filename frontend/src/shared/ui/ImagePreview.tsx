@@ -29,9 +29,9 @@ export function ImagePreview({ images, selectedIndex, onSelectImage, onCloseAuto
         </div>
         {canNavigate && <div className="mt-2 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
           <div className="col-start-2 flex items-center justify-center gap-4">
-            <button type="button" className="icon-button" disabled={selectedIndex === 0} aria-label="上一张图片" onClick={() => onSelectImage?.(Math.max(0, (selectedIndex ?? 0) - 1))}><ChevronLeft size={18} /></button>
-            <span className="text-xs tabular-nums text-muted" aria-live="polite">{(selectedIndex ?? 0) + 1} / {images.length}</span>
-            <button type="button" className="icon-button" disabled={selectedIndex === images.length - 1} aria-label="下一张图片" onClick={() => onSelectImage?.(Math.min(images.length - 1, (selectedIndex ?? 0) + 1))}><ChevronRight size={18} /></button>
+            <button type="button" className="icon-button" disabled={selectedIndex === 0} title="上一张图片" onClick={() => onSelectImage?.(Math.max(0, (selectedIndex ?? 0) - 1))}><ChevronLeft size={18} /></button>
+            <span className="text-xs tabular-nums text-muted">{(selectedIndex ?? 0) + 1} / {images.length}</span>
+            <button type="button" className="icon-button" disabled={selectedIndex === images.length - 1} title="下一张图片" onClick={() => onSelectImage?.(Math.min(images.length - 1, (selectedIndex ?? 0) + 1))}><ChevronRight size={18} /></button>
           </div>
           <div className="col-start-3 justify-self-end"><ImageDownloadButton image={selected} /></div>
         </div>}

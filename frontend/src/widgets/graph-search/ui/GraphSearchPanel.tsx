@@ -77,12 +77,12 @@ export function GraphSearchPanel({ scope, projectId, active, actions, users, fil
     <div className="pt-4">
       <GraphSearchForm scope={scope} criteria={draft} users={filterUsers} onChange={setDraft} onSubmit={submit} onReset={reset} />
       {submitted && <>
-        <p ref={resultsRef} tabIndex={-1} className="mt-5 text-xs leading-5 text-muted outline-none" role="status">找到 {count} {scope === 'users' ? '位参与用户' : `条${labels[scope]}`}</p>
+        <p ref={resultsRef} tabIndex={-1} className="mt-5 text-xs leading-5 text-muted outline-none">找到 {count} {scope === 'users' ? '位参与用户' : `条${labels[scope]}`}</p>
         {!count ? <p className="py-12 text-center text-sm text-muted">没有找到相关{labels[scope]}</p>
           : scope === 'agreements' ? <AgreementResponseList references={agreements.slice(startIndex, startIndex + pageSize)} users={users} infinite={false} active={active} searchQuery={submitted.keyword} onExplore={onExploreReference} />
             : scope === 'users' ? <UserSearchResults users={participants.slice(startIndex, startIndex + pageSize)} projectId={projectId} actionCounts={actionCounts} query={submitted.keyword} />
               : <ActionPostList nodes={documents.slice(startIndex, startIndex + pageSize)} actions={actions} users={users} mode={mode} onExplore={onExplore} searchQuery={submitted.keyword} />}
-        {pageCount > 1 && <Pagination label="搜索结果分页" currentPage={currentPage} pageCount={pageCount} onChange={changePage} />}
+        {pageCount > 1 && <Pagination currentPage={currentPage} pageCount={pageCount} onChange={changePage} />}
       </>}
     </div>
   )

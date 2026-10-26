@@ -35,7 +35,7 @@ export function EditAgreement({ markdown, draftKey, onSave, onSaved, onCancel }:
   }
 
   return (
-    <form className="border-t border-line p-3" aria-label={`${label}表单`} onSubmit={(event) => {
+    <form className="border-t border-line p-3" onSubmit={(event) => {
       event.preventDefault()
       if (canSave) save(draft)
     }}>

@@ -22,7 +22,7 @@ export function DashboardDocumentCard({ node, actions, users, project, mode, com
   const summary = getMarkdownSummary(markdown, node.title)
   return (
     <article className="group relative isolate min-w-0 rounded-md" data-node-id={node.id}>
-      <button className="absolute inset-0 z-0 rounded-lg border-0 bg-transparent p-0 transition hover:bg-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal" type="button" aria-label={`阅读全文：行动 · ${node.title}`} onClick={() => onOpenNode(node, mode)} />
+      <button className="absolute inset-0 z-0 rounded-lg border-0 bg-transparent p-0 transition hover:bg-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal" type="button" title={`阅读全文：行动 · ${node.title}`} onClick={() => onOpenNode(node, mode)} />
       <div className="pointer-events-none relative flex items-start gap-4">
         <div className="min-w-0 flex-1">
           <h3 className={`line-clamp-2 font-semibold leading-6 tracking-tight group-hover:text-signal ${compact ? 'text-sm' : 'text-base'}`}>{node.title}</h3>

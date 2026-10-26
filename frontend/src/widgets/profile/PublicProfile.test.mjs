@@ -12,17 +12,23 @@ const render = (patch = {}, props = {}) => renderToStaticMarkup(createElement(To
   ...props,
 })))
 
+const highlights = (html) => {
+  const start = html.indexOf('>主页精选</h3>')
+  expect(start).toBeGreaterThan(0)
+  return html.slice(start, html.indexOf('>过去一年 ', start))
+}
+
 describe('profile header images', () => {
   test('the shared homepage has its content navigation, separate search categories and no retired overview', () => {
     const html = render({}, { onCreateProject() {} })
     expect(html).toContain('>首页</span>')
-    expect(html).toContain('aria-label="行动热力图"')
-    expect(html).toContain('aria-label="行动时间线"')
+    expect(html).toContain('>过去一年 ')
+    expect(html).toContain('>时间线</h3>')
     expect(html).toContain('还没有行动记录')
     expect(html).toContain('发起行动图')
     expect(html).not.toContain('总览')
     expect(html).not.toContain('最近的图')
-    expect(html).toContain('aria-label="主页搜索分类"')
+    expect(html).toContain('title="搜索表达"')
     expect(html).toContain('>搜索</span>')
     expect(html.match(/role="tablist"/g)).toHaveLength(2)
     expect(html.match(/data-day-index=/g)).toHaveLength(365)
@@ -30,7 +36,7 @@ describe('profile header images', () => {
 
   test('other public profiles use the same homepage without exposing graph creation', () => {
     const html = render({}, { currentUserId: 'other', onCreateProject() {} })
-    expect(html).toContain('aria-label="行动热力图"')
+    expect(html).toContain('>过去一年 ')
     expect(html).not.toContain('发起行动图')
     expect(html).not.toContain('编辑精选')
   })
@@ -43,15 +49,14 @@ describe('profile header images', () => {
     // 兼容旧资料中的独立约定字段，但不再展示它。
     const highlights = { expressionNodeIds: ['own', 'other', 'deleted'], agreementNodeIds: ['other'] }
     const html = render({ highlights }, { actions, currentUserId: 'visitor' })
-    const start = html.indexOf('aria-label="主页精选"')
-    const selected = html.slice(start, html.indexOf('aria-label="行动热力图"', start))
+    const selected = html.slice(html.indexOf('>主页精选</h3>'), html.indexOf('>过去一年 '))
     expect(selected).toContain('多花三分钟值得')
     expect(selected).toContain('请记录锅具')
     expect(selected).not.toContain('不应自动精选这条')
     expect(selected).not.toContain('编辑精选')
     expect(selected).not.toContain('精选约定')
     const cleared = render({ highlights }, { actions: [{ ...actions[0], expressionMarkdown: '', agreementMarkdown: '' }], currentUserId: 'visitor' })
-    expect(cleared).not.toContain('aria-label="主页精选"')
+    expect(cleared).not.toContain('>主页精选</h3>')
   })
 
   test('keeps saved expression order and attaches the selected branch agreement with its author', () => {
@@ -61,38 +66,36 @@ describe('profile header images', () => {
       { id: 'second', authorId: 'jo', expressionMarkdown: '表达乙', agreementMarkdown: '', number: 3 },
     ].map((node) => ({ projectId: 'cooking', title: node.id, createdAt: '2026-10-01', markdown: '', images: [], conversation: [], ...node }))
     const html = render({ highlights: { expressionNodeIds: ['second', 'first'] } }, { actions, users: [{ id: 'lin', name: '林', avatar: '' }], currentUserId: 'visitor' })
-    const start = html.indexOf('aria-label="主页精选"')
-    const selected = html.slice(start, html.indexOf('aria-label="行动热力图"', start))
+    const selected = highlights(html)
     expect(selected.indexOf('表达乙')).toBeLessThan(selected.indexOf('表达甲'))
     expect(selected).toContain('请记录实际用时')
     expect(selected).toContain('林')
-    expect(selected.match(/aria-label="分支约定"/g)).toHaveLength(1)
+    expect(selected.match(/<blockquote\b/g)).toHaveLength(1)
     expect(selected).not.toContain('添加表达')
   })
 
   test('highlight previews retain feed context and separate expression and agreement image previews', () => {
     const actions = [{ id: 'own', authorId: 'jo', projectId: 'cooking', number: 1, title: '实际行动标题', expressionMarkdown: '来自行动的表达', agreementMarkdown: '请记录用时\n\n![约定配图](/agreement.jpg)', createdAt: '2026-10-01', markdown: '', images: [{ url: '/expression.jpg', alt: '表达配图' }], conversation: [] }]
     const html = render({ highlights: { expressionNodeIds: ['own'] } }, { actions, currentUserId: 'visitor' })
-    const start = html.indexOf('aria-label="主页精选"')
-    const selected = html.slice(start, html.indexOf('aria-label="行动热力图"', start))
+    const selected = highlights(html)
     expect(selected).toContain('最近行动：')
     expect(selected).toContain('1 次行动支撑')
-    expect(selected).toContain('aria-label="查看图片：表达配图"')
-    expect(selected).toContain('aria-label="查看图片：约定配图"')
-    expect(selected).toContain('aria-label="查看分支约定的行动背景：实际行动标题"')
+    expect(selected).toContain('title="查看图片：表达配图"')
+    expect(selected).toContain('title="查看图片：约定配图"')
+    expect(selected).toContain('title="查看分支约定的行动背景：实际行动标题"')
     expect(selected).not.toContain('展开表达全文')
   })
 
   test('search forms and the counterpart selector stay inside the independent search panel', () => {
     const html = render()
-    const searchStart = html.indexOf('aria-label="主页搜索"')
+    const searchStart = html.search(/<div[^>]*id="[^"]*-content-search"/)
     expect(searchStart).toBeGreaterThan(0)
     const contentBeforeSearch = html.slice(0, searchStart)
     expect(contentBeforeSearch).not.toContain('type="search"')
     expect(contentBeforeSearch).not.toContain('往来对象')
     const search = html.slice(searchStart)
     expect(search.match(/type="search"/g)).toHaveLength(4)
-    expect(search).toContain('aria-label="往来对象"')
+    expect(search).toContain('title="往来对象"')
     expect(search).not.toContain('找到 ')
   })
 
@@ -104,16 +107,16 @@ describe('profile header images', () => {
   test('custom avatars and backgrounds open image previews rather than profile links', () => {
     const html = render({ avatar: '/avatar.jpg', backgroundImage: '/cover.jpg' })
     expect(html).toContain('src="/avatar.jpg"')
-    expect(html).toContain('aria-label="查看图片：乔的头像"')
+    expect(html).toContain('title="查看图片：乔的头像"')
     expect(html).toContain('src="/cover.jpg"')
-    expect(html).toContain('aria-label="查看图片：主页背景"')
+    expect(html).toContain('title="查看图片：主页背景"')
     expect(html).not.toContain('href="#profile')
   })
 
   test('the default background supports preview while text avatars have no image trigger', () => {
     const html = render()
-    expect(html).toContain('aria-label="查看图片：主页背景"')
-    expect(html).not.toContain('aria-label="查看图片：乔的头像"')
+    expect(html).toContain('title="查看图片：主页背景"')
+    expect(html).not.toContain('title="查看图片：乔的头像"')
     expect(html).toContain('>乔</span>')
   })
 

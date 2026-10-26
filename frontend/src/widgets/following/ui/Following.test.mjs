@@ -23,7 +23,7 @@ describe('following navigation and empty states', () => {
     expect(html.match(/role="tab"/g)).toHaveLength(4)
     expect(html).not.toContain('trigger-actions')
     expect(html).not.toContain('content-actions')
-    expect(html.match(/<button[^>]*role="tab"[^>]*aria-selected="true"[^>]*>/)?.[0]).toContain('trigger-expressions')
+    expect(html.match(/<button[^>]*data-state="active"[^>]*>/)?.[0]).toContain('trigger-expressions')
     expect(html).not.toContain('动态分类')
     expect(html).toContain('还没有关注的图或用户')
     expect(html).toContain('去发现')

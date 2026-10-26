@@ -16,7 +16,7 @@ function render(actions, id) {
 }
 
 function panels(html) {
-  const [, action, expression] = html.split(/<div\b[^>]*role="tabpanel"[^>]*>/u)
+  const [, action, expression] = html.split(/<div\b[^>]*id="[^"]*-content-(?:objective|expression)"[^>]*>/u)
   return { action, expression }
 }
 
@@ -51,12 +51,12 @@ describe('action formation provenance', () => {
     })
     const html = render([action], '1')
     const content = panels(html)
-    expect(html).toContain('aria-label="AI 对话"')
+    expect(html).toContain('AI 对话</h3>')
     expect(html.match(/已分别整理行动和表达/g)).toHaveLength(1)
     expect(html.indexOf('已分别整理行动和表达')).toBeLessThan(html.indexOf('文档结果'))
-    expect(content.action).toContain('aria-label="行动结果"')
+    expect(content.action).toContain('<section')
     expect(content.action).toContain('AI 整理的行动全文')
-    expect(content.expression).toContain('aria-label="表达结果"')
+    expect(content.expression).toContain('<section')
     expect(content.expression).toContain('AI 整理的表达全文')
     expect(content.expression).not.toContain('AI 整理的行动全文')
   })
@@ -84,7 +84,7 @@ describe('action formation provenance', () => {
 
   test('puts the conversation before directly displayed documents and renders the real author and Markdown', () => {
     const html = render([node(1, undefined, '表达全文', { conversation: [{ id: 'message', speaker: 'user', body: '第一段\n\n**第二段**' }] })], '1')
-    expect(html.indexOf('aria-label="AI 对话"')).toBeLessThan(html.indexOf('aria-label="行动结果"'))
+    expect(html.indexOf('AI 对话</h3>')).toBeLessThan(html.indexOf('>文档结果</h3>'))
     expect(html).toContain('<strong>第二段</strong>')
     expect(html).toContain('查看乔的资料')
     expect(html).not.toContain('>行动者<')
@@ -121,7 +121,7 @@ describe('action formation provenance', () => {
     const action = node(1, undefined, '', { agreementMarkdown: '后续记录实际用时', agreementSupplement: { authorId: 'jo', createdAt: '2026-10-18T15:00:00+08:00' },
       conversation: [{ id: 'original', speaker: 'user', body: '原始行动说明' }] })
     const html = render([action], '1')
-    expect(html).toContain('aria-label="约定结果"')
+    expect(html).toContain('约定文档')
     expect(html).toContain('后续记录实际用时')
     expect(html).toContain('发布后补充约定')
     expect(html).toContain('未记录编辑对话')
@@ -138,8 +138,8 @@ describe('action formation provenance', () => {
       const label = kind === 'clear' ? '清空' : '修改'
       expect(html).toContain(`发布后${label}表达`)
       expect(html).toContain(`发布后${label}约定`)
-      expect(html).toContain('aria-label="表达结果"')
-      expect(html).toContain('aria-label="约定结果"')
+      expect(panels(html).expression).toContain(kind === 'clear' ? '表达为空' : '修改后的表达')
+      expect(html).toContain('约定文档')
       expect(html).toContain('未记录编辑对话')
       expect(html).not.toContain('发布后补充表达 ·')
       expect(html).not.toContain('发布后补充约定 ·')

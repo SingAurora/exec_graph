@@ -14,7 +14,7 @@ export function ComponentShowcase() {
       </div>
       <p className="mt-2 text-xs leading-[1.8] text-muted">项目封装可直接复用；Radix UI 基础组件已安装，这里适配项目样式，接入业务时可再封装。所有操作仅作用于演示。</p>
       <TabsRoot value={category} onValueChange={setCategory}>
-        <TabsList label="组件分类">
+        <TabsList>
           <TabsTrigger value="overlays">浮层与反馈 · 6</TabsTrigger>
           <TabsTrigger value="inputs">输入与选择 · 6</TabsTrigger>
           <TabsTrigger value="content">内容展示 · 7</TabsTrigger>

@@ -21,7 +21,7 @@ export function GraphDetailsAside({ description, createdAt, actionCount, lastAct
   const creationDateLabel = Number.isNaN(creationDate.getTime()) ? createdAt : creationDateFormatter.format(creationDate)
   const remainingParticipantCount = Math.max(0, participantIds.length - participantPreviewLimit)
   return (
-    <aside className="min-w-0 rounded-lg bg-soft p-4" aria-label="图资料">
+    <aside className="min-w-0 rounded-lg bg-soft p-4">
       {description && <p className="whitespace-pre-line break-words text-sm leading-[1.7] text-copy">{description}</p>}
       <dl className={`grid gap-3 text-[13px] leading-5 ${description ? 'mt-5' : ''}`}>
         <div className="flex items-baseline justify-between gap-4">
@@ -39,7 +39,7 @@ export function GraphDetailsAside({ description, createdAt, actionCount, lastAct
             : '暂无'}</dd>
         </div>
       </dl>
-      {participantIds.length > 0 && <section className="mt-5" aria-label="参与者">
+      {participantIds.length > 0 && <section className="mt-5">
         <h4 className="text-xs font-normal leading-5 text-muted">参与者</h4>
         <ul className="mt-2 flex flex-wrap gap-1">
           {participantIds.slice(0, participantPreviewLimit).map((id) => {
@@ -53,7 +53,7 @@ export function GraphDetailsAside({ description, createdAt, actionCount, lastAct
               </li>
             )
           })}
-          {remainingParticipantCount > 0 && <li className="inline-flex h-7 min-w-7 items-center justify-center rounded-lg bg-surface px-1 text-xs font-medium tabular-nums text-muted" title={`还有 ${remainingParticipantCount} 位参与者`} aria-label={`还有 ${remainingParticipantCount} 位参与者`}>
+          {remainingParticipantCount > 0 && <li className="inline-flex h-7 min-w-7 items-center justify-center rounded-lg bg-surface px-1 text-xs font-medium tabular-nums text-muted" title={`还有 ${remainingParticipantCount} 位参与者`}>
             +{remainingParticipantCount}
           </li>}
         </ul>

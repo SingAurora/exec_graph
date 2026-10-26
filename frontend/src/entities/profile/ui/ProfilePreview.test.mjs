@@ -12,8 +12,8 @@ const renderCard = (props = {}) => renderToStaticMarkup(createElement(Popover.Ro
 describe('public profile preview', () => {
   test('the identity opens a popover without navigating directly or rendering private account data', () => {
     const html = renderToStaticMarkup(createElement(ProfilePreview, { profile, userId: profile.id }, profile.name))
-    expect(html).toContain('aria-label="查看乔的资料"')
-    expect(html).toContain('aria-haspopup="dialog"')
+    expect(html).toContain('title="查看乔的资料"')
+    expect(html).toContain('data-state="closed"')
     expect(html).not.toContain('href=')
     expect(html).not.toContain(profile.email)
   })

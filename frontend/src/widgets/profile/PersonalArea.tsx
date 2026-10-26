@@ -16,7 +16,7 @@ export function PersonalArea({ selectedTab, showNavigation, active, onSelectTab,
   return (
     <TabsRoot value={selectedTab} onValueChange={(value) => onSelectTab(value as 'overview' | 'profile')}>
       <div hidden={!showNavigation}>
-        <TabsList label="我的页面" showDivider={false}>
+        <TabsList showDivider={false}>
           <TabsTrigger value="overview"><span className="inline-flex items-center gap-1.5"><LayoutDashboard size={16} />总览</span></TabsTrigger>
           <TabsTrigger value="profile"><span className="inline-flex items-center gap-1.5"><UserRound size={16} />主页</span></TabsTrigger>
         </TabsList>

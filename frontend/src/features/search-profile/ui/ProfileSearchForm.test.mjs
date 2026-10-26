@@ -10,7 +10,7 @@ const render = (scope, criteria) => renderToStaticMarkup(createElement(ProfileSe
 describe('independent profile search form', () => {
   test('only agreement search exposes a counterpart and permits counterpart-only submissions', () => {
     const html = render('agreements', { keyword: '', counterpartId: 'miao' })
-    expect(html).toContain('aria-label="往来对象"')
+    expect(html).toContain('title="往来对象"')
     expect(html).toContain('>miao</span>')
     expect(html).not.toContain('type="submit" disabled')
     for (const scope of ['expressions', 'actions', 'graphs']) {

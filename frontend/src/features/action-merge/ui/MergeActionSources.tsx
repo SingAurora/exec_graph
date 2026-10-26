@@ -33,7 +33,7 @@ export function MergeActionSources({ actions, parentId, selectedIds, reviews, di
     else if (candidateIds.has(id)) onChange([...selectedIds, id])
   }
   return (
-    <div className="flex min-w-0 flex-wrap items-center gap-2" aria-label="合入来源">
+    <div className="flex min-w-0 flex-wrap items-center gap-2">
       {selectedIds.slice(0, 3).map((id) => {
         const node = actions.find((item) => item.id === id)
         if (!node) return null
@@ -45,7 +45,7 @@ export function MergeActionSources({ actions, parentId, selectedIds, reviews, di
           <span className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-line bg-paper px-2 py-1 text-xs" key={id} title={node.title}>
             <GitMerge size={13} className="shrink-0 text-muted" /><span className="shrink-0">合入 #{node.number}</span>
             <span className={`truncate ${stale || agreement.trim() && review?.complies === false ? 'text-coral' : agreement.trim() && review?.complies === true ? 'text-signal' : 'text-muted'}`}>{status}</span>
-            <button type="button" className="grid size-5 shrink-0 place-items-center rounded hover:bg-soft disabled:opacity-40" aria-label={`移除合入节点 #${node.number}`} disabled={disabled} onClick={() => toggle(id)}><X size={12} /></button>
+            <button type="button" className="grid size-5 shrink-0 place-items-center rounded hover:bg-soft disabled:opacity-40" title={`移除合入节点 #${node.number}`} disabled={disabled} onClick={() => toggle(id)}><X size={12} /></button>
           </span>
         )
       })}
@@ -59,16 +59,16 @@ export function MergeActionSources({ actions, parentId, selectedIds, reviews, di
         </HelpPopover>
       </div>
       <Dialog open={open} onOpenChange={setOpen} returnFocusRef={trigger} title="合入节点" description="选择其他分支的终端节点，预览行动记录和约定。" className="!w-[min(100%-32px,860px)]">
-        <label className="mt-5 flex items-center gap-2 rounded-md border border-line bg-paper px-3 py-2 text-muted"><Search size={15} /><input className="w-full border-0 bg-transparent text-sm text-ink outline-none" aria-label="搜索合入节点" placeholder="搜索节点编号或标题" value={query} onChange={(event) => setQuery(event.target.value)} /></label>
+        <label className="mt-5 flex items-center gap-2 rounded-md border border-line bg-paper px-3 py-2 text-muted"><Search size={15} /><input className="w-full border-0 bg-transparent text-sm text-ink outline-none" title="搜索合入节点" placeholder="搜索节点编号或标题" value={query} onChange={(event) => setQuery(event.target.value)} /></label>
         <div className="mt-4 grid h-[min(55dvh,440px)] grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-5">
-          <div className="overflow-y-auto pr-1" aria-label="可合入的节点">
+          <div className="overflow-y-auto pr-1">
             {visible.map((node) => <div key={node.id} className={`mb-1 flex items-start gap-2 rounded-md p-2 ${previewId === node.id ? 'bg-signal-soft' : 'hover:bg-soft'}`}>
-              <input type="checkbox" className="mt-1 accent-signal" aria-label={`合入节点 #${node.number}`} checked={selectedIds.includes(node.id)} disabled={disabled} onChange={() => { setPreviewId(node.id); toggle(node.id) }} />
+              <input type="checkbox" className="mt-1 accent-signal" title={`合入节点 #${node.number}`} checked={selectedIds.includes(node.id)} disabled={disabled} onChange={() => { setPreviewId(node.id); toggle(node.id) }} />
               <button type="button" className="min-w-0 flex-1 text-left text-[13px] leading-6" onClick={() => setPreviewId(node.id)}><span className="mr-2 text-xs tabular-nums text-muted">#{node.number}</span>{node.title}</button>
             </div>)}
             {!visible.length && <p className="py-8 text-center text-sm text-muted">{term ? '没有找到终端节点' : '暂无可合入的终端节点'}</p>}
           </div>
-          <section className="min-w-0 overflow-y-auto border-l border-line pl-5" aria-label="合入节点预览">
+          <section className="min-w-0 overflow-y-auto border-l border-line pl-5">
             {preview ? <><p className="mb-2 text-xs text-muted">节点 #{preview.number}</p><h3 className="mb-4 text-sm font-semibold leading-6">{preview.title}</h3><MarkdownContent markdown={preview.objectiveMarkdown ?? preview.markdown} images={preview.images} /><div className="mt-5 border-t border-line pt-4"><h4 className="mb-3 text-xs font-medium text-muted">来源约定</h4>{previewAgreement.trim() ? <MarkdownContent markdown={previewAgreement} /> : <p className="text-xs text-muted">无约定</p>}</div></> : <p className="py-8 text-center text-sm text-muted">选择节点查看行动与约定</p>}
           </section>
         </div>

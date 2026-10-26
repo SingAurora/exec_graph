@@ -38,10 +38,10 @@ export function FollowedDirectory({ kind, projects, users, actions, onOpenProjec
   const total = kind === 'graphs' ? projects.length : users.length
   const Icon = kind === 'graphs' ? Bookmark : UsersRound
   return (
-    <section className="pt-5" aria-label={kind === 'graphs' ? '关注的图' : '关注的用户'}>
-      {total > 0 && <label className="mb-2 flex h-10 max-w-sm items-center gap-2 rounded-md border border-line bg-surface px-3 focus-within:border-signal"><Search size={16} className="shrink-0 text-muted" /><input className="min-w-0 flex-1 border-0 bg-transparent text-sm text-ink outline-none" type="search" aria-label={kind === 'graphs' ? '搜索关注的图' : '搜索关注的用户'} placeholder={kind === 'graphs' ? '搜索图名称' : '搜索昵称'} value={query} onChange={(event) => setQuery(event.target.value)} /></label>}
-      {!items.length ? <div className="empty-state" role="status"><Icon size={24} strokeWidth={1.5} /><p>{total ? '没有找到匹配的结果' : kind === 'graphs' ? '还没有关注的图' : '还没有关注的用户'}</p>{!total && <a href="#home" className="quiet-button">去发现</a>}</div>
-        : <ul aria-label={kind === 'graphs' ? '已关注图列表' : '已关注用户列表'}>
+    <section className="pt-5">
+      {total > 0 && <label className="mb-2 flex h-10 max-w-sm items-center gap-2 rounded-md border border-line bg-surface px-3 focus-within:border-signal"><Search size={16} className="shrink-0 text-muted" /><input className="min-w-0 flex-1 border-0 bg-transparent text-sm text-ink outline-none" type="search" title={kind === 'graphs' ? '搜索关注的图' : '搜索关注的用户'} placeholder={kind === 'graphs' ? '搜索图名称' : '搜索昵称'} value={query} onChange={(event) => setQuery(event.target.value)} /></label>}
+      {!items.length ? <div className="empty-state"><Icon size={24} strokeWidth={1.5} /><p>{total ? '没有找到匹配的结果' : kind === 'graphs' ? '还没有关注的图' : '还没有关注的用户'}</p>{!total && <a href="#home" className="quiet-button">去发现</a>}</div>
+        : <ul>
           {kind === 'graphs' ? graphs.filter(({ project }) => matches(project.title)).map(({ project, lastActionAt }) => <li key={project.id} className="flex items-start gap-4 py-5">
             <button type="button" className="group flex min-w-0 flex-1 items-start gap-3.5 rounded-md border-0 bg-transparent p-0 text-left focus-visible:outline-signal" onClick={() => onOpenProject(project.id)}>
               <ProjectAvatar project={project} />

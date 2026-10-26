@@ -16,7 +16,7 @@ export function ProjectAvatar({ project, size = 'small' }: { project: Pick<Proje
   const [failedImage, setFailedImage] = useState<string>()
   const image = project.avatar?.trim()
   return (
-    <span className={`inline-grid flex-none place-items-center overflow-hidden bg-signal-soft font-bold text-signal ${avatarSizes[size]}`} aria-hidden="true">
+    <span className={`inline-grid flex-none place-items-center overflow-hidden bg-signal-soft font-bold text-signal ${avatarSizes[size]}`}>
       {image && failedImage !== image ? <img className="size-full object-cover" src={image} alt="" onError={() => setFailedImage(image)} /> : getAvatarLabel(project.title, '图')}
     </span>
   )

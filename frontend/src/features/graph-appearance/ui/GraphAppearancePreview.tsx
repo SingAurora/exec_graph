@@ -8,12 +8,12 @@ import type { GraphBackgroundPreferences } from '../../../shared/ui/graph-backgr
 export function GraphAppearancePreview({ preferences, showLegend, onShowLegendChange }: { preferences: GraphBackgroundPreferences; showLegend: boolean; onShowLegendChange: (show: boolean) => void }) {
   const id = useId()
   return (
-    <figure className="min-w-0 self-start" aria-label="节点图外观预览">
+    <figure className="min-w-0 self-start">
       <figcaption className="mb-3 text-xs leading-5 text-muted">实时预览</figcaption>
       <div className="overflow-hidden rounded-lg border border-line bg-surface">
-        <div className="relative h-60 overflow-hidden" aria-label="背景预览">
+        <div className="relative h-60 overflow-hidden">
           <GraphBackground preferences={preferences} />
-          <svg className="relative size-full" viewBox="0 0 300 240" aria-hidden="true">
+          <svg className="relative size-full" viewBox="0 0 300 240">
             <defs><marker id={`${id}-arrow`} markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto"><path d="M0 0 L5 2.5 L0 5 Z" fill="var(--graph-blue)" /></marker></defs>
             <path d="M100 56 V102 M100 134 V180" fill="none" stroke="var(--graph-blue)" strokeWidth="1.6" markerEnd={`url(#${id}-arrow)`} />
             <path d="M112 52 C112 80 210 70 210 102" fill="none" stroke="var(--graph-blue)" strokeWidth="1.6" strokeDasharray="5 4" markerEnd={`url(#${id}-arrow)`} />

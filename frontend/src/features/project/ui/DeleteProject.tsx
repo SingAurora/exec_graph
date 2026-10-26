@@ -32,11 +32,11 @@ export function DeleteProject({ title, nodeCount, onDelete, disabledReason }: De
   }
 
   return (
-    <section className="mt-6 flex items-center justify-between gap-4 border-t border-line pt-5" aria-label="删除行动图">
+    <section className="mt-6 flex items-center justify-between gap-4 border-t border-line pt-5">
       <h3 className="text-sm font-medium">删除行动图</h3>
       <AlertDialog.Root open={confirmationCount !== undefined && !disabledReason} onOpenChange={(open) => { if (!open && !saving) setConfirmationCount(undefined) }}>
         {disabledReason ? <Tooltip content={disabledReason}>
-          <span className="inline-flex cursor-not-allowed rounded-md" tabIndex={0} aria-label={`删除图：${disabledReason}`}>
+          <span className="inline-flex cursor-not-allowed rounded-md" tabIndex={0} title={`删除图：${disabledReason}`}>
             <button className="quiet-button pointer-events-none !text-coral" type="button" disabled><Trash2 size={16} />删除图</button>
           </span>
         </Tooltip> : <AlertDialog.Trigger asChild>

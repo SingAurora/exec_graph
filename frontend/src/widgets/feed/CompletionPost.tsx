@@ -24,7 +24,7 @@ export function CompletionPost({ completion, author, topic, plan, reaction, onRe
   return (
     <article className="border-b border-line py-[25px]">
       <div className="flex items-center gap-2.5"><Avatar profile={author} size="medium" /><div className="grid gap-[3px]"><strong className="text-[13px]">{author.name}</strong><span className="text-[11px] text-muted">{completion.createdAt}</span></div></div>
-      <button className="mt-[17px] flex w-full items-center justify-between gap-3 border-0 bg-transparent p-0 text-left text-ink hover:text-signal [&_h2]:hover:text-signal" type="button" onClick={() => onOpenTopic(topic.id)}><h2 className="text-lg tracking-[-.02em] max-[700px]:text-[17px]">{completion.title}</h2><ArrowRight className="flex-none text-signal" size={16} aria-hidden="true" /></button>
+      <button className="mt-[17px] flex w-full items-center justify-between gap-3 border-0 bg-transparent p-0 text-left text-ink hover:text-signal [&_h2]:hover:text-signal" type="button" onClick={() => onOpenTopic(topic.id)}><h2 className="text-lg tracking-[-.02em] max-[700px]:text-[17px]">{completion.title}</h2><ArrowRight className="flex-none text-signal" size={16} /></button>
       <button className="mt-2 border-0 bg-transparent p-0 text-left text-xs font-bold text-signal" type="button" onClick={() => onOpenTopic(topic.id)}>{topic.title}</button>
       <p className="mt-2.5 max-w-[720px] text-sm leading-[1.8] text-muted">{summaryFromMarkdown(completion.markdown)}</p>
       <PostImageGallery images={completion.images} />

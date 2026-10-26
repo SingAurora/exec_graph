@@ -92,7 +92,7 @@ export function SecurityForm({ kind, email, countdown, csrfToken, onRequestCode,
   const field = (name: SecurityFieldName) => ({ id: `security-${kind}-${name}`, name, error: errors[name] })
 
   return (
-    <form ref={formRef} className="grid gap-4" aria-label={isEmail ? '修改邮箱' : '修改密码'} noValidate onSubmit={submit} onChange={updateErrors} onBlur={updateErrors}>
+    <form ref={formRef} className="grid gap-4" noValidate onSubmit={submit} onChange={updateErrors} onBlur={updateErrors}>
       <fieldset className="contents" disabled={pending || codeSending}>
       {isEmail
         ? <SecurityField {...field('email')} label="新邮箱" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} placeholder="输入新的邮箱地址" />

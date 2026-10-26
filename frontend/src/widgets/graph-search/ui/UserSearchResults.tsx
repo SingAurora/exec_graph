@@ -12,7 +12,7 @@ export function UserSearchResults({ users, projectId, actionCounts, query }: {
   query: string
 }) {
   return (
-    <ul className="mt-2" aria-label="参与用户搜索结果">
+    <ul className="mt-2">
       {users.map((user) => <li key={user.id}>
         <div className="flex items-start gap-3 rounded-lg px-1 py-5">
           <ProfilePreview profile={user} userId={user.id} href={`#profile?userId=${encodeURIComponent(user.id)}&fromGraph=${encodeURIComponent(projectId)}`} className="inline-flex shrink-0 rounded-lg focus-visible:outline-2 focus-visible:outline-signal"><Avatar profile={user} size="medium" /></ProfilePreview>

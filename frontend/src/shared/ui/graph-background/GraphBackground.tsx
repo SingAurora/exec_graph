@@ -10,7 +10,7 @@ export function GraphBackground({ preferences }: { preferences: GraphBackgroundP
   const center = spacing / 2
   const opacity = { light: 0.12, standard: 0.22, strong: 0.35 }[pattern.intensity]
   return (
-    <svg className="pointer-events-none absolute inset-0 size-full text-signal" aria-hidden="true">
+    <svg className="pointer-events-none absolute inset-0 size-full text-signal">
       <defs><pattern id={id} width={spacing} height={spacing} patternUnits="userSpaceOnUse">
         {preferences.style === 'dots' && <circle cx={center} cy={center} r={preferences.dots.size / 2} fill="currentColor" />}
         {preferences.style === 'grid' && <path d={`M0 ${spacing} V0 H${spacing}`} fill="none" stroke="currentColor" strokeWidth={preferences.grid.lineWidth} />}

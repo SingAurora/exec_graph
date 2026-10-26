@@ -46,7 +46,7 @@ export function ProfilePage({ followingIds, ...props }: ProfilePageProps) {
           profile && <div hidden={userId !== profileRoute.userId} key={userId}><PublicProfile {...props} profile={profile} active={Boolean(props.active && userId === profileRoute.userId)} activityTabRequest={request} following={followingIds.includes(profile.id)} /></div>
         )
       })}
-      {!props.users.some((user) => user.id === resourceId(props.users, profileRoute.userId)) && <p className="empty-state" role="status">用户不存在</p>}
+      {!props.users.some((user) => user.id === resourceId(props.users, profileRoute.userId)) && <p className="empty-state">用户不存在</p>}
     </>
   )
 }

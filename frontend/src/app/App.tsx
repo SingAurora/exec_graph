@@ -81,7 +81,6 @@ export function App() {
     return (
       <main
         className="grid min-h-dvh place-content-center gap-4 bg-paper p-8 text-center text-sm text-copy"
-        role="status"
       >
         <p>{resources.error?.message ?? '正在加载…'}</p>
         {resources.error && (
@@ -108,7 +107,6 @@ export function App() {
       {resources.error && (
         <div
           className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-lg border border-line bg-surface px-4 py-3 text-sm text-copy"
-          role="status"
         >
           <span>{resources.error.message}</span>
           <button className="text-button" type="button" onClick={resources.retry}>

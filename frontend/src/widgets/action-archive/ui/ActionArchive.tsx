@@ -52,7 +52,7 @@ export function ActionArchive({ project, node, actions, users, onBack, onSelectS
       <header className="pb-5">
         <div className="flex min-w-0 items-center gap-3 text-xs leading-5 text-muted">
           <button className="text-button shrink-0" type="button" onClick={onBack}><ArrowLeft size={15} />回到行动图</button>
-          <span aria-hidden="true" className="text-muted/40">/</span>
+          <span className="text-muted/40">/</span>
           <span className="min-w-0 flex-1 truncate" title={project.title}>{project.title}</span>
           <HelpPopover title="形成过程">
             <p>行动和表达由同一条连续 AI 对话整理。修改表达继续已有对话，下方分别查看行动和表达两份文档，不拆分或重复聊天记录。</p>
@@ -67,24 +67,24 @@ export function ActionArchive({ project, node, actions, users, onBack, onSelectS
             <Avatar profile={author} label={authorName} size="small" /><span className="text-sm font-medium">{authorName}</span>
           </ProfilePreview>
           <time dateTime={node.createdAt} title={formatFullPublicationTime(node.createdAt)}>{formatPublicationTime(node.createdAt)}</time>
-          <div className="ml-auto flex items-center gap-2 tabular-nums"><span>节点 #{node.number}</span><span aria-hidden="true" className="text-muted/40">·</span><span>第 {getActionLevels(actions).get(node.id)} 层</span></div>
+          <div className="ml-auto flex items-center gap-2 tabular-nums"><span>节点 #{node.number}</span><span className="text-muted/40">·</span><span>第 {getActionLevels(actions).get(node.id)} 层</span></div>
         </div>
       </header>
 
-      <div className="rounded-lg bg-soft/70 py-1" aria-label="形成背景">
+      <div className="rounded-lg bg-soft/70 py-1">
         <ArchiveBackground node={node} actions={actions} onSelectSource={onSelectSource} />
-        <div className="grid grid-cols-[80px_minmax(0,1fr)] gap-x-3 px-4 py-2.5 text-[13px] leading-6" aria-label="表达处理状态">
+        <div className="grid grid-cols-[80px_minmax(0,1fr)] gap-x-3 px-4 py-2.5 text-[13px] leading-6">
           <span className="text-muted">表达</span>
           <div className="min-w-0">
             <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1"><span>{changeLabels[change.kind]}</span>
-              {expressionSource && <button className="border-0 bg-transparent p-0 text-[13px] leading-6 text-signal hover:underline" type="button" onClick={() => onSelectSource(expressionSource.id)} aria-label={`查看表达来源节点 #${expressionSource.number}的形成过程`}>节点 #{expressionSource.number}</button>}
+              {expressionSource && <button className="border-0 bg-transparent p-0 text-[13px] leading-6 text-signal hover:underline" type="button" onClick={() => onSelectSource(expressionSource.id)} title={`查看表达来源节点 #${expressionSource.number}的形成过程`}>节点 #{expressionSource.number}</button>}
             </div>
             {supplement && <p className="mt-1 text-xs leading-5 text-muted">发布后{getDocumentRevisionLabel(supplement)}表达 · {supplementAuthor} · <time dateTime={supplement.createdAt} title={formatFullPublicationTime(supplement.createdAt)}>{formatPublicationTime(supplement.createdAt)}</time></p>}
           </div>
         </div>
       </div>
 
-      {(agreement.markdown.trim() || node.agreementSupplement) && <details className="group mt-6 rounded-lg border border-line bg-surface" aria-label="约定结果">
+      {(agreement.markdown.trim() || node.agreementSupplement) && <details className="group mt-6 rounded-lg border border-line bg-surface">
         <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3.5 text-sm font-medium [&::-webkit-details-marker]:hidden"><FileText size={16} className="text-muted" />约定文档<ChevronDown size={15} className="ml-auto text-muted transition-transform group-open:rotate-180" /></summary>
         <div className="border-t border-line px-5 py-5">
           {agreement.sourceNode?.agreementSupplement && <p className="mb-3 text-xs text-muted">未记录编辑对话</p>}
@@ -96,17 +96,17 @@ export function ActionArchive({ project, node, actions, users, onBack, onSelectS
       <div className="mt-8">
         <h3 className="text-sm font-medium">文档结果</h3>
         <TabsRoot value={documentTab} onValueChange={setDocumentTab}>
-          <TabsList label="文档结果" showDivider={false}>
+          <TabsList showDivider={false}>
             <TabsTrigger value="objective"><span className="inline-flex items-center gap-1.5"><Footprints size={16} />行动</span></TabsTrigger>
             <TabsTrigger value="expression"><span className="inline-flex items-center gap-1.5"><MessageCircle size={16} />表达</span></TabsTrigger>
           </TabsList>
           <TabsContent value="objective" keepMounted>
-            <section className="mt-5 rounded-lg border border-line bg-surface p-5" aria-label="行动结果">
+            <section className="mt-5 rounded-lg border border-line bg-surface p-5">
               <MarkdownContent markdown={node.objectiveMarkdown ?? node.markdown} images={node.images} />
             </section>
           </TabsContent>
           <TabsContent value="expression" keepMounted>
-            <section className="mt-5 rounded-lg border border-line bg-surface p-5" aria-label="表达结果">
+            <section className="mt-5 rounded-lg border border-line bg-surface p-5">
               {expressionRevision && <p className="mb-3 text-xs text-muted">发布后{getDocumentRevisionLabel(expressionRevision)} · {expressionDialogue.length ? '已记录表达对话' : '未记录编辑对话'}</p>}
               {expression.markdown.trim() ? <ExpressionContent expression={expression} origin={getActionExpressionOrigin(actions, node.id)} onSelectSource={onSelectSource} /> : <p className="text-sm text-muted">表达为空</p>}
             </section>

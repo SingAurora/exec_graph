@@ -30,7 +30,7 @@ export function FollowButton({ kind, name, following, disabledReason, onChange }
     finally { pending.current = false; setSaving(false) }
   }
   const Icon = following ? Check : kind === 'graph' ? BookmarkPlus : UserPlus
-  const button = <button type="button" className={following || disabledReason ? 'quiet-button shrink-0' : 'primary-button shrink-0'} aria-label={`${following ? '取消关注' : '关注'}${kind === 'graph' ? '图' : '用户'}：${name}${disabledReason ? `，${disabledReason}` : ''}`} aria-pressed={following} disabled={Boolean(disabledReason) || saving} onClick={() => { void change(!following) }}><Icon size={15} />{following ? '已关注' : '关注'}</button>
+  const button = <button type="button" className={following || disabledReason ? 'quiet-button shrink-0' : 'primary-button shrink-0'} title={`${following ? '取消关注' : '关注'}${kind === 'graph' ? '图' : '用户'}：${name}${disabledReason ? `，${disabledReason}` : ''}`} disabled={Boolean(disabledReason) || saving} onClick={() => { void change(!following) }}><Icon size={15} />{following ? '已关注' : '关注'}</button>
   return (
     disabledReason ? <Tooltip content={disabledReason}><span className="inline-flex" tabIndex={0}>{button}</span></Tooltip> : button
   )

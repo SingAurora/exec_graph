@@ -34,14 +34,14 @@ export function AgreementResponseList({ references, users, active, infinite = tr
   const { visibleCount, endRef, hasMore } = useInfiniteList({ itemCount: responses.length, infinite, active })
 
   if (!responses.length && emptyContent) return (
-    <div className="empty-state" role="status">{emptyContent}</div>
+    <div className="empty-state">{emptyContent}</div>
   )
   if (!responses.length) return (
-    <p className="py-16 text-center text-[17px]" role="status">暂无满足约定的跨用户引用</p>
+    <p className="py-16 text-center text-[17px]">暂无满足约定的跨用户引用</p>
   )
   return (
     <div className="min-w-0">
-      <section aria-label="约定回应列表">
+      <section>
         {(infinite ? responses.slice(0, visibleCount) : responses).map((reference) => {
           const responder = usersById.get(reference.target.authorId)
           const agreementAuthorId = getReferenceAgreementAuthorId(reference)
@@ -54,7 +54,7 @@ export function AgreementResponseList({ references, users, active, infinite = tr
           return (
             <article className={`group relative isolate min-w-0 px-1 ${feed ? 'py-4' : 'py-5'}`} key={reference.id} data-reference-id={reference.id}>
               <button className="absolute inset-0 z-0 w-full cursor-pointer rounded-lg border-0 bg-transparent p-0 text-left transition hover:bg-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal" type="button"
-                aria-label={`查看约定回应：节点 #${reference.source.number} → #${reference.target.number}`} onClick={() => onExplore(reference)} />
+                title={`查看约定回应：节点 #${reference.source.number} → #${reference.target.number}`} onClick={() => onExplore(reference)} />
               <div className="pointer-events-none relative">
                 {!feed && renderContext && <div className="pointer-events-auto relative z-10 mb-2 w-fit">{renderContext(reference)}</div>}
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-2 text-sm leading-6">
@@ -79,7 +79,7 @@ export function AgreementResponseList({ references, users, active, infinite = tr
           )
         })}
       </section>
-      {infinite && <p ref={endRef} className="py-8 text-center text-xs leading-5 text-muted" role="status">{hasMore ? '加载中…' : '没有更多了'}</p>}
+      {infinite && <p ref={endRef} className="py-8 text-center text-xs leading-5 text-muted">{hasMore ? '加载中…' : '没有更多了'}</p>}
     </div>
   )
 }

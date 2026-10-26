@@ -14,16 +14,16 @@ describe('appearance preferences', () => {
     for (const darkMode of [false, true]) {
       const html = render({ darkMode })
       const theme = darkMode ? 'dark' : 'light'
-      expect(html).toMatch(new RegExp(`role="radio"[^>]*aria-checked="true"[^>]*value="${theme}"`))
-      expect(html.match(/role="radio"[^>]*aria-checked="true"/g)).toHaveLength(1)
+      expect(html).toMatch(new RegExp(`<button[^>]*data-state="checked"[^>]*value="${theme}"`))
+      expect(html.match(/<button[^>]*data-state="checked"[^>]*value="(?:light|dark)"/g)).toHaveLength(1)
     }
   })
 
   test('shows only relevant controls without losing the preview or legend switch for plain backgrounds', () => {
     for (const style of ['plain', 'dots', 'grid', 'crosses']) {
       const html = render({ graphBackground: { ...createDefaultGraphBackground(), style } })
-      expect(html).toContain('aria-label="节点图外观预览"')
-      expect(html).toContain('role="switch"')
+      expect(html).toContain('>实时预览</figcaption>')
+      expect(html).toMatch(/<label[^>]*for="[^"]+">显示图例<\/label>/)
       expect(html.includes('圆点大小')).toBe(style === 'dots')
       expect(html.includes('十字大小')).toBe(style === 'crosses')
       expect(html.includes('线条粗细')).toBe(style === 'grid' || style === 'crosses')
@@ -32,17 +32,18 @@ describe('appearance preferences', () => {
   })
 
   test('the preview shows the shared four-part legend only when enabled', () => {
-    expect(render()).not.toContain('aria-label="节点关系图例"')
+    expect(render()).not.toContain('自己引用')
     const html = render({ showActionGraphLegend: true })
-    expect(html).toContain('aria-label="节点关系图例"')
     for (const label of ['自己引用', '引用他人', '不满足约定', '节点层级']) expect(html).toContain(label)
-    expect(html).toContain('aria-checked="true" data-state="checked"')
+    expect(html).toContain('data-state="checked"')
   })
 
   test('reset is enabled for changed settings, including retained settings of an inactive background', () => {
-    expect(render()).toMatch(/<button[^>]*disabled=""[^>]*aria-label="恢复节点图背景默认设置"/)
+    expect(render()).toMatch(/<button[^>]*disabled=""[^>]*title="恢复节点图背景默认设置"/)
     const changed = createDefaultGraphBackground()
     changed.grid.spacing = 32
-    expect(render({ graphBackground: changed })).not.toMatch(/<button[^>]*disabled=""[^>]*aria-label="恢复节点图背景默认设置"/)
+    const reset = render({ graphBackground: changed }).match(/<button[^>]*title="恢复节点图背景默认设置"[^>]*>/)?.[0]
+    expect(reset).toBeDefined()
+    expect(reset).not.toMatch(/\sdisabled(?:=|\s|>)/)
   })
 })

@@ -21,11 +21,11 @@ export function GraphBackgroundSettings({ preferences, onChange, showLegend, onS
     if (preferences.style !== 'plain') onChange({ ...preferences, [preferences.style]: { ...preferences[preferences.style], ...patch } })
   }
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_300px] items-start gap-8 max-[1000px]:grid-cols-1" aria-label="节点图背景设置">
+    <div className="grid grid-cols-[minmax(0,1fr)_300px] items-start gap-8 max-[1000px]:grid-cols-1">
       <div className="grid min-w-0 gap-5">
       <fieldset>
         <legend className="sr-only">背景样式</legend>
-        <div className="mb-3 flex items-center justify-between gap-3"><span className="text-sm font-medium" aria-hidden="true">背景样式</span><button className="inline-flex min-h-5 items-center gap-1.5 border-0 bg-transparent p-0 text-xs text-muted hover:text-signal disabled:hover:text-muted" type="button" disabled={isDefault} onClick={() => onChange(createDefaultGraphBackground())} aria-label="恢复节点图背景默认设置"><RotateCcw size={12} aria-hidden="true" />恢复默认</button></div>
+        <div className="mb-3 flex items-center justify-between gap-3"><span className="text-sm font-medium">背景样式</span><button className="inline-flex min-h-5 items-center gap-1.5 border-0 bg-transparent p-0 text-xs text-muted hover:text-signal disabled:hover:text-muted" type="button" disabled={isDefault} onClick={() => onChange(createDefaultGraphBackground())} title="恢复节点图背景默认设置"><RotateCcw size={12} />恢复默认</button></div>
         <div className="grid grid-cols-4 gap-2">
           {styles.map(({ value, label }) => <label className="min-w-0 cursor-pointer" key={value}>
             <input className="peer sr-only" type="radio" name={`${id}-style`} value={value} checked={preferences.style === value} onChange={() => onChange({ ...preferences, style: value })} />
@@ -56,6 +56,6 @@ export function GraphBackgroundSettings({ preferences, onChange, showLegend, onS
 function RangeControl({ label, value, min, max, step = 1, onChange }: { label: string; value: number; min: number; max: number; step?: number; onChange: (value: number) => void }) {
   const id = useId()
   return (
-    <div><div className="mb-2 flex items-center justify-between gap-3 text-sm"><label className="font-medium" htmlFor={id}>{label}</label><output className="text-xs tabular-nums text-muted" htmlFor={id}>{value} px</output></div><input className="block h-5 w-full cursor-pointer accent-signal" id={id} type="range" min={min} max={max} step={step} value={value} aria-valuetext={`${value} 像素`} onChange={(event) => onChange(Number(event.target.value))} /></div>
+    <div><div className="mb-2 flex items-center justify-between gap-3 text-sm"><label className="font-medium" htmlFor={id}>{label}</label><output className="text-xs tabular-nums text-muted" htmlFor={id}>{value} px</output></div><input className="block h-5 w-full cursor-pointer accent-signal" id={id} type="range" min={min} max={max} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} /></div>
   )
 }

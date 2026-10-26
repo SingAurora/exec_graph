@@ -5,6 +5,6 @@ export function GenderMark({ gender }: { gender: Gender }) {
   if (gender === 'unknown') return null
   const isMale = gender === 'male'
   return (
-    <span className={`gender-mark ${isMale ? 'is-male' : 'is-female'}`} aria-label={isMale ? '男' : '女'} title={isMale ? '男' : '女'} aria-hidden="true">{isMale ? '♂' : '♀'}</span>
+    <span className={`gender-mark ${isMale ? 'is-male' : 'is-female'}`} title={isMale ? '男' : '女'}>{isMale ? '♂' : '♀'}</span>
   )
 }

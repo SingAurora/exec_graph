@@ -197,7 +197,7 @@ export function ProjectDetail({ project, active = true, externalFocus, currentUs
         {!actions.length && <button className="primary-button" type="button" onClick={createAction}><Plus size={16} />记录第一次行动</button>}
       </div>} />
       <TabsRoot value={activeTab} onValueChange={(value) => switchTab(value as ProjectTab)}>
-        <TabsList label="行动图内容" sticky showDivider={false}>
+        <TabsList sticky showDivider={false}>
           <TabsTrigger value="expressions"><span className="inline-flex items-center gap-1.5"><MessageCircle size={16} />表达</span></TabsTrigger>
           <TabsTrigger value="agreements"><span className="inline-flex items-center gap-1.5"><ScrollText size={16} />约定</span></TabsTrigger>
           <TabsTrigger value="facts"><span className="inline-flex items-center gap-1.5"><Footprints size={16} />行动</span></TabsTrigger>
@@ -224,18 +224,18 @@ export function ProjectDetail({ project, active = true, externalFocus, currentUs
           </div>
         </TabsContent>
         <TabsContent value="explore" keepMounted={visitedExplore}>
-          {!actions.length ? <p className="py-16 text-center text-[17px]" role="status">暂无节点</p> : <div className="relative mt-5">
-          <div ref={workspaceRef} className={`grid h-[calc(100dvh-44px)] scroll-mt-11 overflow-hidden rounded-lg border border-line bg-surface outline-none ${detailsVisible ? 'grid-cols-[342px_minmax(0,1fr)]' : 'grid-cols-1'}`} role="region" tabIndex={-1} aria-label="行动阅读工作区">
+          {!actions.length ? <p className="py-16 text-center text-[17px]">暂无节点</p> : <div className="relative mt-5">
+          <div ref={workspaceRef} className={`grid h-[calc(100dvh-44px)] scroll-mt-11 overflow-hidden rounded-lg border border-line bg-surface outline-none ${detailsVisible ? 'grid-cols-[342px_minmax(0,1fr)]' : 'grid-cols-1'}`} tabIndex={-1}>
             <ActionGraph actions={actions} highlightedPath={highlightedPath} users={users} selectedId={selected?.id} selectedReferenceId={selectedReference?.id} showLegend={showActionGraphLegend} background={graphBackground} active={active && activeTab === 'explore'} focusRequest={focusRequest} locateRequest={nodeLocateRequest} detailsVisible={detailsVisible} onClearHighlight={() => setHighlightTipId(undefined)} onSelect={selectNode} onSelectReference={(id) => { setSelection({ kind: 'reference', id }); setDetailsVisible(true) }} onFitViewport={() => workspaceRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' })} />
-            <ActionReadingPane readingKey={selectedReference ? `reference:${selectedReference.id}` : `node:${selected?.id}:${visibleDocumentMode}`} focusRequest={focusRequest} hidden={!detailsVisible} active={active && activeTab === 'explore' && detailsVisible} label={selectedReference ? '选中引用关系详情' : '选中行动节点详情'}>
+            <ActionReadingPane readingKey={selectedReference ? `reference:${selectedReference.id}` : `node:${selected?.id}:${visibleDocumentMode}`} focusRequest={focusRequest} hidden={!detailsVisible} active={active && activeTab === 'explore' && detailsVisible}>
               {selectedReference ? <ActionReferenceDetail reference={selectedReference} actions={actions} users={users} onHide={hideDetails} onSelectNode={selectNode} />
                 : selected ? <ActionDetail node={selected} actions={actions} users={users} currentUserId={currentUserId} author={users.find((user) => user.id === selected.authorId)} isHighlightTip={highlightTipId === selected.id} onHighlight={() => setHighlightTipId(selected.id)} onHide={hideDetails} onLocate={() => setNodeLocateRequest((value) => value + 1)} recordMode={visibleDocumentMode} onModeChange={setDocumentMode} branches={actions.filter((node) => node.parentId === selected.id)} onOpenArchive={() => openArchive(selected)} onContinue={() => continueAction(selected)} onSelect={selectNode} onEditExpression={editExpression} onUpdateAgreement={onUpdateAgreement} />
                   : <p className="p-6 text-sm text-muted">暂无行动</p>}
             </ActionReadingPane>
           </div>
-          <aside className="absolute inset-y-0 -right-7 w-6" aria-label="页面滚动提示">
+          <aside className="absolute inset-y-0 -right-7 w-6">
             <p className="sticky top-[calc(50dvh-64px)] flex w-6 flex-col items-center gap-2 rounded-full bg-soft px-1 py-3 text-xs leading-4 text-muted">
-              <ArrowUpDown size={14} className="shrink-0" aria-hidden="true" />
+              <ArrowUpDown size={14} className="shrink-0" />
               <span className="[writing-mode:vertical-rl]">在此滚动页面</span>
             </p>
           </aside>

@@ -22,28 +22,28 @@ function ActionSources({ node, actions, users, onSelect }: { node: ActionNode; a
   const continuation = parents.find((parent) => parent.id === node.parentId)
   const merged = parents.filter((parent) => parent.id !== node.parentId)
   if (!parents.length) return null
-  const sourceButton = (parent: ActionNode, relation: string) => <button key={parent.id} className="group inline-flex min-h-6 items-center gap-1 whitespace-nowrap rounded-sm border-0 bg-transparent p-0 text-xs" type="button" aria-label={`查看${relation}节点 #${parent.number}`} title={parent.title} onClick={() => onSelect(parent.id)}>
+  const sourceButton = (parent: ActionNode, relation: string) => <button key={parent.id} className="group inline-flex min-h-6 items-center gap-1 whitespace-nowrap rounded-sm border-0 bg-transparent p-0 text-xs" type="button" title={parent.title} onClick={() => onSelect(parent.id)}>
     <span className="text-muted group-hover:text-ink">{relation}</span>
     <span className="font-medium tabular-nums text-signal group-hover:underline">#{parent.number}</span>
   </button>
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-l border-line pl-3" aria-label="直接来源">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-l border-line pl-3">
       {continuation && sourceButton(continuation, '承接')}
       {merged.length === 1 && sourceButton(merged[0], '合入')}
       {merged.length > 1 && <Popover.Root key={node.id}>
-        <Popover.Trigger type="button" className="group inline-flex min-h-6 items-center gap-1 whitespace-nowrap rounded-sm border-0 bg-transparent p-0 text-xs" aria-label={`查看 ${merged.length} 个合入节点`}>
+        <Popover.Trigger type="button" className="group inline-flex min-h-6 items-center gap-1 whitespace-nowrap rounded-sm border-0 bg-transparent p-0 text-xs" title={`查看 ${merged.length} 个合入节点`}>
           <span className="text-muted group-hover:text-ink">合入</span>
           <span className="font-medium tabular-nums text-signal group-hover:underline">{merged.length} 个节点</span>
-          <ChevronDown size={12} className="text-muted group-hover:text-signal" aria-hidden="true" />
+          <ChevronDown size={12} className="text-muted group-hover:text-signal" />
         </Popover.Trigger>
-        <Popover.Portal><Popover.Content className="z-50 w-80 max-w-[calc(100vw-24px)] overflow-hidden rounded-lg border border-line bg-surface text-ink shadow-app" align="start" sideOffset={8} collisionPadding={12} aria-label="合入节点">
+        <Popover.Portal><Popover.Content className="z-50 w-80 max-w-[calc(100vw-24px)] overflow-hidden rounded-lg border border-line bg-surface text-ink shadow-app" align="start" sideOffset={8} collisionPadding={12}>
           <div className="px-3 pb-1 pt-3 text-xs font-medium text-muted">合入节点 · {merged.length}</div>
           <div className="max-h-64 overflow-y-auto overscroll-contain p-1.5">
             {merged.map((parent) => {
               const authorName = users.find((user) => user.id === parent.authorId)?.name ?? parent.authorId
               return (
                 <Popover.Close asChild key={parent.id}>
-                  <button className="group block w-full rounded border-0 bg-transparent px-2 py-2 text-left hover:bg-soft focus-visible:outline-2 focus-visible:outline-signal" type="button" aria-label={`查看合入节点 #${parent.number}：${parent.title}`} onClick={() => onSelect(parent.id)}>
+                  <button className="group block w-full rounded border-0 bg-transparent px-2 py-2 text-left hover:bg-soft focus-visible:outline-2 focus-visible:outline-signal" type="button" title={`查看合入节点 #${parent.number}：${parent.title}`} onClick={() => onSelect(parent.id)}>
                     <span className="flex items-baseline gap-2 text-sm leading-5">
                       <span className="shrink-0 font-medium tabular-nums text-signal">#{parent.number}</span>
                       <span className="min-w-0 truncate group-hover:text-signal" title={parent.title}>{parent.title}</span>
@@ -100,7 +100,7 @@ export function ActionDetail({ node, actions, users, author, currentUserId, isHi
             <ActionSources node={node} actions={actions} users={users} onSelect={onSelect} />
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            <button type="button" className={`icon-button ${isHighlightTip ? 'border-signal bg-signal-soft text-signal' : ''}`} aria-label="高亮链路" aria-pressed={isHighlightTip} title="高亮链路" onClick={onHighlight}><Route size={16} aria-hidden="true" /></button>
+            <button type="button" className={`icon-button ${isHighlightTip ? 'border-signal bg-signal-soft text-signal' : ''}`} title="高亮链路" onClick={onHighlight}><Route size={16} /></button>
             <DetailPanelControls onHide={onHide} onLocate={onLocate} locateLabel="定位此节点" />
           </div>
         </div>
@@ -114,8 +114,8 @@ export function ActionDetail({ node, actions, users, author, currentUserId, isHi
         </div>
       </header>
       <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-line bg-surface/95 px-6 py-2 backdrop-blur-sm">
-        <div className="flex items-center gap-5" role="group" aria-label="文档类型">
-          {documentModes.map((mode) => <button key={mode} className={`min-h-8 border-0 bg-transparent px-0 py-1 text-sm font-medium transition-colors ${activeMode === mode ? 'text-signal' : 'text-muted hover:text-signal'}`} type="button" aria-pressed={activeMode === mode} onClick={() => onModeChange(mode)}>{mode === 'objective' ? '行动' : '表达'}</button>)}
+        <div className="flex items-center gap-5">
+          {documentModes.map((mode) => <button key={mode} className={`min-h-8 border-0 bg-transparent px-0 py-1 text-sm font-medium transition-colors ${activeMode === mode ? 'text-signal' : 'text-muted hover:text-signal'}`} type="button" onClick={() => onModeChange(mode)}>{mode === 'objective' ? '行动' : '表达'}</button>)}
         </div>
         <HelpPopover title="行动与表达">
           <p>行动记录本次实际发生的事情；表达没有更新时沿用承接节点的表达，可以主动清空。合入来源不会自动覆盖表达。</p>
@@ -130,11 +130,11 @@ export function ActionDetail({ node, actions, users, author, currentUserId, isHi
         {canEditActionExpression(actions, node.id) && <EditExpression markdown={expression.markdown} onOpen={() => onEditExpression(node)} />}
         <button className="inline-flex min-h-9 items-center gap-1.5 border-0 bg-transparent px-0 text-sm text-muted hover:text-signal" type="button" onClick={onOpenArchive}><MessageCircle size={16} />查看形成过程</button>
       </footer>
-      <section className="space-y-2 px-6 pb-6" aria-label="节点约定">
+      <section className="space-y-2 px-6 pb-6">
         <ActionOwnAgreement key={node.id} node={node} actions={actions} currentUserId={currentUserId} onSelect={onSelect} onUpdate={onUpdateAgreement ? (markdown) => onUpdateAgreement(node.id, markdown) : undefined} />
         <ActionSourceAgreements node={node} actions={actions} users={users} onSelect={onSelect} />
       </section>
-      {branches.length > 0 && <section className="border-t border-line px-6 py-5" aria-label="后续行动">
+      {branches.length > 0 && <section className="border-t border-line px-6 py-5">
         <h4 className="text-sm font-medium">后续行动 <span className="ml-1 text-xs font-normal text-muted">{branches.length}</span></h4>
         <div className="mt-2 divide-y divide-line">{branches.map((branch) => {
           const branchAuthor = users.find((user) => user.id === branch.authorId)

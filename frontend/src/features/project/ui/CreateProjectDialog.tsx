@@ -31,7 +31,7 @@ export function CreateProjectDialog({ onClose, onCreate, returnFocusRef }: Creat
         <label className="mt-3 flex items-center justify-between text-sm font-medium" htmlFor="project-description">图简介<span className="text-xs font-normal text-muted">可选</span></label><textarea className="form-input min-h-28 resize-y leading-6" id="project-description" value={description} maxLength={200} rows={4} onChange={(event) => setDescription(event.target.value)} placeholder="介绍这张图" />
         <div className="mt-[15px] flex justify-end gap-[9px]"><button className="quiet-button" type="button" onClick={onClose}>取消</button><button className="primary-button" type="submit" disabled={!title.trim()}>发起行动图</button></div>
         </fieldset>
-        {error && <p role="alert" className="text-xs text-coral">{error}</p>}
+        {error && <p className="text-xs text-coral">{error}</p>}
       </form>
     </Dialog>
   )

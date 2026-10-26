@@ -16,7 +16,7 @@ const labels: Record<ProfileSearchScope, string> = { expressions: '表达', agre
 export function ProfileSearchForm({ scope, criteria, counterpartOptions, onChange, onSubmit, onReset }: Props) {
   const hasCriteria = Boolean(criteria.keyword.trim() || (scope === 'agreements' && criteria.counterpartId))
   return (
-    <form className="space-y-3" aria-label={`主页${labels[scope]}搜索`} onSubmit={(event) => { event.preventDefault(); if (hasCriteria) onSubmit() }}>
+    <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); if (hasCriteria) onSubmit() }}>
       <div className="flex items-center gap-2">
         <div className="min-w-0 flex-1"><SearchInput label={labels[scope]} value={criteria.keyword} size="wide" onChange={(keyword) => onChange({ ...criteria, keyword })} /></div>
         <button className="primary-button" type="submit" disabled={!hasCriteria}>搜索</button>
@@ -24,7 +24,7 @@ export function ProfileSearchForm({ scope, criteria, counterpartOptions, onChang
       </div>
       {scope === 'agreements' && <div className="flex items-center gap-2">
         <span className="text-xs text-muted">往来对象</span>
-        <SearchSelect ariaLabel="往来对象" value={criteria.counterpartId} options={[{ value: '', label: '全部对象' }, ...counterpartOptions]} onValueChange={(counterpartId) => onChange({ ...criteria, counterpartId })} />
+        <SearchSelect label="往来对象" value={criteria.counterpartId} options={[{ value: '', label: '全部对象' }, ...counterpartOptions]} onValueChange={(counterpartId) => onChange({ ...criteria, counterpartId })} />
       </div>}
     </form>
   )

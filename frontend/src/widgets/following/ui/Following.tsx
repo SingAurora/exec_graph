@@ -65,7 +65,7 @@ export function Following({ sources, actions, projects, users, active, onOpenPro
   return (
     <TabsRoot value={tab} onValueChange={(value) => switchTab(value as FollowingTab)}>
       <div className="sticky top-0 z-20 mt-[23px] bg-paper">
-        <TabsList label="关注分类" showDivider={false} compact>
+        <TabsList showDivider={false} compact>
           <TabsTrigger value="expressions"><span className="inline-flex items-center gap-1.5"><MessageCircle size={16} />表达</span></TabsTrigger>
           <TabsTrigger value="agreements"><span className="inline-flex items-center gap-1.5"><ScrollText size={16} />约定</span></TabsTrigger>
           <TabsTrigger value="graphs" className="ml-5"><span className="inline-flex items-center gap-1.5"><Bookmark size={16} />图<span className="ml-0.5 text-xs tabular-nums text-muted">{followedGraphs.length}</span></span></TabsTrigger>

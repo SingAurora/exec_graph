@@ -52,9 +52,9 @@ export function ActionReferenceDetail({ reference, actions, users, onSelectNode,
         </h3>
       </header>
 
-      <section className="px-6 py-4" aria-label="引用双方">
+      <section className="px-6 py-4">
         <ReferenceNode label="来源" node={source} author={userById.get(source.authorId)} level={levels.get(source.id)} onSelect={onSelectNode} />
-        <div className="my-2 ml-4 h-5 border-l border-line" aria-hidden="true" />
+        <div className="my-2 ml-4 h-5 border-l border-line" />
         <ReferenceNode label="引用行动" node={target} author={userById.get(target.authorId)} level={levels.get(target.id)} onSelect={onSelectNode} />
       </section>
 
@@ -68,7 +68,7 @@ export function ActionReferenceDetail({ reference, actions, users, onSelectNode,
       <section className="px-6 py-4">
         <h4 className="text-sm font-medium">约定核对</h4>
         <p className={`mt-3 text-sm ${exception ? 'text-coral' : agreementStatus === 'satisfied' ? 'text-signal' : 'text-muted'}`}>
-          {exception && <span aria-hidden="true">× </span>}{agreementLabels[agreementStatus]}
+          {exception && <span>× </span>}{agreementLabels[agreementStatus]}
         </p>
         {exception && <>
           <h5 className="mt-4 text-xs font-semibold text-muted">不符合原因</h5>

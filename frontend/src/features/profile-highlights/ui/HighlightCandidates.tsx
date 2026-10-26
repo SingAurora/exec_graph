@@ -34,21 +34,21 @@ export function HighlightCandidates({ active, candidates, projects, full, onAdd,
   }
 
   return (
-    <section id="highlight-candidates" hidden={!active} aria-label="可选表达">
-      <form className="mb-3 flex items-center gap-2" aria-label="精选表达搜索" onSubmit={(event) => { event.preventDefault(); submit(input) }}>
+    <section id="highlight-candidates" hidden={!active}>
+      <form className="mb-3 flex items-center gap-2" onSubmit={(event) => { event.preventDefault(); submit(input) }}>
         <div className="min-w-0 flex-1"><SearchInput size="wide" label="表达、行动、约定或图名" value={input} onChange={setInput} onClear={() => { setInput(''); submit('') }} /></div>
         <button type="submit" className="primary-button">搜索</button>
       </form>
-      <p className="mb-2 text-xs text-muted" role="status">{keyword ? '搜索结果' : '可选表达'} · 共 {matches.length} 条</p>
-      <div ref={scrollRef} className="max-h-[40dvh] overflow-x-hidden overflow-y-auto overscroll-contain pr-4 [scrollbar-gutter:stable]" aria-label="可选表达列表">
+      <p className="mb-2 text-xs text-muted">{keyword ? '搜索结果' : '可选表达'} · 共 {matches.length} 条</p>
+      <div ref={scrollRef} className="max-h-[40dvh] overflow-x-hidden overflow-y-auto overscroll-contain pr-4 [scrollbar-gutter:stable]">
         {!matches.length && <p className="py-5 text-sm text-muted">{keyword ? '没有匹配的表达' : '暂无其他可选表达'}</p>}
         <ul className="divide-y divide-line">{visible.map((entry) => <li key={entry.node.id} className="py-3">
           {renderEntry(entry, keyword)}
-          <div className="mt-2 flex justify-end"><button type="button" className="icon-button" aria-label={`添加表达：${entry.node.title}`} title="添加表达" disabled={full} onClick={() => onAdd(entry.node.id)}><Plus size={16} /></button></div>
+          <div className="mt-2 flex justify-end"><button type="button" className="icon-button" title="添加表达" disabled={full} onClick={() => onAdd(entry.node.id)}><Plus size={16} /></button></div>
         </li>)}</ul>
-        {!keyword && <p ref={endRef} className="py-3 text-center text-xs text-muted" role="status">{hasMore ? '加载中…' : matches.length ? '已显示全部可选表达' : ''}</p>}
+        {!keyword && <p ref={endRef} className="py-3 text-center text-xs text-muted">{hasMore ? '加载中…' : matches.length ? '已显示全部可选表达' : ''}</p>}
       </div>
-      {keyword && pageCount > 1 && <Pagination currentPage={currentPage} pageCount={pageCount} label="精选表达搜索分页" onChange={(next) => { setPage(next); scrollRef.current?.scrollTo({ top: 0 }) }} />}
+      {keyword && pageCount > 1 && <Pagination currentPage={currentPage} pageCount={pageCount} onChange={(next) => { setPage(next); scrollRef.current?.scrollTo({ top: 0 }) }} />}
     </section>
   )
 }

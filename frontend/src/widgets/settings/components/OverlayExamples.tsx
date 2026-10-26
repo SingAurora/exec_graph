@@ -27,13 +27,13 @@ export function OverlayExamples() {
       </ShowcaseCard>
 
       <ShowcaseCard name="悬浮提示" term="Tooltip" source="项目封装 · Radix UI" description="鼠标悬浮或键盘聚焦时显示一句短提示，适合说明图标按钮。">
-        <div><Tooltip content="查看来源节点"><button className="icon-button" type="button" aria-label="查看来源节点示例"><ArrowUpRight size={16} /></button></Tooltip></div>
+        <div><Tooltip content="查看来源节点"><button className="icon-button" type="button" title="查看来源节点示例"><ArrowUpRight size={16} /></button></Tooltip></div>
         <p className="text-[11px] text-muted">悬浮在图标上，或用 Tab 聚焦</p>
       </ShowcaseCard>
 
       <ShowcaseCard name="模态对话框" term="Dialog / Modal" source="项目封装 · Radix UI" description="居中展开并暂时隔开底层页面，适合编辑表单、发起行动图等完整操作。">
         <div><button ref={dialogTrigger} className="quiet-button" type="button" onClick={() => { setTitle(savedTitle); setDialogOpen(true) }}>编辑演示标题</button></div>
-        <p className="truncate text-[11px] text-muted" aria-live="polite">{savedTitle}</p>
+        <p className="truncate text-[11px] text-muted">{savedTitle}</p>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen} title="编辑演示标题" description="修改标题后保存，仅更新组件演示。" returnFocusRef={dialogTrigger}>
           <form className="mt-5 grid gap-4" onSubmit={(event) => { event.preventDefault(); setSavedTitle(title.trim()); setDialogOpen(false) }}>
             <label className="grid gap-2 text-xs">标题<input className="h-9 rounded-md border border-line bg-transparent px-3 text-xs outline-none focus:border-signal" value={title} onChange={(event) => setTitle(event.target.value)} /></label>
@@ -54,7 +54,7 @@ export function OverlayExamples() {
             </AlertDialog.Content>
           </AlertDialog.Portal>
         </AlertDialog.Root>
-        <div className="flex items-center gap-3 text-[11px] text-muted" aria-live="polite"><span>{confirmed ? '已确认演示操作' : '尚未确认'}</span>{confirmed && <button className="border-0 bg-transparent p-0 text-signal" type="button" onClick={() => setConfirmed(false)}>重置</button>}</div>
+        <div className="flex items-center gap-3 text-[11px] text-muted"><span>{confirmed ? '已确认演示操作' : '尚未确认'}</span>{confirmed && <button className="border-0 bg-transparent p-0 text-signal" type="button" onClick={() => setConfirmed(false)}>重置</button>}</div>
       </ShowcaseCard>
 
       <ShowcaseCard name="下拉操作菜单" term="Dropdown Menu" source="Radix UI 基础组件" description="收纳针对当前对象的多个操作，适合节点右上角的“更多”。">
@@ -67,7 +67,7 @@ export function OverlayExamples() {
             <DropdownMenu.Item className={menuItemClass} onSelect={() => setMenuAction('标记已读')}><Check size={14} />标记已读</DropdownMenu.Item>
           </DropdownMenu.Content></DropdownMenu.Portal>
         </DropdownMenu.Root>
-        <p className="text-[11px] text-muted" aria-live="polite">{menuAction}</p>
+        <p className="text-[11px] text-muted">{menuAction}</p>
       </ShowcaseCard>
 
       <ShowcaseCard name="短时通知" term="Toast" source="项目封装 · Radix UI" description="操作后短暂出现并自动消失，适合保存结果、警告和失败反馈。">
