@@ -1,7 +1,14 @@
+/* 全局样式入口：由 src/main.tsx 引入，统一主题、基础样式和公共组件外观。 */
+/* 引入 Tailwind CSS，让组件可以使用 flex、px-3、text-sm 等工具类。 */
 @import "tailwindcss";
 
+/* 根元素或祖先带有 data-theme="dark" 时，启用组件中的 dark: 工具类。 */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
+/*
+ * 将 CSS 变量接入 Tailwind 主题。例如 --color-paper 对应 bg-paper、text-paper 等类。
+ * inline 使生成的工具类直接引用 var(--paper)，颜色由元素所在的主题决定。
+ */
 @theme inline {
   --color-paper: var(--paper);
   --color-surface: var(--surface);
@@ -20,32 +27,44 @@
   --font-sans: 'Noto Sans SC', 'DM Sans', sans-serif;
 }
 
+/*
+ * :root 是 HTML 根元素；这里提供默认的浅色主题，以及全站字体和文字渲染设置。
+ * -- 开头的是自定义变量，使用 var(--变量名) 读取；修改变量可统一调整全站配色。
+ */
 :root {
+  /* 提示浏览器使用浅色原生控件；应用自身的配色仍由下面的变量决定。 */
   color-scheme: light;
+  /* 页面背景、内容面板、柔和背景和分隔线。 */
   --paper: #f6f8f6;
   --surface: #ffffff;
   --soft: #edf2ef;
   --line: #dbe3de;
+  /* 主要文字、次要文字、正文辅助色，以及主色背景上的文字色。 */
   --ink: #1d2923;
   --muted: #64736b;
   --copy: #42524a;
   --on-signal: #ffffff;
+  /* 品牌主色、悬停色、浅主色背景，以及辅助强调色和警示色。 */
   --signal: #236b59;
   --signal-dark: #174e40;
   --signal-soft: #e5f0eb;
   --coral: #b85e4e;
   --warning: #a16f24;
+  /* 图形配色与公共阴影；图形颜色也可直接通过 var(...) 使用。 */
   --graph-blue: #577f9b;
   --graph-purple: #8b709c;
   --shadow: 0 18px 48px rgb(28 48 40 / 0.08);
+  /* 字体按顺序回退；声明字体名称本身不会下载字体文件。 */
   font-family: 'Noto Sans SC', 'DM Sans', sans-serif;
   background: var(--paper);
   color: var(--ink);
+  /* 禁止浏览器合成粗体／斜体，并提供文字排版、抗锯齿的渲染提示。 */
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }
 
+/* 深色主题覆盖同名变量；切换根元素的 data-theme 后，bg-paper 等样式自动换色。 */
 [data-theme='dark'] {
   color-scheme: dark;
   --paper: #171c1a;
@@ -66,29 +85,39 @@
   --shadow: 0 18px 48px rgb(0 0 0 / 0.24);
 }
 
+/* 基础层统一浏览器默认样式；放在 base 层，便于组件层和 Tailwind 工具类覆盖。 */
 @layer base {
+  /* 声明的宽高包含内边距和边框，便于计算布局尺寸。 */
   * { box-sizing: border-box; }
   html { min-width: 320px; scroll-behavior: smooth; }
   body { min-width: 320px; margin: 0; background: var(--paper); color: var(--ink); }
   a { color: inherit; text-decoration: none; }
+  /* 原生表单控件继承页面字体，避免浏览器默认字体造成不一致。 */
   button, textarea, input, select { font: inherit; }
   button { cursor: pointer; }
   button:disabled { cursor: not-allowed; opacity: .5; }
+  /* 通常在键盘导航时显示焦点轮廓，帮助识别当前操作位置。 */
   button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid rgb(35 107 89 / .22); outline-offset: 3px; }
   h1, h2, h3, p { margin: 0; }
 }
 
+/* 公共组件层：@apply 将多条 Tailwind 工具类组合为一个可复用的 CSS 类。 */
 @layer components {
+  /* 视觉上隐藏，但保留给屏幕阅读器读取的辅助文字。 */
   .sr-only { @apply absolute h-px w-px overflow-hidden whitespace-nowrap; clip: rect(0, 0, 0, 0); }
   .section-kicker, .eyebrow { @apply font-sans text-xs font-semibold tracking-[.06em] text-muted; }
+  /* 图标、主操作、次要操作和纯文字按钮；组件使用 className="primary-button" 等。 */
   .icon-button { @apply inline-grid size-8 shrink-0 place-items-center rounded-md border border-line bg-transparent text-muted transition hover:border-signal hover:text-signal; }
   .primary-button { @apply inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md border-0 bg-signal px-3.5 py-2 text-[13px] font-semibold text-on-signal transition hover:bg-signal-dark; }
   .quiet-button { @apply inline-flex min-h-8 items-center justify-center gap-1.5 rounded-md border border-line bg-transparent px-3 py-1.5 text-[13px] font-medium text-muted transition hover:border-signal hover:text-signal; }
   .text-button { @apply inline-flex min-h-8 items-center gap-1.5 border-0 bg-transparent px-0 py-1.5 text-[13px] font-medium text-muted hover:text-signal; }
+  /* 列表空状态，以及表单字段和输入框的统一外观。 */
   .empty-state { @apply flex min-h-48 flex-col items-center justify-center gap-3 py-12 text-center text-sm text-muted; }
   .form-field { @apply grid gap-2 text-sm font-medium; }
   .form-input { @apply min-h-10 w-full rounded-md border border-line bg-surface px-3 py-2 text-sm font-normal text-ink outline-none focus:border-signal; }
+  /* 摘要最多显示三行，超出的内容截断；不会改变原始正文。 */
   .post-summary-clamp { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+  /* 表达、约定等文档的 Markdown 排版；只影响此类内部的标题、段落和列表。 */
   .record-markdown { color: var(--ink); font-size: 14px; line-height: 1.85; }
   .record-markdown h1 { margin: 0 0 18px; font-size: 24px; line-height: 1.35; letter-spacing: -.03em; }
   .record-markdown h2 { margin: 26px 0 8px; color: var(--ink); font-size: 16px; line-height: 1.5; font-weight: 600; }
@@ -97,6 +126,7 @@
   .record-markdown ul, .record-markdown ol { margin: 10px 0 0; padding-left: 22px; }
   .record-markdown li { margin-top: 5px; }
   .record-markdown strong { color: var(--ink); font-weight: 600; }
+  /* 文档图片保持比例且不超出容器；这里只定义外观，点击预览由组件逻辑处理。 */
   .record-document-figure { display: block; margin: 18px 0; }
   .record-document-figure img { display: block; width: auto; max-width: 100%; height: auto; border-radius: 6px; cursor: zoom-in; transition: opacity .15s; }
   .record-document-figure img:hover { opacity: .9; }
@@ -104,10 +134,14 @@
   .record-document-caption { display: block; margin-top: 6px; color: var(--muted); font-size: 12px; line-height: 1.7; }
 }
 
+/* 用户资料中的性别标记，通过附加 is-male／is-female 类区分颜色。 */
 .gender-mark { display: inline-flex; align-items: center; justify-content: center; font-family: Arial, sans-serif; font-size: 14px; line-height: 1; }
 .gender-mark.is-male { color: #4d7894; }
 .gender-mark.is-female { color: var(--coral); }
 
+/* 动画关键帧：遮罩淡入淡出、弹窗轻微缩放、提示消息上移出现。
+ * 这里只定义变化过程，组件还需通过 animation 属性指定名称、时长等才会播放。
+ */
 @keyframes overlay-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes overlay-out { from { opacity: 1; } to { opacity: 0; } }
 @keyframes dialog-in { from { opacity: 0; transform: scale(.98); } to { opacity: 1; transform: scale(1); } }
@@ -115,6 +149,7 @@
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes toast-out { from { opacity: 1; } to { opacity: 0; } }
 
+/* 尊重系统的“减少动态效果”偏好：关闭平滑滚动，并将过渡与动画时长缩至极短。 */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
