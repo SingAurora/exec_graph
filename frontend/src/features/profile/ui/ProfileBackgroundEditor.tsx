@@ -34,15 +34,17 @@ export function ProfileBackgroundEditor({ value, onChange, onLoadingChange }: {
       onLoadingChange(false)
     }
   }
-  return <div className="grid gap-2.5" role="group" aria-label="主页背景图">
-    <span className="text-sm font-medium">主页背景图</span>
-    <ProfileCover image={value} size="preview" />
-    <div className="flex items-center gap-3">
-      <button className="quiet-button" type="button" disabled={loading} aria-describedby={error ? errorId : undefined} onClick={() => input.current?.click()}><ImagePlus size={15} />{loading ? '读取中…' : value ? '更换背景图' : '上传背景图'}</button>
-      {value && <button className="text-button" type="button" disabled={loading} onClick={() => { setError(''); onChange(undefined) }}><RotateCcw size={14} />恢复默认</button>}
+  return (
+    <div className="grid gap-2.5" role="group" aria-label="主页背景图">
+      <span className="text-sm font-medium">主页背景图</span>
+      <ProfileCover image={value} size="preview" />
+      <div className="flex items-center gap-3">
+        <button className="quiet-button" type="button" disabled={loading} aria-describedby={error ? errorId : undefined} onClick={() => input.current?.click()}><ImagePlus size={15} />{loading ? '读取中…' : value ? '更换背景图' : '上传背景图'}</button>
+        {value && <button className="text-button" type="button" disabled={loading} onClick={() => { setError(''); onChange(undefined) }}><RotateCcw size={14} />恢复默认</button>}
+      </div>
+      <input className="sr-only" ref={input} type="file" accept="image/*" aria-label="上传主页背景图" disabled={loading} onChange={selectImage} />
+      {error && <p className="text-xs text-coral" id={errorId} role="alert">{error}</p>}
+      <ImageCropDialog open={open} image={source} variant="cover" onOpenChange={setOpen} onConfirm={onChange} />
     </div>
-    <input className="sr-only" ref={input} type="file" accept="image/*" aria-label="上传主页背景图" disabled={loading} onChange={selectImage} />
-    {error && <p className="text-xs text-coral" id={errorId} role="alert">{error}</p>}
-    <ImageCropDialog open={open} image={source} variant="cover" onOpenChange={setOpen} onConfirm={onChange} />
-  </div>
+  )
 }

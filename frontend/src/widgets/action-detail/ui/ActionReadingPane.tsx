@@ -23,5 +23,7 @@ export function ActionReadingPane({ readingKey, focusRequest, active, hidden = f
     pane.current.scrollTop = top
     positions.current.set(readingKey, top)
   }, [readingKey, focusRequest, active])
-  return <div ref={pane} hidden={hidden} className={`min-h-0 min-w-0 overflow-y-auto overscroll-y-contain [overflow-anchor:none] [scrollbar-width:thin] ${hidden ? 'hidden' : ''}`} aria-label={label} onScroll={(event) => { if (active) positions.current.set(readingKey, event.currentTarget.scrollTop) }}>{children}</div>
+  return (
+    <div ref={pane} hidden={hidden} className={`min-h-0 min-w-0 overflow-y-auto overscroll-y-contain [overflow-anchor:none] [scrollbar-width:thin] ${hidden ? 'hidden' : ''}`} aria-label={label} onScroll={(event) => { if (active) positions.current.set(readingKey, event.currentTarget.scrollTop) }}>{children}</div>
+  )
 }

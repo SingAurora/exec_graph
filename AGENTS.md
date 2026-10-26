@@ -48,6 +48,7 @@
 - `widgets` 是可复用的大块界面；`features` 是用户可触发的一项明确业务动作；`entities` 放项目、节点、合约、账户等稳定业务对象的类型、选择器和读取能力。
 - 每个 feature 或 entity 按需使用 `api/`、`model/`、`ui/`、`lib/` 子目录。稳定业务类型放所属实体的 `model/types.ts`，不要再向根目录添加全局类型文件。
 - 新增代码必须直接从所属的 `entities`、`features` 或 `shared` 导入。不要重新创建根目录 `types.ts` 或 `lib/` 作为跨领域杂物桶。
+- 组件和渲染函数显式返回 JSX 时，统一使用 `return (`，JSX 从下一行开始并缩进，结束的 `)` 单独一行。短组件、提前返回和含 JSX 的条件返回也遵守此格式；已有括号不重复嵌套。`return null`、普通值及 effect 清理函数不受此规则影响。`return` 与左括号必须在同一行，避免自动分号插入导致返回空值。
 - 固定格式的 UI 组件（头像、图标按钮、缩略图、节点图标等）必须通过组件内部明确的尺寸映射控制宽高；不要把 `size-fit`、`w-fit` 等自适应尺寸类与固定尺寸类同时使用，避免内容尺寸覆盖组件尺寸。
 - 使用 Tailwind 时，全局 reset 和原生控件继承规则放入 `@layer base`；不要在 utility 层之后用普通选择器覆盖字号、行高或控件尺寸。
 - 所有 HTTP 请求通过 `shared/api/client.ts`。页面、UI 组件和 store 不直接调用 `fetch`，也不直接拼接 API URL；领域 API 放在对应 feature/entity 的 `api/` 内。

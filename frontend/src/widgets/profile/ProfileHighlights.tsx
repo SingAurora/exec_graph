@@ -20,14 +20,16 @@ export function ProfileHighlights({ profile, self, actions, projects, users, onO
     .flatMap((id) => candidates.filter(({ node }) => node.id === id))
   if (!self && !entries.length) return null
 
-  return <section className="border-b border-line py-5" aria-label="主页精选">
-    <div className="mb-4 flex items-center justify-between gap-3"><h3 className="text-sm font-semibold">主页精选</h3>
-      {self && <button ref={editRef} type="button" className="text-button text-xs" onClick={() => setEditing(true)}><Pencil size={13} />编辑精选</button>}
-    </div>
-    {!entries.length && <p className="py-3 text-sm text-muted">尚未精选表达</p>}
-    <ol className="divide-y divide-line" aria-label="精选表达">{entries.map((entry) => <li key={entry.node.id} className="min-w-0">
-      <ProfileHighlightItem entry={entry} actions={actions} projects={projects} users={users} onOpenNode={onOpenNode} />
-    </li>)}</ol>
-    {editing && <ChooseProfileHighlights userId={profile.id} highlights={profile.highlights} candidates={candidates} projects={projects} returnFocusRef={editRef} onClose={() => setEditing(false)} />}
-  </section>
+  return (
+    <section className="border-b border-line py-5" aria-label="主页精选">
+      <div className="mb-4 flex items-center justify-between gap-3"><h3 className="text-sm font-semibold">主页精选</h3>
+        {self && <button ref={editRef} type="button" className="text-button text-xs" onClick={() => setEditing(true)}><Pencil size={13} />编辑精选</button>}
+      </div>
+      {!entries.length && <p className="py-3 text-sm text-muted">尚未精选表达</p>}
+      <ol className="divide-y divide-line" aria-label="精选表达">{entries.map((entry) => <li key={entry.node.id} className="min-w-0">
+        <ProfileHighlightItem entry={entry} actions={actions} projects={projects} users={users} onOpenNode={onOpenNode} />
+      </li>)}</ol>
+      {editing && <ChooseProfileHighlights userId={profile.id} highlights={profile.highlights} candidates={candidates} projects={projects} returnFocusRef={editRef} onClose={() => setEditing(false)} />}
+    </section>
+  )
 }

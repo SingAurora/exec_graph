@@ -55,23 +55,27 @@ export function Following({ sources, actions, projects, users, active, onOpenPro
     const recipientId = getFollowedAgreementRecipient(reference, sources)
     const recipient = users.find((user) => user.id === recipientId)
     if (!recipientId) return context(reference.target)
-    return <div className="grid gap-1.5">{context(reference.target)}<p className="text-xs leading-5 text-muted">回应了你关注的 <ProfilePreview profile={recipient} userId={recipientId} className="rounded-sm text-xs hover:text-signal">{recipient?.name ?? recipientId}</ProfilePreview></p></div>
+    return (
+      <div className="grid gap-1.5">{context(reference.target)}<p className="text-xs leading-5 text-muted">回应了你关注的 <ProfilePreview profile={recipient} userId={recipientId} className="rounded-sm text-xs hover:text-signal">{recipient?.name ?? recipientId}</ProfilePreview></p></div>
+    )
   }
   const emptyContent = (label: string) => hasSources
     ? <p>关注的用户和图暂无{label}</p>
     : <><Bookmark size={24} strokeWidth={1.5} /><p>还没有关注的图或用户</p><a href="#home" className="quiet-button">去发现</a></>
-  return <TabsRoot value={tab} onValueChange={(value) => switchTab(value as FollowingTab)}>
-    <div className="sticky top-0 z-20 mt-[23px] bg-paper">
-      <TabsList label="关注分类" showDivider={false} compact>
-        <TabsTrigger value="expressions"><span className="inline-flex items-center gap-1.5"><MessageCircle size={16} />表达</span></TabsTrigger>
-        <TabsTrigger value="agreements"><span className="inline-flex items-center gap-1.5"><ScrollText size={16} />约定</span></TabsTrigger>
-        <TabsTrigger value="graphs" className="ml-5"><span className="inline-flex items-center gap-1.5"><Bookmark size={16} />图<span className="ml-0.5 text-xs tabular-nums text-muted">{followedGraphs.length}</span></span></TabsTrigger>
-        <TabsTrigger value="users"><span className="inline-flex items-center gap-1.5"><UsersRound size={16} />用户<span className="ml-0.5 text-xs tabular-nums text-muted">{followedUsers.length}</span></span></TabsTrigger>
-      </TabsList>
-    </div>
-    <TabsContent value="expressions" keepMounted className="pt-2"><ActionPostList nodes={activity.expressions} actions={actions} users={users} mode="expression" presentation="feed" infinite active={active && tab === 'expressions'} onExplore={onOpenNode} renderContext={context} emptyContent={emptyContent('表达')} /></TabsContent>
-    <TabsContent value="agreements" keepMounted className="pt-2"><AgreementResponseList references={activity.agreementResponses} users={users} presentation="feed" active={active && tab === 'agreements'} onExplore={onOpenReference} renderContext={agreementContext} emptyContent={emptyContent('约定回应')} /></TabsContent>
-    <TabsContent value="graphs" keepMounted><FollowedDirectory {...directoryProps} kind="graphs" /></TabsContent>
-    <TabsContent value="users" keepMounted><FollowedDirectory {...directoryProps} kind="users" /></TabsContent>
-  </TabsRoot>
+  return (
+    <TabsRoot value={tab} onValueChange={(value) => switchTab(value as FollowingTab)}>
+      <div className="sticky top-0 z-20 mt-[23px] bg-paper">
+        <TabsList label="关注分类" showDivider={false} compact>
+          <TabsTrigger value="expressions"><span className="inline-flex items-center gap-1.5"><MessageCircle size={16} />表达</span></TabsTrigger>
+          <TabsTrigger value="agreements"><span className="inline-flex items-center gap-1.5"><ScrollText size={16} />约定</span></TabsTrigger>
+          <TabsTrigger value="graphs" className="ml-5"><span className="inline-flex items-center gap-1.5"><Bookmark size={16} />图<span className="ml-0.5 text-xs tabular-nums text-muted">{followedGraphs.length}</span></span></TabsTrigger>
+          <TabsTrigger value="users"><span className="inline-flex items-center gap-1.5"><UsersRound size={16} />用户<span className="ml-0.5 text-xs tabular-nums text-muted">{followedUsers.length}</span></span></TabsTrigger>
+        </TabsList>
+      </div>
+      <TabsContent value="expressions" keepMounted className="pt-2"><ActionPostList nodes={activity.expressions} actions={actions} users={users} mode="expression" presentation="feed" infinite active={active && tab === 'expressions'} onExplore={onOpenNode} renderContext={context} emptyContent={emptyContent('表达')} /></TabsContent>
+      <TabsContent value="agreements" keepMounted className="pt-2"><AgreementResponseList references={activity.agreementResponses} users={users} presentation="feed" active={active && tab === 'agreements'} onExplore={onOpenReference} renderContext={agreementContext} emptyContent={emptyContent('约定回应')} /></TabsContent>
+      <TabsContent value="graphs" keepMounted><FollowedDirectory {...directoryProps} kind="graphs" /></TabsContent>
+      <TabsContent value="users" keepMounted><FollowedDirectory {...directoryProps} kind="users" /></TabsContent>
+    </TabsRoot>
+  )
 }

@@ -67,23 +67,25 @@ export function Discovery({ actions, projects, users, active, onOpenNode, onOpen
   const emptySearch = (scope: DiscoveryTab) => queries[scope].trim() ? <p>没有找到相关{tabLabels[scope]}</p> : undefined
   const context = (node: ActionNode) => <GraphContextLink id={node.projectId} title={projectsById.get(node.projectId)?.title} onOpen={onOpenProject} />
 
-  return <section aria-label="发现内容">
-    <TabsRoot value={tab} onValueChange={(value) => switchTab(value as DiscoveryTab)}>
-      <div className="sticky top-0 z-20 mt-[23px] flex flex-wrap items-center justify-between gap-x-6 gap-y-2 bg-paper pb-1">
-        <TabsList label="发现分类" showDivider={false} compact>
-          <TabsTrigger value="expressions"><span className="inline-flex items-center gap-1.5"><MessageCircle size={16} />表达</span></TabsTrigger>
-          <TabsTrigger value="agreements"><span className="inline-flex items-center gap-1.5"><ScrollText size={16} />约定</span></TabsTrigger>
-        </TabsList>
-        <DiscoverySearch label={tabLabels[tab]} value={queries[tab]} onChange={changeQuery} />
-      </div>
-      {query && <p className="mt-3 px-1 text-xs leading-5 text-muted" role="status">找到 {resultCounts[tab]} 条{tabLabels[tab]}</p>}
-      <div className="mt-1 grid grid-cols-[minmax(0,1fr)_220px] items-start gap-7 max-[800px]:grid-cols-1">
-        <div className="min-w-0">
-          <TabsContent value="expressions" keepMounted><ActionPostList key={queries.expressions.trim()} nodes={visibleExpressions} actions={publicActions} users={users} mode="expression" presentation="feed" searchQuery={queries.expressions.trim()} emptyContent={emptySearch('expressions')} infinite active={active && tab === 'expressions'} onExplore={onOpenNode} renderContext={context} /></TabsContent>
-          <TabsContent value="agreements" keepMounted><AgreementResponseList key={queries.agreements.trim()} references={visibleAgreements} users={users} presentation="feed" searchQuery={queries.agreements.trim()} emptyContent={emptySearch('agreements')} active={active && tab === 'agreements'} onExplore={onOpenReference} renderContext={(reference) => context(reference.target)} /></TabsContent>
+  return (
+    <section aria-label="发现内容">
+      <TabsRoot value={tab} onValueChange={(value) => switchTab(value as DiscoveryTab)}>
+        <div className="sticky top-0 z-20 mt-[23px] flex flex-wrap items-center justify-between gap-x-6 gap-y-2 bg-paper pb-1">
+          <TabsList label="发现分类" showDivider={false} compact>
+            <TabsTrigger value="expressions"><span className="inline-flex items-center gap-1.5"><MessageCircle size={16} />表达</span></TabsTrigger>
+            <TabsTrigger value="agreements"><span className="inline-flex items-center gap-1.5"><ScrollText size={16} />约定</span></TabsTrigger>
+          </TabsList>
+          <DiscoverySearch label={tabLabels[tab]} value={queries[tab]} onChange={changeQuery} />
         </div>
-        <RecentGraphsAside items={graphs} projects={projects} actions={publicActions} onOpen={onOpenProject} onSearchAll={onSearchGraphs} />
-      </div>
-    </TabsRoot>
-  </section>
+        {query && <p className="mt-3 px-1 text-xs leading-5 text-muted" role="status">找到 {resultCounts[tab]} 条{tabLabels[tab]}</p>}
+        <div className="mt-1 grid grid-cols-[minmax(0,1fr)_220px] items-start gap-7 max-[800px]:grid-cols-1">
+          <div className="min-w-0">
+            <TabsContent value="expressions" keepMounted><ActionPostList key={queries.expressions.trim()} nodes={visibleExpressions} actions={publicActions} users={users} mode="expression" presentation="feed" searchQuery={queries.expressions.trim()} emptyContent={emptySearch('expressions')} infinite active={active && tab === 'expressions'} onExplore={onOpenNode} renderContext={context} /></TabsContent>
+            <TabsContent value="agreements" keepMounted><AgreementResponseList key={queries.agreements.trim()} references={visibleAgreements} users={users} presentation="feed" searchQuery={queries.agreements.trim()} emptyContent={emptySearch('agreements')} active={active && tab === 'agreements'} onExplore={onOpenReference} renderContext={(reference) => context(reference.target)} /></TabsContent>
+          </div>
+          <RecentGraphsAside items={graphs} projects={projects} actions={publicActions} onOpen={onOpenProject} onSearchAll={onSearchGraphs} />
+        </div>
+      </TabsRoot>
+    </section>
+  )
 }

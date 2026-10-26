@@ -34,22 +34,24 @@ export function PublicProfile({ profile, currentUserId, following, users, projec
   const agreementResponses = useMemo(() => getProfileAgreementResponses(getActionReferences(actions), profile.id), [actions, profile.id])
   const self = profile.id === currentUserId
   const avatar = <Avatar profile={profile} size="xlarge" shape="circle" />
-  return <section className="pt-6" aria-label={profile.name + '的主页'}>
-    <header>
-      <ProfileCover image={profile.backgroundImage} size="header" preview />
-      <div className="relative -mt-12 flex items-end justify-between gap-4 px-5"><span className="inline-flex shrink-0 rounded-full border-4 border-paper bg-paper">{profile.avatar.trim() ? <ImagePreviewTrigger image={{ url: profile.avatar.trim(), alt: profile.name + '的头像' }} className="inline-flex rounded-full">{avatar}</ImagePreviewTrigger> : avatar}</span>
-        {!self && <FollowButton kind="user" name={profile.name} following={following} onChange={(next) => onSetUserFollow(profile.id, next)} />}
-      </div>
-      <div className="mt-2 grid min-w-0 gap-0.5 px-6">
-        <h2 className="flex min-w-0 items-center gap-1.5 text-xl font-semibold" title={profile.name}><span className="min-w-0 truncate">{profile.name}</span><span className="shrink-0"><GenderMark gender={profile.gender} /></span></h2>
-        {self && profile.email && <p className="truncate text-sm text-muted" title={profile.email}>{profile.email}</p>}
-      </div>
-      {profile.bio.trim() && <div className="mt-3 px-5"><ProfileBiography biography={profile.bio} /></div>}
-      <div className="mt-4 flex flex-wrap gap-x-7 gap-y-2 px-5 text-sm text-muted"><span><strong className="font-semibold text-ink">{expressionCount}</strong> 表达</span><span><strong className="font-semibold text-ink">{agreementResponses.length}</strong> 约定</span><span><strong className="font-semibold text-ink">{authorActions.length}</strong> 行动</span><span><strong className="font-semibold text-ink">{related.length}</strong> 图</span></div>
-    </header>
-    <ActivityFeed actions={actions} projects={projects} users={users} authorIds={[profile.id]} graphItems={related} agreementResponses={agreementResponses} active={active} tabRequest={activityTabRequest}
-      home={(homeActive) => <><ProfileHighlights profile={profile} self={self} actions={actions} projects={projects} users={users} onOpenNode={onOpenNode} /><ProfileHome userId={profile.id} actions={actions} active={homeActive} onOpenNode={onOpenNode} /></>}
-      graphToolbar={self && onCreateProject && <div className="flex items-center justify-between gap-3 pt-4"><a href="#projects" className="text-button text-xs">管理行动图</a><CreateGraphButton onCreate={onCreateProject} compact /></div>}
-      onOpenNode={onOpenNode} onOpenProject={onOpenProject} onOpenReference={onOpenReference} />
-  </section>
+  return (
+    <section className="pt-6" aria-label={profile.name + '的主页'}>
+      <header>
+        <ProfileCover image={profile.backgroundImage} size="header" preview />
+        <div className="relative -mt-12 flex items-end justify-between gap-4 px-5"><span className="inline-flex shrink-0 rounded-full border-4 border-paper bg-paper">{profile.avatar.trim() ? <ImagePreviewTrigger image={{ url: profile.avatar.trim(), alt: profile.name + '的头像' }} className="inline-flex rounded-full">{avatar}</ImagePreviewTrigger> : avatar}</span>
+          {!self && <FollowButton kind="user" name={profile.name} following={following} onChange={(next) => onSetUserFollow(profile.id, next)} />}
+        </div>
+        <div className="mt-2 grid min-w-0 gap-0.5 px-6">
+          <h2 className="flex min-w-0 items-center gap-1.5 text-xl font-semibold" title={profile.name}><span className="min-w-0 truncate">{profile.name}</span><span className="shrink-0"><GenderMark gender={profile.gender} /></span></h2>
+          {self && profile.email && <p className="truncate text-sm text-muted" title={profile.email}>{profile.email}</p>}
+        </div>
+        {profile.bio.trim() && <div className="mt-3 px-5"><ProfileBiography biography={profile.bio} /></div>}
+        <div className="mt-4 flex flex-wrap gap-x-7 gap-y-2 px-5 text-sm text-muted"><span><strong className="font-semibold text-ink">{expressionCount}</strong> 表达</span><span><strong className="font-semibold text-ink">{agreementResponses.length}</strong> 约定</span><span><strong className="font-semibold text-ink">{authorActions.length}</strong> 行动</span><span><strong className="font-semibold text-ink">{related.length}</strong> 图</span></div>
+      </header>
+      <ActivityFeed actions={actions} projects={projects} users={users} authorIds={[profile.id]} graphItems={related} agreementResponses={agreementResponses} active={active} tabRequest={activityTabRequest}
+        home={(homeActive) => <><ProfileHighlights profile={profile} self={self} actions={actions} projects={projects} users={users} onOpenNode={onOpenNode} /><ProfileHome userId={profile.id} actions={actions} active={homeActive} onOpenNode={onOpenNode} /></>}
+        graphToolbar={self && onCreateProject && <div className="flex items-center justify-between gap-3 pt-4"><a href="#projects" className="text-button text-xs">管理行动图</a><CreateGraphButton onCreate={onCreateProject} compact /></div>}
+        onOpenNode={onOpenNode} onOpenProject={onOpenProject} onOpenReference={onOpenReference} />
+    </section>
+  )
 }

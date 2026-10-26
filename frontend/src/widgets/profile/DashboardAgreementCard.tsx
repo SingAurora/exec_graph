@@ -9,6 +9,8 @@ export function DashboardAgreementCard({ reference, users, project, onOpenRefere
   reference: ActionReference; users: UserProfile[]; project?: Project
   onOpenReference: (reference: ActionReference) => void; onOpenProject: (id: string) => void
 }) {
-  return <AgreementResponseList references={[reference]} users={users} active infinite={false} presentation="feed" onExplore={onOpenReference}
-    renderContext={() => <GraphContextLink id={reference.target.projectId} title={project?.title} onOpen={onOpenProject} />} />
+  return (
+    <AgreementResponseList references={[reference]} users={users} active infinite={false} presentation="feed" onExplore={onOpenReference}
+      renderContext={() => <GraphContextLink id={reference.target.projectId} title={project?.title} onOpen={onOpenProject} />} />
+  )
 }

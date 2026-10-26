@@ -34,12 +34,14 @@ export function ProfileSearch({ active, ...props }: Props) {
     pendingScroll.current = getRetainedTabScrollTop(scrollPositions.current[next], currentTop, navigationTop)
     setScope(next)
   }
-  return <section className="pt-4" aria-label="主页搜索">
-    <TabsRoot value={scope} onValueChange={changeScope}>
-      <div ref={headerRef}><TabsList label="主页搜索分类" compact showDivider={false}>
-        {scopes.filter(({ value }) => value === 'agreements' ? props.references && props.onOpenReference : value !== 'graphs' || props.graphs).map(({ value, label, icon: Icon }) => <TabsTrigger key={value} value={value} compact><span className="inline-flex items-center gap-1.5"><Icon size={14} />{label}</span></TabsTrigger>)}
-      </TabsList></div>
-      {scopes.map(({ value }) => <TabsContent key={value} value={value} keepMounted><ProfileSearchPanel {...props} scope={value} active={active && scope === value} /></TabsContent>)}
-    </TabsRoot>
-  </section>
+  return (
+    <section className="pt-4" aria-label="主页搜索">
+      <TabsRoot value={scope} onValueChange={changeScope}>
+        <div ref={headerRef}><TabsList label="主页搜索分类" compact showDivider={false}>
+          {scopes.filter(({ value }) => value === 'agreements' ? props.references && props.onOpenReference : value !== 'graphs' || props.graphs).map(({ value, label, icon: Icon }) => <TabsTrigger key={value} value={value} compact><span className="inline-flex items-center gap-1.5"><Icon size={14} />{label}</span></TabsTrigger>)}
+        </TabsList></div>
+        {scopes.map(({ value }) => <TabsContent key={value} value={value} keepMounted><ProfileSearchPanel {...props} scope={value} active={active && scope === value} /></TabsContent>)}
+      </TabsRoot>
+    </section>
+  )
 }

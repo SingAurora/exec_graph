@@ -27,12 +27,14 @@ export function MarkdownContent({ markdown, images = [], showImageCaptions = tru
     {showImageCaptions && alt && <span className="record-document-caption">{alt}</span>}
   </span>, [openImage, showImageCaptions])
 
-  return <Dialog.Root open={preview !== null} onOpenChange={(open) => { if (!open) setPreview(null) }}>
-    <div className="record-markdown" ref={document}>
-      <ReactMarkdown remarkPlugins={[remarkGfm, [remarkDocumentImages, { images }]]} disallowedElements={allowLinks ? undefined : ['a']} unwrapDisallowed components={{ img: renderImage }}>{markdown}</ReactMarkdown>
-    </div>
-    <ImagePreview images={preview?.images ?? []} selectedIndex={preview?.index ?? null}
-      onSelectImage={(index) => setPreview((current) => current ? { ...current, index } : null)}
-      onCloseAutoFocus={(event) => { event.preventDefault(); trigger.current?.focus({ preventScroll: true }) }} />
-  </Dialog.Root>
+  return (
+    <Dialog.Root open={preview !== null} onOpenChange={(open) => { if (!open) setPreview(null) }}>
+      <div className="record-markdown" ref={document}>
+        <ReactMarkdown remarkPlugins={[remarkGfm, [remarkDocumentImages, { images }]]} disallowedElements={allowLinks ? undefined : ['a']} unwrapDisallowed components={{ img: renderImage }}>{markdown}</ReactMarkdown>
+      </div>
+      <ImagePreview images={preview?.images ?? []} selectedIndex={preview?.index ?? null}
+        onSelectImage={(index) => setPreview((current) => current ? { ...current, index } : null)}
+        onCloseAutoFocus={(event) => { event.preventDefault(); trigger.current?.focus({ preventScroll: true }) }} />
+    </Dialog.Root>
+  )
 }

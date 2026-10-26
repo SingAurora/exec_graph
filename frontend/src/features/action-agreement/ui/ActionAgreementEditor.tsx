@@ -20,33 +20,35 @@ export function ActionAgreementEditor({ hasParent, inheritedAgreement, mode, dra
   sources?: ActionContinuationSource[]
   reviews?: AIActionAgreementReview[]
 }) {
-  return <><section className="px-6 pb-5" aria-label="设置本节点约定">
-    <div className="flex items-center justify-between gap-3">
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-semibold">本节点约定</span>
-        <HelpPopover title="约定的更新">
-          <p>约定用于约束后续引用本节点时的 AI 对话和生成记录。默认沿承接关系继承；修改或清空从本节点向后生效，合入来源不会自动拼接。</p>
-          <p>本次行动仍需核对来源节点的有效约定；修改后续约定不会改变本次引用的要求。不满足时在连线上标记 ×，仍可引用。</p>
-        </HelpPopover>
+  return (
+    <><section className="px-6 pb-5" aria-label="设置本节点约定">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold">本节点约定</span>
+          <HelpPopover title="约定的更新">
+            <p>约定用于约束后续引用本节点时的 AI 对话和生成记录。默认沿承接关系继承；修改或清空从本节点向后生效，合入来源不会自动拼接。</p>
+            <p>本次行动仍需核对来源节点的有效约定；修改后续约定不会改变本次引用的要求。不满足时在连线上标记 ×，仍可引用。</p>
+          </HelpPopover>
+        </div>
+        <Select className="!border !border-line !bg-paper" ariaLabel="约定处理方式" value={mode} disabled={disabled}
+          onValueChange={(value) => onModeChange(value as ActionDocumentUpdateMode)}
+          options={[
+            { value: 'inherit', label: hasParent ? inheritedAgreement.trim() ? '沿用上个节点' : '不设置约定' : '暂不设置' },
+            { value: 'update', label: inheritedAgreement.trim() ? '修改约定' : '设置约定' },
+            ...(hasParent && inheritedAgreement.trim() ? [{ value: 'clear', label: '清空约定' }] : []),
+          ]} />
       </div>
-      <Select className="!border !border-line !bg-paper" ariaLabel="约定处理方式" value={mode} disabled={disabled}
-        onValueChange={(value) => onModeChange(value as ActionDocumentUpdateMode)}
-        options={[
-          { value: 'inherit', label: hasParent ? inheritedAgreement.trim() ? '沿用上个节点' : '不设置约定' : '暂不设置' },
-          { value: 'update', label: inheritedAgreement.trim() ? '修改约定' : '设置约定' },
-          ...(hasParent && inheritedAgreement.trim() ? [{ value: 'clear', label: '清空约定' }] : []),
-        ]} />
-    </div>
-    {mode === 'update' ? <textarea className="mt-3 min-h-28 w-full resize-y rounded border border-line bg-paper px-3 py-2 text-[13px] leading-[1.7] outline-none focus:border-signal disabled:opacity-50" aria-label="本节点的约定" placeholder="后续引用这个节点时，需要遵守什么" value={draft} disabled={disabled} onChange={(event) => onDraftChange(event.target.value)} />
-      : mode === 'inherit' && inheritedAgreement.trim() ? <div className="mt-3"><MarkdownContent markdown={inheritedAgreement} /></div>
-        : <p className="mt-3 text-xs text-muted">无约定</p>}
-  </section>
-    {sources?.length ? <SourceAgreementReviews sources={sources} reviews={reviews} /> : hasParent && inheritedAgreement.trim() && <details className="group/source-agreement border-t border-line" aria-label="本次引用的来源约定">
-      <summary className="flex cursor-pointer list-none items-center gap-2 px-6 py-3 text-xs leading-5 text-muted [&::-webkit-details-marker]:hidden"><ScrollText size={14} aria-hidden="true" />来源约定{sourceNodeNumber !== undefined && <span>#{sourceNodeNumber}</span>}<span className={`ml-auto ${sourceReview?.complies === false ? 'text-coral' : sourceReview?.complies === true ? 'text-signal' : ''}`}>{sourceReview?.complies === false ? '× 不满足约定' : sourceReview?.complies === true ? '满足约定' : '尚未核对'}</span><ChevronDown size={13} className="transition-transform group-open/source-agreement:rotate-180" aria-hidden="true" /></summary>
-      <div className="px-6 pb-4">
-        {sourceReview?.complies === false && <p className="mb-3 text-xs leading-6 text-coral">不符合原因：{sourceReview.reason}</p>}
-        <MarkdownContent markdown={inheritedAgreement} />
-      </div>
-    </details>}
-  </>
+      {mode === 'update' ? <textarea className="mt-3 min-h-28 w-full resize-y rounded border border-line bg-paper px-3 py-2 text-[13px] leading-[1.7] outline-none focus:border-signal disabled:opacity-50" aria-label="本节点的约定" placeholder="后续引用这个节点时，需要遵守什么" value={draft} disabled={disabled} onChange={(event) => onDraftChange(event.target.value)} />
+        : mode === 'inherit' && inheritedAgreement.trim() ? <div className="mt-3"><MarkdownContent markdown={inheritedAgreement} /></div>
+          : <p className="mt-3 text-xs text-muted">无约定</p>}
+    </section>
+      {sources?.length ? <SourceAgreementReviews sources={sources} reviews={reviews} /> : hasParent && inheritedAgreement.trim() && <details className="group/source-agreement border-t border-line" aria-label="本次引用的来源约定">
+        <summary className="flex cursor-pointer list-none items-center gap-2 px-6 py-3 text-xs leading-5 text-muted [&::-webkit-details-marker]:hidden"><ScrollText size={14} aria-hidden="true" />来源约定{sourceNodeNumber !== undefined && <span>#{sourceNodeNumber}</span>}<span className={`ml-auto ${sourceReview?.complies === false ? 'text-coral' : sourceReview?.complies === true ? 'text-signal' : ''}`}>{sourceReview?.complies === false ? '× 不满足约定' : sourceReview?.complies === true ? '满足约定' : '尚未核对'}</span><ChevronDown size={13} className="transition-transform group-open/source-agreement:rotate-180" aria-hidden="true" /></summary>
+        <div className="px-6 pb-4">
+          {sourceReview?.complies === false && <p className="mb-3 text-xs leading-6 text-coral">不符合原因：{sourceReview.reason}</p>}
+          <MarkdownContent markdown={inheritedAgreement} />
+        </div>
+      </details>}
+    </>
+  )
 }

@@ -14,5 +14,7 @@ export function HighlightedText({ text, query = '' }: { text: string; query?: st
     match = findSearchMatch(text, keyword, start)
   }
   parts.push(text.slice(start))
-  return <>{parts}</>
+  return (
+    <>{parts}</>
+  )
 }

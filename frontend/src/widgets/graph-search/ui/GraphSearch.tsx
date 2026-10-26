@@ -48,14 +48,16 @@ export function GraphSearch({ active, ...props }: Props) {
     setScope(next)
   }
 
-  return <section className="min-w-0" aria-label="图内搜索结果">
-    <TabsRoot value={scope} onValueChange={(value) => switchScope(value as GraphSearchScope)}>
-      <div ref={headerRef}><TabsList label="搜索分类" compact showDivider={false}>
-        {scopes.map(({ value, label, icon: Icon }) => <TabsTrigger key={value} value={value} compact><span className="inline-flex items-center gap-1.5"><Icon size={14} />{label}</span></TabsTrigger>)}
-      </TabsList></div>
-      {scopes.map(({ value }) => <TabsContent key={value} value={value} keepMounted>
-        <GraphSearchPanel {...props} active={active && scope === value} scope={value} filterUsers={value === 'agreements' ? agreementUsers : filterUsers} />
-      </TabsContent>)}
-    </TabsRoot>
-  </section>
+  return (
+    <section className="min-w-0" aria-label="图内搜索结果">
+      <TabsRoot value={scope} onValueChange={(value) => switchScope(value as GraphSearchScope)}>
+        <div ref={headerRef}><TabsList label="搜索分类" compact showDivider={false}>
+          {scopes.map(({ value, label, icon: Icon }) => <TabsTrigger key={value} value={value} compact><span className="inline-flex items-center gap-1.5"><Icon size={14} />{label}</span></TabsTrigger>)}
+        </TabsList></div>
+        {scopes.map(({ value }) => <TabsContent key={value} value={value} keepMounted>
+          <GraphSearchPanel {...props} active={active && scope === value} scope={value} filterUsers={value === 'agreements' ? agreementUsers : filterUsers} />
+        </TabsContent>)}
+      </TabsRoot>
+    </section>
+  )
 }

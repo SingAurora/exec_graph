@@ -32,7 +32,9 @@ export function ImageDownloadButton({ image }: { image: PostImage }) {
     }
   }
 
-  return <button type="button" className="icon-button shrink-0" aria-label="下载图片" title="下载图片" disabled={downloading} onClick={() => { void download() }}>
-    {downloading ? <LoaderCircle size={18} className="animate-spin" aria-hidden="true" /> : <Download size={18} aria-hidden="true" />}
-  </button>
+  return (
+    <button type="button" className="icon-button shrink-0" aria-label="下载图片" title="下载图片" disabled={downloading} onClick={() => { void download() }}>
+      {downloading ? <LoaderCircle size={18} className="animate-spin" aria-hidden="true" /> : <Download size={18} aria-hidden="true" />}
+    </button>
+  )
 }

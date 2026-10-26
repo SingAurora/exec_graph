@@ -133,20 +133,22 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
     } finally { setSending(false) }
   }
 
-  return <WorkspaceFrame title={hasParent ? '接续行动' : '记录第一次行动'} tabLabel="接续行动工作区"
-    view={local.value.view} onViewChange={(view) => update({ view })} restoring={!local.ready}
-    draftControls={<LocalDraftControls status={local.status} hasDraft={local.hasDraft} disabled={sending || publishing || uploading || !local.ready} onDiscard={() => { local.discard(); setPublishError('') }} />}
-    help={<HelpPopover title="行动与表达的整理"><p>在同一条对话中描述实际行动、讨论看法，AI 分别整理行动和表达。表达的修改、继承与清空都可在对话中说明，切换到行动或表达查看文档预览，切换到约定设置后续引用要求。</p><p>{hasParent ? '未提出修改时沿用承接节点的表达，合入来源不会自动覆盖表达。' : '首次行动没有上级表达，可以暂不填写。'}发布后修改表达也会接着这条对话继续。</p></HelpPopover>}
-    context={hasParent ? { label: sourceNodeNumber !== undefined ? `承接 #${sourceNodeNumber}` : '承接', title: contextTitle, facts: knownFacts } : undefined}
-    contextControls={hasParent && actions && sourceNodeId ? <MergeActionSources actions={actions} parentId={sourceNodeId} selectedIds={mergedParentIds} reviews={agreementReviews} disabled={sending || publishing || !local.ready} onChange={changeMergedSources} /> : undefined}
-    messages={messages} profileName={profileName} profile={profile} input={input} placeholder="说说做了什么，或想表达什么"
-    sending={sending} disabled={publishing || uploading || !local.ready || !contextValid} onInputChange={(input) => update({ input })} onSend={send} onBack={onBack}
-    actionControls={<DraftImages images={local.value.images ?? []} csrfToken={csrfToken} ready={local.ready} disabled={sending || publishing} onChange={(images) => update({ images })} onBusyChange={setUploading} />}
-    action={{ markdown: document, status: sourcesChanged && document ? '引用背景已更新，文档待重新整理' : undefined, empty: '在 AI 对话中描述这次行动' }}
-    expression={{ markdown: effectiveExpression, images: expression.mode === 'inherit' ? inheritedExpressionImages : [], status: expressionLabel, empty: '暂无表达' }}
-    agreement={<ActionAgreementEditor hasParent={hasParent} inheritedAgreement={inheritedAgreement} mode={agreementMode} draft={agreementDraft} onModeChange={(agreementMode) => update({ agreementMode, generated: false })} onDraftChange={(agreementDraft) => update({ agreementDraft, generated: false })} disabled={sending || publishing || !local.ready} sourceNodeNumber={sourceNodeNumber} sourceReview={sourceReview} sources={continuation?.sources} reviews={agreementReviews} />}
-    footer={<><span className="text-xs text-muted" role="status">{publishError || (sending ? '正在整理…' : !contextValid ? '引用来源已变化，请返回重新选择' : sourcesChanged ? '引用背景已更新，请继续对话后发布' : !document ? '尚未生成' : !generated ? '本轮未完成' : '待发布')}</span>
-      <button className="primary-button" type="button" onClick={publish} disabled={!canPublish}><Check size={15} />发布行动</button></>} />
+  return (
+    <WorkspaceFrame title={hasParent ? '接续行动' : '记录第一次行动'} tabLabel="接续行动工作区"
+      view={local.value.view} onViewChange={(view) => update({ view })} restoring={!local.ready}
+      draftControls={<LocalDraftControls status={local.status} hasDraft={local.hasDraft} disabled={sending || publishing || uploading || !local.ready} onDiscard={() => { local.discard(); setPublishError('') }} />}
+      help={<HelpPopover title="行动与表达的整理"><p>在同一条对话中描述实际行动、讨论看法，AI 分别整理行动和表达。表达的修改、继承与清空都可在对话中说明，切换到行动或表达查看文档预览，切换到约定设置后续引用要求。</p><p>{hasParent ? '未提出修改时沿用承接节点的表达，合入来源不会自动覆盖表达。' : '首次行动没有上级表达，可以暂不填写。'}发布后修改表达也会接着这条对话继续。</p></HelpPopover>}
+      context={hasParent ? { label: sourceNodeNumber !== undefined ? `承接 #${sourceNodeNumber}` : '承接', title: contextTitle, facts: knownFacts } : undefined}
+      contextControls={hasParent && actions && sourceNodeId ? <MergeActionSources actions={actions} parentId={sourceNodeId} selectedIds={mergedParentIds} reviews={agreementReviews} disabled={sending || publishing || !local.ready} onChange={changeMergedSources} /> : undefined}
+      messages={messages} profileName={profileName} profile={profile} input={input} placeholder="说说做了什么，或想表达什么"
+      sending={sending} disabled={publishing || uploading || !local.ready || !contextValid} onInputChange={(input) => update({ input })} onSend={send} onBack={onBack}
+      actionControls={<DraftImages images={local.value.images ?? []} csrfToken={csrfToken} ready={local.ready} disabled={sending || publishing} onChange={(images) => update({ images })} onBusyChange={setUploading} />}
+      action={{ markdown: document, status: sourcesChanged && document ? '引用背景已更新，文档待重新整理' : undefined, empty: '在 AI 对话中描述这次行动' }}
+      expression={{ markdown: effectiveExpression, images: expression.mode === 'inherit' ? inheritedExpressionImages : [], status: expressionLabel, empty: '暂无表达' }}
+      agreement={<ActionAgreementEditor hasParent={hasParent} inheritedAgreement={inheritedAgreement} mode={agreementMode} draft={agreementDraft} onModeChange={(agreementMode) => update({ agreementMode, generated: false })} onDraftChange={(agreementDraft) => update({ agreementDraft, generated: false })} disabled={sending || publishing || !local.ready} sourceNodeNumber={sourceNodeNumber} sourceReview={sourceReview} sources={continuation?.sources} reviews={agreementReviews} />}
+      footer={<><span className="text-xs text-muted" role="status">{publishError || (sending ? '正在整理…' : !contextValid ? '引用来源已变化，请返回重新选择' : sourcesChanged ? '引用背景已更新，请继续对话后发布' : !document ? '尚未生成' : !generated ? '本轮未完成' : '待发布')}</span>
+        <button className="primary-button" type="button" onClick={publish} disabled={!canPublish}><Check size={15} />发布行动</button></>} />
+  )
 }
 
 function isSavedMessage(message: ChatMessage): boolean {

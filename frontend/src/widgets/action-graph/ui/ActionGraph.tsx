@@ -133,73 +133,79 @@ export function ActionGraph({ actions, highlightedPath, users, selectedId, selec
     setHover(null)
   }
 
-  return <aside className={`action-graph-panel ${detailsVisible ? '' : 'border-r-0'}`} aria-label="节点关系">
-    <header className="action-graph-heading"><div><div className="flex items-center gap-1"><h3><Network size={16} />节点关系</h3><HelpPopover title="节点关系">
-      <p>圆点数字表示层级：起点为 1，后续节点为所有直接来源中最高层级加 1。节点编号用于区分具体行动。</p>
-      <p>实线表示自己引用自己，虚线表示引用他人。满足约定没有额外标记；× 表示不满足来源约定，仍可引用。</p>
-      <p>绿色节点和连线表示高亮链路的承接路径，蓝灰色填充节点表示合入背景。节点外圈标记当前选择，查看其他节点不会改变高亮链路。</p>
-      <p>从表达、行动或搜索结果进入时自动高亮对应链路。点击链路状态右侧的 × 取消，在节点详情点击“高亮链路”重新开启。定位仅移动图的位置，不切换右侧文档。</p>
-      <p>悬浮查看摘要，点击节点阅读文档，点击连线查看引用详情。“重新铺满”将节点图与详情对齐当前窗口。</p>
-      <p>详情右上角可定位当前节点或隐藏详情。隐藏后点击任意节点或连线重新打开，同一文档恢复阅读位置。</p>
-      <p>拖动空白区域平移画布，滚轮或触控板缩放，也可使用缩放按钮。详情展开或隐藏时自动适配画布，让当前节点保持可见；“适应画布”查看全图。</p>
-    </HelpPopover></div></div>
-      <div className="action-graph-heading-actions">
-        <button className="action-graph-icon-button" type="button" title="重新铺满" aria-label="重新铺满" onClick={onFitViewport}><Maximize2 size={16} aria-hidden="true" /></button>
-        {!highlightTip && <button className="action-graph-icon-button" type="button" title={selectedReferenceId ? '定位选中关系' : '定位选中节点'} aria-label={selectedReferenceId ? '定位选中关系' : '定位选中节点'} onClick={() => locateNode(selectedReferenceId ?? selectedId)}><LocateFixed size={16} aria-hidden="true" /></button>}
+  return (
+    <aside className={`action-graph-panel ${detailsVisible ? '' : 'border-r-0'}`} aria-label="节点关系">
+      <header className="action-graph-heading"><div><div className="flex items-center gap-1"><h3><Network size={16} />节点关系</h3><HelpPopover title="节点关系">
+        <p>圆点数字表示层级：起点为 1，后续节点为所有直接来源中最高层级加 1。节点编号用于区分具体行动。</p>
+        <p>实线表示自己引用自己，虚线表示引用他人。满足约定没有额外标记；× 表示不满足来源约定，仍可引用。</p>
+        <p>绿色节点和连线表示高亮链路的承接路径，蓝灰色填充节点表示合入背景。节点外圈标记当前选择，查看其他节点不会改变高亮链路。</p>
+        <p>从表达、行动或搜索结果进入时自动高亮对应链路。点击链路状态右侧的 × 取消，在节点详情点击“高亮链路”重新开启。定位仅移动图的位置，不切换右侧文档。</p>
+        <p>悬浮查看摘要，点击节点阅读文档，点击连线查看引用详情。“重新铺满”将节点图与详情对齐当前窗口。</p>
+        <p>详情右上角可定位当前节点或隐藏详情。隐藏后点击任意节点或连线重新打开，同一文档恢复阅读位置。</p>
+        <p>拖动空白区域平移画布，滚轮或触控板缩放，也可使用缩放按钮。详情展开或隐藏时自动适配画布，让当前节点保持可见；“适应画布”查看全图。</p>
+      </HelpPopover></div></div>
+        <div className="action-graph-heading-actions">
+          <button className="action-graph-icon-button" type="button" title="重新铺满" aria-label="重新铺满" onClick={onFitViewport}><Maximize2 size={16} aria-hidden="true" /></button>
+          {!highlightTip && <button className="action-graph-icon-button" type="button" title={selectedReferenceId ? '定位选中关系' : '定位选中节点'} aria-label={selectedReferenceId ? '定位选中关系' : '定位选中节点'} onClick={() => locateNode(selectedReferenceId ?? selectedId)}><LocateFixed size={16} aria-hidden="true" /></button>}
+        </div>
+      </header>
+      <div className="action-graph-toolbar">
+      {highlightTip ? <div className="action-graph-highlight" role="group" aria-label="高亮链路">
+        <span className="inline-flex min-w-0 items-center gap-1.5" title={highlightTip.title}><GitBranch size={14} aria-hidden="true" />链路 #{highlightTip.number}</span>
+        <div className="flex items-center gap-1">
+          <button className="action-graph-icon-button border-0 text-signal" type="button" title="定位链路终点" aria-label="定位链路终点" onClick={() => locateNode(highlightTip.id)}><LocateFixed size={15} aria-hidden="true" /></button>
+          <button className="action-graph-icon-button border-0 text-signal" type="button" title="取消链路高亮" aria-label="取消链路高亮" onClick={() => { setHover(null); onClearHighlight() }}><X size={15} aria-hidden="true" /></button>
+        </div>
+      </div> : <span className="text-xs text-muted">{actions.length} 个节点</span>}
+      <div className="action-graph-zoom-controls" role="group" aria-label="画布缩放">
+        <button className="action-graph-icon-button" type="button" title="缩小画布" aria-label="缩小画布" disabled={zoom <= GRAPH_ZOOM.min} onClick={() => changeZoom(-1)}><Minus size={14} /></button>
+        <output className="action-graph-zoom-value" aria-label="画布缩放比例">{Math.round(zoom * 100)}%</output>
+        <button className="action-graph-icon-button" type="button" title="放大画布" aria-label="放大画布" disabled={zoom >= GRAPH_ZOOM.max} onClick={() => changeZoom(1)}><Plus size={14} /></button>
+        <button className="action-graph-icon-button" type="button" title="适应画布" aria-label="适应画布" onClick={fit}><Scan size={14} /></button>
       </div>
-    </header>
-    <div className="action-graph-toolbar">
-    {highlightTip ? <div className="action-graph-highlight" role="group" aria-label="高亮链路">
-      <span className="inline-flex min-w-0 items-center gap-1.5" title={highlightTip.title}><GitBranch size={14} aria-hidden="true" />链路 #{highlightTip.number}</span>
-      <div className="flex items-center gap-1">
-        <button className="action-graph-icon-button border-0 text-signal" type="button" title="定位链路终点" aria-label="定位链路终点" onClick={() => locateNode(highlightTip.id)}><LocateFixed size={15} aria-hidden="true" /></button>
-        <button className="action-graph-icon-button border-0 text-signal" type="button" title="取消链路高亮" aria-label="取消链路高亮" onClick={() => { setHover(null); onClearHighlight() }}><X size={15} aria-hidden="true" /></button>
       </div>
-    </div> : <span className="text-xs text-muted">{actions.length} 个节点</span>}
-    <div className="action-graph-zoom-controls" role="group" aria-label="画布缩放">
-      <button className="action-graph-icon-button" type="button" title="缩小画布" aria-label="缩小画布" disabled={zoom <= GRAPH_ZOOM.min} onClick={() => changeZoom(-1)}><Minus size={14} /></button>
-      <output className="action-graph-zoom-value" aria-label="画布缩放比例">{Math.round(zoom * 100)}%</output>
-      <button className="action-graph-icon-button" type="button" title="放大画布" aria-label="放大画布" disabled={zoom >= GRAPH_ZOOM.max} onClick={() => changeZoom(1)}><Plus size={14} /></button>
-      <button className="action-graph-icon-button" type="button" title="适应画布" aria-label="适应画布" onClick={fit}><Scan size={14} /></button>
-    </div>
-    </div>
-    {showLegend && <div className="px-3.5 pb-2"><ActionGraphLegend /></div>}
-    <div className="action-graph-viewport" tabIndex={0} role="region" aria-label="浏览节点关系" onKeyDown={(event) => {
-      if (event.target !== event.currentTarget) return
-      const graph = graphRef.current
-      if (!graph) return
-      const movement: Record<string, { x: number; y: number }> = { ArrowUp: { x: 0, y: 48 }, ArrowDown: { x: 0, y: -48 }, ArrowLeft: { x: 48, y: 0 }, ArrowRight: { x: -48, y: 0 } }
-      if (movement[event.key]) { event.preventDefault(); graph.panBy(movement[event.key]) }
-      else if (event.key === '+' || event.key === '=') { event.preventDefault(); changeZoom(1) }
-      else if (event.key === '-') { event.preventDefault(); changeZoom(-1) }
-      else if (event.key === '0') { event.preventDefault(); fit() }
-    }}>
-        <GraphBackground preferences={background} />
-        {/* Cytoscape 会注入 relative 定位，这里显式保持画布绝对定位，避免改变容器布局。 */}
-        <div className="action-graph-surface" style={{ position: 'absolute' }} ref={container} aria-hidden="true" />
-      <div className="action-graph-targets" ref={targets} style={{ width: GRAPH_WIDTH, height: layout.height }}>
-        <svg className="action-graph-edge-targets" width={GRAPH_WIDTH} height={layout.height} role="group" aria-label="节点引用关系">
-          {hitPaths.map((edge) => {
-            const reference = referenceById.get(edge.id)!
-            const label = `节点 #${reference.source.number} → #${reference.target.number}，${reference.sameAuthor ? '同一作者引用' : '跨作者引用'}${reference.agreementStatus === 'exception' ? '，不满足约定' : ''}`
-            return <path key={edge.id} d={edge.path} tabIndex={0} role="button" aria-label={label} aria-pressed={selectedReferenceId === edge.id}
-              aria-describedby={hover?.id === edge.id ? tooltipId : undefined}
-              onClick={() => selectReference(edge.id)}
-              onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); selectReference(edge.id) } }}
-              onMouseEnter={(event) => showHover('reference', edge.id, event)} onMouseLeave={() => setHover(null)}
-              onFocus={(event) => showHover('reference', edge.id, event)} onBlur={() => setHover(null)} />
+      {showLegend && <div className="px-3.5 pb-2"><ActionGraphLegend /></div>}
+      <div className="action-graph-viewport" tabIndex={0} role="region" aria-label="浏览节点关系" onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return
+        const graph = graphRef.current
+        if (!graph) return
+        const movement: Record<string, { x: number; y: number }> = { ArrowUp: { x: 0, y: 48 }, ArrowDown: { x: 0, y: -48 }, ArrowLeft: { x: 48, y: 0 }, ArrowRight: { x: -48, y: 0 } }
+        if (movement[event.key]) { event.preventDefault(); graph.panBy(movement[event.key]) }
+        else if (event.key === '+' || event.key === '=') { event.preventDefault(); changeZoom(1) }
+        else if (event.key === '-') { event.preventDefault(); changeZoom(-1) }
+        else if (event.key === '0') { event.preventDefault(); fit() }
+      }}>
+          <GraphBackground preferences={background} />
+          {/* Cytoscape 会注入 relative 定位，这里显式保持画布绝对定位，避免改变容器布局。 */}
+          <div className="action-graph-surface" style={{ position: 'absolute' }} ref={container} aria-hidden="true" />
+        <div className="action-graph-targets" ref={targets} style={{ width: GRAPH_WIDTH, height: layout.height }}>
+          <svg className="action-graph-edge-targets" width={GRAPH_WIDTH} height={layout.height} role="group" aria-label="节点引用关系">
+            {hitPaths.map((edge) => {
+              const reference = referenceById.get(edge.id)!
+              const label = `节点 #${reference.source.number} → #${reference.target.number}，${reference.sameAuthor ? '同一作者引用' : '跨作者引用'}${reference.agreementStatus === 'exception' ? '，不满足约定' : ''}`
+              return (
+                <path key={edge.id} d={edge.path} tabIndex={0} role="button" aria-label={label} aria-pressed={selectedReferenceId === edge.id}
+                  aria-describedby={hover?.id === edge.id ? tooltipId : undefined}
+                  onClick={() => selectReference(edge.id)}
+                  onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); selectReference(edge.id) } }}
+                  onMouseEnter={(event) => showHover('reference', edge.id, event)} onMouseLeave={() => setHover(null)}
+                  onFocus={(event) => showHover('reference', edge.id, event)} onBlur={() => setHover(null)} />
+              )
+            })}
+          </svg>
+          {[...actions].sort((a, b) => b.number - a.number).map((node) => {
+            const position = layout.positions.get(node.id)!
+            return (
+              <button key={node.id} className="action-graph-node-target" style={{ left: position.x, top: position.y }} type="button"
+                aria-label={`第 ${layout.levels.get(node.id)} 层，节点 #${node.number}：${node.title}`} aria-pressed={selectedId === node.id}
+                aria-describedby={hover?.id === node.id ? tooltipId : undefined} data-action-id={node.id}
+                onClick={() => selectNode(node.id)} onMouseEnter={(event) => showHover('node', node.id, event)} onMouseLeave={() => setHover(null)}
+                onFocus={(event) => showHover('node', node.id, event)} onBlur={() => setHover(null)} />
+            )
           })}
-        </svg>
-        {[...actions].sort((a, b) => b.number - a.number).map((node) => {
-          const position = layout.positions.get(node.id)!
-          return <button key={node.id} className="action-graph-node-target" style={{ left: position.x, top: position.y }} type="button"
-            aria-label={`第 ${layout.levels.get(node.id)} 层，节点 #${node.number}：${node.title}`} aria-pressed={selectedId === node.id}
-            aria-describedby={hover?.id === node.id ? tooltipId : undefined} data-action-id={node.id}
-            onClick={() => selectNode(node.id)} onMouseEnter={(event) => showHover('node', node.id, event)} onMouseLeave={() => setHover(null)}
-            onFocus={(event) => showHover('node', node.id, event)} onBlur={() => setHover(null)} />
-        })}
+        </div>
       </div>
-    </div>
-    {hover && <GraphTooltip id={tooltipId} hover={hover} node={hoveredNode} reference={hoveredReference} users={userById} levels={layout.levels} />}
-  </aside>
+      {hover && <GraphTooltip id={tooltipId} hover={hover} node={hoveredNode} reference={hoveredReference} users={userById} levels={layout.levels} />}
+    </aside>
+  )
 }

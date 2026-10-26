@@ -7,5 +7,7 @@ type Props = Omit<ComponentProps<typeof GraphSearchResults>, 'keyword' | 'page'>
 export function GraphSearchResultsPage({ params, ...props }: Props) {
   const keyword = params.get('query')?.trim() ?? ''
   const page = Math.max(1, Number.parseInt(params.get('page') ?? '1', 10) || 1)
-  return <GraphSearchResults key={keyword} {...props} keyword={keyword} page={page} />
+  return (
+    <GraphSearchResults key={keyword} {...props} keyword={keyword} page={page} />
+  )
 }

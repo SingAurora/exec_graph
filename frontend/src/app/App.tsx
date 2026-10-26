@@ -67,7 +67,9 @@ export function App() {
       window.location.hash = 'login'
     } catch (error) { showToast({ kind: 'error', message: error instanceof Error ? error.message : '退出失败，请重试' }) }
   }
-  if (resources.anonymous) return <AuthScreen key={authView} view={authView} darkMode={darkMode} onToggleTheme={toggleTheme} onEnter={enter} />
+  if (resources.anonymous) return (
+    <AuthScreen key={authView} view={authView} darkMode={darkMode} onToggleTheme={toggleTheme} onEnter={enter} />
+  )
   if (
     !resources.ready ||
     !resources.profile ||

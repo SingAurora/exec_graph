@@ -6,7 +6,9 @@ import './profile-biography.css'
 export function ProfileBiography({ biography, compact = false }: { biography: string; compact?: boolean }) {
   if (!biography.trim()) return null
   const preview = compact ? getBiographyPreview(biography) : { markdown: biography, images: [] }
-  return <div className={'profile-biography' + (compact ? ' profile-biography-compact' : '')}>
-    <MarkdownContent markdown={preview.markdown} images={preview.images} showImageCaptions={false} allowLinks={false} />
-  </div>
+  return (
+    <div className={'profile-biography' + (compact ? ' profile-biography-compact' : '')}>
+      <MarkdownContent markdown={preview.markdown} images={preview.images} showImageCaptions={false} allowLinks={false} />
+    </div>
+  )
 }

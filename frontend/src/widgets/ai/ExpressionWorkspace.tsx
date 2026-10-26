@@ -93,31 +93,33 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
   const conversation: ActionExpressionMessage[] = [...originalMessages.map((message) => ({ ...message, authorId: node.authorId })), ...messages.map((message) => ({ ...message, authorId: message.authorId ?? node.expressionSupplement?.authorId ?? node.authorId }))]
   if (!conversation.length) conversation.push({ id: 'welcome', speaker: 'ai', body: '基于这些行动，你想表达什么？' })
 
-  return <WorkspaceFrame title={label} tabLabel="表达工作区"
-    view={local.value.view} onViewChange={(view) => update({ view })} restoring={!local.ready}
-    draftControls={<LocalDraftControls status={local.status} hasDraft={local.hasDraft} disabled={sending || saving || !local.ready} onDiscard={local.discard} />}
-    help={<HelpPopover title="表达的背景">
-        <p>本次对话带入当前行动、已引用的历史行动、有效表达、来源约定和原有对话。其他分支不属于已知事实。</p>
-        <p>只更新当前节点的表达，行动与约定保持原样。要清空表达，可在对话中说明；确认保存后生效。</p>
-      </HelpPopover>}
-    context={{ label: `节点 #${node.number}`, title: node.title, facts: context?.facts.filter((fact) => fact.number !== node.number) ?? [] }}
-    messages={conversation} profileName={profileName} profile={profile} users={users} defaultAuthorId={profileId}
-    input={input} inputLabel="表达对话内容" placeholder="说说想保留或调整的看法" sending={sending} disabled={saving || !local.ready || !canEdit}
-    onInputChange={(input) => update({ input })} onSend={send} onBack={onBack}
-    action={{ markdown: node.objectiveMarkdown ?? node.markdown, images: node.images, status: '只读', empty: '暂无行动记录' }}
-    expression={{ markdown: document, images: draftDocument === undefined ? expression.sourceNode?.images : [], status: expressionStatus, empty: '暂无表达' }}
-    agreement={<ExpressionAgreements node={node} actions={actions} />}
-    footer={<><span className="text-xs text-muted" role="status">{!canEdit ? '该节点已有后续引用，无法修改表达' : sending ? '正在整理…' : generated ? document.trim() === expression.markdown.trim() ? '表达未变化' : '待保存' : draftDocument !== undefined ? '本轮未完成' : '尚未生成'}</span>
-      <button className="primary-button" type="button" disabled={!canSave} onClick={async () => {
-            if (!canSave) return
-            setSaving(true)
-            try {
-              if (!generation?.updateExpression || !await onConfirm(generation.updateExpression)) { showToast({ kind: 'error', message: '节点状态已变化，无法保存表达' }); return }
-              local.remove()
-              showToast({ kind: 'info', message: document.trim() ? `已${label}` : '已清空表达' })
-            } catch (error) { showToast({ kind: 'error', message: error instanceof Error ? error.message : '保存失败，请重试' }) }
-            finally { setSaving(false) }
-      }}><Check size={15} />保存表达</button></>} />
+  return (
+    <WorkspaceFrame title={label} tabLabel="表达工作区"
+      view={local.value.view} onViewChange={(view) => update({ view })} restoring={!local.ready}
+      draftControls={<LocalDraftControls status={local.status} hasDraft={local.hasDraft} disabled={sending || saving || !local.ready} onDiscard={local.discard} />}
+      help={<HelpPopover title="表达的背景">
+          <p>本次对话带入当前行动、已引用的历史行动、有效表达、来源约定和原有对话。其他分支不属于已知事实。</p>
+          <p>只更新当前节点的表达，行动与约定保持原样。要清空表达，可在对话中说明；确认保存后生效。</p>
+        </HelpPopover>}
+      context={{ label: `节点 #${node.number}`, title: node.title, facts: context?.facts.filter((fact) => fact.number !== node.number) ?? [] }}
+      messages={conversation} profileName={profileName} profile={profile} users={users} defaultAuthorId={profileId}
+      input={input} inputLabel="表达对话内容" placeholder="说说想保留或调整的看法" sending={sending} disabled={saving || !local.ready || !canEdit}
+      onInputChange={(input) => update({ input })} onSend={send} onBack={onBack}
+      action={{ markdown: node.objectiveMarkdown ?? node.markdown, images: node.images, status: '只读', empty: '暂无行动记录' }}
+      expression={{ markdown: document, images: draftDocument === undefined ? expression.sourceNode?.images : [], status: expressionStatus, empty: '暂无表达' }}
+      agreement={<ExpressionAgreements node={node} actions={actions} />}
+      footer={<><span className="text-xs text-muted" role="status">{!canEdit ? '该节点已有后续引用，无法修改表达' : sending ? '正在整理…' : generated ? document.trim() === expression.markdown.trim() ? '表达未变化' : '待保存' : draftDocument !== undefined ? '本轮未完成' : '尚未生成'}</span>
+        <button className="primary-button" type="button" disabled={!canSave} onClick={async () => {
+              if (!canSave) return
+              setSaving(true)
+              try {
+                if (!generation?.updateExpression || !await onConfirm(generation.updateExpression)) { showToast({ kind: 'error', message: '节点状态已变化，无法保存表达' }); return }
+                local.remove()
+                showToast({ kind: 'info', message: document.trim() ? `已${label}` : '已清空表达' })
+              } catch (error) { showToast({ kind: 'error', message: error instanceof Error ? error.message : '保存失败，请重试' }) }
+              finally { setSaving(false) }
+        }}><Check size={15} />保存表达</button></>} />
+  )
 }
 
 function isConversationMessage(message: ChatMessage): boolean {
