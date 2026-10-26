@@ -24,6 +24,7 @@ type Config struct {
 	Credentials Credentials   `yaml:"credentials"`
 	Mail        Mail          `yaml:"mail"`
 	Storage     ObjectStorage `yaml:"storage"`
+	AI          AI            `yaml:"ai"`
 	Security    Security      `yaml:"security"`
 }
 
@@ -64,6 +65,7 @@ type Credentials struct {
 
 // Mail 兼容现有邮件模板配置。
 type Mail struct {
+	Enabled        bool   `yaml:"enabled"`
 	Region         string `yaml:"region"`
 	TemplateID     uint64 `yaml:"template_id"`
 	FromEmail      string `yaml:"from_email"`
@@ -72,9 +74,18 @@ type Mail struct {
 
 // ObjectStorage 兼容现有对象存储配置。
 type ObjectStorage struct {
+	Enabled      bool   `yaml:"enabled"`
+	MediaPrefix  string `yaml:"media_prefix"`
 	Region       string `yaml:"region"`
 	Bucket       string `yaml:"bucket"`
 	AvatarPrefix string `yaml:"avatar_prefix"`
+}
+
+// AI 是仅服务端持有的平台模型配置，不支持用户密钥。
+type AI struct {
+	BaseURL string `yaml:"base_url"`
+	Model   string `yaml:"model"`
+	APIKey  string `yaml:"api_key"`
 }
 
 // Security 仅为旧配置解析保留，当前不恢复个人 AI Key 的加密存储。
@@ -105,6 +116,42 @@ func Load(path string) (Config, error) {
 	}
 	if schema := os.Getenv("EXEC_GRAPH_DATABASE_SCHEMA"); schema != "" {
 		c.Database.Schema = schema
+	}
+	if enabled := os.Getenv("EXEC_GRAPH_STORAGE_ENABLED"); enabled != "" {
+		c.Storage.Enabled, err = strconv.ParseBool(enabled)
+		if err != nil {
+			return Config{}, fmt.Errorf("EXEC_GRAPH_STORAGE_ENABLED 必须为布尔值")
+		}
+	}
+	if c.Storage.MediaPrefix == "" {
+		c.Storage.MediaPrefix = "exec-graph/v1/media"
+	}
+	if c.AI.BaseURL == "" {
+		c.AI.BaseURL = "https://api.deepseek.com"
+	}
+	if c.AI.Model == "" {
+		c.AI.Model = "deepseek-flash"
+	}
+	if value := os.Getenv("DEEPSEEK_API_KEY"); value != "" {
+		c.AI.APIKey = value
+	}
+	if value := os.Getenv("EXEC_GRAPH_AI_BASE_URL"); value != "" {
+		c.AI.BaseURL = value
+	}
+	if value := os.Getenv("EXEC_GRAPH_AI_MODEL"); value != "" {
+		c.AI.Model = value
+	}
+	if enabled := os.Getenv("EXEC_GRAPH_MAIL_ENABLED"); enabled != "" {
+		c.Mail.Enabled, err = strconv.ParseBool(enabled)
+		if err != nil {
+			return Config{}, fmt.Errorf("EXEC_GRAPH_MAIL_ENABLED 必须为布尔值")
+		}
+	}
+	if c.Mail.CodeTTLMinutes == 0 {
+		c.Mail.CodeTTLMinutes = 10
+	}
+	if c.Mail.CodeTTLMinutes < 1 || c.Mail.CodeTTLMinutes > 30 {
+		return Config{}, fmt.Errorf("mail.code_ttl_minutes 必须在 1 到 30 分钟之间")
 	}
 	if prefix := os.Getenv("EXEC_GRAPH_REDIS_PREFIX"); prefix != "" {
 		c.Redis.Prefix = prefix

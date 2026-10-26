@@ -10,23 +10,16 @@ type Repository interface {
 	Actions(context.Context, string) ([]ActionView, error)
 	Action(context.Context, string) (ActionView, error)
 	Following(context.Context, string) (FollowingView, error)
-	Media(context.Context, string) (MediaMetadata, error)
-}
-
-// Files 抽象对象存储读取，首批只读取明确导入的演示文件。
-type Files interface {
-	Read(context.Context, string) ([]byte, error)
 }
 
 // Service 是目录读取用例入口。
 type Service struct {
 	repository Repository
-	files      Files
 }
 
 // New 注入已创建的仓储和文件客户端。
-func New(repository Repository, files Files) *Service {
-	return &Service{repository: repository, files: files}
+func New(repository Repository) *Service {
+	return &Service{repository: repository}
 }
 
 // Profiles 读取公开资料目录。
@@ -55,14 +48,4 @@ func (s *Service) Action(ctx context.Context, uuid string) (ActionView, error) {
 // Following 读取当前账号关注集合。
 func (s *Service) Following(ctx context.Context, uuid string) (FollowingView, error) {
 	return s.repository.Following(ctx, uuid)
-}
-
-// Media 验证文件状态后读取对象，不接受任意文件路径。
-func (s *Service) Media(ctx context.Context, uuid string) ([]byte, string, error) {
-	meta, err := s.repository.Media(ctx, uuid)
-	if err != nil {
-		return nil, "", err
-	}
-	body, err := s.files.Read(ctx, meta.ObjectKey)
-	return body, meta.MIMEType, err
 }

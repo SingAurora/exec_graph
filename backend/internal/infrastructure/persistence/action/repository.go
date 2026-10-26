@@ -23,6 +23,9 @@ func New(db *gorm.DB) *Repository { return &Repository{db: db} }
 
 type actionTransaction struct{ *transaction.Scope }
 
+// InScope 为生成用例复用同一事务中的图读取与领域上下文映射。
+func InScope(scope *transaction.Scope) app.Transaction { return &actionTransaction{scope} }
+
 // Within 向行动用例提供认证锁及同一数据库事务。
 func (r *Repository) Within(ctx context.Context, actor identity.Actor, run func(app.Transaction) error) error {
 	return transaction.Within(ctx, r.db, actor, func(scope *transaction.Scope) error { return run(&actionTransaction{scope}) })

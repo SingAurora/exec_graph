@@ -14,10 +14,13 @@ import (
 	"testing"
 	"time"
 
+	appaccount "github.com/singaurora/exec-graph/backend/internal/application/account"
 	app "github.com/singaurora/exec-graph/backend/internal/application/action"
 	"github.com/singaurora/exec-graph/backend/internal/application/catalogue"
+	appgeneration "github.com/singaurora/exec-graph/backend/internal/application/generation"
 	"github.com/singaurora/exec-graph/backend/internal/application/graph"
 	"github.com/singaurora/exec-graph/backend/internal/application/identity"
+	appmedia "github.com/singaurora/exec-graph/backend/internal/application/media"
 	"github.com/singaurora/exec-graph/backend/internal/bootstrap/config"
 	"github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/database"
 	"github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/model"
@@ -45,7 +48,15 @@ type commandResponse struct {
 	message string
 }
 
-func writeFixture(t *testing.T) *writeSystem {
+func writeFixture(t *testing.T, objects ...appmedia.Objects) *writeSystem {
+	var selected appmedia.Objects
+	if len(objects) > 0 {
+		selected = objects[0]
+	}
+	return writeFixtureDependencies(t, selected, nil)
+}
+
+func writeFixtureDependencies(t *testing.T, objects appmedia.Objects, provider appgeneration.Provider, senders ...appaccount.Sender) *writeSystem {
 	t.Helper()
 	if os.Getenv("EXEC_GRAPH_INTEGRATION") != "1" {
 		t.Skip("显式启用后才连接真实 MySQL 和 Redis")
@@ -76,6 +87,10 @@ func writeFixture(t *testing.T) *writeSystem {
 		}
 	})
 	deps := &Dependencies{Config: c, DB: db, Sessions: redis}
+	deps.Objects, deps.AI = objects, provider
+	if len(senders) > 0 {
+		deps.Mail = senders[0]
+	}
 	if err := schema.Migrate(context.Background(), db); err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +113,7 @@ func (s *writeSystem) as(t *testing.T, uuid string) writeClient {
 			t.Error(err)
 		}
 	})
-	return writeClient{url: s.server.URL, token: token, csrf: csrf, http: &http.Client{Timeout: 30 * time.Second}}
+	return writeClient{url: s.server.URL, token: token, csrf: csrf, http: &http.Client{Timeout: 110 * time.Second}}
 }
 
 func (c writeClient) send(method, path string, input any, key string) (commandResponse, error) {

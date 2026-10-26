@@ -84,12 +84,20 @@ func (s *Scope) CheckAssets(ids ...*string) error {
 		if !id.Valid(*uuid) {
 			return fault.New(fault.Invalid, "图片资源标识不合法")
 		}
-		var count int64
-		if err := s.DB.Model(&model.MediaAsset{}).Where("uuid = ? AND owner_uuid = ? AND status = ? AND deleted_at IS NULL", *uuid, s.Actor.UserID, "ready").Count(&count).Error; err != nil {
+		var asset model.MediaAsset
+		err := s.DB.Clauses(clause.Locking{Strength: "UPDATE"}).Where("uuid = ? AND owner_uuid = ? AND status = ? AND deleted_at IS NULL", *uuid, s.Actor.UserID, "ready").Take(&asset).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fault.New(fault.Forbidden, "只能使用自己已上传的图片")
+		}
+		if err != nil {
 			return err
 		}
-		if count != 1 {
-			return fault.New(fault.Forbidden, "只能使用自己已上传的图片")
+		var claimed int64
+		if err := s.DB.Model(&model.MediaRetention{}).Where("asset_uuid = ? AND cleanup_started_at IS NOT NULL", *uuid).Count(&claimed).Error; err != nil {
+			return err
+		}
+		if claimed != 0 {
+			return fault.New(fault.Conflict, "图片已过期，请重新上传")
 		}
 	}
 	return nil

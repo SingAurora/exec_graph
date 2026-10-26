@@ -18,7 +18,7 @@ func validateGeneration(g Generation, actorID string) error {
 		return fault.New(fault.Conflict, "生成对话不连续或已有新消息，请重新生成")
 	}
 	output := g.Output
-	if output.ConversationID != g.ConversationID || output.Speaker != "ai" || output.Sequence != g.InputThroughSequence+1 || g.NextMessageSequence != output.Sequence+1 || output.Confirmed {
+	if output.ConversationID != g.ConversationID || output.Speaker != "ai" || output.Sequence != g.InputThroughSequence+1 || g.NextMessageSequence <= output.Sequence || output.Confirmed || g.HasNewerRequesterInput {
 		return bad()
 	}
 	if len(g.Messages) == 0 || len(g.Messages) != len(g.UsedMessages) {
@@ -28,11 +28,16 @@ func validateGeneration(g Generation, actorID string) error {
 	if last.Speaker != "user" || last.AuthorID != actorID || last.Sequence != g.InputThroughSequence {
 		return bad()
 	}
+	var previous uint32
 	for i, message := range g.Messages {
 		used := g.UsedMessages[i]
-		if message.Sequence != uint32(i+1) || used.ConversationID != g.ConversationID || used.MessageID != message.ID || used.Position != uint32(i+1) {
+		if message.ConversationID != g.ConversationID || message.Sequence <= previous || message.Sequence > g.InputThroughSequence || used.ConversationID != g.ConversationID || used.MessageID != message.ID || used.Position != uint32(i+1) {
 			return bad()
 		}
+		if !message.Confirmed && ((message.Speaker == "user" && message.AuthorID != actorID) || (message.Speaker == "ai" && message.PrivateOwnerID != actorID)) {
+			return bad()
+		}
+		previous = message.Sequence
 	}
 	return nil
 }

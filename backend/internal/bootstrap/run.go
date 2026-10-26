@@ -29,7 +29,11 @@ func Run() error {
 		return err
 	}
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	server := &http.Server{Addr: net.JoinHostPort(deps.Config.App.Host, strconv.Itoa(deps.Config.App.Port)), Handler: HTTP(deps, logger), ReadHeaderTimeout: constants.HTTPHeaderTimeout, ReadTimeout: constants.HTTPRequestTimeout, WriteTimeout: constants.HTTPRequestTimeout, IdleTimeout: constants.HTTPRequestTimeout}
+	maintenanceCtx, endMaintenance := context.WithCancel(ctx)
+	maintenanceDone := make(chan struct{})
+	go func() { defer close(maintenanceDone); maintainMedia(maintenanceCtx, deps, logger) }()
+	defer func() { endMaintenance(); <-maintenanceDone }()
+	server := &http.Server{Addr: net.JoinHostPort(deps.Config.App.Host, strconv.Itoa(deps.Config.App.Port)), Handler: HTTP(deps, logger), ReadHeaderTimeout: constants.HTTPHeaderTimeout, ReadTimeout: constants.HTTPRequestTimeout, WriteTimeout: constants.AIRequestTimeout, IdleTimeout: constants.HTTPRequestTimeout}
 	failures := make(chan error, 1)
 	go func() { logger.Info("引序后端启动", "address", server.Addr); failures <- server.ListenAndServe() }()
 	select {

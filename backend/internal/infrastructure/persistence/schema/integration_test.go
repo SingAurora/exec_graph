@@ -10,6 +10,7 @@ import (
 	"github.com/singaurora/exec-graph/backend/internal/bootstrap/config"
 	"github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/database"
 	"github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/model"
+	"github.com/singaurora/exec-graph/backend/internal/shared/constants"
 	"github.com/singaurora/exec-graph/backend/internal/shared/id"
 )
 
@@ -44,7 +45,7 @@ func TestMySQLMigrationAndConstraints(t *testing.T) {
 		t.Fatalf("重复迁移失败: %v", err)
 	}
 	var versions int64
-	if err := db.Model(&model.SchemaVersion{}).Count(&versions).Error; err != nil || versions != 1 {
+	if err := db.Model(&model.SchemaVersion{}).Count(&versions).Error; err != nil || versions != int64(constants.LatestSchemaVersion) {
 		t.Fatalf("迁移记录不正确: %d %v", versions, err)
 	}
 	ordinary := model.User{UUID: id.New(), Name: "普通账号", Gender: "unknown", BiographyMarkdown: "", Version: 1}
@@ -52,6 +53,20 @@ func TestMySQLMigrationAndConstraints(t *testing.T) {
 	demo := model.User{UUID: id.New(), Name: "演示账号", Gender: "unknown", BiographyMarkdown: "", Version: 1, IsTestAccount: true, TestDataset: &dataset}
 	if err := db.Create(&ordinary).Error; err != nil {
 		t.Fatal(err)
+	}
+	// 回到真实 v1 表集合再升级，确认新增保留表不会覆盖既有账号。
+	if err := db.Migrator().DropTable(&model.MediaRetention{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Where("version = ?", 2).Delete(&model.SchemaVersion{}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := Migrate(ctx, db); err != nil {
+		t.Fatalf("v1 升级失败: %v", err)
+	}
+	var preserved model.User
+	if err := db.Where("uuid = ?", ordinary.UUID).Take(&preserved).Error; err != nil || preserved.Name != ordinary.Name || preserved.ID != ordinary.ID {
+		t.Fatalf("升级破坏原数据: %v", err)
 	}
 	if err := db.Create(&demo).Error; err != nil {
 		t.Fatal(err)

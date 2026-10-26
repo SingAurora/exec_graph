@@ -51,6 +51,30 @@ func terminal(graph Graph, nodeID string) bool {
 	return true
 }
 
+// EditableNode 验证当前节点版本和未被引用状态，供生成与最终确认共用。
+func EditableNode(graph Graph, uuid string, expected uint32) (Node, error) {
+	for _, node := range graph.Nodes {
+		if node.ID == uuid {
+			if node.Version != expected || !terminal(graph, uuid) {
+				return Node{}, fault.New(fault.Conflict, "节点已变化或已有后续引用，请刷新后查看")
+			}
+			return node, nil
+		}
+	}
+	return Node{}, fault.New(fault.NotFound, "行动不存在")
+}
+
+// HistoryNodeIDs 返回指定直接来源可达的事实并集，不包含图内无关路线。
+func HistoryNodeIDs(graph Graph, sources []string) map[string]bool {
+	ids := map[string]bool{}
+	for _, uuid := range sources {
+		for uuid := range known(graph, uuid) {
+			ids[uuid] = true
+		}
+	}
+	return ids
+}
+
 // ResolveSources 只采用当前主要链和合法合入终点的历史并集，不接收客户端历史数量。
 func ResolveSources(graph Graph, input CreateActionInput) ([]GenerationSource, uint32, uint32, error) {
 	if input.MergedParentIDs == nil || input.SourceVersions == nil || input.ReferenceAgreements == nil || len(input.MergedParentIDs)+1 > constants.DirectSourceLimit {

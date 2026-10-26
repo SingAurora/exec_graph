@@ -5,7 +5,6 @@ import (
 	"github.com/gin-gonic/gin"
 	app "github.com/singaurora/exec-graph/backend/internal/application/identity"
 	"github.com/singaurora/exec-graph/backend/internal/http/endpoint/common"
-	"net/http"
 )
 
 // Handler 保存已注入的服务和 cookie 策略。
@@ -83,6 +82,5 @@ func (h *Handler) Logout(c *gin.Context) {
 	common.Reply(c, nil)
 }
 func (h *Handler) cookie(c *gin.Context, value string, maxAge int) {
-	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie("exec_graph_v1_session", value, maxAge, "/api", "", h.secure, true)
+	common.SetSessionCookie(c, value, maxAge, h.secure)
 }

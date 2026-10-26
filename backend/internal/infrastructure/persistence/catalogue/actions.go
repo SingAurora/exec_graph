@@ -152,7 +152,7 @@ func (r *Repository) actions(ctx context.Context, nodes []model.ActionNode) ([]a
 		} else if image.ExternalURL != nil {
 			address = *image.ExternalURL
 		}
-		byID[image.NodeUUID].Images = append(byID[image.NodeUUID].Images, app.Image{URL: address, Alt: image.AltText})
+		byID[image.NodeUUID].Images = append(byID[image.NodeUUID].Images, app.Image{AssetID: image.AssetUUID, URL: address, Alt: image.AltText})
 	}
 	for _, message := range messages {
 		conv := byConv[message.ConversationUUID]
@@ -169,6 +169,13 @@ func (r *Repository) actions(ctx context.Context, nodes []model.ActionNode) ([]a
 		} else {
 			node.ExpressionConversation = append(node.ExpressionConversation, view)
 		}
+	}
+	aliases, err := r.aliases(ctx, "action", ids)
+	if err != nil {
+		return nil, err
+	}
+	for i := range result {
+		result[i].LegacyID = aliases[result[i].ID]
 	}
 	return result, nil
 }

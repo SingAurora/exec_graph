@@ -3,12 +3,15 @@ package router
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/singaurora/exec-graph/backend/internal/http/endpoint/account"
 	"github.com/singaurora/exec-graph/backend/internal/http/endpoint/action"
 	"github.com/singaurora/exec-graph/backend/internal/http/endpoint/catalogue"
 	"github.com/singaurora/exec-graph/backend/internal/http/endpoint/common"
 	"github.com/singaurora/exec-graph/backend/internal/http/endpoint/following"
+	"github.com/singaurora/exec-graph/backend/internal/http/endpoint/generation"
 	"github.com/singaurora/exec-graph/backend/internal/http/endpoint/graph"
 	"github.com/singaurora/exec-graph/backend/internal/http/endpoint/identity"
+	"github.com/singaurora/exec-graph/backend/internal/http/endpoint/media"
 	"github.com/singaurora/exec-graph/backend/internal/http/endpoint/profile"
 	"github.com/singaurora/exec-graph/backend/internal/http/middleware"
 	"github.com/singaurora/exec-graph/backend/internal/shared/fault"
@@ -16,7 +19,7 @@ import (
 )
 
 // New 注册当前阶段已实现的接口，不为未实现业务返回伪成功。
-func New(auth *identity.Handler, read *catalogue.Handler, graphs *graph.Handler, actions *action.Handler, profiles *profile.Handler, follows *following.Handler, origins []string, logger *slog.Logger) *gin.Engine {
+func New(auth *identity.Handler, read *catalogue.Handler, graphs *graph.Handler, actions *action.Handler, profiles *profile.Handler, follows *following.Handler, images *media.Handler, ai *generation.Handler, accounts *account.Handler, origins []string, logger *slog.Logger) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	engine := gin.New()
 	_ = engine.SetTrustedProxies(nil)
@@ -32,6 +35,16 @@ func New(auth *identity.Handler, read *catalogue.Handler, graphs *graph.Handler,
 	group.GET("/auth/session", auth.Session)
 	// 校验 CSRF 并撤销当前会话。
 	group.POST("/auth/logout", auth.Logout)
+	// 按注册、找回密码或已认证账户安全操作发送一次性验证码。
+	group.POST("/auth/code-send", accounts.Code)
+	// 校验邮箱验证码后注册普通账号并建立会话。
+	group.POST("/auth/register", accounts.Register)
+	// 校验绑定邮箱验证码后重置密码并撤销旧会话。
+	group.POST("/auth/password-reset", accounts.ResetPassword)
+	// 校验当前密码和绑定邮箱后修改密码。
+	group.POST("/auth/password-change", accounts.ChangePassword)
+	// 校验当前密码和新邮箱后更换绑定邮箱。
+	group.POST("/auth/email-change", accounts.ChangeEmail)
 	// 读取公开用户目录，不返回邮箱和测试管理字段。
 	group.GET("/profiles/catalogue", read.Profiles)
 	// 读取所有可见图的过渡目录。
@@ -44,8 +57,16 @@ func New(auth *identity.Handler, read *catalogue.Handler, graphs *graph.Handler,
 	group.GET("/actions/detail", read.Action)
 	// 读取当前账号的关注对象。
 	group.GET("/following/sources", read.Following)
-	// 读取已就绪的站内图片文件。
-	group.GET("/media/file", read.Media)
+	// 读取已公开引用的配图，未保存图片仅允许上传者读取。
+	group.GET("/media/file", images.File)
+	// 上传单张图片并登记一天的未保存保留期。
+	group.POST("/media/upload", images.Upload)
+	// 将当前账号草稿使用的图片续期七天。
+	group.POST("/media/retain", images.Retain)
+	// 从真实引用背景和本人连续对话生成行动或表达草稿。
+	group.POST("/ai/generate", ai.Generate)
+	// 读取本人发起的生成状态、草稿和确认参数。
+	group.GET("/ai/generation", ai.Get)
 	// 创建空图，使用提交键保证重复请求只创建一次。
 	group.POST("/graphs/create", graphs.Create)
 	// 创建者及贡献前三位用户修改图资料。

@@ -19,7 +19,7 @@ func main() {
 
 func run() error {
 	if len(os.Args) < 2 {
-		return fmt.Errorf("用法: manage check|migrate|verify|seed-demo [--create-database]")
+		return fmt.Errorf("用法: manage check|migrate|verify|seed-demo|prune-media [--create-database]")
 	}
 	command := os.Args[1]
 	flags := flag.NewFlagSet(command, flag.ContinueOnError)
@@ -30,7 +30,7 @@ func run() error {
 	if flags.NArg() != 0 {
 		return fmt.Errorf("不支持额外位置参数")
 	}
-	if command != "check" && command != "migrate" && command != "verify" && command != "seed-demo" {
+	if command != "check" && command != "migrate" && command != "verify" && command != "seed-demo" && command != "prune-media" {
 		return fmt.Errorf("未知管理命令")
 	}
 	if *create {
@@ -48,6 +48,13 @@ func run() error {
 	}
 	defer deps.Close()
 	switch command {
+	case "prune-media":
+		if err := schema.Check(ctx, deps.DB); err != nil {
+			return err
+		}
+		report, err := bootstrap.PruneMedia(ctx, deps)
+		fmt.Printf("图片清理：扫描 %d，删除 %d，失败 %d\n", report.Scanned, report.Deleted, report.Failed)
+		return err
 	case "seed-demo":
 		message, err := bootstrap.SeedDemo(ctx, deps, os.Getenv("EXEC_GRAPH_DEMO_PASSWORD"))
 		if err != nil {

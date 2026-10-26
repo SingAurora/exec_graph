@@ -13,6 +13,10 @@ import (
 
 // Models 明确列出本版本所有持久化模型，不包含 ORM 关联。
 func Models() []any {
+	return append(initialModels(), &model.MediaRetention{})
+}
+
+func initialModels() []any {
 	return []any{&model.User{}, &model.UserCredential{}, &model.MediaAsset{}, &model.Graph{}, &model.ActionNode{}, &model.DocumentVersion{}, &model.DocumentState{}, &model.ActionReference{}, &model.AIConversation{}, &model.AIMessage{}, &model.AIGeneration{}, &model.GenerationMessage{}, &model.GenerationSource{}, &model.UserFollow{}, &model.GraphFollow{}, &model.ProfileHighlight{}, &model.IdempotencyRecord{}, &model.ActionImage{}, &model.DocumentImage{}, &model.BiographyImage{}, &model.SeedImport{}, &model.LegacyAlias{}}
 }
 
@@ -53,14 +57,23 @@ func Migrate(ctx context.Context, db *gorm.DB) error {
 		if applied == constants.LatestSchemaVersion {
 			return Check(ctx, conn)
 		}
-		// 仅首版迁移使用这些模型；下一版本新增独立 Go 迁移，不修改已执行版本。
-		for _, table := range Models() {
-			if err := conn.Session(&gorm.Session{NewDB: true}).Set("gorm:table_options", "ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_cs").AutoMigrate(table); err != nil {
-				return fmt.Errorf("执行 GORM 初始迁移 %T: %w", table, err)
+		if applied < 1 {
+			for _, table := range initialModels() {
+				if err := conn.Session(&gorm.Session{NewDB: true}).Set("gorm:table_options", "ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_cs").AutoMigrate(table); err != nil {
+					return fmt.Errorf("执行 GORM 初始迁移 %T: %w", table, err)
+				}
+			}
+			if err := conn.Create(&model.SchemaVersion{Version: 1, AppliedAt: time.Now().UTC()}).Error; err != nil {
+				return fmt.Errorf("记录迁移版本: %w", err)
 			}
 		}
-		if err := conn.Create(&model.SchemaVersion{Version: 1, AppliedAt: time.Now().UTC()}).Error; err != nil {
-			return fmt.Errorf("记录迁移版本: %w", err)
+		if applied < 2 {
+			if err := conn.Session(&gorm.Session{NewDB: true}).Set("gorm:table_options", "ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_cs").AutoMigrate(&model.MediaRetention{}); err != nil {
+				return fmt.Errorf("添加上传资产保留记录: %w", err)
+			}
+			if err := conn.Create(&model.SchemaVersion{Version: 2, AppliedAt: time.Now().UTC()}).Error; err != nil {
+				return fmt.Errorf("记录上传资产迁移版本: %w", err)
+			}
 		}
 		return Check(ctx, conn)
 	})

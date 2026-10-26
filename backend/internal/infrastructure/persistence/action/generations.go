@@ -88,18 +88,34 @@ func (t *actionTransaction) messages(row model.AIGeneration, result *app.Generat
 	}
 	var messages []model.AIMessage
 	var used []model.GenerationMessage
-	if err := t.DB.Where("conversation_uuid = ? AND sequence_number <= ?", row.ConversationUUID, row.InputThroughSequence).Order("sequence_number").Find(&messages).Error; err != nil {
+	manifest := t.DB.Model(&model.GenerationMessage{}).Select("message_uuid").Where("generation_uuid = ?", row.UUID)
+	if err := t.DB.Where("conversation_uuid = ? AND uuid IN (?)", row.ConversationUUID, manifest).Order("sequence_number").Find(&messages).Error; err != nil {
 		return err
 	}
 	if err := t.DB.Where("generation_uuid = ?", row.UUID).Order("position").Find(&used).Error; err != nil {
 		return err
 	}
+	var outputs []model.AIGeneration
+	if err := t.DB.Where("conversation_uuid = ? AND output_message_uuid IS NOT NULL", row.ConversationUUID).Find(&outputs).Error; err != nil {
+		return err
+	}
+	owners := map[string]string{}
+	for _, output := range outputs {
+		owners[*output.OutputMessageUUID] = output.RequestedByUUID
+	}
 	for _, message := range messages {
-		result.Messages = append(result.Messages, messageFact(message))
+		fact := messageFact(message)
+		fact.PrivateOwnerID = owners[message.UUID]
+		result.Messages = append(result.Messages, fact)
 	}
 	for _, message := range used {
 		result.UsedMessages = append(result.UsedMessages, app.GenerationInput{ConversationID: message.ConversationUUID, MessageID: message.MessageUUID, Position: message.Position})
 	}
+	var newer int64
+	if err := t.DB.Model(&model.AIMessage{}).Where("conversation_uuid = ? AND sequence_number > ? AND speaker = ? AND author_uuid = ?", row.ConversationUUID, row.InputThroughSequence+1, "user", row.RequestedByUUID).Count(&newer).Error; err != nil {
+		return err
+	}
+	result.HasNewerRequesterInput = newer > 0
 	return nil
 }
 

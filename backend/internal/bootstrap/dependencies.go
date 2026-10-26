@@ -3,9 +3,15 @@ package bootstrap
 
 import (
 	"context"
+	appaccount "github.com/singaurora/exec-graph/backend/internal/application/account"
+	appgeneration "github.com/singaurora/exec-graph/backend/internal/application/generation"
+	appmedia "github.com/singaurora/exec-graph/backend/internal/application/media"
 	"github.com/singaurora/exec-graph/backend/internal/bootstrap/config"
+	"github.com/singaurora/exec-graph/backend/internal/infrastructure/ai"
+	"github.com/singaurora/exec-graph/backend/internal/infrastructure/mail"
 	"github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/database"
 	"github.com/singaurora/exec-graph/backend/internal/infrastructure/session"
+	"github.com/singaurora/exec-graph/backend/internal/infrastructure/storage"
 	"github.com/singaurora/exec-graph/backend/internal/shared/constants"
 	"gorm.io/gorm"
 )
@@ -15,6 +21,9 @@ type Dependencies struct {
 	Config   config.Config
 	DB       *gorm.DB
 	Sessions *session.Store
+	Objects  appmedia.Objects
+	AI       appgeneration.Provider
+	Mail     appaccount.Sender
 }
 
 // Open 加载旧配置并创建 MySQL、Redis 连接。
@@ -28,6 +37,21 @@ func Open(ctx context.Context, needRedis bool) (*Dependencies, error) {
 		return nil, err
 	}
 	deps := &Dependencies{Config: c, DB: db}
+	deps.Objects, err = storage.New(c.Storage, c.Credentials)
+	if err != nil {
+		deps.Close()
+		return nil, err
+	}
+	deps.AI, err = ai.New(c.AI)
+	if err != nil {
+		deps.Close()
+		return nil, err
+	}
+	deps.Mail, err = mail.New(c.Mail, c.Credentials)
+	if err != nil {
+		deps.Close()
+		return nil, err
+	}
 	if needRedis {
 		probe, cancel := context.WithTimeout(ctx, constants.DependencyTimeout)
 		defer cancel()

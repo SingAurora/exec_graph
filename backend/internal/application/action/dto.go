@@ -132,31 +132,32 @@ type GenerationSource struct {
 
 // Generation 是服务端存储的成功输出及它实际使用的上下文，不来自发布请求。
 type Generation struct {
-	ID                    string
-	GraphID               string
-	RequesterID           string
-	Mode                  string
-	ConversationNodeID    string
-	ConversationOwnerID   string
-	BaseVersion           uint32
-	Guide                 string
-	Title                 string
-	Objective             string
-	Expression            DocumentUpdate
-	Agreement             DocumentUpdate
-	Sources               []GenerationSource
-	Status                string
-	Confirmed             bool
-	Completed             bool
-	HasExpression         bool
-	InheritedExpressionID string
-	ConversationID        string
-	ConversationGraphID   string
-	NextMessageSequence   uint32
-	InputThroughSequence  uint32
-	Output                *ConversationMessage
-	Messages              []ConversationMessage
-	UsedMessages          []GenerationInput
+	ID                     string
+	GraphID                string
+	RequesterID            string
+	Mode                   string
+	ConversationNodeID     string
+	ConversationOwnerID    string
+	BaseVersion            uint32
+	Guide                  string
+	Title                  string
+	Objective              string
+	Expression             DocumentUpdate
+	Agreement              DocumentUpdate
+	Sources                []GenerationSource
+	Status                 string
+	Confirmed              bool
+	Completed              bool
+	HasExpression          bool
+	InheritedExpressionID  string
+	ConversationID         string
+	ConversationGraphID    string
+	NextMessageSequence    uint32
+	InputThroughSequence   uint32
+	Output                 *ConversationMessage
+	Messages               []ConversationMessage
+	UsedMessages           []GenerationInput
+	HasNewerRequesterInput bool
 }
 
 // ConversationMessage 是确认完整性校验所需的服务端消息事实。
@@ -167,6 +168,7 @@ type ConversationMessage struct {
 	Speaker        string
 	AuthorID       string
 	Confirmed      bool
+	PrivateOwnerID string
 }
 
 // GenerationInput 固定一次生成实际使用的消息及顺序。

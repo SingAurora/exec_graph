@@ -104,16 +104,8 @@ func editable(tx Transaction, uuid string, expected uint32) (Graph, Node, error)
 	if err != nil {
 		return Graph{}, Node{}, err
 	}
-	for _, node := range graph.Nodes {
-		if node.ID != uuid {
-			continue
-		}
-		if node.Version != expected || !terminal(graph, uuid) {
-			return Graph{}, Node{}, fault.New(fault.Conflict, "节点已变化或已有后续引用，请刷新后查看")
-		}
-		return graph, node, nil
-	}
-	return Graph{}, Node{}, fault.New(fault.NotFound, "行动不存在")
+	node, err := EditableNode(graph, uuid, expected)
+	return graph, node, err
 }
 
 // UpdateAgreement 任何已认证用户均可整理尚未被引用的终点，实际操作者留在新版本中。

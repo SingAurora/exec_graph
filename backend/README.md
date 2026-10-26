@@ -46,6 +46,8 @@ EXEC_GRAPH_DATABASE_SCHEMA=exec_graph_v1 EXEC_GRAPH_ADDR=127.0.0.1:8081 EXEC_GRA
 | POST | `/auth/demo-login` | 显式开发模式登录固定测试号，JSON 为 `{}` |
 | GET | `/auth/session` | 当前账户及 CSRF token |
 | POST | `/auth/logout` | JSON 为 `{}`，需 `X-CSRF-Token` |
+| POST | `/auth/code-send`、`/auth/register`、`/auth/password-reset` | 邮件验证码、注册及找回密码 |
+| POST | `/auth/password-change`、`/auth/email-change` | 当前密码与验证码双重校验，成功撤销旧会话 |
 | GET | `/profiles/catalogue` | 公开用户资料，不含邮箱和测试管理字段 |
 | GET | `/graphs/catalogue` | 可见图目录 |
 | GET | `/graphs/detail?graphId=...` | 单图资料 |
@@ -53,6 +55,9 @@ EXEC_GRAPH_DATABASE_SCHEMA=exec_graph_v1 EXEC_GRAPH_ADDR=127.0.0.1:8081 EXEC_GRA
 | GET | `/actions/detail?nodeId=...` | 单个行动 |
 | GET | `/following/sources` | 当前登录账号的关注集合 |
 | GET | `/media/file?assetId=...` | 已就绪图片；成功时返回二进制，不套 JSON |
+| POST | `/media/upload`、`/media/retain` | 上传登记与草稿图片续期 |
+| POST | `/ai/generate` | 平台 AI 生成私有草稿，需要提交键 |
+| GET | `/ai/generation?generationId=...` | 读取本人生成结果及确认参数 |
 | POST | `/graphs/create`、`/graphs/update`、`/graphs/delete` | 图创建、版本更新和受保护删除 |
 | POST | `/actions/create` | 确认服务端 AI 结果并原子发布行动 |
 | POST | `/expressions/update`、`/agreements/update` | 终点表达／约定的版本化确认 |
@@ -65,16 +70,30 @@ EXEC_GRAPH_DATABASE_SCHEMA=exec_graph_v1 EXEC_GRAPH_ADDR=127.0.0.1:8081 EXEC_GRA
 
 写入的准确 DTO、权限和事务行为见 [真实后端写入契约](../doc/backend-write-contract.md)。创建带 `Idempotency-Key`，全部业务写入带 CSRF，修改带 `expectedVersion`。图和资料图片接受已上传的资产 UUID；行动及表达确认使用 `generationId`，不接受浏览器直接伪造的 AI 文稿／对话。
 
-**当前尚未形成完整用户发布流程**：注册、验证码、密码重置、上传及真实 AI 生成尚未实现；前端仍走 MSW，发布和图片 DTO 也需在联调时迁移。写入实库测试中的生成明确为测试夹具，不能当作已验证真实 AI。未知接口返回 404，不返回模拟成功。
+前端默认关闭 MSW，真实认证、上传、生成和确认发布已接入。外部能力 DTO、私有草稿隔离、限时和回收边界见 [外部能力契约](../doc/backend-external-contract.md)。未知接口返回 404，不返回模拟成功。
+
+## 外部能力配置
+
+参考 `etc/config.example.yaml`。真实邮件需 `mail.enabled`、发件地址、模板 ID、区域及服务端凭据；真实图片需 `storage.enabled`、bucket、region 和专用 `media_prefix`。旧配置的凭据仅由 bootstrap 创建 SDK 时读取，不进入业务用例。平台 AI 配置 `ai.base_url`、`ai.model`、`ai.api_key`，也可通过 `DEEPSEEK_API_KEY` 注入密钥，示例模型为 `deepseek-flash`。不要把真实配置提交到 Git。
+
+第四阶段 schema v2 增加图片保留登记表，已有 v1 数据执行同一 `manage migrate` 升级，保留原用户和业务身份。上传未保存的图片一天后可回收；本地草稿续期七天，公开或历史引用仍受保护。API 启动时及每小时扫描一批，也可运行：
+
+```sh
+EXEC_GRAPH_DATABASE_SCHEMA=exec_graph_v1 go run ./cmd/manage prune-media
+```
+
+浏览器启动命令见 [前端说明](../frontend/README.md)。开发测试号入口需要前后端分别显式开启，不能在生产环境开启。
 
 ## 验证
 
 ```sh
 go test ./...
 go vet ./...
-EXEC_GRAPH_CONFIG=/absolute/path/to/config.local.yaml EXEC_GRAPH_INTEGRATION=1 go test -timeout 20m ./...
+EXEC_GRAPH_CONFIG=/absolute/path/to/config.local.yaml EXEC_GRAPH_INTEGRATION=1 go test -timeout 30m ./...
 ```
 
 `manage check` 探测真实 MySQL 与 Redis。`manage verify` 检查实际 schema、模型表及无外键约定。真实外部服务不可达时返回失败，不使用内存数据库代替。
 
 实库测试创建随机 MySQL schema 和独立 Redis 前缀，测试结束删除自己的 schema，不清空旧库或共享 Redis。覆盖 GORM 迁移、约束、测试号导入、重复导入、真实 HTTP 登录／读取／退出、公开字段隔离、图片、未确认消息隔离及会话撤销，以及业务写入的权限、幂等、版本、继承／清空、精选、失败回滚和并发竞争。未设置 `EXEC_GRAPH_INTEGRATION=1` 时，这些外部依赖测试明确跳过。
+
+云端验收另显式设置 `EXEC_GRAPH_STORAGE_INTEGRATION=1`、`EXEC_GRAPH_AI_INTEGRATION=1` 或 `EXEC_GRAPH_MAIL_INTEGRATION=1`；邮件还需 `EXEC_GRAPH_MAIL_TEST_RECIPIENT` 指定获授权的收件地址。它们会产生真实外部调用，普通实库回归不重复发送邮件或调用付费模型。测试替身只验证协议及事务，不当作云端可用性证据。

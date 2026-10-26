@@ -47,5 +47,5 @@ const (
 	// PasswordParallelism 是 Argon2id 的并行度。
 	PasswordParallelism = 2
 	// LatestSchemaVersion 是当前应用要求的迁移版本。
-	LatestSchemaVersion uint64 = 1
+	LatestSchemaVersion uint64 = 2
 )

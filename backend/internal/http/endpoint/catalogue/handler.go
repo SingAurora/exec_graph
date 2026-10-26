@@ -103,23 +103,6 @@ func (h *Handler) Following(c *gin.Context) {
 	common.Reply(c, out)
 }
 
-// Media 返回原始图片文件，不套业务 JSON 外壳。
-func (h *Handler) Media(c *gin.Context) {
-	uuid, err := common.Query(c, "assetId")
-	if err != nil {
-		common.Fail(c, err)
-		return
-	}
-	body, mime, err := h.service.Media(c.Request.Context(), uuid)
-	if err != nil {
-		common.Fail(c, err)
-		return
-	}
-	c.Header("X-Content-Type-Options", "nosniff")
-	c.Header("Cache-Control", "public, max-age=3600")
-	c.Data(200, mime, body)
-}
-
 // Ready 只有真实依赖可用时才返回就绪。
 func (h *Handler) Ready(c *gin.Context) {
 	if err := h.ready(c.Request.Context()); err != nil {

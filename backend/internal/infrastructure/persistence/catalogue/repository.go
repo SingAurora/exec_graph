@@ -107,7 +107,14 @@ func (r *Repository) profiles(ctx context.Context, users []model.User) ([]app.Pr
 		if list == nil {
 			list = []string{}
 		}
-		views = append(views, app.ProfileView{ID: u.UUID, Name: u.Name, Gender: u.Gender, Bio: u.BiographyMarkdown, Avatar: avatar, BackgroundImage: MediaURL(u.CoverAssetUUID), ActiveDays: len(days[u.UUID]), Highlights: app.Highlights{ExpressionNodeIDs: list}})
+		views = append(views, app.ProfileView{ID: u.UUID, Name: u.Name, Gender: u.Gender, Bio: u.BiographyMarkdown, Avatar: avatar, BackgroundImage: MediaURL(u.CoverAssetUUID), AvatarAssetID: u.AvatarAssetUUID, BackgroundAssetID: u.CoverAssetUUID, ActiveDays: len(days[u.UUID]), Highlights: app.Highlights{ExpressionNodeIDs: list}})
+	}
+	aliases, err := r.aliases(ctx, "user", ids)
+	if err != nil {
+		return nil, err
+	}
+	for i := range views {
+		views[i].LegacyID = aliases[views[i].ID]
 	}
 	return views, nil
 }
@@ -164,7 +171,14 @@ func (r *Repository) graphs(ctx context.Context, graphs []model.Graph) ([]app.Gr
 		if people == nil {
 			people = []string{}
 		}
-		result = append(result, app.GraphView{ID: g.UUID, OwnerID: g.OwnerUUID, ParticipantIDs: people, Title: g.Title, Description: g.Description, Avatar: MediaURL(g.AvatarAssetUUID), BackgroundImage: MediaURL(g.CoverAssetUUID), ContextGuide: g.ContextGuide, Version: g.Version, CreatedAt: g.CreatedAt, UpdatedAt: g.UpdatedAt})
+		result = append(result, app.GraphView{ID: g.UUID, OwnerID: g.OwnerUUID, ParticipantIDs: people, Title: g.Title, Description: g.Description, Avatar: MediaURL(g.AvatarAssetUUID), BackgroundImage: MediaURL(g.CoverAssetUUID), AvatarAssetID: g.AvatarAssetUUID, BackgroundAssetID: g.CoverAssetUUID, ContextGuide: g.ContextGuide, Version: g.Version, CreatedAt: g.CreatedAt, UpdatedAt: g.UpdatedAt})
+	}
+	aliases, err := r.aliases(ctx, "graph", ids)
+	if err != nil {
+		return nil, err
+	}
+	for i := range result {
+		result[i].LegacyID = aliases[result[i].ID]
 	}
 	return result, nil
 }
@@ -177,23 +191,4 @@ func (r *Repository) Following(ctx context.Context, uuid string) (app.FollowingV
 	}
 	err := r.db.WithContext(ctx).Table("graph_follows AS f").Joins("JOIN graphs g ON g.uuid = f.graph_uuid AND g.deleted_at IS NULL").Where("f.user_uuid = ?", uuid).Order("f.id").Pluck("f.graph_uuid", &out.GraphIDs).Error
 	return out, err
-}
-
-// Media 只解析合法、已就绪的站内资源 UUID。
-func (r *Repository) Media(ctx context.Context, uuid string) (app.MediaMetadata, error) {
-	if !id.Valid(uuid) {
-		return app.MediaMetadata{}, fault.New(fault.Invalid, "图片标识不合法")
-	}
-	var asset model.MediaAsset
-	err := r.db.WithContext(ctx).Where("uuid = ? AND status = ? AND deleted_at IS NULL", uuid, "ready").Take(&asset).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return app.MediaMetadata{}, fault.New(fault.NotFound, "图片不存在")
-	}
-	if err != nil {
-		return app.MediaMetadata{}, err
-	}
-	if asset.MIMEType == nil {
-		return app.MediaMetadata{}, fmt.Errorf("图片元信息不完整")
-	}
-	return app.MediaMetadata{ObjectKey: asset.ObjectKey, MIMEType: *asset.MIMEType}, nil
 }
