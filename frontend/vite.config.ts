@@ -12,7 +12,7 @@ export default defineConfig(({ mode }) => {
       // 开发环境同源访问业务后端；模型凭据与上游调用全部由后端管理。
       proxy: {
         '/api': {
-          target: env.API_PROXY_TARGET || 'http://127.0.0.1:8080',
+          target: env.API_PROXY_TARGET || 'http://127.0.0.1:8081',
           changeOrigin: true,
         },
       },

@@ -12,7 +12,7 @@ describe('AI proxy credential isolation', () => {
       expect(Object.keys(proxies)).toEqual(['/api'])
       const proxy = proxies['/api']
       expect(proxy.headers).toBeUndefined()
-      expect(proxy.target).toBe('http://127.0.0.1:8080')
+      expect(proxy.target).toBe('http://127.0.0.1:8081')
     } finally {
       if (originalKey === undefined) delete process.env.DEEPSEEK_API_KEY
       else process.env.DEEPSEEK_API_KEY = originalKey

@@ -2,10 +2,10 @@
 
 ```sh
 bun install
-API_PROXY_TARGET=http://127.0.0.1:8081 bun run dev --port 5174
+bun run dev --port 5174
 ```
 
-先按 [后端说明](../backend/README.md) 启动真实 API。默认关闭 MSW，由 Vite 的 `/api` 代理转发业务请求；生产部署配置同源反向代理。平台密钥只配置在后端。开发测试号入口需同时开启前端 `VITE_ENABLE_DEMO_LOGIN=true` 和后端 `EXEC_GRAPH_ENABLE_DEMO_LOGIN=true`。
+先按 [后端说明](../backend/README.md) 启动真实 API。默认关闭 MSW，由 Vite 的 `/api` 代理转发到 `http://127.0.0.1:8081`；后端使用其他端口时通过 `API_PROXY_TARGET` 指定，生产部署配置同源反向代理。平台密钥只配置在后端。开发测试号入口需同时开启前端 `VITE_ENABLE_DEMO_LOGIN=true` 和后端 `EXEC_GRAPH_ENABLE_DEMO_LOGIN=true`。
 
 ## 请求与缓存
 
