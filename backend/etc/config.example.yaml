@@ -35,6 +35,7 @@ mail:
   enabled: false
   region: ""
   template_id: 0
+  # 显示发件人别名时填写 "引序 <noreply@yinxu.fun>"，不能只在云控制台设置别名。
   from_email: ""
   code_ttl_minutes: 10
 storage:

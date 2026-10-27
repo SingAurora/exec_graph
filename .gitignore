@@ -6,5 +6,6 @@
 *.log
 
 /backend/etc/config.local.yaml
+/backend/etc/test-accounts.local.md
 /backend/.env.local
 /backend/bin/

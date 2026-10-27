@@ -1,26 +1,32 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# 默认从 GitHub main 更新；首次部署也可传入已经上传的工作区快照目录。
+# 默认从 GitHub main 更新；也可以传入源码目录或已经构建好的发布目录。
 deploy_root=/opt/exec-graph
+# 只有没有传入本地源码/产物时，才会使用下面的 GitHub 配置。
 repository_url=${EXEC_GRAPH_REPOSITORY_URL:-https://github.com/SingAurora/exec_graph.git}
 branch=${EXEC_GRAPH_DEPLOY_BRANCH:-main}
 config_path=/etc/exec-graph/config.yaml
 health_base_url=${EXEC_GRAPH_HEALTH_BASE_URL:-http://127.0.0.1}
-public_url=${EXEC_GRAPH_PUBLIC_URL:-https://yinxu.fun}
+public_url=${EXEC_GRAPH_PUBLIC_URL:-http://115.159.206.123}
+artifact_dir=${EXEC_GRAPH_ARTIFACT_DIR:-}
 
+# 这个脚本会安装程序、修改版本链接并重启服务，因此必须由 root 执行。
 if [[ $(id -u) -ne 0 ]]; then
     echo '请使用 root 或 sudo 执行部署。' >&2
     exit 1
 fi
+# 文件锁防止两个部署同时切换 current 或操作数据库。
 exec 9>/run/lock/exec-graph-update.lock
 flock -n 9 || { echo '已有更新任务正在运行。' >&2; exit 1; }
 umask 022
 mkdir -p "$deploy_root/releases"
+# build_dir 保存源码构建过程；release_dir 是准备切换到的完整新版本。
 build_dir=$(mktemp -d "$deploy_root/build.XXXXXX")
 release_dir=$(mktemp -d "$deploy_root/releases/$(date -u +%Y%m%dT%H%M%SZ).XXXXXX")
 chmod 755 "$release_dir"
 activated=false
+# 构建失败时删除未启用的 release；已启用版本保留，便于排查和回退。
 cleanup() {
     rm -rf -- "$build_dir"
     if [[ $activated == false ]]; then
@@ -29,9 +35,18 @@ cleanup() {
 }
 trap cleanup EXIT
 
-if [[ -n ${EXEC_GRAPH_SOURCE_DIR:-} ]]; then
+# 模式一：本地已经完成构建，服务器只复制二进制和 dist。
+if [[ -n $artifact_dir ]]; then
+    if [[ ! -x $artifact_dir/backend/bin/exec-graph || ! -x $artifact_dir/backend/bin/exec-graph-manage || ! -d $artifact_dir/frontend/dist ]]; then
+        echo '本地发布产物不完整。' >&2
+        exit 1
+    fi
+    revision=${EXEC_GRAPH_SOURCE_REVISION:-local-artifact}
+# 模式二：收到本地源码，由服务器负责构建。
+elif [[ -n ${EXEC_GRAPH_SOURCE_DIR:-} ]]; then
     cp -a "$EXEC_GRAPH_SOURCE_DIR/." "$build_dir/"
     revision=${EXEC_GRAPH_SOURCE_REVISION:-workspace-snapshot}
+# 模式三：服务器自己从 GitHub main 拉取源码并构建。
 else
     echo '正在从 GitHub 拉取代码……'
     if [[ ! -d $deploy_root/repository.git ]]; then
@@ -42,34 +57,48 @@ else
     git --git-dir="$deploy_root/repository.git" archive FETCH_HEAD | tar -x -C "$build_dir"
 fi
 
-echo '正在构建前端……'
-(
-    cd "$build_dir/frontend"
-    bun install --frozen-lockfile
-    VITE_API_BASE_URL= VITE_ENABLE_API_MOCKS=false VITE_ENABLE_DEMO_LOGIN=false bun run build
-)
+if [[ -z $artifact_dir ]]; then
+    echo '正在构建前端……'
+    (
+        cd "$build_dir/frontend"
+        bun install --frozen-lockfile
+        VITE_API_BASE_URL= VITE_ENABLE_API_MOCKS=false VITE_ENABLE_DEMO_LOGIN=false bun run build
+    )
+else
+	# 本地部署脚本会设置 artifact_dir，因此这里跳过服务器编译。
+    echo '使用本地构建产物，跳过服务器编译……'
+fi
 mkdir -p "$release_dir/backend/bin" "$release_dir/frontend"
-echo '正在构建 Go 服务……'
-(
-    cd "$build_dir/backend"
-    CGO_ENABLED=0 go build -trimpath -o "$release_dir/backend/bin/exec-graph" ./cmd/api
-    CGO_ENABLED=0 go build -trimpath -o "$release_dir/backend/bin/exec-graph-manage" ./cmd/manage
-)
-cp -a "$build_dir/frontend/dist" "$release_dir/frontend/dist"
+if [[ -z $artifact_dir ]]; then
+    echo '正在构建 Go 服务……'
+    (
+        cd "$build_dir/backend"
+        CGO_ENABLED=0 go build -trimpath -o "$release_dir/backend/bin/exec-graph" ./cmd/api
+        CGO_ENABLED=0 go build -trimpath -o "$release_dir/backend/bin/exec-graph-manage" ./cmd/manage
+    )
+    cp -a "$build_dir/frontend/dist" "$release_dir/frontend/dist"
+else
+	# 将本地已构建的 Go 程序和 Vite dist 复制进新版本目录。
+    cp -a "$artifact_dir/backend/bin/." "$release_dir/backend/bin/"
+    cp -a "$artifact_dir/frontend/dist" "$release_dir/frontend/dist"
+fi
 printf '%s\n' "$revision" > "$release_dir/REVISION"
 
 export EXEC_GRAPH_CONFIG="$config_path"
 echo '正在检查真实依赖和数据库版本……'
+# 管理程序使用正式配置检查外部服务和数据库结构，不清空业务数据。
 "$release_dir/backend/bin/exec-graph-manage" check
 # 迁移由管理命令显式执行，API 启动仍然只校验版本。
 "$release_dir/backend/bin/exec-graph-manage" migrate
 "$release_dir/backend/bin/exec-graph-manage" verify
 
 echo '正在切换并重启服务……'
+# 停止旧进程后让 current 指向新版本，再由 systemd 启动新程序。
 systemctl stop exec-graph.service
 ln -sfn "$release_dir" "$deploy_root/current"
 activated=true
 systemctl start exec-graph.service
+# 最多等待 30 秒，首页和健康接口都成功才算部署完成。
 for ((attempt=0; attempt<30; attempt++)); do
     if curl --noproxy '*' --fail --silent "$health_base_url/api/commands/system/health" >/dev/null &&
        curl --noproxy '*' --fail --silent "$health_base_url/" >/dev/null; then
