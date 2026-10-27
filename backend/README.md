@@ -8,8 +8,8 @@ Go + Gin + GORM + MySQL + Redis。阶段安排和验收见 [实施计划](../doc
 
 ```sh
 go run ./cmd/manage check
-EXEC_GRAPH_DATABASE_SCHEMA=exec_graph_v1 go run ./cmd/manage migrate --create-database
-EXEC_GRAPH_DATABASE_SCHEMA=exec_graph_v1 go run ./cmd/manage verify
+EXEC_GRAPH_DATABASE_SCHEMA=exec_graph go run ./cmd/manage migrate --create-database
+EXEC_GRAPH_DATABASE_SCHEMA=exec_graph go run ./cmd/manage verify
 ```
 
 `migrate` 是显式、有版本记录的 Go/GORM 迁移。首次迁移创建空表，已有未受此迁移管理的同名业务表时拒绝接管。API 进程只校验版本，禁止启动时自动修改数据库。
@@ -117,8 +117,8 @@ journalctl -u exec-graph -n 50 --no-pager
 ## 导入与启动
 
 ```sh
-EXEC_GRAPH_DATABASE_SCHEMA=exec_graph_v1 go run ./cmd/manage seed-demo
-EXEC_GRAPH_DATABASE_SCHEMA=exec_graph_v1 EXEC_GRAPH_ADDR=127.0.0.1:8081 EXEC_GRAPH_ENABLE_DEMO_LOGIN=true EXEC_GRAPH_ALLOWED_ORIGINS=http://localhost:5174 go run ./cmd/api
+EXEC_GRAPH_DATABASE_SCHEMA=exec_graph go run ./cmd/manage seed-demo
+EXEC_GRAPH_DATABASE_SCHEMA=exec_graph EXEC_GRAPH_ADDR=127.0.0.1:8081 EXEC_GRAPH_ENABLE_DEMO_LOGIN=true EXEC_GRAPH_ALLOWED_ORIGINS=http://localhost:5174 go run ./cmd/api
 ```
 
 导入当前前端的 7 位演示作者、9 张图、37 条行动和 7 张本地图片。每位作者都有 `users.is_test_account = true`、`test_dataset = frontend-demo-v1` 数据库标记。精选保留 5 个表达，约定沿主要来源继承。合入来源仅提供事实背景，主动清空不会变回继承。
@@ -173,7 +173,7 @@ EXEC_GRAPH_DATABASE_SCHEMA=exec_graph_v1 EXEC_GRAPH_ADDR=127.0.0.1:8081 EXEC_GRA
 第四阶段 schema v2 增加图片保留登记表，已有 v1 数据执行同一 `manage migrate` 升级，保留原用户和业务身份。上传未保存的图片一天后可回收；本地草稿续期七天，公开或历史引用仍受保护。API 启动时及每小时扫描一批，也可运行：
 
 ```sh
-EXEC_GRAPH_DATABASE_SCHEMA=exec_graph_v1 go run ./cmd/manage prune-media
+EXEC_GRAPH_DATABASE_SCHEMA=exec_graph go run ./cmd/manage prune-media
 ```
 
 浏览器启动命令见 [前端说明](../frontend/README.md)。开发测试号入口需要前后端分别显式开启，不能在生产环境开启。

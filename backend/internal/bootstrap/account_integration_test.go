@@ -73,7 +73,7 @@ func authRequest(t *testing.T, c writeClient, path string, input any, status int
 	}
 	if status == 200 {
 		for _, cookie := range res.Cookies() {
-			if cookie.Name == "exec_graph_v1_session" {
+			if cookie.Name == "exec_graph_session" {
 				c.token = cookie.Value
 			}
 		}

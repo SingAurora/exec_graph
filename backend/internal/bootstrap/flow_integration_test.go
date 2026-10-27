@@ -265,7 +265,7 @@ func readWire[T any](t *testing.T, response *http.Response) wire[T] {
 func cookieValue(jar *cookiejar.Jar, rawURL string) string {
 	request, _ := http.NewRequest("GET", rawURL+"/api/commands/auth/session", nil)
 	for _, cookie := range jar.Cookies(request.URL) {
-		if cookie.Name == "exec_graph_v1_session" {
+		if cookie.Name == "exec_graph_session" {
 			return cookie.Value
 		}
 	}

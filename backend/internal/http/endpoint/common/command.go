@@ -9,7 +9,7 @@ import (
 )
 
 // SessionToken 统一读取 HttpOnly 会话，不从业务 JSON 接受用户身份。
-func SessionToken(c *gin.Context) string { value, _ := c.Cookie("exec_graph_v1_session"); return value }
+func SessionToken(c *gin.Context) string { value, _ := c.Cookie("exec_graph_session"); return value }
 
 // Command 统一进行身份、CSRF、JSON 适配，再调用创建用例。
 func Command[I, O any](c *gin.Context, auth *identity.Service, run func(context.Context, identity.Actor, string, I) (O, error)) {

@@ -17,7 +17,7 @@ app:
 database:
   host: 127.0.0.1
   port: 3306
-  schema: exec_graph_v1
+  schema: exec_graph
   user: exec_graph
   password: ""
   charset: utf8mb4
