@@ -48,6 +48,8 @@ type View struct {
 type Message struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
+	// AuthorID 仅用于服务端区分报告者，不传给上游消息协议。
+	AuthorID string `json:"-"`
 }
 
 // Conversation 包含经过账号隔离的已确认历史及本人草稿。
@@ -71,6 +73,7 @@ type Pending struct {
 	Agreement                                                    action.DocumentUpdate
 	Sources                                                      []action.GenerationSource
 	CreatedAt                                                    time.Time
+	snapshot                                                     contextSnapshot
 }
 
 // Request 是幂等请求的服务端指纹及已有生成状态。

@@ -1,9 +1,12 @@
 package action
 
-import "testing"
+import (
+	"github.com/singaurora/exec-graph/backend/internal/shared/constants"
+	"testing"
+)
 
 func completeGeneration() Generation {
-	return Generation{ID: "generation", GraphID: "graph", RequesterID: "actor", Status: "succeeded", Completed: true, HasExpression: true, ConversationID: "conversation", ConversationGraphID: "graph", NextMessageSequence: 3, InputThroughSequence: 1,
+	return Generation{ID: "generation", GraphID: "graph", RequesterID: "actor", Status: "succeeded", PromptVersion: constants.AIPromptVersion, Completed: true, HasExpression: true, ConversationID: "conversation", ConversationGraphID: "graph", NextMessageSequence: 3, InputThroughSequence: 1,
 		Output:       &ConversationMessage{ID: "reply", ConversationID: "conversation", Sequence: 2, Speaker: "ai"},
 		Messages:     []ConversationMessage{{ID: "input", ConversationID: "conversation", Sequence: 1, Speaker: "user", AuthorID: "actor"}},
 		UsedMessages: []GenerationInput{{MessageID: "input", ConversationID: "conversation", Position: 1}},
@@ -16,6 +19,7 @@ func TestGenerationConfirmationRejectsChangedOrIncompleteEvidence(t *testing.T) 
 		t.Fatal(err)
 	}
 	for name, mutate := range map[string]func(*Generation){
+		"old unchecked draft":      func(g *Generation) { g.PromptVersion = "action-v1" },
 		"other requester":          func(g *Generation) { g.RequesterID = "other" },
 		"not completed":            func(g *Generation) { g.Completed = false },
 		"already confirmed":        func(g *Generation) { g.Confirmed = true },

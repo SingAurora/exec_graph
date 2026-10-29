@@ -250,7 +250,7 @@ func (s *writeSystem) draft(t *testing.T, user, graphID, nodeID string, sources 
 		}
 	}
 	title, objective := "记录已经发生的行动", fmt.Sprintf("这是服务端测试生成 %s 的客观文稿。", uuid)
-	row := model.AIGeneration{UUID: uuid, ConversationUUID: conversationID, GraphUUID: graphID, RequestedByUUID: user, RequestKey: id.New(), Mode: mode, Status: "succeeded", InputThroughSequence: userMessage.SequenceNumber, OutputMessageUUID: &output.UUID, BaseNodeVersion: base, InheritedExpressionVersionUUID: inherited, DownstreamAgreementMode: agreement.Mode, DownstreamAgreementMarkdown: agreementMarkdown, ContextGuideSnapshot: graph.ContextGuide, ContextSHA256: make([]byte, 32), Model: "integration-fixture", PromptVersion: "integration-only", GeneratedTitle: &title, ObjectiveMarkdown: &objective, ExpressionMode: &expression.Mode, ExpressionMarkdown: &text, CompletedAt: &now}
+	row := model.AIGeneration{UUID: uuid, ConversationUUID: conversationID, GraphUUID: graphID, RequestedByUUID: user, RequestKey: id.New(), Mode: mode, Status: "succeeded", InputThroughSequence: userMessage.SequenceNumber, OutputMessageUUID: &output.UUID, BaseNodeVersion: base, InheritedExpressionVersionUUID: inherited, DownstreamAgreementMode: agreement.Mode, DownstreamAgreementMarkdown: agreementMarkdown, ContextGuideSnapshot: graph.ContextGuide, ContextSHA256: make([]byte, 32), Model: "integration-fixture", PromptVersion: appgeneration.PromptVersion, GeneratedTitle: &title, ObjectiveMarkdown: &objective, ExpressionMode: &expression.Mode, ExpressionMarkdown: &text, CompletedAt: &now}
 	mustDB(t, db.Create(&row))
 	var messages []model.AIMessage
 	mustDB(t, db.Where("conversation_uuid = ? AND sequence_number <= ?", conversationID, userMessage.SequenceNumber).Order("sequence_number").Find(&messages))

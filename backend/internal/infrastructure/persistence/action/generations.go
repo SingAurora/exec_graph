@@ -32,6 +32,7 @@ func (t *actionTransaction) Generation(uuid string) (app.Generation, error) {
 		return app.Generation{}, err
 	}
 	result := app.Generation{ID: uuid, GraphID: row.GraphUUID, RequesterID: row.RequestedByUUID, Mode: row.Mode, ConversationOwnerID: conversation.OwnerUUID, Guide: row.ContextGuideSnapshot, Agreement: app.DocumentUpdate{Mode: row.DownstreamAgreementMode}, Status: row.Status, Confirmed: row.ConfirmedAt != nil, Completed: row.CompletedAt != nil, HasExpression: row.ExpressionMode != nil && row.ExpressionMarkdown != nil, ConversationID: conversation.UUID, ConversationGraphID: conversation.GraphUUID, NextMessageSequence: conversation.NextMessageSequence, InputThroughSequence: row.InputThroughSequence}
+	result.PromptVersion = row.PromptVersion
 	if row.ExpressionMode != nil {
 		result.Expression.Mode = *row.ExpressionMode
 	}

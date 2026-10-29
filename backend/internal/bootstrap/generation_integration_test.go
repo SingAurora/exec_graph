@@ -22,7 +22,7 @@ func TestRealGenerationConfirmationAndPrivateInputs(t *testing.T) {
 		t.Fatalf("没有真实落库的生成结果: %+v", generated)
 	}
 	jo.call(t, "POST", "ai/generate", input, 200, key)
-	if len(provider.requests) != 1 {
+	if len(provider.requests) != 2 {
 		t.Fatal("重复生成请求再次调用了模型")
 	}
 	input.Message = "不同输入"

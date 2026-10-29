@@ -146,6 +146,7 @@ type Generation struct {
 	Agreement              DocumentUpdate
 	Sources                []GenerationSource
 	Status                 string
+	PromptVersion          string
 	Confirmed              bool
 	Completed              bool
 	HasExpression          bool

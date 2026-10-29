@@ -88,16 +88,34 @@ func (s *Service) Generate(ctx context.Context, actor identity.Actor, key string
 	if err != nil || pending == nil {
 		return out, err
 	}
-	completion, callError := s.provider.Complete(ctx, messages)
+	modelCtx, cancelModel := context.WithTimeout(ctx, constants.AITimeout)
+	defer cancelModel()
+	completion, callError := s.provider.Complete(modelCtx, messages)
 	var draft Draft
 	if callError == nil {
 		draft, callError = parse(completion.Content, input.Mode, input.ParentID != "", pending.Sources)
+	}
+	if callError == nil {
+		var checks []Message
+		checks, callError = verificationPrompt(pending.snapshot, draft)
+		if callError == nil {
+			var checked Completion
+			checked, callError = s.provider.Complete(modelCtx, checks)
+			completion.InputTokens += checked.InputTokens
+			completion.OutputTokens += checked.OutputTokens
+			if callError == nil {
+				draft, callError = verify(checked.Content, pending.snapshot, draft)
+			}
+		}
 	}
 	// 请求取消也要尽量结束 pending，避免同一对话永远被占用。
 	finishCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), constants.HTTPRequestTimeout)
 	defer cancel()
 	err = s.store.Within(finishCtx, actor, func(tx Transaction) error {
 		if callError != nil {
+			if errors.Is(callError, errUnverified) {
+				return tx.Fail(pending.ID, "content_unverified")
+			}
 			return tx.Fail(pending.ID, "provider_failed")
 		}
 		if err := tx.Complete(pending.ID, draft, completion.InputTokens, completion.OutputTokens); err != nil {
@@ -108,6 +126,9 @@ func (s *Service) Generate(ctx context.Context, actor identity.Actor, key string
 		return err
 	})
 	if callError != nil {
+		if errors.Is(callError, errUnverified) {
+			return View{}, errors.Join(fault.New(fault.Invalid, "行动或表达未通过依据核验，请补充具体行动，避免无依据的观点后重新整理"), err)
+		}
 		return View{}, errors.Join(fault.New(fault.Unavailable, "AI 整理失败，请稍后重新发送"), err)
 	}
 	return out, err
@@ -162,7 +183,8 @@ func prepare(tx Transaction, actor identity.Actor, key string, input GenerateInp
 	if err != nil {
 		return batch, nil, err
 	}
-	request, err := prompt(graph, action.HistoryNodeIDs(graph, starts), facts, batch, input.ParentID != "")
+	batch.snapshot = snapshotFor(graph, action.HistoryNodeIDs(graph, starts), facts, batch, input.ParentID != "")
+	request, err := prompt(batch.snapshot, batch)
 	if err == nil {
 		encoded, encodeError := json.Marshal(request)
 		if encodeError != nil {

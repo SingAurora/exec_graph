@@ -23,6 +23,8 @@ func TestParsePreservesExplicitAssessmentAndDocumentIntent(t *testing.T) {
 		strings.Replace(base, `"markdown":""`, `"markdown":"不应携带正文"`, 1),
 		strings.Replace(base, `"objective":"骑了六公里"`, `"objective":""`, 1),
 		strings.Replace(base, `"reviews":[`, `"reviews":[{"sourceId":"one","complies":true},`, 1),
+		strings.Replace(base, `"reply":`, `"bypass":true,"reply":`, 1),
+		base + `{}`,
 	} {
 		if _, err := parse(body, "action", true, sources); err == nil {
 			t.Fatalf("无效模型响应被接受: %s", body)
@@ -38,16 +40,24 @@ func TestParsePreservesExplicitAssessmentAndDocumentIntent(t *testing.T) {
 	if draft, err := parse(clear, "expression", false, nil); err != nil || draft.Expression.Mode != "clear" {
 		t.Fatalf("不能主动清空: %v", err)
 	}
+	if _, err := parse(strings.Replace(clear, `"objective":""`, `"objective":"聊天中补充的新经历"`, 1), "expression", false, nil); err == nil {
+		t.Fatal("表达修改夹带了新行动")
+	}
 	exception := strings.Replace(base, `"complies":null`, `"complies":false,"exceptionReason":"忘记佩戴头盔"`, 1)
 	if draft, err := parse(exception, "action", true, sources); err != nil || draft.Reviews[0].Complies == nil || *draft.Reviews[0].Complies {
 		t.Fatalf("不满足约定不应被拒绝或视作满足: %v", err)
+	}
+	unknownReason := strings.Replace(base, `"complies":null`, `"complies":null,"exceptionReason":"缺少记录用时的信息"`, 1)
+	if draft, err := parse(unknownReason, "action", true, sources); err != nil || draft.Reviews[0].Complies != nil || draft.Reviews[0].ExceptionReason != nil {
+		t.Fatalf("初稿未知状态的多余说明不能变成不符理由或阻止独立核验: %+v %v", draft, err)
 	}
 }
 
 func TestPromptOnlyUsesReachableFactsAndKeepsOriginalAgreements(t *testing.T) {
 	graph := action.Graph{Nodes: []action.Node{{ID: "source", Agreement: action.Document{Markdown: "戴头盔"}}, {ID: "current", Expression: action.Document{Markdown: "慢一点"}}}, Edges: []action.Edge{{SourceID: "source", TargetID: "current", Kind: "primary"}}}
 	nodes := []catalogue.ActionView{{ID: "source", ObjectiveMarkdown: "旧行动"}, {ID: "current", ObjectiveMarkdown: "本次行动"}, {ID: "unrelated", ObjectiveMarkdown: "不相关的秘密分支"}}
-	messages, err := prompt(graph, map[string]bool{"source": true, "current": true}, nodes, Pending{Mode: "expression", NodeID: "current", InputMessage: "调整看法"}, false)
+	pending := Pending{Mode: "expression", NodeID: "current", InputMessage: "调整看法"}
+	messages, err := prompt(snapshotFor(graph, map[string]bool{"source": true, "current": true}, nodes, pending, false), pending)
 	if err != nil {
 		t.Fatal(err)
 	}

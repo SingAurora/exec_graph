@@ -1,10 +1,16 @@
 package action
 
-import "github.com/singaurora/exec-graph/backend/internal/shared/fault"
+import (
+	"github.com/singaurora/exec-graph/backend/internal/shared/constants"
+	"github.com/singaurora/exec-graph/backend/internal/shared/fault"
+)
 
 func validateGeneration(g Generation, actorID string) error {
 	if g.RequesterID != actorID {
 		return fault.New(fault.Forbidden, "不能确认他人的生成结果")
+	}
+	if g.PromptVersion != constants.AIPromptVersion {
+		return fault.New(fault.Conflict, "生成采用的核验规则已更新，请重新生成后确认")
 	}
 	if g.Status != "succeeded" || g.Confirmed || !g.Completed || !g.HasExpression || g.Output == nil || g.ConversationGraphID != g.GraphID {
 		return fault.New(fault.Conflict, "生成尚未成功、已确认或数据不完整")

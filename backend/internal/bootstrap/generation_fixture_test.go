@@ -12,9 +12,11 @@ import (
 )
 
 type recordedProvider struct {
-	mu       sync.Mutex
-	requests [][]app.Message
-	fail     bool
+	mu               sync.Mutex
+	requests         [][]app.Message
+	fail             bool
+	reject           bool
+	failVerification bool
 }
 
 func (p *recordedProvider) Model() string { return "integration-provider" }
@@ -24,6 +26,12 @@ func (p *recordedProvider) Complete(ctx context.Context, messages []app.Message)
 	p.requests = append(p.requests, append([]app.Message{}, messages...))
 	if p.fail {
 		return app.Completion{}, fmt.Errorf("测试上游失败")
+	}
+	if len(messages) == 2 && strings.HasPrefix(messages[1].Content, `{"context":`) {
+		if p.failVerification {
+			return app.Completion{}, fmt.Errorf("测试核验上游失败")
+		}
+		return p.verification(messages[1].Content)
 	}
 	var snapshot struct {
 		Mode    string `json:"mode"`
@@ -64,6 +72,83 @@ func (p *recordedProvider) Complete(ctx context.Context, messages []app.Message)
 func (p *recordedProvider) lastPrompt() string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	encoded, _ := json.Marshal(p.requests[len(p.requests)-1])
-	return string(encoded)
+	for i := len(p.requests) - 1; i >= 0; i-- {
+		if strings.Contains(p.requests[i][0].Content, "当前服务端快照：") {
+			encoded, _ := json.Marshal(p.requests[i])
+			return string(encoded)
+		}
+	}
+	return ""
+}
+
+type fixtureEvidence struct {
+	Kind  string `json:"kind"`
+	ID    string `json:"id"`
+	Quote string `json:"quote"`
+}
+
+type fixtureDocumentCheck struct {
+	Valid    bool              `json:"valid"`
+	Evidence []fixtureEvidence `json:"evidence"`
+}
+
+type fixtureCondition struct {
+	Text     string            `json:"text"`
+	Complies *bool             `json:"complies"`
+	Evidence []fixtureEvidence `json:"evidence"`
+}
+
+type fixtureAgreementCheck struct {
+	SourceID   string             `json:"sourceId"`
+	Conditions []fixtureCondition `json:"conditions"`
+}
+
+func (p *recordedProvider) verification(input string) (app.Completion, error) {
+	var in struct {
+		Context struct {
+			Mode    string `json:"mode"`
+			Reports []struct {
+				ID   string `json:"id"`
+				Text string `json:"text"`
+			} `json:"reports"`
+			Facts []struct {
+				NodeID    string `json:"nodeId"`
+				Objective string `json:"objective"`
+			} `json:"facts"`
+			Sources []struct {
+				NodeID    string `json:"nodeId"`
+				Agreement string `json:"agreement"`
+			} `json:"sources"`
+		} `json:"context"`
+		Draft app.Draft `json:"draft"`
+	}
+	if err := json.Unmarshal([]byte(input), &in); err != nil {
+		return app.Completion{}, err
+	}
+	result := struct {
+		Action     fixtureDocumentCheck    `json:"action"`
+		Expression fixtureDocumentCheck    `json:"expression"`
+		Reviews    []fixtureAgreementCheck `json:"reviews"`
+	}{Action: fixtureDocumentCheck{!p.reject, []fixtureEvidence{}}, Expression: fixtureDocumentCheck{true, []fixtureEvidence{}}, Reviews: []fixtureAgreementCheck{}}
+	item := fixtureEvidence{}
+	if in.Context.Mode == "action" {
+		r := in.Context.Reports[len(in.Context.Reports)-1]
+		item = fixtureEvidence{"report", r.ID, r.Text}
+		result.Action.Evidence = []fixtureEvidence{item}
+	} else if len(in.Context.Facts) > 0 {
+		f := in.Context.Facts[0]
+		item = fixtureEvidence{"action", f.NodeID, f.Objective}
+	}
+	if in.Draft.Expression.Mode == "update" {
+		result.Expression.Evidence = []fixtureEvidence{item}
+	}
+	for _, source := range in.Context.Sources {
+		check := fixtureAgreementCheck{source.NodeID, []fixtureCondition{}}
+		if source.Agreement != "" {
+			check.Conditions = append(check.Conditions, fixtureCondition{source.Agreement, nil, []fixtureEvidence{}})
+		}
+		result.Reviews = append(result.Reviews, check)
+	}
+	body, err := json.Marshal(result)
+	return app.Completion{Content: string(body), InputTokens: 60, OutputTokens: 40}, err
 }

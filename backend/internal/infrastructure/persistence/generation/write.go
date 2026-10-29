@@ -35,7 +35,7 @@ func (t *generationTransaction) Reserve(p app.Pending) error {
 			agreement = p.Agreement.Markdown
 		}
 	}
-	row := model.AIGeneration{UUID: p.ID, ConversationUUID: p.Conversation.ID, GraphUUID: p.GraphID, RequestedByUUID: p.ActorID, RequestKey: p.RequestKey, Mode: p.Mode, Status: "pending", InputThroughSequence: user.SequenceNumber, BaseNodeVersion: base, InheritedExpressionVersionUUID: pointer(p.InheritedExpressionID), DownstreamAgreementMode: p.Agreement.Mode, DownstreamAgreementMarkdown: agreement, ContextGuideSnapshot: p.Guide, ContextSHA256: p.ContextDigest, Model: p.Model, PromptVersion: "action-v1", CreatedAt: p.CreatedAt}
+	row := model.AIGeneration{UUID: p.ID, ConversationUUID: p.Conversation.ID, GraphUUID: p.GraphID, RequestedByUUID: p.ActorID, RequestKey: p.RequestKey, Mode: p.Mode, Status: "pending", InputThroughSequence: user.SequenceNumber, BaseNodeVersion: base, InheritedExpressionVersionUUID: pointer(p.InheritedExpressionID), DownstreamAgreementMode: p.Agreement.Mode, DownstreamAgreementMarkdown: agreement, ContextGuideSnapshot: p.Guide, ContextSHA256: p.ContextDigest, Model: p.Model, PromptVersion: app.PromptVersion, CreatedAt: p.CreatedAt}
 	if err := t.DB.Create(&row).Error; err != nil {
 		return err
 	}

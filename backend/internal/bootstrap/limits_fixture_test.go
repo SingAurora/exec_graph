@@ -47,6 +47,11 @@ type blockedProvider struct {
 func (p *blockedProvider) Model() string { return p.provider.Model() }
 func (p *blockedProvider) Complete(ctx context.Context, messages []app.Message) (app.Completion, error) {
 	select {
+	case <-p.release:
+		return p.provider.Complete(ctx, messages)
+	default:
+	}
+	select {
 	case p.entered <- struct{}{}:
 	case <-ctx.Done():
 		return app.Completion{}, ctx.Err()

@@ -57,7 +57,11 @@ func (t *generationTransaction) Conversation(input app.GenerateInput) (app.Conve
 		if message.Speaker == "ai" {
 			role = "assistant"
 		}
-		out.Messages = append(out.Messages, app.Message{Role: role, Content: message.Body})
+		author := ""
+		if message.AuthorUUID != nil {
+			author = *message.AuthorUUID
+		}
+		out.Messages = append(out.Messages, app.Message{Role: role, Content: message.Body, AuthorID: author})
 		out.MessageIDs = append(out.MessageIDs, message.UUID)
 	}
 	var previous model.AIGeneration
