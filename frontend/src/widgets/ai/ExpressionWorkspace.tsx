@@ -16,7 +16,8 @@ import { ExpressionAgreements } from './ExpressionAgreements'
 import { getActionDraftKey } from '../../entities/action/lib/draft-key'
 import { useLocalDraft } from '../../shared/lib/local-draft/useLocalDraft'
 import { LocalDraftControls } from '../../shared/ui/LocalDraftControls'
-import { appendWorkspaceError, createWorkspaceView, isExpressionWorkspaceDraft, reconcileWorkspaceDraft, type ExpressionWorkspaceDraft } from './model/workspace-draft'
+import { appendWorkspaceError, appendWorkspaceNotice, createWorkspaceView, isExpressionWorkspaceDraft, normalizeGenerationRequest, reconcileWorkspaceDraft, type ExpressionWorkspaceDraft } from './model/workspace-draft'
+import { BusinessRequestError } from '../../shared/api/errors'
 
 /** 使用独立对话修改表达；行动事实和约定在此只读，不创建新行动。 */
 export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profileName, profileId, profile, users = [], contextGuide, onBack, onConfirm }: {
@@ -44,7 +45,7 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
     draftKey: draftKey ?? getActionDraftKey(profileId, node.projectId, 'expression', node.id),
     initialValue: { messages: initialMessages, input: '', generated: false, contextSignature, view: createWorkspaceView() },
     validate: isExpressionWorkspaceDraft,
-    restore: (saved) => reconcileWorkspaceDraft(saved, contextSignature),
+    restore: (saved) => reconcileWorkspaceDraft({ ...saved, generationRequest: normalizeGenerationRequest(saved.generationRequest) }, contextSignature),
     hasContent: (value) => Boolean(value.input || value.draftDocument !== undefined || JSON.stringify(value.messages) !== JSON.stringify(initialMessages)),
   })
   const { messages, input, draftDocument, generated, generation, generationRequest } = local.value
@@ -67,7 +68,7 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
     if (!local.ready || !clean || sending || saving || !canEdit || !context) return
     const savedMessages = messages.filter(isConversationMessage)
     const next = [...savedMessages, { id: `expression-user-${Date.now()}`, speaker: 'user' as const, body: clean, authorId: profileId }]
-    const requestInput: GenerateInput = { mode: 'expression', graphId: node.projectId, nodeId: node.id, expectedVersion: node.version, message: clean,
+    const requestInput: GenerateInput = { mode: 'expression', graphId: node.projectId, nodeId: node.id, expectedVersion: node.version, messages: [clean],
       conversationId: generation?.conversationId, mergedParentIds: [], sourceVersions: [], agreement: { mode: 'inherit' } }
     const request: GenerationRequest = !generated && generationRequest && generation?.status !== 'failed' && JSON.stringify(generationRequest.input) === JSON.stringify(requestInput)
       ? generationRequest : { key: crypto.randomUUID(), input: requestInput }
@@ -82,7 +83,9 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
       local.update((current) => ({ ...current, generation: result, draftDocument: draft.expression.mode === 'update' ? draft.expression.markdown : '', generated: true, contextSignature,
         messages: [...current.messages, { id: 'expression-ai-' + result.generationId, speaker: 'ai', body: draft.reply }] }))
     } catch (error) {
-      local.update((current) => ({ ...current, messages: appendWorkspaceError(current.messages, '暂时无法更新表达：' + (error instanceof Error ? error.message : '请求失败，请稍后重试。')), input: clean }))
+      const business = error instanceof BusinessRequestError && error.kind === 'business'
+      const append = business ? appendWorkspaceNotice : appendWorkspaceError
+      local.update((current) => ({ ...current, messages: append(current.messages, '暂时无法更新表达：' + (error instanceof Error ? error.message : '请求失败，请稍后重试。')), input: clean }))
     } finally {
       setSending(false)
     }
@@ -104,7 +107,7 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
       messages={conversation} profileName={profileName} profile={profile} users={users} defaultAuthorId={profileId}
       input={input} inputLabel="表达对话内容" placeholder="说说想保留或调整的看法" sending={sending} disabled={saving || !local.ready || !canEdit}
       onInputChange={(input) => update({ input })} onSend={send} onBack={onBack}
-      action={{ markdown: node.objectiveMarkdown ?? node.markdown, images: node.images, status: '只读', empty: '暂无行动记录' }}
+      action={{ title: node.title, markdown: node.objectiveMarkdown ?? node.markdown, images: node.images, status: '只读', empty: '暂无行动记录' }}
       expression={{ markdown: document, images: draftDocument === undefined ? expression.sourceNode?.images : [], status: expressionStatus, empty: '暂无表达' }}
       agreement={<ExpressionAgreements node={node} actions={actions} />}
       footer={<><span className="text-xs text-muted">{!canEdit ? '该节点已有后续引用，无法修改表达' : sending ? '正在整理…' : generated ? document.trim() === expression.markdown.trim() ? '表达未变化' : '待保存' : draftDocument !== undefined ? '本轮未完成' : '尚未生成'}</span>

@@ -33,7 +33,7 @@ func New(store Store, draftProvider, analysisProvider Provider, limits Limits) *
 // Generate 首次调用同步生成；重复键只读取原任务，不再次计费或重复写消息。
 func (s *Service) Generate(ctx context.Context, actor identity.Actor, key string, input GenerateInput) (View, error) {
 	var out View
-	if !id.Valid(key) || !id.Valid(input.GraphID) || (input.ConversationID != "" && !id.Valid(input.ConversationID)) || strings.TrimSpace(input.Message) == "" || utf8.RuneCountInString(input.Message) > constants.AIInputLimit || input.MergedParentIDs == nil || input.SourceVersions == nil || (input.Mode != "action" && input.Mode != "expression" && input.Mode != "agreement") {
+	if !id.Valid(key) || !id.Valid(input.GraphID) || (input.ConversationID != "" && !id.Valid(input.ConversationID)) || !validInputMessages(input) || input.MergedParentIDs == nil || input.SourceVersions == nil || (input.Mode != "action" && input.Mode != "expression" && input.Mode != "agreement") {
 		return out, fault.New(fault.Invalid, "生成输入、来源列表或提交键不合法")
 	}
 	initialProvider := s.draftProvider
@@ -97,43 +97,78 @@ func (s *Service) Generate(ctx context.Context, actor identity.Actor, key string
 	if err != nil || pending == nil {
 		return out, err
 	}
-	modelCtx, cancelModel := context.WithTimeout(ctx, constants.AITimeout)
-	defer cancelModel()
-	completion, callError := initialProvider.Complete(modelCtx, messages)
+	return s.process(ctx, actor, input.Mode, input.ParentID != "", initialProvider, *pending, messages)
+}
+
+// Get 只读取当前账号发起的结果，支持重试请求收到 pending 后继续查询。
+func (s *Service) Get(ctx context.Context, actor identity.Actor, uuid string) (View, error) {
+	var out View
+	if !id.Valid(uuid) {
+		return out, fault.New(fault.Invalid, "生成标识不合法")
+	}
+	err := s.store.Within(ctx, actor, func(tx Transaction) error { var err error; out, err = tx.Get(uuid); return err })
+	return out, err
+}
+
+func validInputMessages(input GenerateInput) bool {
+	if len(input.Messages) == 0 || len(input.Messages) > constants.AIMessageBatchLimit || ((input.Mode == "expression" || input.Mode == "agreement") && len(input.Messages) != 1) {
+		return false
+	}
+	count := 0
+	for _, message := range input.Messages {
+		if strings.TrimSpace(message) == "" {
+			return false
+		}
+		count += utf8.RuneCountInString(message)
+	}
+	return count <= constants.AIInputLimit
+}
+
+func (s *Service) process(ctx context.Context, actor identity.Actor, mode string, hasParent bool, initialProvider Provider, pending Pending, messages []Message) (View, error) {
+	completion := Completion{}
+	draftCtx, cancelDraft := context.WithTimeout(ctx, constants.AITimeout)
+	completion, callError := initialProvider.Complete(draftCtx, messages)
+	cancelDraft()
 	var draft Draft
 	if callError == nil {
-		draft, callError = parse(completion.Content, input.Mode, input.ParentID != "", pending.Sources)
+		draft, callError = parse(completion.Content, mode, hasParent, pending.Sources)
 	}
-	if callError == nil {
+	needsVerification := mode != "action" || len(pending.Sources) > 0
+	if callError == nil && needsVerification {
 		var checks []Message
 		checks, callError = verificationPrompt(pending.snapshot, draft)
 		if callError == nil {
-			var checked Completion
+			verifyCtx, cancelVerify := context.WithTimeout(ctx, constants.AITimeout)
 			verifier := s.analysisProvider
-			if input.Mode == "action" && len(pending.Sources) == 0 {
+			if mode == "action" {
 				verifier = s.draftProvider
 			}
-			checked, callError = verifier.Complete(modelCtx, checks)
+			checked, verifyError := verifier.Complete(verifyCtx, checks)
+			cancelVerify()
 			completion.InputTokens += checked.InputTokens
 			completion.OutputTokens += checked.OutputTokens
+			callError = verifyError
 			if callError == nil {
 				draft, callError = verify(checked.Content, pending.snapshot, draft)
 			}
 		}
 	}
-	// 请求取消也要尽量结束 pending，避免同一对话永远被占用。
-	finishCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), constants.HTTPRequestTimeout)
-	defer cancel()
-	err = s.store.Within(finishCtx, actor, func(tx Transaction) error {
+	finishCtx, cancelFinish := context.WithTimeout(context.WithoutCancel(ctx), constants.HTTPRequestTimeout)
+	defer cancelFinish()
+	var out View
+	err := s.store.Within(finishCtx, actor, func(tx Transaction) error {
 		if callError != nil {
+			code := "provider_failed"
 			var invalid *fault.Error
 			if errors.As(callError, &invalid) && invalid.Code == fault.Invalid {
-				return tx.Fail(pending.ID, "content_invalid")
+				code = "content_invalid"
+			} else if errors.Is(callError, errUnverified) {
+				code = "content_unverified"
 			}
-			if errors.Is(callError, errUnverified) {
-				return tx.Fail(pending.ID, "content_unverified")
+			if err := tx.Fail(pending.ID, code); err != nil {
+				return err
 			}
-			return tx.Fail(pending.ID, "provider_failed")
+			return nil
 		}
 		if err := tx.Complete(pending.ID, draft, completion.InputTokens, completion.OutputTokens); err != nil {
 			return err
@@ -155,18 +190,8 @@ func (s *Service) Generate(ctx context.Context, actor identity.Actor, key string
 	return out, err
 }
 
-// Get 只读取当前账号发起的结果，支持重试请求收到 pending 后继续查询。
-func (s *Service) Get(ctx context.Context, actor identity.Actor, uuid string) (View, error) {
-	var out View
-	if !id.Valid(uuid) {
-		return out, fault.New(fault.Invalid, "生成标识不合法")
-	}
-	err := s.store.Within(ctx, actor, func(tx Transaction) error { var err error; out, err = tx.Get(uuid); return err })
-	return out, err
-}
-
 func prepare(tx Transaction, actor identity.Actor, key string, input GenerateInput, digest []byte, model string, now time.Time) (Pending, []Message, error) {
-	batch := Pending{ID: id.New(), RequestKey: key, ActorID: actor.UserID, Mode: input.Mode, GraphID: input.GraphID, NodeID: input.NodeID, ExpectedVersion: input.ExpectedVersion, Model: model, Digest: digest, InputMessage: strings.TrimSpace(input.Message), Agreement: input.Agreement, CreatedAt: now}
+	batch := Pending{ID: id.New(), RequestKey: key, ActorID: actor.UserID, Mode: input.Mode, GraphID: input.GraphID, NodeID: input.NodeID, ExpectedVersion: input.ExpectedVersion, Model: model, Digest: digest, InputMessages: trimMessages(input.Messages), Agreement: input.Agreement, CreatedAt: now}
 	graph, err := tx.Graph(input.GraphID)
 	if err != nil {
 		return batch, nil, err
@@ -210,6 +235,7 @@ func prepare(tx Transaction, actor identity.Actor, key string, input GenerateInp
 	if err != nil {
 		return batch, nil, err
 	}
+	batch.InputThroughSequence = batch.Conversation.NextSequence + uint32(len(batch.InputMessages)) - 1
 	facts, err := tx.Facts(graph.ID)
 	if err != nil {
 		return batch, nil, err
@@ -225,6 +251,14 @@ func prepare(tx Transaction, actor identity.Actor, key string, input GenerateInp
 		batch.ContextDigest = digest[:]
 	}
 	return batch, request, err
+}
+
+func trimMessages(messages []string) []string {
+	trimmed := make([]string, len(messages))
+	for i, message := range messages {
+		trimmed[i] = strings.TrimSpace(message)
+	}
+	return trimmed
 }
 
 func sameDocumentUpdate(left, right action.DocumentUpdate) bool {

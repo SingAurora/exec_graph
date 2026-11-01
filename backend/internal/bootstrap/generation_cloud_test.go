@@ -47,7 +47,7 @@ func TestRealPlatformAIAndPublication(t *testing.T) {
 	s.deps.DraftAI, s.deps.AnalysisAI, s.deps.AI = observedDraft, observedAnalysis, observedDraft
 	jo := s.as(t, id.Demo("user", "jo"))
 	g := jo.graph(t)
-	input := app.GenerateInput{Mode: "action", GraphID: g.ID, Message: "我今天骑自行车通勤十二公里，用了四十分钟。我发现提前十分钟出门可以避开拥堵，想继续保持。只记录这些事实和观点。", MergedParentIDs: []string{}, SourceVersions: []action.SourceVersion{}, Agreement: action.DocumentUpdate{Mode: "clear"}}
+	input := app.GenerateInput{Mode: "action", GraphID: g.ID, Messages: []string{"我今天骑自行车通勤十二公里，用了四十分钟。我发现提前十分钟出门可以避开拥堵，想继续保持。只记录这些事实和观点。"}, MergedParentIDs: []string{}, SourceVersions: []action.SourceVersion{}, Agreement: action.DocumentUpdate{Mode: "clear"}}
 	generated := decode[app.View](t, jo.call(t, "POST", "ai/generate", input, 200, id.New()))
 	if generated.CreateAction == nil || generated.Draft == nil {
 		t.Fatal("真实模型没有生成可确认结果")
@@ -70,7 +70,7 @@ func TestRealPlatformAIAndPublication(t *testing.T) {
 		{"distance and time satisfy all clauses", "我今天骑了6公里，用时20分钟。只记录这次行动，不增加表达。", cloudBool(true)},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			input := app.GenerateInput{Mode: "action", GraphID: g.ID, ParentID: node.ID, SourceVersions: []action.SourceVersion{{NodeID: node.ID, Version: node.Version}}, MergedParentIDs: []string{}, Message: test.report, Agreement: action.DocumentUpdate{Mode: "inherit"}}
+			input := app.GenerateInput{Mode: "action", GraphID: g.ID, ParentID: node.ID, SourceVersions: []action.SourceVersion{{NodeID: node.ID, Version: node.Version}}, MergedParentIDs: []string{}, Messages: []string{test.report}, Agreement: action.DocumentUpdate{Mode: "inherit"}}
 			view := decode[app.View](t, jo.call(t, "POST", "ai/generate", input, 200, id.New()))
 			if view.Draft == nil || len(view.Draft.Reviews) != 1 {
 				t.Fatalf("缺少来源核验: %+v", view)

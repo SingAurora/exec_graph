@@ -10,7 +10,15 @@ import { TabsContent, TabsList, TabsRoot, TabsTrigger } from '../../shared/ui/ta
 import type { WorkspaceView } from './model/workspace-draft'
 
 type WorkspaceTab = 'conversation' | 'objective' | 'expression' | 'agreement'
-type DocumentPreview = { markdown: string; images?: PostImage[]; status?: string; empty: string }
+type DocumentPreview = { title?: string; markdown: string; images?: PostImage[]; status?: string; empty: string }
+
+/** 正文已经用同名标题开头时，不再重复显示文档标题。 */
+function visiblePreviewTitle(preview: DocumentPreview): string | undefined {
+  const title = preview.title?.trim()
+  if (!title) return undefined
+  const firstLine = preview.markdown.trimStart().split('\n', 1)[0]?.replace(/^#{1,6}\s+/, '').trim()
+  return firstLine === title ? undefined : title
+}
 type WorkspaceFrameProps = {
   title: string
   tabs?: WorkspaceTab[]
@@ -30,6 +38,7 @@ type WorkspaceFrameProps = {
   inputLabel?: string
   placeholder: string
   sending: boolean
+  sendingLabel?: string
   disabled?: boolean
   onInputChange: (value: string) => void
   onSend: (event: FormEvent) => void
@@ -42,7 +51,7 @@ type WorkspaceFrameProps = {
 }
 
 /** 三类工作区共用界面框架；各工作区只显示当前业务需要的文档栏目。 */
-export function WorkspaceFrame({ title, tabs = ['conversation', 'objective', 'expression', 'agreement'], help, draftControls, view, onViewChange, restoring = false, context, contextControls, messages, profileName, profile, users = [], defaultAuthorId, input, inputLabel = '对话内容', placeholder, sending, disabled = false, onInputChange, onSend, onBack, action, actionControls, expression, agreement, footer }: WorkspaceFrameProps) {
+export function WorkspaceFrame({ title, tabs = ['conversation', 'objective', 'expression', 'agreement'], help, draftControls, view, onViewChange, restoring = false, context, contextControls, messages, profileName, profile, users = [], defaultAuthorId, input, inputLabel = '对话内容', placeholder, sending, sendingLabel = '正在整理', disabled = false, onInputChange, onSend, onBack, action, actionControls, expression, agreement, footer }: WorkspaceFrameProps) {
   const [localTab, setTab] = useState<WorkspaceTab>('conversation')
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle')
   const requestedTab = view?.tab ?? localTab
@@ -149,7 +158,7 @@ export function WorkspaceFrame({ title, tabs = ['conversation', 'objective', 'ex
                   </div>
                 )
               })}
-              {sending && <div className="flex items-center gap-2 text-xs text-muted"><LoaderCircle size={14} className="animate-spin" />正在整理</div>}
+              {sending && <div className="flex items-center gap-2 text-xs text-muted"><LoaderCircle size={14} className="animate-spin" />{sendingLabel}</div>}
             </div>
             <form className="mx-6 mb-5 flex shrink-0 items-end gap-2 rounded-lg border border-line bg-paper px-3 py-2" onSubmit={onSend}>
               <textarea className="min-h-12 max-h-32 w-full resize-y border-0 bg-transparent py-1.5 text-sm leading-[1.6] outline-none" title={inputLabel} value={input} onChange={(event) => onInputChange(event.target.value)} placeholder={placeholder} disabled={sending || disabled} />
@@ -158,9 +167,11 @@ export function WorkspaceFrame({ title, tabs = ['conversation', 'objective', 'ex
           </TabsContent>
           {(['objective', 'expression'] as const).filter((value) => tabs.includes(value)).map((value) => {
             const preview = value === 'objective' ? action : expression
+            const title = visiblePreviewTitle(preview)
             return (
               <TabsContent value={value} keepMounted className="min-h-0 flex-1" key={value}>
                 <div ref={(element) => { panels.current[value] = element }} onScroll={(event) => rememberScroll(value, event)} className="h-full overflow-y-auto overscroll-contain px-6 py-5">
+                  {title && <h2 className="mb-4 break-words text-xl font-semibold leading-[1.5] tracking-[-.02em] text-ink">{title}</h2>}
                   {value === 'objective' && actionControls}
                   {preview.status && <p className="mb-4 text-xs leading-5 text-muted">{preview.status}</p>}
                   {preview.markdown.trim() ? <MarkdownContent markdown={preview.markdown} images={preview.images} /> : <p className="py-5 text-sm leading-7 text-muted">{preview.empty}</p>}

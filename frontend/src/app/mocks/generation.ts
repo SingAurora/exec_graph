@@ -10,10 +10,10 @@ import { readDocument } from './action-input'
 export function generationHandlers(db: MockDatabase) {
   return [
     http.post('*/api/commands/ai/generate', mockResponse(db, async (request) => {
-      const body = await readBody(request, ['mode', 'graphId', 'conversationId', 'nodeId', 'expectedVersion', 'message', 'parentId', 'mergedParentIds', 'sourceVersions', 'agreement'])
+      const body = await readBody(request, ['mode', 'graphId', 'conversationId', 'nodeId', 'expectedVersion', 'messages', 'parentId', 'mergedParentIds', 'sourceVersions', 'agreement'])
       return idempotent(db, request, body, () => {
         requireInput(body.mode === 'action' || body.mode === 'expression')
-        requireInput(typeof body.message === 'string' && body.message.trim())
+        requireInput(Array.isArray(body.messages) && body.messages.length > 0 && body.messages.every((message) => typeof message === 'string' && message.trim()))
         const graph = requireResource(db.graphs.find((graph) => graph.id === body.graphId))
         requireInput(Array.isArray(body.mergedParentIds) && Array.isArray(body.sourceVersions))
         const nodes = db.actions.filter((node) => node.projectId === graph.id)
@@ -39,14 +39,15 @@ export function generationHandlers(db: MockDatabase) {
         const previous = input.conversationId ? [...db.generations.values()].find((item) => item.view.conversationId === input.conversationId) : undefined
         if (input.conversationId) requireResource(previous)
         const generationId = crypto.randomUUID(), conversationId = previous?.view.conversationId ?? crypto.randomUUID()
-        const draft = db.nextGenerationDraft ?? { reply: '已整理。', title: '行动记录', objective: input.message,
+        const draft = db.nextGenerationDraft ?? { reply: '已整理。', title: '行动记录', objective: input.messages.join('\n'),
           expression: { mode: input.parentId ? 'inherit' as const : 'clear' as const }, reviews: sources.map((sourceId) => ({ sourceId, complies: null })) }
         db.nextGenerationDraft = undefined
         const view: GenerationView = { generationId, conversationId, status: 'succeeded', draft,
           ...(input.mode === 'action' ? { createAction: { graphId: graph.id, generationId, parentId: input.parentId, mergedParentIds: input.mergedParentIds, sourceVersions: input.sourceVersions, referenceAgreements: draft.reviews, images: [] } }
             : { updateExpression: { nodeId: input.nodeId!, expectedVersion: input.expectedVersion!, generationId } }) }
         db.generations.set(generationId, { input, view, used: false, messages: [...(previous?.messages ?? []),
-          { id: crypto.randomUUID(), speaker: 'user', body: input.message }, { id: crypto.randomUUID(), speaker: 'ai', body: draft.reply }] })
+          ...input.messages.map((body) => ({ id: crypto.randomUUID(), speaker: 'user' as const, body })),
+          { id: crypto.randomUUID(), speaker: 'ai', body: draft.reply }] })
         return view
       })
     })),

@@ -16,7 +16,7 @@ import { useLocalDraft } from '../../shared/lib/local-draft/useLocalDraft'
 import { LocalDraftControls } from '../../shared/ui/LocalDraftControls'
 import { BusinessRequestError } from '../../shared/api/errors'
 import { MarkdownContent } from '../../shared/ui/MarkdownContent'
-import { appendWorkspaceError, createWorkspaceView, isActionWorkspaceDraft, reconcileWorkspaceDraft, type ActionWorkspaceDraft } from './model/workspace-draft'
+import { appendWorkspaceError, appendWorkspaceNotice, createWorkspaceView, isActionWorkspaceDraft, normalizeGenerationRequest, pendingReportsForRestore, reconcileWorkspaceDraft, type ActionWorkspaceDraft } from './model/workspace-draft'
 
 type ActionWorkspaceProps = {
   graphId: string
@@ -53,13 +53,14 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
   // 对话、文档和预览位置作为一份本地草稿保存；恢复完成前禁止编辑，避免初始空值覆盖旧草稿。
   const local = useLocalDraft<ActionWorkspaceDraft>({
     draftKey,
-    initialValue: { messages: initialMessages?.length ? initialMessages : [welcome], input: '', document: initialDocument,
+    initialValue: { messages: initialMessages?.length ? initialMessages : [welcome], pendingReports: [], input: '', document: initialDocument,
       details: { title: '', description: '', points: [], note: '' }, generated: Boolean(initialDocument),
       expression: { mode: hasParent ? 'inherit' : 'clear', markdown: '' }, agreementMode: 'inherit', agreementDraft: inheritedAgreement,
       agreementReviews: [], mergedParentIds: [], sourcesChanged: false, contextSignature: signatureFor([]), view: createWorkspaceView() },
     validate: isActionWorkspaceDraft,
     restore: (saved) => {
-      const normalized = { ...saved, mergedParentIds: saved.mergedParentIds.map((id) => resourceId(actions ?? [], id) ?? id) }
+      const generationRequest = normalizeGenerationRequest(saved.generationRequest)
+      const normalized = { ...saved, generationRequest, pendingReports: [], input: saved.input || pendingReportsForRestore(saved).join('\n\n'), mergedParentIds: saved.mergedParentIds.map((id) => resourceId(actions ?? [], id) ?? id) }
       const restored = reconcileWorkspaceDraft(normalized, signatureFor(normalized.mergedParentIds))
       return restored === normalized ? normalized : { ...restored, sourcesChanged: true, agreementReviews: [] }
     },
@@ -81,9 +82,12 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
   const effectiveExpression = inheritedExpression
   const contextValid = !actions || !hasParent || Boolean(continuation)
   // 发布要求本轮生成完整且背景未变；约定核对为不满足或未知时，仍允许发布并如实保留状态。
-  const canPublish = local.ready && Boolean(document.trim()) && generated && Boolean(generation?.createAction) && !sending && !publishing && !uploading && contextValid
+  const canPublish = local.ready && Boolean(document.trim()) && generated && Boolean(generation?.createAction) && !input.trim() && !sending && !publishing && !uploading && contextValid
     && JSON.stringify(generationRequest?.input.agreement) === JSON.stringify(agreementIntent)
     && local.value.contextSignature === signatureFor(mergedParentIds)
+  // 发布按钮只属于“行动”栏目；AI 对话下方只保留状态和切栏提示。
+  const viewingAction = local.value.view.tab === 'objective'
+  const publishHint = publishError || (sending ? directSources.length ? '正在整理行动并核对来源约定…' : '正在整理行动…' : !contextValid ? '引用来源已变化，请返回重新选择' : sourcesChanged ? '引用背景已更新，请重新整理' : !document ? '尚未整理' : !generated ? '本轮未完成' : viewingAction ? '待发布' : '草稿已生成，切换到「行动」查看并发布')
   const changeMergedSources = (ids: string[]) => {
     if (sending || !actions || !sourceNodeId) return
     const onlyRemoving = ids.every((id) => mergedParentIds.includes(id))
@@ -103,29 +107,37 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
   }
 
   const send = async (event: FormEvent) => {
-    // 阻止浏览器表单整页刷新，改由 React 管理异步请求和输入状态。
     event.preventDefault()
     const clean = input.trim()
     if (!local.ready || !clean || sending || publishing || uploading || !contextValid) return
     const next = [...messages.filter((message) => !message.id.startsWith('error-')), { id: 'user-' + Date.now(), speaker: 'user' as const, body: clean }]
-    const requestInput: GenerateInput = { mode: 'action', graphId, message: clean, conversationId: generation?.conversationId,
+    const requestInput: GenerateInput = { mode: 'action', graphId, messages: [clean], conversationId: generation?.conversationId,
       parentId: sourceNodeId, mergedParentIds, sourceVersions: directSources.map(({ sourceId }) => ({ nodeId: sourceId, version: actions?.find((node) => node.id === sourceId)?.version ?? 0 })), agreement: agreementIntent }
-    // 响应丢失时重试相同提交；新的对话输入分配新的提交身份。
     const request: GenerationRequest = !generated && generationRequest && generation?.status !== 'failed' && JSON.stringify(generationRequest.input) === JSON.stringify(requestInput)
       ? generationRequest : { key: crypto.randomUUID(), input: requestInput }
-    update({ messages: next, input: '', generated: false, agreementReviews: [], generationRequest: request }); setSending(true); setPublishError('')
+    update({ messages: next, input: '', generated: false, agreementReviews: [], generationRequest: request })
+    setSending(true); setPublishError('')
     try {
       const result = await generate(request)
       update({ generation: result })
-      if (result.status !== 'succeeded' || !result.draft || !result.createAction) throw new Error(result.status === 'pending' ? '仍在整理，请稍后重试读取结果' : '整理失败，请重新发送')
+      if (result.status !== 'succeeded' || !result.draft || !result.createAction) {
+        const message = result.errorCode === 'content_unverified'
+          ? '这次整理中有内容无法对应到你的报告。请检查行动、结果和想法后重新整理。'
+          : result.errorCode === 'content_invalid' ? 'AI 返回的行动草稿格式不完整，请重新整理。' : 'AI 整理失败，请重新整理。'
+        local.update((current) => ({ ...current, generation: result, generated: false, input: clean, messages: appendWorkspaceNotice(current.messages, message) }))
+        return
+      }
       const draft = result.draft
       local.update((current) => ({ ...current, generation: result, document: draft.objective, details: { title: draft.title, description: '', points: [], note: '' }, expression: { mode: hasParent ? 'inherit' : 'clear', markdown: '' }, agreementMode: 'inherit', agreementDraft: inheritedAgreement,
         agreementReviews: draft.reviews.map((review) => ({ nodeNumber: actions?.find((node) => node.id === review.sourceId)?.number ?? 0, complies: review.complies, reason: review.exceptionReason ?? '' })), messages: [...current.messages, { id: 'ai-' + result.generationId, speaker: 'ai', body: draft.reply }],
         generated: true, sourcesChanged: false, contextSignature: signatureFor(mergedParentIds) }))
     } catch (error) {
       const message = error instanceof Error ? error.message : '请求失败，请稍后重试。'
+      const business = error instanceof BusinessRequestError && error.kind === 'business'
       const prefix = error instanceof BusinessRequestError && error.kind === 'business' && error.code === 10001 ? '' : '暂时无法更新记录：'
-      local.update((current) => ({ ...current, messages: appendWorkspaceError(current.messages, prefix + message), input: clean }))
+      const append = business ? appendWorkspaceNotice : appendWorkspaceError
+      local.update((current) => ({ ...current, generationRequest: business ? undefined : current.generationRequest,
+        messages: append(current.messages, prefix + message), input: clean }))
     } finally { setSending(false) }
   }
 
@@ -138,9 +150,9 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
       context={hasParent ? { label: sourceNodeNumber !== undefined ? `承接 #${sourceNodeNumber}` : '承接', title: contextTitle, facts: knownFacts } : undefined}
       contextControls={hasParent && actions && sourceNodeId ? <MergeActionSources actions={actions} parentId={sourceNodeId} selectedIds={mergedParentIds} reviews={agreementReviews} disabled={sending || publishing || !local.ready} onChange={changeMergedSources} /> : undefined}
       messages={messages} profileName={profileName} profile={profile} input={input} placeholder="说说这次实际做了什么"
-      sending={sending} disabled={publishing || uploading || !local.ready || !contextValid} onInputChange={(input) => update({ input })} onSend={send} onBack={onBack}
+      sending={sending} sendingLabel={directSources.length ? '正在整理行动并核对来源约定' : '正在整理行动'} disabled={publishing || uploading || !local.ready || !contextValid} onInputChange={(input) => update({ input })} onSend={send} onBack={onBack}
       actionControls={<DraftImages images={local.value.images ?? []} csrfToken={csrfToken} ready={local.ready} disabled={sending || publishing} onChange={(images) => update({ images })} onBusyChange={setUploading} />}
-      action={{ markdown: document, status: sourcesChanged && document ? '引用背景已更新，文档待重新整理' : undefined, empty: '在 AI 对话中描述这次行动' }}
+      action={{ title: local.value.details.title || generation?.draft?.title, markdown: document, status: sourcesChanged && document ? '引用背景已更新，文档待重新整理' : undefined, empty: '在 AI 对话中描述这次行动' }}
       expression={{ markdown: effectiveExpression, images: inheritedExpressionImages, status: hasParent ? '沿用承接节点表达' : '暂无表达', empty: '暂无表达' }}
       agreement={<div className="px-6">
         {inheritedAgreement.trim() ? <MarkdownContent markdown={inheritedAgreement} /> : <p className="py-5 text-sm text-muted">{hasParent ? '承接节点没有可继承的约定' : '暂无约定'}</p>}
@@ -158,8 +170,8 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
           })}</div>
         </section>}
       </div>}
-      footer={<><span className="text-xs text-muted">{publishError || (sending ? '正在整理…' : !contextValid ? '引用来源已变化，请返回重新选择' : sourcesChanged ? '引用背景已更新，请继续对话后发布' : !document ? '尚未生成' : !generated ? '本轮未完成' : '待发布')}</span>
-        <button className="primary-button" type="button" onClick={publish} disabled={!canPublish}><Check size={15} />发布行动</button></>} />
+      footer={<><span className="text-xs text-muted">{publishHint}</span>
+        {viewingAction && <button className="primary-button" type="button" onClick={publish} disabled={!canPublish}><Check size={15} />发布行动</button>}</>} />
   )
 }
 

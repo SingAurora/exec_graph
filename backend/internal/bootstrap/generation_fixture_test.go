@@ -132,9 +132,11 @@ func (p *recordedProvider) verification(input string) (app.Completion, error) {
 	}{Action: fixtureDocumentCheck{!p.reject, []fixtureEvidence{}}, Expression: fixtureDocumentCheck{true, []fixtureEvidence{}}, Reviews: []fixtureAgreementCheck{}}
 	item := fixtureEvidence{}
 	if in.Context.Mode == "action" {
-		r := in.Context.Reports[len(in.Context.Reports)-1]
-		item = fixtureEvidence{"report", r.ID, r.Text}
-		result.Action.Evidence = []fixtureEvidence{item}
+		result.Action.Evidence = []fixtureEvidence{}
+		for _, report := range in.Context.Reports {
+			item = fixtureEvidence{"report", report.ID, report.Text}
+			result.Action.Evidence = append(result.Action.Evidence, item)
+		}
 	} else if len(in.Context.Facts) > 0 {
 		f := in.Context.Facts[0]
 		item = fixtureEvidence{"action", f.NodeID, f.Objective}

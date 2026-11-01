@@ -19,7 +19,16 @@ describe('action workspace', () => {
     expect(html).not.toContain('>约定</span>')
     expect(html).toContain('>AI 对话</span>')
     expect(html).toContain('>行动</span>')
+    expect(html).toContain('title="发送"')
+    expect(html).not.toContain('>发布行动</button>')
     expect(html).not.toContain('之后发生的行动')
+  })
+
+  test('renders a retained AI clarification from a saved conversation', () => {
+    const html = render({ hasParent: false, initialMessages: [
+      { id: 'notice-1', speaker: 'ai', body: '请补充这次实际做了什么、过程、结果或明确感受' },
+    ] })
+    expect(html).toContain('请补充这次实际做了什么、过程、结果或明确感受')
   })
 
   test('a continuation keeps only action tabs while retaining its source context', () => {

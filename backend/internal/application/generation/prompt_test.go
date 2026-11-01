@@ -58,6 +58,19 @@ func TestParsePreservesExplicitAssessmentAndDocumentIntent(t *testing.T) {
 	}
 }
 
+func TestParseAllowsOmittedReviewsWhenActionHasNoSources(t *testing.T) {
+	content := `{"reply":"已记录这次行动","title":"解放波士顿","objective":"先攻下小城，再与美军合力击败英军，最后解放波士顿。"}`
+	draft, err := parse(content, "action", false, nil)
+	if err != nil || draft.Reply != "已记录这次行动" || draft.Title != "解放波士顿" || len(draft.Reviews) != 0 {
+		t.Fatalf("没有来源时省略空核对列表应按空列表处理: %+v %v", draft, err)
+	}
+	withIrrelevantOutput := `{"reply":"已记录这次行动","title":"解放波士顿","objective":"先攻下小城，再解放波士顿。","expression":{"mode":"update","markdown":"多余输出"},"agreement":{"mode":"update","markdown":"多余输出"},"reviews":[{"sourceId":"old","complies":true}]}`
+	draft, err = parse(withIrrelevantOutput, "action", false, nil)
+	if err != nil || len(draft.Reviews) != 0 || draft.Expression.Mode != "clear" {
+		t.Fatalf("行动模式应忽略未使用的表达与无来源核对输出: %+v %v", draft, err)
+	}
+}
+
 func TestParseAgreementModeReturnsOnlyAgreementDocument(t *testing.T) {
 	input := `{"reply":"约定已整理","title":"","objective":"","agreement":{"mode":"update","markdown":"引用时记录本次实际完成的步骤"},"reviews":[]}`
 	draft, err := parse(input, "agreement", false, nil)
@@ -83,7 +96,7 @@ func TestParseAgreementModeReturnsOnlyAgreementDocument(t *testing.T) {
 func TestPromptOnlyUsesReachableFactsAndKeepsOriginalAgreements(t *testing.T) {
 	graph := action.Graph{Nodes: []action.Node{{ID: "source", Agreement: action.Document{Markdown: "戴头盔"}}, {ID: "current", Expression: action.Document{Markdown: "慢一点"}}}, Edges: []action.Edge{{SourceID: "source", TargetID: "current", Kind: "primary"}}}
 	nodes := []catalogue.ActionView{{ID: "source", ObjectiveMarkdown: "旧行动"}, {ID: "current", ObjectiveMarkdown: "本次行动"}, {ID: "unrelated", ObjectiveMarkdown: "不相关的秘密分支"}}
-	pending := Pending{Mode: "expression", NodeID: "current", InputMessage: "调整看法"}
+	pending := Pending{Mode: "expression", NodeID: "current", InputMessages: []string{"调整看法"}}
 	messages, err := prompt(snapshotFor(graph, map[string]bool{"source": true, "current": true}, nodes, pending, false), pending)
 	if err != nil {
 		t.Fatal(err)

@@ -19,9 +19,13 @@ func pointer(value string) *string {
 }
 
 func (t *generationTransaction) Reserve(p app.Pending) error {
-	user := model.AIMessage{UUID: id.New(), ConversationUUID: p.Conversation.ID, SequenceNumber: p.Conversation.NextSequence, Speaker: "user", AuthorUUID: &p.ActorID, Body: p.InputMessage, CreatedAt: p.CreatedAt}
-	if err := t.DB.Create(&user).Error; err != nil {
-		return err
+	ids := append([]string{}, p.Conversation.MessageIDs...)
+	for i, body := range p.InputMessages {
+		user := model.AIMessage{UUID: id.New(), ConversationUUID: p.Conversation.ID, SequenceNumber: p.Conversation.NextSequence + uint32(i), Speaker: "user", AuthorUUID: &p.ActorID, Body: body, CreatedAt: p.CreatedAt}
+		if err := t.DB.Create(&user).Error; err != nil {
+			return err
+		}
+		ids = append(ids, user.UUID)
 	}
 	var base *uint32
 	if p.Mode == "expression" || p.Mode == "agreement" {
@@ -35,7 +39,7 @@ func (t *generationTransaction) Reserve(p app.Pending) error {
 			agreement = p.Agreement.Markdown
 		}
 	}
-	row := model.AIGeneration{UUID: p.ID, ConversationUUID: p.Conversation.ID, GraphUUID: p.GraphID, RequestedByUUID: p.ActorID, RequestKey: p.RequestKey, Mode: p.Mode, Status: "pending", InputThroughSequence: user.SequenceNumber, BaseNodeVersion: base, InheritedExpressionVersionUUID: pointer(p.InheritedExpressionID), DownstreamAgreementMode: p.Agreement.Mode, DownstreamAgreementMarkdown: agreement, ContextGuideSnapshot: p.Guide, ContextSHA256: p.ContextDigest, Model: p.Model, PromptVersion: app.PromptVersion, CreatedAt: p.CreatedAt}
+	row := model.AIGeneration{UUID: p.ID, ConversationUUID: p.Conversation.ID, GraphUUID: p.GraphID, RequestedByUUID: p.ActorID, RequestKey: p.RequestKey, Mode: p.Mode, Status: "pending", InputThroughSequence: p.InputThroughSequence, BaseNodeVersion: base, InheritedExpressionVersionUUID: pointer(p.InheritedExpressionID), DownstreamAgreementMode: p.Agreement.Mode, DownstreamAgreementMarkdown: agreement, ContextGuideSnapshot: p.Guide, ContextSHA256: p.ContextDigest, Model: p.Model, PromptVersion: app.PromptVersion, CreatedAt: p.CreatedAt}
 	if err := t.DB.Create(&row).Error; err != nil {
 		return err
 	}
@@ -44,14 +48,15 @@ func (t *generationTransaction) Reserve(p app.Pending) error {
 			return err
 		}
 	}
-	ids := append(append([]string{}, p.Conversation.MessageIDs...), user.UUID)
 	for i, uuid := range ids {
 		if err := t.DB.Create(&model.GenerationMessage{ConversationUUID: p.Conversation.ID, GenerationUUID: p.ID, MessageUUID: uuid, Position: uint32(i + 1)}).Error; err != nil {
 			return err
 		}
 	}
-	if err := t.DB.Model(&model.AIConversation{}).Where("uuid = ?", p.Conversation.ID).Updates(model.AIConversation{NextMessageSequence: user.SequenceNumber + 2, UpdatedAt: p.CreatedAt}).Error; err != nil {
-		return err
+	if len(p.InputMessages) > 0 {
+		if err := t.DB.Model(&model.AIConversation{}).Where("uuid = ?", p.Conversation.ID).Updates(model.AIConversation{NextMessageSequence: p.InputThroughSequence + 2, UpdatedAt: p.CreatedAt}).Error; err != nil {
+			return err
+		}
 	}
 	return t.DB.Create(&model.IdempotencyRecord{UserUUID: p.ActorID, Command: "ai/generate", RequestKey: p.RequestKey, RequestSHA256: p.Digest, Status: "processing", CreatedAt: p.CreatedAt, ExpiresAt: p.CreatedAt.Add(constants.IdempotencyRetention)}).Error
 }

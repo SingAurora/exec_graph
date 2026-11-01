@@ -53,7 +53,9 @@ func snapshotFor(graph action.Graph, history map[string]bool, nodes []catalogue.
 			snapshot.Reports = append(snapshot.Reports, report{"report-" + strconv.Itoa(i), message.Content})
 		}
 	}
-	snapshot.Reports = append(snapshot.Reports, report{"current-report", p.InputMessage})
+	for i, message := range p.InputMessages {
+		snapshot.Reports = append(snapshot.Reports, report{"current-report-" + strconv.Itoa(i), message})
+	}
 	byNode := map[string]action.Node{}
 	for _, node := range graph.Nodes {
 		byNode[node.ID] = node
@@ -92,7 +94,9 @@ func prompt(snapshot contextSnapshot, p Pending) ([]Message, error) {
 	}
 	rules := generationRules + "\n当前服务端快照：" + string(encoded)
 	messages := append([]Message{{Role: "system", Content: rules}}, p.Conversation.Messages...)
-	messages = append(messages, Message{Role: "user", Content: p.InputMessage})
+	for _, report := range p.InputMessages {
+		messages = append(messages, Message{Role: "user", Content: report})
+	}
 	total := 0
 	for _, message := range messages {
 		total += utf8.RuneCountInString(message.Content)
@@ -131,7 +135,10 @@ func parse(content, mode string, hasParent bool, sources []action.GenerationSour
 	if err := decoder.Decode(&extra); err != io.EOF {
 		return Draft{}, fault.New(fault.Invalid, "AI 输出包含额外内容")
 	}
-	if ((raw.Expression == nil && mode == "expression") || (raw.Expression != nil && mode != "expression")) || strings.TrimSpace(raw.Reply) == "" || utf8.RuneCountInString(raw.Reply) > constants.AIInputLimit || raw.Reviews == nil || len(raw.Reviews) != len(sources) {
+	if len(sources) == 0 {
+		raw.Reviews = []action.SourceAssessment{}
+	}
+	if (raw.Expression == nil && mode == "expression") || (raw.Expression != nil && (mode == "agreement" || (mode == "action" && len(sources) > 0))) || strings.TrimSpace(raw.Reply) == "" || utf8.RuneCountInString(raw.Reply) > constants.AIInputLimit || raw.Reviews == nil || len(raw.Reviews) != len(sources) {
 		return Draft{}, fault.New(fault.Invalid, "AI 输出不完整")
 	}
 	doc := action.DocumentUpdate{Mode: "clear"}
@@ -173,8 +180,6 @@ func parse(content, mode string, hasParent bool, sources []action.GenerationSour
 			return Draft{}, err
 		}
 		agreement = &value
-	} else if raw.Agreement != nil {
-		return Draft{}, fault.New(fault.Invalid, "非约定模式不能返回约定文稿")
 	}
 	byID := map[string]action.SourceAssessment{}
 	for _, review := range raw.Reviews {

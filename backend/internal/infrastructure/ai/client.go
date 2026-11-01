@@ -33,7 +33,7 @@ func New(c config.AI) (*Client, error) {
 	if model == "" {
 		model = "deepseek-v4-pro"
 	}
-	return NewModel(c, model, true)
+	return NewModel(c, model, false)
 }
 
 // NewAnalysis 创建用于表达、约定和独立核验的深度分析客户端。

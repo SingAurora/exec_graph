@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { appendWorkspaceError, createWorkspaceView, isActionWorkspaceDraft, isExpressionWorkspaceDraft, reconcileWorkspaceDraft } from './workspace-draft.ts'
+import { appendWorkspaceError, appendWorkspaceNotice, createWorkspaceView, isActionWorkspaceDraft, isExpressionWorkspaceDraft, normalizeGenerationRequest, pendingReportsForRestore, reconcileWorkspaceDraft } from './workspace-draft.ts'
 import { getActionDraftKey } from '../../../entities/action/lib/draft-key.ts'
 import { isAgreementDraft } from '../../../features/action-agreement/model/draft.ts'
 
@@ -24,6 +24,21 @@ describe('local workspace drafts', () => {
       { id: 'user-current', speaker: 'user', body: '今天骑了十公里' },
       { speaker: 'ai', body: 'AI 暂时不可用' },
     ])
+  })
+
+  test('business AI notices stay in the conversation instead of being replaced', () => {
+    const messages = [
+      { id: 'welcome', speaker: 'ai', body: '先说说行动' },
+      { id: 'notice-old', speaker: 'ai', body: '请补充这次实际做了什么' },
+      { id: 'user-current', speaker: 'user', body: '我做了好多事情' },
+    ]
+
+    const next = appendWorkspaceNotice(messages, '请补充这次实际做了什么、过程、结果或明确感受')
+    expect(next).toHaveLength(4)
+    expect(next[1]).toEqual(messages[1])
+    expect(next[2]).toEqual(messages[2])
+    expect(next[3]).toMatchObject({ speaker: 'ai', body: '请补充这次实际做了什么、过程、结果或明确感受' })
+    expect(next[3].id.startsWith('notice-')).toBe(true)
   })
 
   test('keeps the conversation, unsent input, both documents, merge choices, reviews and view after serialization', () => {
@@ -56,6 +71,21 @@ describe('local workspace drafts', () => {
     expect(restored.document).toBe(saved.document)
     expect(restored.messages).toEqual(saved.messages)
     expect(restored.input).toBe(saved.input)
+  })
+  test('restores old single-message pending requests without reopening successful drafts', () => {
+    const oldRequest = { key: 'request', input: { mode: 'action', graphId: 'graph', message: '这次实际做了什么', mergedParentIds: [], sourceVersions: [], agreement: { mode: 'clear' } } }
+    const normalized = normalizeGenerationRequest(oldRequest)
+    expect(normalized.input.messages).toEqual(['这次实际做了什么'])
+    expect(pendingReportsForRestore({ ...draft(), generationRequest: oldRequest })).toEqual(['这次实际做了什么'])
+    expect(pendingReportsForRestore({ ...draft(), generation: { generationId: 'g', conversationId: 'c', status: 'succeeded' }, generationRequest: oldRequest })).toEqual([])
+  })
+  test('recovers unsummarized user messages from an old failed conversation', () => {
+    const saved = { ...draft(), messages: [
+      { id: 'welcome', speaker: 'ai', body: '先说说这次实际做了什么。' },
+      { id: 'user-old', speaker: 'user', body: '这次做了具体行动' },
+      { id: 'error-old', speaker: 'ai', body: '暂时无法更新记录：请求超时' },
+    ] }
+    expect(pendingReportsForRestore({ ...saved, pendingReports: [] })).toEqual(['这次做了具体行动'])
   })
   test('account, graph, action source and operation cannot share a draft by accident', () => {
     const keys = [

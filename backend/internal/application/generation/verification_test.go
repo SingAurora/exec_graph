@@ -205,21 +205,21 @@ func TestAgreementVerificationDoesNotRequireActionEvidence(t *testing.T) {
 }
 
 func TestSnapshotSeparatesCurrentUsersReportsFromOtherSpeakers(t *testing.T) {
-	p := Pending{ActorID: "me", Mode: "action", InputMessage: "今天骑了六公里。", Conversation: Conversation{Messages: []Message{
+	p := Pending{ActorID: "me", Mode: "action", InputMessages: []string{"今天骑了六公里。"}, Conversation: Conversation{Messages: []Message{
 		{Role: "user", AuthorID: "other", Content: "别人骑了三十公里"},
 		{Role: "assistant", Content: "AI 自己加的经历"},
 		{Role: "user", AuthorID: "me", Content: "我戴了头盔"},
 		{Role: "user", Content: "归属不明的旧报告"},
 	}}}
 	snapshot := snapshotFor(action.Graph{}, nil, []catalogue.ActionView{}, p, false)
-	if len(snapshot.Reports) != 2 || snapshot.Reports[0].Text != "我戴了头盔" || snapshot.Reports[1].ID != "current-report" {
+	if len(snapshot.Reports) != 2 || snapshot.Reports[0].Text != "我戴了头盔" || snapshot.Reports[1].ID != "current-report-0" {
 		t.Fatalf("报告归属不正确: %+v", snapshot.Reports)
 	}
 	messages, err := verificationPrompt(snapshot, Draft{})
 	if err != nil || len(messages) != 2 || messages[1].Role != "user" {
 		t.Fatalf("核验上下文没有作为数据传入: %+v %v", messages, err)
 	}
-	if strings.Contains(messages[0].Content, p.InputMessage) {
+	if strings.Contains(messages[0].Content, p.InputMessages[0]) {
 		t.Fatal("用户报告进入了核验系统指令")
 	}
 }

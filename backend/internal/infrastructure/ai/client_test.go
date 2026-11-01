@@ -32,7 +32,7 @@ func TestPlatformCompletionValidation(t *testing.T) {
 					t.Error("平台路径或认证未装配")
 				}
 				var input completionRequest
-				if err := json.NewDecoder(r.Body).Decode(&input); err != nil || input.ResponseFormat.Type != "json_object" || input.Model != "test-model" || input.Thinking.Type != "enabled" || input.MaxTokens != constants.AIOutputTokens {
+				if err := json.NewDecoder(r.Body).Decode(&input); err != nil || input.ResponseFormat.Type != "json_object" || input.Model != "test-model" || input.Thinking.Type != "disabled" || input.MaxTokens != constants.AIOutputTokens {
 					t.Error("生成配置未传递")
 				}
 				w.WriteHeader(test.status)
@@ -53,6 +53,28 @@ func TestPlatformCompletionValidation(t *testing.T) {
 				t.Fatalf("失败被接受或泄露上游正文: %v", err)
 			}
 		})
+	}
+}
+
+func TestActionDraftDisablesThinking(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var input completionRequest
+		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+			t.Error(err)
+		}
+		if input.Model != "deepseek-v4-pro" || input.Thinking.Type != "disabled" {
+			t.Errorf("行动草稿配置错误: model=%s thinking=%s", input.Model, input.Thinking.Type)
+		}
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{}"},"finish_reason":"stop"}]}`))
+	}))
+	defer server.Close()
+	client, err := New(config.AI{BaseURL: server.URL, APIKey: "test-only"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client.http = server.Client()
+	if _, err := client.Complete(context.Background(), []app.Message{{Role: "user", Content: "行动"}}); err != nil {
+		t.Fatal(err)
 	}
 }
 

@@ -12,7 +12,7 @@ import (
 )
 
 func generationInput(graph string) app.GenerateInput {
-	return app.GenerateInput{Mode: "action", GraphID: graph, Message: "昨天实际骑行十二公里。", MergedParentIDs: []string{}, SourceVersions: []action.SourceVersion{}, Agreement: action.DocumentUpdate{Mode: "clear"}}
+	return app.GenerateInput{Mode: "action", GraphID: graph, Messages: []string{"昨天实际骑行十二公里。"}, MergedParentIDs: []string{}, SourceVersions: []action.SourceVersion{}, Agreement: action.DocumentUpdate{Mode: "clear"}}
 }
 
 func TestRealGenerationAccountLimits(t *testing.T) {
@@ -69,7 +69,7 @@ func TestRealGenerationAccountLimits(t *testing.T) {
 	if completed.Status != "succeeded" || completed.GenerationID != pending.GenerationID || failed.Status != "failed" {
 		t.Fatal("超限后丢失原始结果")
 	}
-	input.Message = "更换内容不能复用原键"
+	input.Messages = []string{"更换内容不能复用原键"}
 	joOther.call(t, "POST", "ai/generate", input, 409, key)
 	var count int64
 	mustDB(t, s.deps.DB.Model(&model.IdempotencyRecord{}).Where("user_uuid = ? AND command = ?", id.Demo("user", "jo"), "ai/generate").Count(&count))
@@ -79,7 +79,7 @@ func TestRealGenerationAccountLimits(t *testing.T) {
 	provider.provider.mu.Lock()
 	calls := len(provider.provider.requests)
 	provider.provider.mu.Unlock()
-	if calls != 7 { // 三次成功各含生成与核验；一次生成失败不再调用核验。
+	if calls != 4 { // 三次无来源行动各调用一次；一次生成失败也只调用一次。
 		t.Fatalf("外部模型调用次数不正确: %d", calls)
 	}
 

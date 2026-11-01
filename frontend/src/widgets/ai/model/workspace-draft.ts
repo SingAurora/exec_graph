@@ -15,6 +15,7 @@ export type ActionWorkspaceDraft = {
   images?: PostImage[]
   generationRequest?: GenerationRequest
   generation?: GenerationView
+  pendingReports?: string[]
   messages: ChatMessage[]
   input: string
   document: string
@@ -47,9 +48,39 @@ export function createWorkspaceView(): WorkspaceView {
   return { tab: 'conversation', positions: {} }
 }
 
-/** 在最新对话后追加失败提示，保留请求发出后已加入草稿的用户消息。 */
+/**
+ * 追加一条业务性 AI 提示并永久保留：例如“请补充这次实际做了什么”。
+ * 这类提示属于对话的一部分，不能被下一次请求当成临时错误清掉。
+ */
+export function appendWorkspaceNotice(messages: ChatMessage[], body: string): ChatMessage[] {
+  return [...messages, { id: `notice-${crypto.randomUUID()}`, speaker: 'ai', body }]
+}
+
+/** 在最新对话后追加临时失败提示；只用于网络、超时等不代表 AI 发言的错误。 */
 export function appendWorkspaceError(messages: ChatMessage[], body: string): ChatMessage[] {
   return [...messages.filter((message) => !message.id.startsWith('error-')), { id: `error-${Date.now()}`, speaker: 'ai', body }]
+}
+
+/** 将已保存的旧单句生成请求升级为消息批次，保留账号本地草稿。 */
+export function normalizeGenerationRequest(request: GenerationRequest | undefined): GenerationRequest | undefined {
+  if (!request || Array.isArray(request.input.messages)) return request
+  const legacyInput = request.input as GenerationRequest['input'] & { message?: string }
+  if (typeof legacyInput.message !== 'string') return request
+  const { message, ...input } = legacyInput
+  return { ...request, input: { ...input, messages: [message] } }
+}
+
+/** 恢复旧版未完成的行动生成时，把请求消息重新放回待整理列表。 */
+export function pendingReportsForRestore(draft: ActionWorkspaceDraft): string[] {
+  if (draft.pendingReports?.length) return draft.pendingReports
+  if (draft.generation?.status === 'succeeded') return []
+  const requested = normalizeGenerationRequest(draft.generationRequest)?.input.messages
+  if (requested?.length) return requested
+  let lastAssistant = -1
+  draft.messages.forEach((message, index) => {
+    if (message.speaker === 'ai' && !message.id.startsWith('error-')) lastAssistant = index
+  })
+  return draft.messages.slice(lastAssistant + 1).filter((message) => message.speaker === 'user').map((message) => message.body)
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -63,10 +94,14 @@ function isMessages(value: unknown): boolean { return Array.isArray(value) && va
 function isMode(value: unknown): boolean { return value === 'inherit' || value === 'update' || value === 'clear' }
 function isGenerationState(value: Record<string, unknown>): boolean {
   const request = value.generationRequest, generation = value.generation
-  if (request !== undefined && (!isRecord(request) || typeof request.key !== 'string' || !isRecord(request.input)
-    || !['action', 'expression', 'agreement'].includes(String(request.input.mode)) || typeof request.input.graphId !== 'string'
-    || typeof request.input.message !== 'string' || !Array.isArray(request.input.sourceVersions) || !Array.isArray(request.input.mergedParentIds)
-    || !isRecord(request.input.agreement) || !isMode(request.input.agreement.mode))) return false
+  if (request !== undefined) {
+    if (!isRecord(request) || typeof request.key !== 'string' || !isRecord(request.input)
+      || !['action', 'expression', 'agreement'].includes(String(request.input.mode)) || typeof request.input.graphId !== 'string'
+      || !(Array.isArray(request.input.messages) || typeof request.input.message === 'string')
+      || (Array.isArray(request.input.messages) && !request.input.messages.every((message) => typeof message === 'string'))
+      || !Array.isArray(request.input.sourceVersions) || !Array.isArray(request.input.mergedParentIds)
+      || !isRecord(request.input.agreement) || !isMode(request.input.agreement.mode)) return false
+  }
   if (generation !== undefined && (!isRecord(generation) || typeof generation.generationId !== 'string'
     || typeof generation.conversationId !== 'string' || !['pending', 'succeeded', 'failed'].includes(String(generation.status)))) return false
   return true
@@ -82,6 +117,7 @@ export function isActionWorkspaceDraft(value: unknown): value is ActionWorkspace
   if (!isRecord(value) || !isRecord(value.details) || !isRecord(value.expression)) return false
   const { details, expression } = value
   return isGenerationState(value) && isMessages(value.messages) && typeof value.input === 'string' && typeof value.document === 'string'
+    && (value.pendingReports === undefined || (Array.isArray(value.pendingReports) && value.pendingReports.every((message) => typeof message === 'string')))
     && (value.images === undefined || (Array.isArray(value.images) && value.images.length <= 12 && value.images.every((image) => isRecord(image) && typeof image.assetId === 'string' && typeof image.url === 'string' && typeof image.alt === 'string')))
     && typeof details.title === 'string' && typeof details.description === 'string' && typeof details.note === 'string'
     && Array.isArray(details.points) && details.points.every((point) => typeof point === 'string')

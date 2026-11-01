@@ -16,7 +16,8 @@ import { AgreementContent } from '../../entities/action/ui/AgreementContent'
 import { getActionDraftKey } from '../../entities/action/lib/draft-key'
 import { useLocalDraft } from '../../shared/lib/local-draft/useLocalDraft'
 import { LocalDraftControls } from '../../shared/ui/LocalDraftControls'
-import { appendWorkspaceError, createWorkspaceView, isExpressionWorkspaceDraft, reconcileWorkspaceDraft, type ExpressionWorkspaceDraft } from './model/workspace-draft'
+import { appendWorkspaceError, appendWorkspaceNotice, createWorkspaceView, isExpressionWorkspaceDraft, normalizeGenerationRequest, reconcileWorkspaceDraft, type ExpressionWorkspaceDraft } from './model/workspace-draft'
+import { BusinessRequestError } from '../../shared/api/errors'
 
 /** 独立整理本节点向后传递的约定，不改写行动、表达或已有来源核对。 */
 export function AgreementWorkspace({ node, csrfToken, draftKey, actions, profileName, profileId, profile, users = [], contextGuide, onBack, onConfirm }: {
@@ -42,7 +43,7 @@ export function AgreementWorkspace({ node, csrfToken, draftKey, actions, profile
     draftKey: draftKey ?? getActionDraftKey(profileId, node.projectId, 'agreement', node.id),
     initialValue: { messages: node.agreementConversation ?? [], input: '', generated: false, contextSignature: signature, view: createWorkspaceView() },
     validate: isExpressionWorkspaceDraft,
-    restore: (saved) => reconcileWorkspaceDraft(saved, signature),
+    restore: (saved) => reconcileWorkspaceDraft({ ...saved, generationRequest: normalizeGenerationRequest(saved.generationRequest) }, signature),
     hasContent: (value) => Boolean(value.input || value.draftDocument !== undefined || value.messages.length),
   })
   const { messages, input, draftDocument, generated, generation, generationRequest } = local.value
@@ -59,7 +60,7 @@ export function AgreementWorkspace({ node, csrfToken, draftKey, actions, profile
     const clean = input.trim()
     if (!local.ready || !clean || sending || saving || !canEdit) return
     const next = [...messages.filter(isConversationMessage), { id: `agreement-user-${Date.now()}`, speaker: 'user' as const, body: clean, authorId: profileId }]
-    const requestInput: GenerateInput = { mode: 'agreement', graphId: node.projectId, nodeId: node.id, expectedVersion: node.version, message: clean,
+    const requestInput: GenerateInput = { mode: 'agreement', graphId: node.projectId, nodeId: node.id, expectedVersion: node.version, messages: [clean],
       conversationId: generation?.conversationId, mergedParentIds: [], sourceVersions: [], agreement: documentUpdate(agreement.markdown) }
     const request: GenerationRequest = !generated && generationRequest && generation?.status !== 'failed' && JSON.stringify(generationRequest.input) === JSON.stringify(requestInput)
       ? generationRequest : { key: crypto.randomUUID(), input: requestInput }
@@ -75,7 +76,9 @@ export function AgreementWorkspace({ node, csrfToken, draftKey, actions, profile
       local.update((current) => ({ ...current, generation: result, draftDocument: draft.mode === 'update' ? draft.markdown : '', generated: true, contextSignature: signature,
         messages: [...current.messages, { id: `agreement-ai-${result.generationId}`, speaker: 'ai', body: result.draft!.reply }] }))
     } catch (error) {
-      local.update((current) => ({ ...current, messages: appendWorkspaceError(current.messages, `暂时无法更新约定：${error instanceof Error ? error.message : '请求失败，请稍后重试。'}`), input: clean }))
+      const business = error instanceof BusinessRequestError && error.kind === 'business'
+      const append = business ? appendWorkspaceNotice : appendWorkspaceError
+      local.update((current) => ({ ...current, messages: append(current.messages, `暂时无法更新约定：${error instanceof Error ? error.message : '请求失败，请稍后重试。'}`), input: clean }))
     } finally { setSending(false) }
   }
   const conversation: ActionExpressionMessage[] = messages.map((message) => ({ ...message, authorId: message.authorId ?? profileId }))
@@ -92,7 +95,7 @@ export function AgreementWorkspace({ node, csrfToken, draftKey, actions, profile
       messages={conversation} profileName={profileName} profile={profile} users={users} defaultAuthorId={profileId}
       input={input} inputLabel="约定对话内容" placeholder="说说你希望对方满足什么条件" sending={sending} disabled={saving || !local.ready || !canEdit}
       onInputChange={(input) => update({ input })} onSend={send} onBack={onBack}
-      action={{ markdown: node.objectiveMarkdown ?? node.markdown, images: node.images, status: '只读', empty: '暂无行动记录' }}
+      action={{ title: node.title, markdown: node.objectiveMarkdown ?? node.markdown, images: node.images, status: '只读', empty: '暂无行动记录' }}
       expression={{ markdown: expression.markdown, images: expression.sourceNode?.images, status: '只读', empty: '暂无表达' }}
       agreement={<AgreementContent agreement={{ markdown: agreement.markdown, sourceNode: getActionAgreementOrigin(actions, node.id)?.node }} onSelectSource={() => {}} />}
       footer={<><span className="text-xs text-muted">{!canEdit ? '该节点已有后续引用，无法修改约定' : sending ? '正在整理…' : generated ? markdown.trim() === agreement.markdown.trim() ? '约定未变化' : '待保存' : draftDocument !== undefined ? '本轮未完成' : '尚未生成'}</span>

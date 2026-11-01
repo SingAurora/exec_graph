@@ -23,14 +23,14 @@ const dialogue = [{ id: 'u1', speaker: 'user', body: '今天试做了一份炒�
 async function createAction(fixture, options) {
   db.nextGenerationDraft = { reply: dialogue[1].body, title: fixture.title, objective: fixture.objectiveMarkdown, expression: fixture.expression, reviews: fixture.referenceAgreements }
   const generated = await postAPI('/api/commands/ai/generate', { mode: 'action', graphId: fixture.graphId, parentId: fixture.parentId,
-    mergedParentIds: fixture.mergedParentIds, sourceVersions: fixture.sourceVersions, agreement: fixture.agreement, message: dialogue[0].body }, options)
+    mergedParentIds: fixture.mergedParentIds, sourceVersions: fixture.sourceVersions, agreement: fixture.agreement, messages: [dialogue[0].body] }, options)
   return confirmAction(generated.createAction, options)
 }
 async function reviseExpression(fixture, options) {
   db.nextGenerationDraft = { reply: '已整理表达。', title: '', objective: '', expression: fixture.document, reviews: [] }
   const node = db.actions.find((item) => item.id === fixture.nodeId)
   const generated = await postAPI('/api/commands/ai/generate', { mode: 'expression', graphId: node.projectId, nodeId: node.id, expectedVersion: fixture.expectedVersion,
-    mergedParentIds: [], sourceVersions: [], agreement: { mode: 'inherit' }, message: fixture.conversation?.filter((item) => item.speaker === 'user').at(-1)?.body ?? '请调整表达。' }, options)
+    mergedParentIds: [], sourceVersions: [], agreement: { mode: 'inherit' }, messages: [fixture.conversation?.filter((item) => item.speaker === 'user').at(-1)?.body ?? '请调整表达。'] }, options)
   return confirmExpression(generated.updateExpression, options)
 }
 const firstInput = (graphId) => ({ graphId, mergedParentIds: [], sourceVersions: [], title: '第一次试做', objectiveMarkdown: '实际做了一份炒蛋。',

@@ -4,7 +4,7 @@ import type { CreateActionInput, DocumentUpdate, SourceAssessment } from '../../
 /** 浏览器只提交本轮输入与选择；历史事实、图指引和对话由服务端读取。 */
 export type GenerateInput = {
   mode: 'action' | 'expression' | 'agreement'; graphId: string; conversationId?: string
-  nodeId?: string; expectedVersion?: number; message: string; parentId?: string
+  nodeId?: string; expectedVersion?: number; messages: string[]; parentId?: string
   mergedParentIds: string[]; sourceVersions: { nodeId: string; version: number }[]; agreement: DocumentUpdate
 }
 /** 保留提交身份以便响应丢失后重试，不重复调用平台模型。 */

@@ -17,7 +17,7 @@ type GenerateInput struct {
 	ConversationID  string                 `json:"conversationId,omitempty"`
 	NodeID          string                 `json:"nodeId,omitempty"`
 	ExpectedVersion uint32                 `json:"expectedVersion,omitempty"`
-	Message         string                 `json:"message"`
+	Messages        []string               `json:"messages"`
 	ParentID        string                 `json:"parentId,omitempty"`
 	MergedParentIDs []string               `json:"mergedParentIds"`
 	SourceVersions  []action.SourceVersion `json:"sourceVersions"`
@@ -69,7 +69,8 @@ type Pending struct {
 	Digest                                                       []byte
 	ContextDigest                                                []byte
 	Conversation                                                 Conversation
-	InputMessage                                                 string
+	InputMessages                                                []string
+	InputThroughSequence                                         uint32
 	ExpectedVersion                                              uint32
 	InheritedExpressionID                                        string
 	Agreement                                                    action.DocumentUpdate
