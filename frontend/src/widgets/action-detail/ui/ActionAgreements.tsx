@@ -6,8 +6,6 @@ import { canEditActionAgreement, getActionAgreement, getActionAgreementOrigin } 
 import { AgreementContent } from '../../../entities/action/ui/AgreementContent'
 import type { UserProfile } from '../../../entities/profile/model/types'
 import { HelpPopover } from '../../../shared/ui/help/HelpPopover'
-import { EditAgreement } from '../../../features/action-agreement/ui/EditAgreement'
-import { getActionDraftKey } from '../../../entities/action/lib/draft-key'
 
 /** 本次来源约定：逐条展示直接引用的条件及核对结果，与本节点的后续约定独立。 */
 export function ActionSourceAgreements({ node, actions, users, onSelect }: { node: ActionNode; actions: ActionNode[]; users: UserProfile[]; onSelect: (id: string) => void }) {
@@ -54,20 +52,18 @@ export function ActionSourceAgreements({ node, actions, users, onSelect }: { nod
 }
 
 /** 本节点约定：留给后来引用者的条件；修改它不会改变本次已记录的来源核对。 */
-export function ActionOwnAgreement({ node, actions, currentUserId, onSelect, onUpdate }: { node: ActionNode; actions: ActionNode[]; currentUserId?: string; onSelect: (id: string) => void; onUpdate?: (markdown: string) => boolean | Promise<boolean> }) {
+export function ActionOwnAgreement({ node, actions, onSelect, onEdit }: { node: ActionNode; actions: ActionNode[]; onSelect: (id: string) => void; onEdit?: (node: ActionNode) => void }) {
   const [expanded, setExpanded] = useState(false)
-  const [editing, setEditing] = useState(false)
   const contentId = useId()
-  const formId = useId()
   const agreement = getActionAgreement(actions, node.id)
-  const canEdit = Boolean(onUpdate) && canEditActionAgreement(actions, node.id)
+  const canEdit = Boolean(onEdit) && canEditActionAgreement(actions, node.id)
   const hasContent = Boolean(agreement.markdown.trim())
   const EditIcon = hasContent ? Pencil : FilePlus2
   return (
     <section className="rounded-lg border border-line bg-soft/40">
       <div className="flex items-center gap-3 px-3">
         <button className="flex min-h-10 min-w-0 flex-1 items-center gap-2 border-0 bg-transparent p-0 text-left text-xs leading-5 hover:text-signal" type="button" onClick={() => setExpanded((value) => !value)}><ScrollText size={14} className="shrink-0 text-muted" /><span className="font-medium">约定</span>{!agreement.markdown.trim() && <span className="text-muted">无约定</span>}<ChevronDown size={14} className={`ml-auto shrink-0 text-muted transition-transform ${expanded ? 'rotate-180' : ''}`} /></button>
-        {canEdit && <button className="inline-flex min-h-8 shrink-0 items-center gap-1.5 border-0 bg-transparent px-0 text-xs font-medium text-muted hover:text-signal" type="button" onClick={() => setEditing((value) => !value)}><EditIcon size={14} />{hasContent ? '修改约定' : '补充约定'}</button>}
+        {canEdit && <button className="inline-flex min-h-8 shrink-0 items-center gap-1.5 border-0 bg-transparent px-0 text-xs font-medium text-muted hover:text-signal" type="button" onClick={() => onEdit?.(node)}><EditIcon size={14} />{hasContent ? '修改约定' : '补充约定'}</button>}
       </div>
       <div id={contentId} hidden={!expanded} className="border-t border-line p-3">
         <div className="mb-2 flex items-center justify-between text-xs text-muted"><span>后续引用采用的约定</span><HelpPopover title="约定的继承">
@@ -76,7 +72,6 @@ export function ActionOwnAgreement({ node, actions, currentUserId, onSelect, onU
         </HelpPopover></div>
         <AgreementContent agreement={agreement} origin={getActionAgreementOrigin(actions, node.id)} onSelectSource={onSelect} />
       </div>
-      {canEdit && editing && onUpdate && <div id={formId}><EditAgreement key={currentUserId} draftKey={currentUserId ? getActionDraftKey(currentUserId, node.projectId, 'agreement', node.id) : undefined} markdown={agreement.markdown} onSave={onUpdate} onCancel={() => setEditing(false)} onSaved={() => { setEditing(false); setExpanded(true) }} /></div>}
     </section>
   )
 }

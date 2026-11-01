@@ -13,7 +13,7 @@ const render = (actions, props = {}) => renderToStaticMarkup(createElement(Toolt
   graphBackground: createDefaultGraphBackground(), onCreateAction: noop,
   onContinueAction: noop, onOpenActionArchive: noop, onUpdateProject: noop,
   following: false, onSetGraphFollow: () => true,
-  onEditExpression: () => true, onUpdateAgreement: () => true, onDeleteProject: () => true, ...props,
+  onEditExpression: () => true, onEditAgreement: () => {}, onDeleteProject: () => true, ...props,
 }))))
 
 describe('first action entry', () => {

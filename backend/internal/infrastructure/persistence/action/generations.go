@@ -57,6 +57,12 @@ func (t *actionTransaction) Generation(uuid string) (app.Generation, error) {
 	if result.Agreement.Mode == "update" {
 		result.Agreement.Markdown = row.DownstreamAgreementMarkdown
 	}
+	if row.AgreementMode != nil {
+		result.GeneratedAgreement.Mode = *row.AgreementMode
+	}
+	if result.GeneratedAgreement.Mode == "update" {
+		result.GeneratedAgreement.Markdown = row.AgreementMarkdown
+	}
 	for _, source := range snapshots {
 		var complies *bool
 		if source.Complies != nil {
@@ -141,9 +147,9 @@ func (t *actionTransaction) Confirm(generationID, nodeID string, initial bool) e
 	if err := t.DB.Model(&model.AIMessage{}).Where("conversation_uuid = ? AND confirmed_at IS NULL AND (uuid IN (?) OR uuid = ?)", generation.ConversationUUID, used, *generation.OutputMessageUUID).Update("confirmed_at", now).Error; err != nil {
 		return err
 	}
+	boundary := generation.InputThroughSequence + 1
 	if initial {
-		boundary := generation.InputThroughSequence + 1
 		return t.DB.Model(&model.AIConversation{}).Where("uuid = ?", generation.ConversationUUID).Updates(model.AIConversation{NodeUUID: &nodeID, PublishedThroughSequence: &boundary, UpdatedAt: now}).Error
 	}
-	return nil
+	return t.DB.Model(&model.AIConversation{}).Where("uuid = ? AND published_through_sequence IS NULL", generation.ConversationUUID).Updates(model.AIConversation{PublishedThroughSequence: &boundary, UpdatedAt: now}).Error
 }

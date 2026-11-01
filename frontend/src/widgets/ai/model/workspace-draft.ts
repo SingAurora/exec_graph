@@ -64,7 +64,7 @@ function isMode(value: unknown): boolean { return value === 'inherit' || value =
 function isGenerationState(value: Record<string, unknown>): boolean {
   const request = value.generationRequest, generation = value.generation
   if (request !== undefined && (!isRecord(request) || typeof request.key !== 'string' || !isRecord(request.input)
-    || !['action', 'expression'].includes(String(request.input.mode)) || typeof request.input.graphId !== 'string'
+    || !['action', 'expression', 'agreement'].includes(String(request.input.mode)) || typeof request.input.graphId !== 'string'
     || typeof request.input.message !== 'string' || !Array.isArray(request.input.sourceVersions) || !Array.isArray(request.input.mergedParentIds)
     || !isRecord(request.input.agreement) || !isMode(request.input.agreement.mode))) return false
   if (generation !== undefined && (!isRecord(generation) || typeof generation.generationId !== 'string'

@@ -80,7 +80,7 @@ func TestVerificationRejectsMissingOrInventedEvidence(t *testing.T) {
 		name   string
 		change func(*contextSnapshot, *Draft, *verification)
 	}{
-		{"action contains opinion", func(_ *contextSnapshot, _ *Draft, v *verification) { v.Action.Valid = boolPointer(false) }},
+		{"unreported action detail", func(_ *contextSnapshot, _ *Draft, v *verification) { v.Action.Valid = boolPointer(false) }},
 		{"expression unsupported", func(_ *contextSnapshot, _ *Draft, v *verification) { v.Expression.Valid = boolPointer(false) }},
 		{"missing verdict", func(_ *contextSnapshot, _ *Draft, v *verification) { v.Action.Valid = nil }},
 		{"no action evidence", func(_ *contextSnapshot, _ *Draft, v *verification) { v.Action.Evidence = []evidence{} }},
@@ -132,6 +132,31 @@ func TestVerificationRejectsMissingOrInventedEvidence(t *testing.T) {
 	}
 }
 
+func TestActionVerificationKeepsReportedThoughtWithoutTurningPredictionIntoOutcome(t *testing.T) {
+	snapshot, draft, result := verificationFixture()
+	thought := "这关比较简单，我觉得按这条路线比较容易拿到三星。"
+	snapshot.Reports[0].Text += thought
+	draft.Objective += "\n\n## 我的想法\n\n" + thought
+	result.Action.Evidence = append(result.Action.Evidence, evidence{Kind: "report", ID: snapshot.Reports[0].ID, Quote: thought})
+	body, err := json.Marshal(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := verify(string(body), snapshot, draft); err != nil {
+		t.Fatalf("有具体行动依据的个人复盘不应使整篇行动记录失败: %v", err)
+	}
+
+	draft.Objective = strings.Replace(draft.Objective, "比较容易拿到三星", "拿到了三星", 1)
+	result.Action.Evidence[len(result.Action.Evidence)-1].Quote = "拿到了三星"
+	body, err = json.Marshal(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := verify(string(body), snapshot, draft); !errors.Is(err, errUnverified) {
+		t.Fatal("用户未报告的三星结果不能作为已发生事实")
+	}
+}
+
 func TestExpressionVerificationUsesPublishedActionsOnly(t *testing.T) {
 	snapshot, draft, result := verificationFixture()
 	snapshot.Mode, snapshot.Sources = "expression", []source{}
@@ -152,6 +177,30 @@ func TestExpressionVerificationUsesPublishedActionsOnly(t *testing.T) {
 		if _, err := verify(body, snapshot, draft); !errors.Is(err, errUnverified) {
 			t.Fatalf("损坏核验被接受: %v", err)
 		}
+	}
+}
+
+func TestAgreementVerificationDoesNotRequireActionEvidence(t *testing.T) {
+	snapshot := contextSnapshot{Mode: "agreement", Sources: []source{}, Facts: []fact{}, Reports: []report{}}
+	text := "引用时说明本次实际完成的步骤。"
+	draft := Draft{Reply: "我整理了约定。", Agreement: &action.DocumentUpdate{Mode: "update", Markdown: &text}, Reviews: []action.SourceAssessment{}}
+	result := verification{
+		Action:     documentCheck{Valid: boolPointer(true), Evidence: []evidence{}},
+		Expression: documentCheck{Valid: boolPointer(true), Evidence: []evidence{}},
+		Agreement:  documentCheck{Valid: boolPointer(true), Evidence: []evidence{}},
+		Reviews:    []agreementCheck{},
+	}
+	body, err := json.Marshal(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := verify(string(body), snapshot, draft); err != nil {
+		t.Fatalf("约定核验不应要求事实证据: %v", err)
+	}
+	result.Agreement.Evidence = []evidence{{Kind: "report", ID: "invented", Quote: "发生了"}}
+	body, _ = json.Marshal(result)
+	if _, err := verify(string(body), snapshot, draft); !errors.Is(err, errUnverified) {
+		t.Fatalf("约定核验接受了无关事实证据: %v", err)
 	}
 }
 

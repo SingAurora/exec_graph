@@ -100,7 +100,7 @@ func (r *Repository) actions(ctx context.Context, nodes []model.ActionNode) ([]a
 	}
 	byID := map[string]*app.ActionView{}
 	for _, n := range nodes {
-		result = append(result, app.ActionView{ID: n.UUID, GraphID: n.GraphUUID, Number: n.NodeNumber, AuthorID: n.AuthorUUID, Title: n.Title, Markdown: n.ObjectiveMarkdown, ObjectiveMarkdown: n.ObjectiveMarkdown, Version: n.Version, CreatedAt: n.CreatedAt, Images: []app.Image{}, Conversation: []app.Message{}, ReferenceAgreements: []app.Assessment{}, ContextSnapshot: &app.ContextSnapshot{DirectNodeIDs: []string{}, HistoryNodeCount: n.HistoryNodeCount, Guide: n.ContextGuideSnapshot}})
+		result = append(result, app.ActionView{ID: n.UUID, GraphID: n.GraphUUID, Number: n.NodeNumber, AuthorID: n.AuthorUUID, Title: n.Title, Markdown: n.ObjectiveMarkdown, ObjectiveMarkdown: n.ObjectiveMarkdown, Version: n.Version, CreatedAt: n.CreatedAt, Images: []app.Image{}, Conversation: []app.Message{}, ExpressionConversation: []app.Message{}, AgreementConversation: []app.Message{}, ReferenceAgreements: []app.Assessment{}, ContextSnapshot: &app.ContextSnapshot{DirectNodeIDs: []string{}, HistoryNodeCount: n.HistoryNodeCount, Guide: n.ContextGuideSnapshot}})
 	}
 	for i := range result {
 		byID[result[i].ID] = &result[i]
@@ -164,10 +164,13 @@ func (r *Repository) actions(ctx context.Context, nodes []model.ActionNode) ([]a
 		if message.AuthorUUID != nil {
 			view.AuthorID = *message.AuthorUUID
 		}
-		if message.SequenceNumber <= *conv.PublishedThroughSequence {
-			node.Conversation = append(node.Conversation, view)
-		} else {
+		switch conv.Kind {
+		case "expression":
 			node.ExpressionConversation = append(node.ExpressionConversation, view)
+		case "agreement":
+			node.AgreementConversation = append(node.AgreementConversation, view)
+		case "action":
+			node.Conversation = append(node.Conversation, view)
 		}
 	}
 	aliases, err := r.aliases(ctx, "action", ids)

@@ -125,6 +125,13 @@ func (t *generationTransaction) view(row model.AIGeneration) (app.View, error) {
 	if row.ObjectiveMarkdown != nil {
 		draft.Objective = *row.ObjectiveMarkdown
 	}
+	if row.AgreementMode != nil {
+		agreement := appaction.DocumentUpdate{Mode: *row.AgreementMode}
+		if agreement.Mode == "update" {
+			agreement.Markdown = row.AgreementMarkdown
+		}
+		draft.Agreement = &agreement
+	}
 	var message model.AIMessage
 	if err := t.DB.Where("uuid = ?", row.OutputMessageUUID).Take(&message).Error; err != nil {
 		return out, err
@@ -161,7 +168,11 @@ func (t *generationTransaction) view(row model.AIGeneration) (app.View, error) {
 		if conversation.NodeUUID == nil || row.BaseNodeVersion == nil {
 			return out, fault.New(fault.Unavailable, "生成节点信息不完整")
 		}
-		out.UpdateExpression = &appaction.UpdateExpressionInput{NodeID: *conversation.NodeUUID, ExpectedVersion: *row.BaseNodeVersion, GenerationID: row.UUID}
+		if row.Mode == "agreement" {
+			out.UpdateAgreement = &appaction.UpdateAgreementInput{NodeID: *conversation.NodeUUID, ExpectedVersion: *row.BaseNodeVersion, GenerationID: row.UUID}
+		} else {
+			out.UpdateExpression = &appaction.UpdateExpressionInput{NodeID: *conversation.NodeUUID, ExpectedVersion: *row.BaseNodeVersion, GenerationID: row.UUID}
+		}
 	}
 	return out, nil
 }

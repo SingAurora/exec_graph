@@ -110,6 +110,7 @@ type ActionView struct {
 	Images                 []Image          `json:"images"`
 	Conversation           []Message        `json:"conversation"`
 	ExpressionConversation []Message        `json:"expressionConversation,omitempty"`
+	AgreementConversation  []Message        `json:"agreementConversation,omitempty"`
 	Version                uint32           `json:"version"`
 	CreatedAt              time.Time        `json:"createdAt"`
 }

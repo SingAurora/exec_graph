@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowUp, ChevronDown, Footprints, LoaderCircle, MessageCircle, ScrollText, Sparkles } from 'lucide-react'
+import { ArrowLeft, ArrowUp, Check, ChevronDown, Clipboard, Footprints, LoaderCircle, MessageCircle, ScrollText, Sparkles } from 'lucide-react'
 import { useLayoutEffect, useRef, useState, type FormEvent, type ReactNode, type UIEvent } from 'react'
 import type { ActionExpressionContext, ActionExpressionMessage } from '../../entities/action/model/types'
 import type { PostImage } from '../../shared/model/content'
@@ -13,6 +13,7 @@ type WorkspaceTab = 'conversation' | 'objective' | 'expression' | 'agreement'
 type DocumentPreview = { markdown: string; images?: PostImage[]; status?: string; empty: string }
 type WorkspaceFrameProps = {
   title: string
+  tabs?: WorkspaceTab[]
   help: ReactNode
   draftControls?: ReactNode
   view?: WorkspaceView
@@ -40,10 +41,12 @@ type WorkspaceFrameProps = {
   footer: ReactNode
 }
 
-/** 两类工作区共用的界面框架：对话、行动、表达、约定四个 Tab，不负责生成或发布。 */
-export function WorkspaceFrame({ title, help, draftControls, view, onViewChange, restoring = false, context, contextControls, messages, profileName, profile, users = [], defaultAuthorId, input, inputLabel = '对话内容', placeholder, sending, disabled = false, onInputChange, onSend, onBack, action, actionControls, expression, agreement, footer }: WorkspaceFrameProps) {
+/** 三类工作区共用界面框架；各工作区只显示当前业务需要的文档栏目。 */
+export function WorkspaceFrame({ title, tabs = ['conversation', 'objective', 'expression', 'agreement'], help, draftControls, view, onViewChange, restoring = false, context, contextControls, messages, profileName, profile, users = [], defaultAuthorId, input, inputLabel = '对话内容', placeholder, sending, disabled = false, onInputChange, onSend, onBack, action, actionControls, expression, agreement, footer }: WorkspaceFrameProps) {
   const [localTab, setTab] = useState<WorkspaceTab>('conversation')
-  const tab = view?.tab ?? localTab
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle')
+  const requestedTab = view?.tab ?? localTab
+  const tab = tabs.includes(requestedTab) ? requestedTab : tabs[0] ?? 'conversation'
   const panels = useRef<Partial<Record<WorkspaceTab, HTMLDivElement | null>>>({})
   const positions = useRef<Partial<Record<WorkspaceTab, number>>>({})
   const pendingConversationScroll = useRef(true)
@@ -83,6 +86,21 @@ export function WorkspaceFrame({ title, help, draftControls, view, onViewChange,
     positions.current[value] = top
     if (view && onViewChange && view.positions[value] !== top) onViewChange({ ...view, positions: { ...view.positions, [value]: top } })
   }
+  const copyConversation = async () => {
+    const text = messages.map((message) => {
+      const authorId = message.authorId ?? defaultAuthorId ?? profile?.id
+      const author = users.find((user) => user.id === authorId) ?? (authorId === profile?.id ? profile : undefined)
+      const authorName = author?.name ?? authorId ?? profileName
+      return `${message.speaker === 'user' ? authorName : 'AI'}：\n${message.body}`
+    }).join('\n\n')
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopyStatus('copied')
+      window.setTimeout(() => setCopyStatus('idle'), 1800)
+    } catch {
+      setCopyStatus('failed')
+    }
+  }
 
   return (
     <section className="flex h-[calc(100dvh-116px)] min-h-[500px] flex-col pt-[22px]">
@@ -105,13 +123,20 @@ export function WorkspaceFrame({ title, help, draftControls, view, onViewChange,
         <TabsRoot value={tab} onValueChange={changeTab} className="flex min-h-0 flex-1 flex-col">
           <div className="shrink-0 px-5">
             <TabsList showDivider={false}>
-              <TabsTrigger value="conversation"><span className="inline-flex items-center gap-1.5"><Sparkles size={16} />AI 对话</span></TabsTrigger>
-              <TabsTrigger value="objective"><span className="inline-flex items-center gap-1.5"><Footprints size={16} />行动</span></TabsTrigger>
-              <TabsTrigger value="expression"><span className="inline-flex items-center gap-1.5"><MessageCircle size={16} />表达</span></TabsTrigger>
-              <TabsTrigger value="agreement"><span className="inline-flex items-center gap-1.5"><ScrollText size={16} />约定</span></TabsTrigger>
+              {tabs.map((value) => <TabsTrigger key={value} value={value}><span className="inline-flex items-center gap-1.5">
+                {value === 'conversation' ? <><Sparkles size={16} />AI 对话</>
+                  : value === 'objective' ? <><Footprints size={16} />行动</>
+                    : value === 'expression' ? <><MessageCircle size={16} />表达</>
+                      : <><ScrollText size={16} />约定</>}
+              </span></TabsTrigger>)}
             </TabsList>
           </div>
           <TabsContent value="conversation" keepMounted className="flex min-h-0 flex-1 flex-col">
+            <div className="flex shrink-0 justify-end px-6 pt-3">
+              <button className="quiet-button" type="button" onClick={copyConversation} title="复制当前对话内容">
+                {copyStatus === 'copied' ? <Check size={14} /> : <Clipboard size={14} />}{copyStatus === 'copied' ? '已复制' : copyStatus === 'failed' ? '复制失败' : '复制对话'}
+              </button>
+            </div>
             <div ref={(element) => { panels.current.conversation = element }} onScroll={(event) => rememberScroll('conversation', event)} className="grid min-h-0 flex-1 content-start gap-4 overflow-y-auto overscroll-contain px-6 py-6">
               {messages.map((message) => {
                 const authorId = message.authorId ?? defaultAuthorId ?? profile?.id
@@ -131,7 +156,7 @@ export function WorkspaceFrame({ title, help, draftControls, view, onViewChange,
               <button className="icon-button border-signal bg-signal text-on-signal" type="submit" title="发送" disabled={!input.trim() || sending || disabled}><ArrowUp size={18} /></button>
             </form>
           </TabsContent>
-          {(['objective', 'expression'] as const).map((value) => {
+          {(['objective', 'expression'] as const).filter((value) => tabs.includes(value)).map((value) => {
             const preview = value === 'objective' ? action : expression
             return (
               <TabsContent value={value} keepMounted className="min-h-0 flex-1" key={value}>
@@ -143,9 +168,9 @@ export function WorkspaceFrame({ title, help, draftControls, view, onViewChange,
               </TabsContent>
             )
           })}
-          <TabsContent value="agreement" keepMounted className="min-h-0 flex-1">
+          {tabs.includes('agreement') && <TabsContent value="agreement" keepMounted className="min-h-0 flex-1">
             <div ref={(element) => { panels.current.agreement = element }} onScroll={(event) => rememberScroll('agreement', event)} className="h-full overflow-y-auto overscroll-contain py-5">{agreement}</div>
-          </TabsContent>
+          </TabsContent>}
         </TabsRoot>
         <div className="flex shrink-0 items-center justify-between gap-3 border-t border-line px-6 py-3">{footer}</div>
       </div>

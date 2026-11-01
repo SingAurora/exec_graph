@@ -41,7 +41,7 @@ POST `/ai/generate`：会话、CSRF 和 UUID 格式的 `Idempotency-Key`。
 
 ```ts
 type GenerateInput = {
-  mode: 'action' | 'expression'
+  mode: 'action' | 'expression' | 'agreement'
   graphId: string
   conversationId?: string
   nodeId?: string
@@ -57,7 +57,7 @@ type GenerateInput = {
 }
 ```
 
-新行动提交直接来源及版本；首次行动不能继承约定。表达修改提交当前节点及版本，不改变引用；`agreement` 用 inherit，约定另行保存。每轮输入最多一万字符。图指引、可达历史事实、有效表达约定和对话由服务端读取，不接受浏览器提供 system prompt、平台 key 或任意上游地址。
+行动、表达和约定使用按节点及类型隔离的三类 AI 对话。行动提交直接来源及版本，记录本次行动、结果、明确观察和用户对此次行动的个人想法，并核对来源约定；只要行动交代具体，不因同时包含有本人报告依据的主观复盘而拒绝整篇，预测不能伪装成已发生结果。表达修改提交当前节点及版本，不改变引用；约定修改提交当前节点及版本，不改变行动或表达。行动发布时表达和后续约定依承接关系继承，首次行动为空；之后可在各自工作区独立调整。每轮输入最多一万字符。图指引、可达历史事实、有效表达约定和对应类型的历史对话由服务端读取，不接受浏览器提供 system prompt、平台 key 或任意上游地址。
 
 首次请求短事务登记 pending，事务外调用平台模型，再短事务保存输出；重复键同输入只读取原任务，同键不同输入返回 409。返回：
 
@@ -72,10 +72,12 @@ type GenerationView = {
     title: string
     objective: string
     expression: GenerateInput['agreement']
+    agreement?: GenerateInput['agreement']
     reviews: { sourceId: string; complies: boolean | null; exceptionReason?: string }[]
   }
   createAction?: CreateActionInput
   updateExpression?: { nodeId: string; expectedVersion: number; generationId: string }
+  updateAgreement?: { nodeId: string; expectedVersion: number; generationId: string }
 }
 ```
 

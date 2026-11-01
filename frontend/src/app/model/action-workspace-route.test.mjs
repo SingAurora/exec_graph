@@ -8,6 +8,7 @@ describe('persistent workspace addresses', () => {
       { mode: 'action', projectId: 'cooking', parentId: undefined },
       { mode: 'action', projectId: 'cooking', parentId: 'node/#9' },
       { mode: 'expression', projectId: 'graph & space', nodeId: 'node-14' },
+      { mode: 'agreement', projectId: 'graph & space', nodeId: 'node-14' },
     ]) {
       expect(readActionWorkspaceRoute(new URLSearchParams(actionWorkspaceHash(target).split('?')[1]))).toEqual(target)
     }

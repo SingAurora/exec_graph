@@ -83,6 +83,32 @@ func Migrate(ctx context.Context, db *gorm.DB) error {
 				return fmt.Errorf("记录所在地迁移版本: %w", err)
 			}
 		}
+		if applied < 4 {
+			if conn.Migrator().HasConstraint(&model.AIConversation{}, "ck_ai_conversations") {
+				if err := conn.Migrator().DropConstraint(&model.AIConversation{}, "ck_ai_conversations"); err != nil {
+					return fmt.Errorf("移除旧 AI 对话约束: %w", err)
+				}
+			}
+			if conn.Migrator().HasIndex(&model.AIConversation{}, "uq_ai_conversations_node") {
+				if err := conn.Migrator().DropIndex(&model.AIConversation{}, "uq_ai_conversations_node"); err != nil {
+					return fmt.Errorf("调整 AI 对话节点索引: %w", err)
+				}
+			}
+			if err := conn.Session(&gorm.Session{NewDB: true}).Set("gorm:table_options", "ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_cs").AutoMigrate(&model.AIConversation{}); err != nil {
+				return fmt.Errorf("添加独立 AI 对话类型: %w", err)
+			}
+			if conn.Migrator().HasConstraint(&model.AIGeneration{}, "ck_ai_generations") {
+				if err := conn.Migrator().DropConstraint(&model.AIGeneration{}, "ck_ai_generations"); err != nil {
+					return fmt.Errorf("移除旧 AI 生成约束: %w", err)
+				}
+			}
+			if err := conn.Session(&gorm.Session{NewDB: true}).Set("gorm:table_options", "ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_cs").AutoMigrate(&model.AIGeneration{}); err != nil {
+				return fmt.Errorf("添加约定生成结果字段: %w", err)
+			}
+			if err := conn.Create(&model.SchemaVersion{Version: 4, AppliedAt: time.Now().UTC()}).Error; err != nil {
+				return fmt.Errorf("记录约定生成迁移版本: %w", err)
+			}
+		}
 		return Check(ctx, conn)
 	})
 }

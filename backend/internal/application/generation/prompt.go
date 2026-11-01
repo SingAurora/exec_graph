@@ -36,6 +36,7 @@ type contextSnapshot struct {
 	Sources             []source              `json:"sources"`
 	OriginalSources     []source              `json:"originalSources,omitempty"`
 	CurrentExpression   string                `json:"currentExpression"`
+	CurrentAgreement    string                `json:"currentAgreement"`
 	DownstreamAgreement action.DocumentUpdate `json:"downstreamAgreement"`
 	PreviousDraft       *Draft                `json:"previousDraft,omitempty"`
 }
@@ -56,8 +57,9 @@ func snapshotFor(graph action.Graph, history map[string]bool, nodes []catalogue.
 	byNode := map[string]action.Node{}
 	for _, node := range graph.Nodes {
 		byNode[node.ID] = node
-		if p.Mode == "expression" && node.ID == p.NodeID {
+		if (p.Mode == "expression" || p.Mode == "agreement") && node.ID == p.NodeID {
 			snapshot.CurrentExpression = node.Expression.Markdown
+			snapshot.CurrentAgreement = node.Agreement.Markdown
 		}
 	}
 	for _, node := range nodes {
@@ -72,7 +74,7 @@ func snapshotFor(graph action.Graph, history map[string]bool, nodes []catalogue.
 			snapshot.CurrentExpression = n.Expression.Markdown
 		}
 	}
-	if p.Mode == "expression" {
+	if p.Mode == "expression" || p.Mode == "agreement" {
 		for _, edge := range graph.Edges {
 			if edge.TargetID == p.NodeID {
 				n := byNode[edge.SourceID]
@@ -110,6 +112,7 @@ type modelDraft struct {
 	Title      string                    `json:"title"`
 	Objective  string                    `json:"objective"`
 	Expression *modelDocument            `json:"expression"`
+	Agreement  *modelDocument            `json:"agreement"`
 	Reviews    []action.SourceAssessment `json:"reviews"`
 }
 
@@ -128,23 +131,50 @@ func parse(content, mode string, hasParent bool, sources []action.GenerationSour
 	if err := decoder.Decode(&extra); err != io.EOF {
 		return Draft{}, fault.New(fault.Invalid, "AI 输出包含额外内容")
 	}
-	if raw.Expression == nil || strings.TrimSpace(raw.Reply) == "" || utf8.RuneCountInString(raw.Reply) > constants.AIInputLimit || raw.Reviews == nil || len(raw.Reviews) != len(sources) {
+	if ((raw.Expression == nil && mode == "expression") || (raw.Expression != nil && mode != "expression")) || strings.TrimSpace(raw.Reply) == "" || utf8.RuneCountInString(raw.Reply) > constants.AIInputLimit || raw.Reviews == nil || len(raw.Reviews) != len(sources) {
 		return Draft{}, fault.New(fault.Invalid, "AI 输出不完整")
 	}
-	doc := action.DocumentUpdate{Mode: raw.Expression.Mode}
-	if doc.Mode == "update" {
-		doc.Markdown = &raw.Expression.Markdown
-	} else if raw.Expression.Markdown != "" {
-		return Draft{}, fault.New(fault.Invalid, "继承或清空不能携带文稿")
+	doc := action.DocumentUpdate{Mode: "clear"}
+	if raw.Expression != nil {
+		doc = action.DocumentUpdate{Mode: raw.Expression.Mode}
+		if doc.Mode == "update" {
+			doc.Markdown = &raw.Expression.Markdown
+		} else if raw.Expression.Markdown != "" {
+			return Draft{}, fault.New(fault.Invalid, "继承或清空不能携带文稿")
+		}
+		if err := action.ValidateDocument(doc, mode == "action" && hasParent); err != nil {
+			return Draft{}, err
+		}
 	}
-	if err := action.ValidateDocument(doc, mode == "action" && hasParent); err != nil {
-		return Draft{}, err
+	if mode == "action" {
+		doc = action.DocumentUpdate{Mode: "clear"}
+		if hasParent {
+			doc = action.DocumentUpdate{Mode: "inherit"}
+		}
 	}
 	if mode == "action" && (strings.TrimSpace(raw.Title) == "" || utf8.RuneCountInString(raw.Title) > constants.ActionTitleLimit || strings.TrimSpace(raw.Objective) == "" || utf8.RuneCountInString(raw.Objective) > constants.DocumentLimit) {
 		return Draft{}, fault.New(fault.Invalid, "请补充这次实际做了什么、过程、结果或明确感受")
 	}
-	if mode == "expression" && (raw.Title != "" || raw.Objective != "") {
+	if (mode == "expression" || mode == "agreement") && (raw.Title != "" || raw.Objective != "") {
 		return Draft{}, fault.New(fault.Invalid, "表达修改不能携带新行动事实")
+	}
+	var agreement *action.DocumentUpdate
+	if mode == "agreement" {
+		if raw.Agreement == nil || len(sources) != 0 || len(raw.Reviews) != 0 {
+			return Draft{}, fault.New(fault.Invalid, "约定输出不完整")
+		}
+		value := action.DocumentUpdate{Mode: raw.Agreement.Mode}
+		if value.Mode == "update" {
+			value.Markdown = &raw.Agreement.Markdown
+		} else if raw.Agreement.Markdown != "" {
+			return Draft{}, fault.New(fault.Invalid, "继承或清空不能携带约定文稿")
+		}
+		if err := action.ValidateDocument(value, false); err != nil {
+			return Draft{}, err
+		}
+		agreement = &value
+	} else if raw.Agreement != nil {
+		return Draft{}, fault.New(fault.Invalid, "非约定模式不能返回约定文稿")
 	}
 	byID := map[string]action.SourceAssessment{}
 	for _, review := range raw.Reviews {
@@ -175,5 +205,5 @@ func parse(content, mode string, hasParent bool, sources []action.GenerationSour
 		}
 		reviews = append(reviews, review)
 	}
-	return Draft{Reply: raw.Reply, Title: raw.Title, Objective: raw.Objective, Expression: doc, Reviews: reviews}, nil
+	return Draft{Reply: raw.Reply, Title: raw.Title, Objective: raw.Objective, Expression: doc, Agreement: agreement, Reviews: reviews}, nil
 }

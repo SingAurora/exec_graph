@@ -111,24 +111,66 @@ func editable(tx Transaction, uuid string, expected uint32) (Graph, Node, error)
 // UpdateAgreement 任何已认证用户均可整理尚未被引用的终点，实际操作者留在新版本中。
 func (s *Service) UpdateAgreement(ctx context.Context, actor identity.Actor, input UpdateAgreementInput) (catalogue.ActionView, error) {
 	var out catalogue.ActionView
-	if !id.Valid(input.NodeID) || input.ExpectedVersion == 0 {
+	if !id.Valid(input.NodeID) || input.ExpectedVersion == 0 || (input.GenerationID != "" && !id.Valid(input.GenerationID)) {
 		return out, fault.New(fault.Invalid, "节点或版本不合法")
 	}
-	if err := ValidateDocument(input.Document, false); err != nil {
-		return out, err
+	if input.GenerationID == "" {
+		if err := ValidateDocument(input.Document, false); err != nil {
+			return out, err
+		}
 	}
 	err := s.store.Within(ctx, actor, func(tx Transaction) error {
 		graph, node, err := editable(tx, input.NodeID, input.ExpectedVersion)
 		if err != nil {
 			return err
 		}
-		if err := revise(tx, actor, graph.ID, node, "agreement", node.Agreement, input.Document, ""); err != nil {
+		document, generationID := input.Document, ""
+		if input.GenerationID != "" {
+			generation, err := tx.Generation(input.GenerationID)
+			if err != nil {
+				return err
+			}
+			if err := validateGeneration(generation, actor.UserID); err != nil {
+				return err
+			}
+			if generation.RequesterID != actor.UserID {
+				return fault.New(fault.Forbidden, "不能确认他人的生成结果")
+			}
+			currentAgreement := DocumentUpdate{Mode: "clear"}
+			if strings.TrimSpace(node.Agreement.Markdown) != "" {
+				markdown := node.Agreement.Markdown
+				currentAgreement = DocumentUpdate{Mode: "update", Markdown: &markdown}
+			}
+			if generation.Mode != "agreement" || generation.GraphID != graph.ID || generation.ConversationNodeID != node.ID || generation.BaseVersion != node.Version || generation.Guide != graph.Guide || !sameDocument(generation.Agreement, currentAgreement) {
+				return fault.New(fault.Conflict, "约定生成背景已变化，请重新生成")
+			}
+			if err := ValidateDocument(generation.GeneratedAgreement, false); err != nil {
+				return err
+			}
+			document, generationID = generation.GeneratedAgreement, generation.ID
+		}
+		if err := revise(tx, actor, graph.ID, node, "agreement", node.Agreement, document, generationID); err != nil {
 			return err
+		}
+		if generationID != "" {
+			if err := tx.Confirm(generationID, node.ID, false); err != nil {
+				return err
+			}
 		}
 		out, err = tx.View(input.NodeID)
 		return err
 	})
 	return out, err
+}
+
+func sameDocument(left, right DocumentUpdate) bool {
+	if left.Mode != right.Mode {
+		return false
+	}
+	if left.Markdown == nil || right.Markdown == nil {
+		return left.Markdown == nil && right.Markdown == nil
+	}
+	return *left.Markdown == *right.Markdown
 }
 
 // UpdateExpression 只采用本节点连续对话的服务端输出，行动事实和原始对话保持不变。

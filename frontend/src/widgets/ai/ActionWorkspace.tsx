@@ -7,7 +7,6 @@ import { resourceId } from '../../shared/lib/resource-id'
 import { DraftImages } from '../../features/media-upload/ui/DraftImages'
 import type { GenerateInput, GenerationRequest } from '../../features/action-generation/api/generation'
 import { documentUpdate, type CreateActionInput } from '../../features/action/api/commands'
-import { ActionAgreementEditor } from '../../features/action-agreement/ui/ActionAgreementEditor'
 import { MergeActionSources } from '../../features/action-merge/ui/MergeActionSources'
 import type { ChatMessage, PostImage } from '../../shared/model/content'
 import type { UserProfile } from '../../entities/profile/model/types'
@@ -16,6 +15,7 @@ import { WorkspaceFrame } from './WorkspaceFrame'
 import { useLocalDraft } from '../../shared/lib/local-draft/useLocalDraft'
 import { LocalDraftControls } from '../../shared/ui/LocalDraftControls'
 import { BusinessRequestError } from '../../shared/api/errors'
+import { MarkdownContent } from '../../shared/ui/MarkdownContent'
 import { appendWorkspaceError, createWorkspaceView, isActionWorkspaceDraft, reconcileWorkspaceDraft, type ActionWorkspaceDraft } from './model/workspace-draft'
 
 type ActionWorkspaceProps = {
@@ -33,7 +33,6 @@ type ActionWorkspaceProps = {
   sourceNodeId?: string
   sourceNodeNumber?: number
   actions?: (ActionNode & { version?: number })[]
-  expressionSourceNumber?: number
   historyFacts?: ActionExpressionContext['facts']
   initialDocument?: string
   initialMessages?: ChatMessage[]
@@ -42,9 +41,9 @@ type ActionWorkspaceProps = {
 }
 
 /** 行动发布工作区：同一条 AI 对话整理行动事实与表达，另行设置后续约定并核对来源。 */
-export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draftKey, hasParent, contextTitle, contextGuide, inheritedExpression = '', inheritedExpressionImages = [], inheritedAgreement = '', sourceNodeId, sourceNodeNumber, actions, expressionSourceNumber, historyFacts = [], initialDocument = '', initialMessages, onBack, onConfirm }: ActionWorkspaceProps) {
+export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draftKey, hasParent, contextTitle, contextGuide, inheritedExpression = '', inheritedExpressionImages = [], inheritedAgreement = '', sourceNodeId, sourceNodeNumber, actions, historyFacts = [], initialDocument = '', initialMessages, onBack, onConfirm }: ActionWorkspaceProps) {
   const generate = useGeneration(csrfToken)
-  const welcome: ChatMessage = { id: 'welcome', speaker: 'ai', body: '先说说这次实际做了什么，也可以一起聊聊你的看法。' }
+  const welcome: ChatMessage = { id: 'welcome', speaker: 'ai', body: '先说说这次实际做了什么。' }
   // 背景签名用于判断草稿是否仍对应当前引用事实；来源变化后必须再对话核实，不能直接发布旧结果。
   const signatureFor = (mergedIds: string[]) => {
     const context = actions && sourceNodeId ? getActionContinuationContext(actions, sourceNodeId, mergedIds) : undefined
@@ -67,7 +66,7 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
     hasContent: (value) => Boolean(value.input || value.document || value.messages.some(isSavedMessage)
       || value.agreementMode !== 'inherit' || value.agreementDraft !== inheritedAgreement || value.mergedParentIds.length || value.images?.length),
   })
-  const { messages, input, document, generated, expression, agreementMode, agreementDraft, agreementReviews, mergedParentIds, sourcesChanged, generation, generationRequest } = local.value
+  const { messages, input, document, generated, agreementReviews, mergedParentIds, sourcesChanged, generation, generationRequest } = local.value
   const update = (patch: Partial<ActionWorkspaceDraft>) => local.update((current) => ({ ...current, ...patch }))
   const [sending, setSending] = useState(false)
   const [publishing, setPublishing] = useState(false)
@@ -78,19 +77,13 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
   const directSources = continuation?.sources.map(({ node, agreement }) => ({ sourceId: node.id, nodeNumber: node.number, markdown: agreement.markdown }))
     ?? (hasParent && sourceNodeId && sourceNodeNumber !== undefined ? [{ sourceId: sourceNodeId, nodeNumber: sourceNodeNumber, markdown: inheritedAgreement }] : [])
   // 传给应用层的 undefined 表示继承，空字符串表示清空，两者不能用 || 互相替代。
-  const agreementMarkdown = agreementMode === 'inherit' ? undefined : agreementMode === 'clear' ? '' : agreementDraft.trim()
-  const agreementIntent = documentUpdate(!hasParent && agreementMarkdown === undefined ? '' : agreementMarkdown)
-  const effectiveExpression = expression.mode === 'inherit' ? inheritedExpression : expression.markdown
-  const sourceReview = agreementReviews.find((review) => review.nodeNumber === sourceNodeNumber)
-  const expressionOriginNumber = expressionSourceNumber ?? sourceNodeNumber
-  const expressionLabel = !effectiveExpression.trim() ? '表达为空' : expression.mode === 'inherit'
-    ? expressionOriginNumber !== undefined ? `继承自 节点 #${expressionOriginNumber}` : '继承表达'
-    : '本次对话更新'
+  const agreementIntent = documentUpdate(hasParent ? undefined : '')
+  const effectiveExpression = inheritedExpression
   const contextValid = !actions || !hasParent || Boolean(continuation)
   // 发布要求本轮生成完整且背景未变；约定核对为不满足或未知时，仍允许发布并如实保留状态。
   const canPublish = local.ready && Boolean(document.trim()) && generated && Boolean(generation?.createAction) && !sending && !publishing && !uploading && contextValid
     && JSON.stringify(generationRequest?.input.agreement) === JSON.stringify(agreementIntent)
-    && local.value.contextSignature === signatureFor(mergedParentIds) && !(agreementMode === 'update' && !agreementDraft.trim())
+    && local.value.contextSignature === signatureFor(mergedParentIds)
   const changeMergedSources = (ids: string[]) => {
     if (sending || !actions || !sourceNodeId) return
     const onlyRemoving = ids.every((id) => mergedParentIds.includes(id))
@@ -126,7 +119,7 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
       update({ generation: result })
       if (result.status !== 'succeeded' || !result.draft || !result.createAction) throw new Error(result.status === 'pending' ? '仍在整理，请稍后重试读取结果' : '整理失败，请重新发送')
       const draft = result.draft
-      local.update((current) => ({ ...current, generation: result, document: draft.objective, details: { title: draft.title, description: '', points: [], note: '' }, expression: { mode: draft.expression.mode, markdown: draft.expression.mode === 'update' ? draft.expression.markdown : '' },
+      local.update((current) => ({ ...current, generation: result, document: draft.objective, details: { title: draft.title, description: '', points: [], note: '' }, expression: { mode: hasParent ? 'inherit' : 'clear', markdown: '' }, agreementMode: 'inherit', agreementDraft: inheritedAgreement,
         agreementReviews: draft.reviews.map((review) => ({ nodeNumber: actions?.find((node) => node.id === review.sourceId)?.number ?? 0, complies: review.complies, reason: review.exceptionReason ?? '' })), messages: [...current.messages, { id: 'ai-' + result.generationId, speaker: 'ai', body: draft.reply }],
         generated: true, sourcesChanged: false, contextSignature: signatureFor(mergedParentIds) }))
     } catch (error) {
@@ -138,17 +131,33 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
 
   return (
     <WorkspaceFrame title={hasParent ? '接续行动' : '记录第一次行动'}
+      tabs={['conversation', 'objective']}
       view={local.value.view} onViewChange={(view) => update({ view })} restoring={!local.ready}
       draftControls={<LocalDraftControls status={local.status} hasDraft={local.hasDraft} disabled={sending || publishing || uploading || !local.ready} onDiscard={() => { local.discard(); setPublishError('') }} />}
-      help={<HelpPopover title="行动与表达的整理"><p>在同一条对话中描述实际行动、讨论看法，AI 分别整理行动和表达。表达的修改、继承与清空都可在对话中说明，切换到行动或表达查看文档预览，切换到约定设置后续引用要求。</p><p>{hasParent ? '未提出修改时沿用承接节点的表达，合入来源不会自动覆盖表达。' : '首次行动没有上级表达，可以暂不填写。'}发布后修改表达也会接着这条对话继续。</p></HelpPopover>}
+      help={<HelpPopover title="行动"><p>这里仅记录本次实际行动，并核对你引用的来源节点约定。发布后，表达和向后传递的约定分别通过独立对话整理。</p><p>{hasParent ? '新节点默认沿用承接节点的表达与约定。' : '首次行动暂时没有可继承的表达或约定。'}合入来源只补充行动背景，不覆盖承接节点的表达和约定。</p></HelpPopover>}
       context={hasParent ? { label: sourceNodeNumber !== undefined ? `承接 #${sourceNodeNumber}` : '承接', title: contextTitle, facts: knownFacts } : undefined}
       contextControls={hasParent && actions && sourceNodeId ? <MergeActionSources actions={actions} parentId={sourceNodeId} selectedIds={mergedParentIds} reviews={agreementReviews} disabled={sending || publishing || !local.ready} onChange={changeMergedSources} /> : undefined}
-      messages={messages} profileName={profileName} profile={profile} input={input} placeholder="说说做了什么，或想表达什么"
+      messages={messages} profileName={profileName} profile={profile} input={input} placeholder="说说这次实际做了什么"
       sending={sending} disabled={publishing || uploading || !local.ready || !contextValid} onInputChange={(input) => update({ input })} onSend={send} onBack={onBack}
       actionControls={<DraftImages images={local.value.images ?? []} csrfToken={csrfToken} ready={local.ready} disabled={sending || publishing} onChange={(images) => update({ images })} onBusyChange={setUploading} />}
       action={{ markdown: document, status: sourcesChanged && document ? '引用背景已更新，文档待重新整理' : undefined, empty: '在 AI 对话中描述这次行动' }}
-      expression={{ markdown: effectiveExpression, images: expression.mode === 'inherit' ? inheritedExpressionImages : [], status: expressionLabel, empty: '暂无表达' }}
-      agreement={<ActionAgreementEditor hasParent={hasParent} inheritedAgreement={inheritedAgreement} mode={agreementMode} draft={agreementDraft} onModeChange={(agreementMode) => update({ agreementMode, generated: false })} onDraftChange={(agreementDraft) => update({ agreementDraft, generated: false })} disabled={sending || publishing || !local.ready} sourceNodeNumber={sourceNodeNumber} sourceReview={sourceReview} sources={continuation?.sources} reviews={agreementReviews} />}
+      expression={{ markdown: effectiveExpression, images: inheritedExpressionImages, status: hasParent ? '沿用承接节点表达' : '暂无表达', empty: '暂无表达' }}
+      agreement={<div className="px-6">
+        {inheritedAgreement.trim() ? <MarkdownContent markdown={inheritedAgreement} /> : <p className="py-5 text-sm text-muted">{hasParent ? '承接节点没有可继承的约定' : '暂无约定'}</p>}
+        <p className="mt-4 text-xs text-muted">发布后可在约定工作区单独整理向后传递的约定。</p>
+        {directSources.length > 0 && <section className="mt-5 border-t border-line pt-4">
+          <h3 className="mb-3 text-xs font-medium">本次来源约定核对</h3>
+          <div className="divide-y divide-line">{directSources.map((source) => {
+            const review = agreementReviews.find((item) => item.nodeNumber === source.nodeNumber)
+            const status = review?.complies === true ? '满足约定' : review?.complies === false ? '不满足约定' : '尚未核对'
+            return <div className="py-3" key={source.sourceId}>
+              <p className="mb-1 flex items-center justify-between gap-3 text-xs"><span>节点 #{source.nodeNumber}</span><span className={review?.complies === false ? 'text-coral' : review?.complies === true ? 'text-signal' : 'text-muted'}>{status}</span></p>
+              {source.markdown ? <MarkdownContent markdown={source.markdown} /> : <p className="text-xs text-muted">来源没有设置约定</p>}
+              {review?.reason && <p className="mt-2 text-xs text-muted">不符合原因：{review.reason}</p>}
+            </div>
+          })}</div>
+        </section>}
+      </div>}
       footer={<><span className="text-xs text-muted">{publishError || (sending ? '正在整理…' : !contextValid ? '引用来源已变化，请返回重新选择' : sourcesChanged ? '引用背景已更新，请继续对话后发布' : !document ? '尚未生成' : !generated ? '本轮未完成' : '待发布')}</span>
         <button className="primary-button" type="button" onClick={publish} disabled={!canPublish}><Check size={15} />发布行动</button></>} />
   )

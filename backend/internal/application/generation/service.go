@@ -33,24 +33,27 @@ func New(store Store, draftProvider, analysisProvider Provider, limits Limits) *
 // Generate 首次调用同步生成；重复键只读取原任务，不再次计费或重复写消息。
 func (s *Service) Generate(ctx context.Context, actor identity.Actor, key string, input GenerateInput) (View, error) {
 	var out View
-	if !id.Valid(key) || !id.Valid(input.GraphID) || (input.ConversationID != "" && !id.Valid(input.ConversationID)) || strings.TrimSpace(input.Message) == "" || utf8.RuneCountInString(input.Message) > constants.AIInputLimit || input.MergedParentIDs == nil || input.SourceVersions == nil || (input.Mode != "action" && input.Mode != "expression") {
+	if !id.Valid(key) || !id.Valid(input.GraphID) || (input.ConversationID != "" && !id.Valid(input.ConversationID)) || strings.TrimSpace(input.Message) == "" || utf8.RuneCountInString(input.Message) > constants.AIInputLimit || input.MergedParentIDs == nil || input.SourceVersions == nil || (input.Mode != "action" && input.Mode != "expression" && input.Mode != "agreement") {
 		return out, fault.New(fault.Invalid, "生成输入、来源列表或提交键不合法")
 	}
 	initialProvider := s.draftProvider
-	if input.Mode == "expression" {
+	if input.Mode == "expression" || input.Mode == "agreement" {
 		initialProvider = s.analysisProvider
 	}
 	if initialProvider == nil || initialProvider.Model() == "" || s.analysisProvider == nil || s.analysisProvider.Model() == "" {
 		return out, fault.New(fault.Unavailable, "平台 AI 暂未启用")
 	}
-	if input.Mode == "expression" && (!id.Valid(input.NodeID) || input.ExpectedVersion == 0 || input.ParentID != "" || len(input.MergedParentIDs) != 0 || len(input.SourceVersions) != 0) {
-		return out, fault.New(fault.Invalid, "表达生成需要当前节点与版本，不能改变引用")
+	if (input.Mode == "expression" || input.Mode == "agreement") && (!id.Valid(input.NodeID) || input.ExpectedVersion == 0 || input.ParentID != "" || len(input.MergedParentIDs) != 0 || len(input.SourceVersions) != 0) {
+		return out, fault.New(fault.Invalid, "表达或约定生成需要当前节点与版本，不能改变引用")
 	}
 	if input.Mode == "action" && (input.NodeID != "" || input.ExpectedVersion != 0) {
 		return out, fault.New(fault.Invalid, "新行动不能携带已有节点身份")
 	}
-	if err := action.ValidateDocument(input.Agreement, input.ParentID != "" || input.Mode == "expression"); err != nil {
+	if err := action.ValidateDocument(input.Agreement, input.ParentID != "" || input.Mode == "expression" || input.Mode == "agreement"); err != nil {
 		return out, err
+	}
+	if input.Mode == "agreement" && input.Agreement.Mode == "inherit" {
+		return out, fault.New(fault.Invalid, "约定对话必须提交当前约定快照")
 	}
 	encoded, err := json.Marshal(input)
 	if err != nil {
@@ -145,7 +148,7 @@ func (s *Service) Generate(ctx context.Context, actor identity.Actor, key string
 			return View{}, errors.Join(callError, err)
 		}
 		if errors.Is(callError, errUnverified) {
-			return View{}, errors.Join(fault.New(fault.Invalid, "行动或表达未通过依据核验，请补充具体行动，避免无依据的观点后重新整理"), err)
+			return View{}, errors.Join(fault.New(fault.Invalid, "这次整理中有内容无法对应到你的报告。请确认行动、结果和想法都属于本次经历后重试"), err)
 		}
 		return View{}, errors.Join(fault.New(fault.Unavailable, "AI 整理失败，请稍后重新发送"), err)
 	}
@@ -191,6 +194,16 @@ func prepare(tx Transaction, actor identity.Actor, key string, input GenerateInp
 		if err != nil {
 			return batch, nil, err
 		}
+		if input.Mode == "agreement" {
+			current := action.DocumentUpdate{Mode: "clear"}
+			if strings.TrimSpace(node.Agreement.Markdown) != "" {
+				markdown := node.Agreement.Markdown
+				current = action.DocumentUpdate{Mode: "update", Markdown: &markdown}
+			}
+			if !sameDocumentUpdate(current, input.Agreement) {
+				return batch, nil, fault.New(fault.Conflict, "约定已变化，请重新打开对话")
+			}
+		}
 		batch.InheritedExpressionID, starts = node.Expression.ID, []string{node.ID}
 	}
 	batch.Conversation, err = tx.Conversation(input)
@@ -212,4 +225,14 @@ func prepare(tx Transaction, actor identity.Actor, key string, input GenerateInp
 		batch.ContextDigest = digest[:]
 	}
 	return batch, request, err
+}
+
+func sameDocumentUpdate(left, right action.DocumentUpdate) bool {
+	if left.Mode != right.Mode {
+		return false
+	}
+	if left.Markdown == nil || right.Markdown == nil {
+		return left.Markdown == nil && right.Markdown == nil
+	}
+	return *left.Markdown == *right.Markdown
 }

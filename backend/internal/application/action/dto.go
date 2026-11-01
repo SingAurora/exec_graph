@@ -81,6 +81,7 @@ type UpdateExpressionInput struct {
 type UpdateAgreementInput struct {
 	NodeID          string         `json:"nodeId"`
 	ExpectedVersion uint32         `json:"expectedVersion"`
+	GenerationID    string         `json:"generationId,omitempty"`
 	Document        DocumentUpdate `json:"document"`
 }
 
@@ -144,6 +145,7 @@ type Generation struct {
 	Objective              string
 	Expression             DocumentUpdate
 	Agreement              DocumentUpdate
+	GeneratedAgreement     DocumentUpdate
 	Sources                []GenerationSource
 	Status                 string
 	PromptVersion          string

@@ -39,6 +39,7 @@ type agreementCheck struct {
 type verification struct {
 	Action     documentCheck    `json:"action"`
 	Expression documentCheck    `json:"expression"`
+	Agreement  documentCheck    `json:"agreement"`
 	Reviews    []agreementCheck `json:"reviews"`
 }
 
@@ -55,8 +56,13 @@ func verificationPrompt(snapshot contextSnapshot, draft Draft) ([]Message, error
 	if utf8.RuneCount(encoded)+utf8.RuneCountInString(verificationRules) > constants.AIContextLimit {
 		return nil, errUnverified
 	}
+	rules := verificationRules
+	if snapshot.Mode == "agreement" {
+		rules += `
+agreement 模式输出 JSON 结构：{"action":{"valid":true,"evidence":[]},"expression":{"valid":true,"evidence":[]},"agreement":{"valid":true,"evidence":[]},"reviews":[]}。`
+	}
 	// 核验使用独立 system 消息，原始报告与草稿都只能作为数据进入 user 消息。
-	return []Message{{Role: "system", Content: verificationRules}, {Role: "user", Content: string(encoded)}}, nil
+	return []Message{{Role: "system", Content: rules}, {Role: "user", Content: string(encoded)}}, nil
 }
 
 func verify(content string, snapshot contextSnapshot, draft Draft) (Draft, error) {
@@ -70,7 +76,13 @@ func verify(content string, snapshot contextSnapshot, draft Draft) (Draft, error
 	if err := decoder.Decode(&extra); err != io.EOF {
 		return Draft{}, errUnverified
 	}
-	if !validDocumentCheck(result.Action, snapshot, snapshot.Mode == "action", false) || !validDocumentCheck(result.Expression, snapshot, draft.Expression.Mode == "update", true) || result.Reviews == nil || len(result.Reviews) != len(snapshot.Sources) || len(draft.Reviews) != len(snapshot.Sources) {
+	if snapshot.Mode == "agreement" {
+		if !validDocumentCheck(result.Action, snapshot, false, false) || !validDocumentCheck(result.Expression, snapshot, false, false) || !validDocumentCheck(result.Agreement, snapshot, false, false) || result.Reviews == nil || len(result.Reviews) != 0 || len(draft.Reviews) != 0 {
+			return Draft{}, errUnverified
+		}
+		return draft, nil
+	}
+	if !validDocumentCheck(result.Action, snapshot, snapshot.Mode == "action", false) || !validDocumentCheck(result.Expression, snapshot, snapshot.Mode == "expression" && draft.Expression.Mode == "update", true) || result.Reviews == nil || len(result.Reviews) != len(snapshot.Sources) || len(draft.Reviews) != len(snapshot.Sources) {
 		return Draft{}, errUnverified
 	}
 	byID := map[string]agreementCheck{}

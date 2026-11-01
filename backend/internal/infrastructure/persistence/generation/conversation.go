@@ -16,14 +16,17 @@ import (
 func (t *generationTransaction) Conversation(input app.GenerateInput) (app.Conversation, error) {
 	var row model.AIConversation
 	query := t.DB.Clauses(clause.Locking{Strength: "UPDATE"}).Where("graph_uuid = ?", input.GraphID)
-	if input.Mode == "expression" {
-		query = query.Where("node_uuid = ?", input.NodeID)
+	if input.Mode == "expression" || input.Mode == "agreement" {
+		query = query.Where("node_uuid = ? AND owner_uuid = ? AND kind = ?", input.NodeID, t.Actor.UserID, input.Mode)
 	} else {
-		query = query.Where("uuid = ? AND owner_uuid = ? AND node_uuid IS NULL", input.ConversationID, t.Actor.UserID)
+		query = query.Where("uuid = ? AND owner_uuid = ? AND node_uuid IS NULL AND kind = ?", input.ConversationID, t.Actor.UserID, "action")
 	}
 	err := query.Take(&row).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) && input.ConversationID == "" && input.Mode == "action" {
-		row = model.AIConversation{UUID: id.New(), GraphUUID: input.GraphID, OwnerUUID: t.Actor.UserID, NextMessageSequence: 1, Version: 1}
+	if errors.Is(err, gorm.ErrRecordNotFound) && input.ConversationID == "" && (input.Mode == "action" || input.Mode == "expression" || input.Mode == "agreement") {
+		row = model.AIConversation{UUID: id.New(), GraphUUID: input.GraphID, OwnerUUID: t.Actor.UserID, NextMessageSequence: 1, Version: 1, Kind: input.Mode}
+		if input.Mode == "expression" || input.Mode == "agreement" {
+			row.NodeUUID = &input.NodeID
+		}
 		err = t.DB.Create(&row).Error
 	} else if errors.Is(err, gorm.ErrRecordNotFound) {
 		return app.Conversation{}, fault.New(fault.NotFound, "对话不存在或不可使用")

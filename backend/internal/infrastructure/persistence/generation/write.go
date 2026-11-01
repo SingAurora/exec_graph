@@ -24,7 +24,7 @@ func (t *generationTransaction) Reserve(p app.Pending) error {
 		return err
 	}
 	var base *uint32
-	if p.Mode == "expression" {
+	if p.Mode == "expression" || p.Mode == "agreement" {
 		base = &p.ExpectedVersion
 	}
 	var agreement *string
@@ -87,6 +87,17 @@ func (t *generationTransaction) Complete(uuid string, draft app.Draft, inputToke
 	}
 	update := model.AIGeneration{Status: "succeeded", OutputMessageUUID: &output.UUID, ExpressionMode: &draft.Expression.Mode, ExpressionMarkdown: &text, CompletedAt: &now, InputTokens: &inputTokens, OutputTokens: &outputTokens}
 	columns := []string{"Status", "OutputMessageUUID", "ExpressionMode", "ExpressionMarkdown", "CompletedAt", "InputTokens", "OutputTokens"}
+	if row.Mode == "agreement" {
+		agreementText := ""
+		if draft.Agreement != nil && draft.Agreement.Markdown != nil {
+			agreementText = *draft.Agreement.Markdown
+		}
+		if draft.Agreement == nil {
+			return fault.New(fault.Invalid, "约定生成结果缺失")
+		}
+		update.AgreementMode, update.AgreementMarkdown = &draft.Agreement.Mode, &agreementText
+		columns = append(columns, "AgreementMode", "AgreementMarkdown")
+	}
 	if row.Mode == "action" {
 		update.GeneratedTitle, update.ObjectiveMarkdown = &draft.Title, &draft.Objective
 		columns = append(columns, "GeneratedTitle", "ObjectiveMarkdown")

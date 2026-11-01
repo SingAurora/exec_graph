@@ -38,7 +38,7 @@ export type ProjectDetailProps = {
   onOpenActionArchive: (node: ActionNode) => void
   onUpdateProject: (projectId: string, patch: Pick<Project, 'title' | 'description' | 'avatar' | 'backgroundImage'>) => void | Promise<void>
   onEditExpression: (node: ActionNode) => void
-  onUpdateAgreement: (nodeId: string, markdown: string) => boolean | Promise<boolean>
+  onEditAgreement: (node: ActionNode) => void
   onDeleteProject: (projectId: string, expectedNodeCount: number) => boolean | Promise<boolean>
   following: boolean
   onSetGraphFollow: (projectId: string, following: boolean) => boolean | Promise<boolean>
@@ -48,7 +48,7 @@ type GraphSelection = { kind: 'node' | 'reference'; id: string }
 type ProjectTab = 'expressions' | 'agreements' | 'facts' | 'explore' | 'search' | 'settings'
 
 /** 图详情协调中心：装配表达、约定、行动和探索，管理选择、定位及各栏目阅读状态。 */
-export function ProjectDetail({ project, active = true, externalFocus, currentUserId, users, actions, showActionGraphLegend, graphBackground, onCreateAction, onContinueAction, onOpenActionArchive, onUpdateProject, onEditExpression, onUpdateAgreement, onDeleteProject, following, onSetGraphFollow }: ProjectDetailProps) {
+export function ProjectDetail({ project, active = true, externalFocus, currentUserId, users, actions, showActionGraphLegend, graphBackground, onCreateAction, onContinueAction, onOpenActionArchive, onUpdateProject, onEditExpression, onEditAgreement, onDeleteProject, following, onSetGraphFollow }: ProjectDetailProps) {
   const handledExternalFocus = useRef<string | undefined>(undefined)
   const workspaceRef = useRef<HTMLDivElement>(null)
   const tabScroll = useRef<Partial<Record<ProjectTab, number>>>({})
@@ -229,7 +229,7 @@ export function ProjectDetail({ project, active = true, externalFocus, currentUs
             <ActionGraph actions={actions} highlightedPath={highlightedPath} users={users} selectedId={selected?.id} selectedReferenceId={selectedReference?.id} showLegend={showActionGraphLegend} background={graphBackground} active={active && activeTab === 'explore'} focusRequest={focusRequest} locateRequest={nodeLocateRequest} detailsVisible={detailsVisible} onClearHighlight={() => setHighlightTipId(undefined)} onSelect={selectNode} onSelectReference={(id) => { setSelection({ kind: 'reference', id }); setDetailsVisible(true) }} onFitViewport={() => workspaceRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' })} />
             <ActionReadingPane readingKey={selectedReference ? `reference:${selectedReference.id}` : `node:${selected?.id}:${visibleDocumentMode}`} focusRequest={focusRequest} hidden={!detailsVisible} active={active && activeTab === 'explore' && detailsVisible}>
               {selectedReference ? <ActionReferenceDetail reference={selectedReference} actions={actions} users={users} onHide={hideDetails} onSelectNode={selectNode} />
-                : selected ? <ActionDetail node={selected} actions={actions} users={users} currentUserId={currentUserId} author={users.find((user) => user.id === selected.authorId)} isHighlightTip={highlightTipId === selected.id} onHighlight={() => setHighlightTipId(selected.id)} onHide={hideDetails} onLocate={() => setNodeLocateRequest((value) => value + 1)} recordMode={visibleDocumentMode} onModeChange={setDocumentMode} branches={actions.filter((node) => node.parentId === selected.id)} onOpenArchive={() => openArchive(selected)} onContinue={() => continueAction(selected)} onSelect={selectNode} onEditExpression={editExpression} onUpdateAgreement={onUpdateAgreement} />
+                : selected ? <ActionDetail node={selected} actions={actions} users={users} author={users.find((user) => user.id === selected.authorId)} isHighlightTip={highlightTipId === selected.id} onHighlight={() => setHighlightTipId(selected.id)} onHide={hideDetails} onLocate={() => setNodeLocateRequest((value) => value + 1)} recordMode={visibleDocumentMode} onModeChange={setDocumentMode} branches={actions.filter((node) => node.parentId === selected.id)} onOpenArchive={() => openArchive(selected)} onContinue={() => continueAction(selected)} onSelect={selectNode} onEditExpression={editExpression} onEditAgreement={onEditAgreement} />
                   : <p className="p-6 text-sm text-muted">暂无行动</p>}
             </ActionReadingPane>
           </div>

@@ -11,7 +11,7 @@ import (
 
 func TestParsePreservesExplicitAssessmentAndDocumentIntent(t *testing.T) {
 	sources := []action.GenerationSource{{NodeID: "one", AgreementStatus: "unreviewed"}}
-	base := `{"reply":"已整理","title":"骑行","objective":"骑了六公里","expression":{"mode":"inherit","markdown":""},"reviews":[{"sourceId":"one","complies":null}]}`
+	base := `{"reply":"已整理","title":"骑行","objective":"骑了六公里","reviews":[{"sourceId":"one","complies":null}]}`
 	draft, err := parse(base, "action", true, sources)
 	if err != nil || draft.Reviews[0].Complies != nil || draft.Expression.Mode != "inherit" || draft.Expression.Markdown != nil {
 		t.Fatalf("未知或继承语义被改变: %+v %v", draft, err)
@@ -20,7 +20,7 @@ func TestParsePreservesExplicitAssessmentAndDocumentIntent(t *testing.T) {
 		strings.Replace(base, `,"complies":null`, "", 1),
 		strings.Replace(base, `"one"`, `"other"`, 1),
 		strings.Replace(base, `"complies":null`, `"complies":false`, 1),
-		strings.Replace(base, `"markdown":""`, `"markdown":"不应携带正文"`, 1),
+		strings.Replace(base, `"reviews":[`, `"expression":{"mode":"clear","markdown":""},"reviews":[`, 1),
 		strings.Replace(base, `"objective":"骑了六公里"`, `"objective":""`, 1),
 		strings.Replace(base, `"reviews":[`, `"reviews":[{"sourceId":"one","complies":true},`, 1),
 		strings.Replace(base, `"reply":`, `"bypass":true,"reply":`, 1),
@@ -30,8 +30,9 @@ func TestParsePreservesExplicitAssessmentAndDocumentIntent(t *testing.T) {
 			t.Fatalf("无效模型响应被接受: %s", body)
 		}
 	}
-	if _, err := parse(base, "action", false, sources); err == nil {
-		t.Fatal("首次行动继承了不存在的表达")
+	legacyExpression := strings.Replace(base, `,"reviews":[`, `,"expression":{"mode":"inherit","markdown":""},"reviews":[`, 1)
+	if _, err := parse(legacyExpression, "action", false, sources); err == nil {
+		t.Fatal("行动模式仍接受表达字段")
 	}
 	insufficient := strings.Replace(base, `"title":"骑行","objective":"骑了六公里"`, `"title":"","objective":""`, 1)
 	if _, err := parse(insufficient, "action", true, sources); err == nil || !strings.Contains(err.Error(), "请补充这次实际做了什么") {
@@ -54,6 +55,28 @@ func TestParsePreservesExplicitAssessmentAndDocumentIntent(t *testing.T) {
 	unknownReason := strings.Replace(base, `"complies":null`, `"complies":null,"exceptionReason":"缺少记录用时的信息"`, 1)
 	if draft, err := parse(unknownReason, "action", true, sources); err != nil || draft.Reviews[0].Complies != nil || draft.Reviews[0].ExceptionReason != nil {
 		t.Fatalf("初稿未知状态的多余说明不能变成不符理由或阻止独立核验: %+v %v", draft, err)
+	}
+}
+
+func TestParseAgreementModeReturnsOnlyAgreementDocument(t *testing.T) {
+	input := `{"reply":"约定已整理","title":"","objective":"","agreement":{"mode":"update","markdown":"引用时记录本次实际完成的步骤"},"reviews":[]}`
+	draft, err := parse(input, "agreement", false, nil)
+	if err != nil || draft.Agreement == nil || draft.Agreement.Mode != "update" || draft.Agreement.Markdown == nil || *draft.Agreement.Markdown != "引用时记录本次实际完成的步骤" || draft.Title != "" || draft.Objective != "" || len(draft.Reviews) != 0 {
+		t.Fatalf("约定草稿字段错误: %+v %v", draft, err)
+	}
+	cleared := strings.Replace(input, `"mode":"update","markdown":"引用时记录本次实际完成的步骤"`, `"mode":"clear","markdown":""`, 1)
+	if draft, err := parse(cleared, "agreement", false, nil); err != nil || draft.Agreement == nil || draft.Agreement.Mode != "clear" {
+		t.Fatalf("主动清空约定失败: %+v %v", draft, err)
+	}
+	for _, invalid := range []string{
+		strings.Replace(input, `,"agreement":`, `,"unexpected":true,"agreement":`, 1),
+		strings.Replace(input, `,"agreement":{"mode":"update","markdown":"引用时记录本次实际完成的步骤"}`, "", 1),
+		strings.Replace(input, `"mode":"update","markdown":"引用时记录本次实际完成的步骤"`, `"mode":"inherit","markdown":""`, 1),
+		strings.Replace(input, `"title":""`, `"title":"伪造行动"`, 1),
+	} {
+		if _, err := parse(invalid, "agreement", false, nil); err == nil {
+			t.Fatalf("不合法约定输出被接受: %s", invalid)
+		}
 	}
 }
 

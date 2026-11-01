@@ -61,12 +61,11 @@ function ActionSources({ node, actions, users, onSelect }: { node: ActionNode; a
 }
 
 /** 当前节点阅读区：切换行动／有效表达，提供接续、编辑与形成过程入口。 */
-export function ActionDetail({ node, actions, users, author, currentUserId, isHighlightTip, onHighlight, onHide, onLocate, recordMode, onModeChange, branches, onOpenArchive, onContinue, onSelect, onEditExpression, onUpdateAgreement }: {
+export function ActionDetail({ node, actions, users, author, isHighlightTip, onHighlight, onHide, onLocate, recordMode, onModeChange, branches, onOpenArchive, onContinue, onSelect, onEditExpression, onEditAgreement }: {
   node: ActionNode
   actions: ActionNode[]
   users: UserProfile[]
   author?: UserProfile
-  currentUserId?: string
   isHighlightTip: boolean
   onHighlight: () => void
   onHide: () => void
@@ -78,7 +77,7 @@ export function ActionDetail({ node, actions, users, author, currentUserId, isHi
   onContinue: () => void
   onSelect: (nodeId: string) => void
   onEditExpression: (node: ActionNode) => void
-  onUpdateAgreement: (nodeId: string, markdown: string) => boolean | Promise<boolean>
+	onEditAgreement: (node: ActionNode) => void
 }) {
   const objectiveMarkdown = node.objectiveMarkdown ?? node.markdown
   const levels = useMemo(() => getActionLevels(actions), [actions])
@@ -131,7 +130,7 @@ export function ActionDetail({ node, actions, users, author, currentUserId, isHi
         <button className="inline-flex min-h-9 items-center gap-1.5 border-0 bg-transparent px-0 text-sm text-muted hover:text-signal" type="button" onClick={onOpenArchive}><MessageCircle size={16} />查看形成过程</button>
       </footer>
       <section className="space-y-2 px-6 pb-6">
-        <ActionOwnAgreement key={node.id} node={node} actions={actions} currentUserId={currentUserId} onSelect={onSelect} onUpdate={onUpdateAgreement ? (markdown) => onUpdateAgreement(node.id, markdown) : undefined} />
+        <ActionOwnAgreement key={node.id} node={node} actions={actions} onSelect={onSelect} onEdit={onEditAgreement} />
         <ActionSourceAgreements node={node} actions={actions} users={users} onSelect={onSelect} />
       </section>
       {branches.length > 0 && <section className="border-t border-line px-6 py-5">

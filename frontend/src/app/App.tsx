@@ -17,7 +17,7 @@ import type { GraphView } from '../entities/project/api/graphs'
 import type { AccountProfile } from '../entities/profile/api/profiles'
 import type { VersionedAction } from '../entities/action/api/context'
 import type { UserProfile } from '../entities/profile/model/types'
-import { documentUpdate, type CreateActionInput } from '../features/action/api/commands'
+import type { CreateActionInput } from '../features/action/api/commands'
 import type { GenerationView } from '../features/action-generation/api/generation'
 import { FollowingPage } from '../pages/FollowingPage'
 import type { ActionDocumentMode, ActionNode } from '../entities/action/model/types'
@@ -26,6 +26,7 @@ import { getActionExpressionContext } from '../entities/action/lib/expression-co
 import { getPublishedExpressions } from '../entities/action/lib/published'
 import { getProfileAgreementResponses } from '../entities/action/lib/agreement-responses'
 import { canEditActionExpression, getActionExpression } from '../entities/action/lib/expressions'
+import { canEditActionAgreement } from '../entities/action/lib/agreements'
 import { getActionAgreement } from '../entities/action/lib/agreements'
 import type { CreateProjectInput } from '../features/project/model/types'
 import { useGraphBackground } from '../features/graph-appearance/model/useGraphBackground'
@@ -40,6 +41,7 @@ import { AppShell } from '../widgets/layout/AppShell'
 import { SettingsPanel } from '../widgets/settings/SettingsPanel'
 import { ActionWorkspace } from '../widgets/ai/ActionWorkspace'
 import { ExpressionWorkspace } from '../widgets/ai/ExpressionWorkspace'
+import { AgreementWorkspace } from '../widgets/ai/AgreementWorkspace'
 import { ActionArchivePage } from '../pages/ActionArchivePage'
 
 const legendPreferenceKey = 'execg.actionGraph.showLegend'
@@ -152,7 +154,7 @@ function AppContent({ profile, projects, actions, allUsers, sources, csrfToken, 
   const workspaceMode = workspaceRoute?.mode ?? 'action'
   const workspaceProjectId = workspaceRoute?.projectId
   const workspaceParentId = workspaceRoute?.mode === 'action' ? workspaceRoute.parentId : undefined
-  const workspaceActionId = workspaceRoute?.mode === 'expression' ? workspaceRoute.nodeId : undefined
+  const workspaceActionId = workspaceRoute?.mode === 'expression' || workspaceRoute?.mode === 'agreement' ? workspaceRoute.nodeId : undefined
   const [archiveActionId, setArchiveActionId] = useState<string>()
   const selectedProjectId = route === 'project' ? query.get('projectId') ?? lastProjectId : lastProjectId
   const selectedProject = projects.find((project) => project.id === selectedProjectId)
@@ -222,6 +224,10 @@ function AppContent({ profile, projects, actions, allUsers, sources, csrfToken, 
     }
     navigate(actionWorkspaceHash({ mode: 'expression', projectId: node.projectId, nodeId: node.id }))
   }
+  const startAgreement = (node: ActionNode) => {
+    if (!canEditActionAgreement(actions, node.id)) return
+    navigate(actionWorkspaceHash({ mode: 'agreement', projectId: node.projectId, nodeId: node.id }))
+  }
   // mutateAsync 等待服务确认后才返回成功；expectedVersion 防止覆盖已被别人修改的版本。
   const confirmExpression = async (input: NonNullable<GenerationView['updateExpression']>) => {
     if (!workspaceActionId || !workspaceProjectId) {
@@ -236,12 +242,12 @@ function AppContent({ profile, projects, actions, allUsers, sources, csrfToken, 
     openProject(workspaceProjectId)
     return true
   }
-  const updateAgreement = async (nodeId: string, markdown: string) => {
-    const node = actions.find((item) => item.id === nodeId)
-    if (!node) {
+  const confirmAgreement = async (input: NonNullable<GenerationView['updateAgreement']>) => {
+    if (workspaceMode !== 'agreement' || !workspaceActionId || !workspaceProjectId || input.nodeId !== workspaceActionId) {
       return false
     }
-    await commands.agreementUpdate.mutateAsync({ nodeId, expectedVersion: node.version, document: documentUpdate(markdown) })
+    await commands.agreementUpdate.mutateAsync({ ...input, document: { mode: 'clear' } })
+    openProject(workspaceProjectId)
     return true
   }
   const updateProject = async (projectId: string, patch: Pick<Project, 'title' | 'description' | 'avatar' | 'backgroundImage'>) => {
@@ -298,7 +304,7 @@ function AppContent({ profile, projects, actions, allUsers, sources, csrfToken, 
       activeView={viewingOwnProfile ? 'my' : route}
       darkMode={darkMode}
       projectTitle={selectedProject?.title}
-      publishTitle={workspaceMode === 'expression' ? '整理表达' : undefined}
+      publishTitle={workspaceMode === 'expression' ? '整理表达' : workspaceMode === 'agreement' ? '整理约定' : undefined}
       backAction={
         route === 'graph-search' ? { label: '返回发现', onBack: () => navigate('home') }
           : route === 'projects' ? { label: '返回我的', onBack: () => navigate('my') }
@@ -361,13 +367,24 @@ function AppContent({ profile, projects, actions, allUsers, sources, csrfToken, 
               navigate('action-archive')
             }}
             onUpdateProject={updateProject} onEditExpression={startExpression}
-            onUpdateAgreement={updateAgreement} onDeleteProject={deleteProject}
+            onEditAgreement={startAgreement} onDeleteProject={deleteProject}
             following={followingGraphIds.includes(selectedProject.id)} onSetGraphFollow={setGraphFollow}
           />
         </div>
       )}
       {route === 'publish' && (
-        workspaceMode === 'expression' && expressionAction ? (
+        workspaceMode === 'agreement' && expressionAction ? (
+          <AgreementWorkspace
+            csrfToken={csrfToken}
+            draftKey={getActionDraftKey(profile.legacyId ?? profile.id, workspaceProject?.legacyId ?? expressionAction.projectId, 'agreement', expressionAction.legacyId ?? expressionAction.id)}
+            key={profile.id + ':agreement-' + expressionAction.id}
+            node={expressionAction}
+            actions={actions.filter((node) => node.projectId === expressionAction.projectId)}
+            profileName={profile.name} profileId={profile.id} profile={profile} users={allUsers}
+            contextGuide={workspaceProject?.contextGuide}
+            onBack={() => openProject(expressionAction.projectId)} onConfirm={confirmAgreement}
+          />
+        ) : workspaceMode === 'expression' && expressionAction ? (
           <ExpressionWorkspace
             csrfToken={csrfToken}
             draftKey={getActionDraftKey(profile.legacyId ?? profile.id, workspaceProject?.legacyId ?? expressionAction.projectId, 'expression', expressionAction.legacyId ?? expressionAction.id)}
@@ -387,7 +404,6 @@ function AppContent({ profile, projects, actions, allUsers, sources, csrfToken, 
             contextTitle={workspaceParent?.title} sourceNodeId={workspaceParent?.id}
             sourceNodeNumber={workspaceParent?.number}
             actions={actions.filter((node) => node.projectId === workspaceProject.id)}
-            expressionSourceNumber={workspaceParent ? getActionExpression(actions, workspaceParent.id).sourceNode?.number : undefined}
             inheritedExpression={workspaceParent ? getActionExpression(actions, workspaceParent.id).markdown : ''}
             inheritedExpressionImages={workspaceParent ? getActionExpression(actions, workspaceParent.id).sourceNode?.images : []}
             historyFacts={workspaceParent ? getActionExpressionContext(actions, workspaceParent.id)?.facts : []}

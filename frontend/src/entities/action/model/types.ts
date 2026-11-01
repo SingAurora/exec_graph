@@ -54,6 +54,8 @@ export type ActionNode = {
   expressionSupplement?: ActionDocumentRevision
   /** 发布后追加的表达对话，与原始 conversation 连续阅读，但不改写原始消息。 */
   expressionConversation?: ActionExpressionMessage[]
+  /** 独立整理向后传递约定的对话。 */
+  agreementConversation?: ActionExpressionMessage[]
   /** 保存的来源摘要；用于追溯背景，不等同于完整的 AI 请求日志。 */
   contextSnapshot?: { directNodeIds: string[]; historyNodeCount: number; guide?: string }
   images: PostImage[]

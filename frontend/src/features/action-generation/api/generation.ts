@@ -3,7 +3,7 @@ import type { CreateActionInput, DocumentUpdate, SourceAssessment } from '../../
 
 /** 浏览器只提交本轮输入与选择；历史事实、图指引和对话由服务端读取。 */
 export type GenerateInput = {
-  mode: 'action' | 'expression'; graphId: string; conversationId?: string
+  mode: 'action' | 'expression' | 'agreement'; graphId: string; conversationId?: string
   nodeId?: string; expectedVersion?: number; message: string; parentId?: string
   mergedParentIds: string[]; sourceVersions: { nodeId: string; version: number }[]; agreement: DocumentUpdate
 }
@@ -12,9 +12,10 @@ export type GenerationRequest = { key: string; input: GenerateInput }
 /** 生成结果与发布参数成套返回，前端不重新拼装 AI 正文。 */
 export type GenerationView = {
   generationId: string; conversationId: string; status: 'pending' | 'succeeded' | 'failed'; errorCode?: string
-  draft?: { reply: string; title: string; objective: string; expression: DocumentUpdate; reviews: SourceAssessment[] }
+  draft?: { reply: string; title: string; objective: string; expression: DocumentUpdate; agreement?: DocumentUpdate; reviews: SourceAssessment[] }
   createAction?: CreateActionInput
   updateExpression?: { nodeId: string; expectedVersion: number; generationId: string }
+  updateAgreement?: { nodeId: string; expectedVersion: number; generationId: string }
 }
 
 /** 同键重试只读取已有任务；pending 时轮询私有结果，不再次生成。 */

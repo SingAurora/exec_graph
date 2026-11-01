@@ -29,7 +29,7 @@ export function reviseExpression(input: { nodeId: string; expectedVersion: numbe
 }
 
 /** 保存向后传递的约定修改，不回写本节点引用来源时的核对结果。 */
-export function reviseAgreement(input: { nodeId: string; expectedVersion: number; document: DocumentUpdate }, options: BusinessRequestOptions): Promise<ActionContextNode> {
+export function reviseAgreement(input: { nodeId: string; expectedVersion: number; generationId?: string; document?: DocumentUpdate }, options: BusinessRequestOptions): Promise<ActionContextNode> {
   return postAPI('/api/commands/agreements/update', input, options)
 }
 

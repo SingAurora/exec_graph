@@ -18,7 +18,7 @@ import { useLocalDraft } from '../../shared/lib/local-draft/useLocalDraft'
 import { LocalDraftControls } from '../../shared/ui/LocalDraftControls'
 import { appendWorkspaceError, createWorkspaceView, isExpressionWorkspaceDraft, reconcileWorkspaceDraft, type ExpressionWorkspaceDraft } from './model/workspace-draft'
 
-/** 延续已有节点的对话修改表达；行动事实和约定在此只读，不创建新行动。 */
+/** 使用独立对话修改表达；行动事实和约定在此只读，不创建新行动。 */
 export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profileName, profileId, profile, users = [], contextGuide, onBack, onConfirm }: {
   node: ActionNode & { version: number }
   csrfToken: string
@@ -37,10 +37,9 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
   const context = useMemo(() => getActionExpressionContext(actions, node.id), [actions, node.id])
   // 当前事实、文档或对话变化都会让旧生成结果失效；草稿保留，但需再对话才能保存。
   const contextSignature = JSON.stringify({ context, version: node.version, guide: contextGuide, expression: expression.markdown,
-    conversation: node.conversation, expressionConversation: node.expressionConversation,
     sourceAgreements: getActionSourceAgreements(actions, node.id).map((reference) => [reference.source.id, reference.agreement.markdown]),
     downstreamAgreement: getActionAgreement(actions, node.id).markdown })
-  const initialMessages = node.expressionConversation?.filter(isConversationMessage) ?? []
+  const initialMessages: ActionExpressionMessage[] = node.expressionConversation ?? []
   const local = useLocalDraft<ExpressionWorkspaceDraft>({
     draftKey: draftKey ?? getActionDraftKey(profileId, node.projectId, 'expression', node.id),
     initialValue: { messages: initialMessages, input: '', generated: false, contextSignature, view: createWorkspaceView() },
@@ -58,7 +57,6 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
   const label = expression.markdown.trim() ? '修改表达' : '补充表达'
   const canEdit = canEditActionExpression(actions, node.id)
   const canSave = local.ready && canEdit && generated && Boolean(generation?.updateExpression) && local.value.contextSignature === contextSignature && !sending && !saving && document.trim() !== expression.markdown.trim()
-  const originalMessages = node.conversation.filter(isConversationMessage)
   const origin = getActionExpressionOrigin(actions, node.id)
   const expressionStatus = !document.trim() ? '表达为空' : draftDocument !== undefined ? '本次对话更新'
     : origin ? `${origin.kind === 'inherited' ? '继承自' : '修改自'} 节点 #${origin.node.number}` : undefined
@@ -90,15 +88,16 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
     }
   }
 
-  const conversation: ActionExpressionMessage[] = [...originalMessages.map((message) => ({ ...message, authorId: node.authorId })), ...messages.map((message) => ({ ...message, authorId: message.authorId ?? node.expressionSupplement?.authorId ?? node.authorId }))]
+  const conversation: ActionExpressionMessage[] = messages.map((message) => ({ ...message, authorId: message.authorId ?? profileId }))
   if (!conversation.length) conversation.push({ id: 'welcome', speaker: 'ai', body: '基于这些行动，你想表达什么？' })
 
   return (
     <WorkspaceFrame title={label}
+      tabs={['conversation', 'objective', 'expression']}
       view={local.value.view} onViewChange={(view) => update({ view })} restoring={!local.ready}
       draftControls={<LocalDraftControls status={local.status} hasDraft={local.hasDraft} disabled={sending || saving || !local.ready} onDiscard={local.discard} />}
       help={<HelpPopover title="表达的背景">
-          <p>本次对话带入当前行动、已引用的历史行动、有效表达、来源约定和原有对话。其他分支不属于已知事实。</p>
+          <p>本次对话带入当前行动、已引用的历史行动、有效表达与来源约定。其他分支不属于已知事实，行动对话也与本对话分开保存。</p>
           <p>只更新当前节点的表达，行动与约定保持原样。要清空表达，可在对话中说明；确认保存后生效。</p>
         </HelpPopover>}
       context={{ label: `节点 #${node.number}`, title: node.title, facts: context?.facts.filter((fact) => fact.number !== node.number) ?? [] }}
@@ -121,6 +120,4 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
   )
 }
 
-function isConversationMessage(message: ChatMessage): boolean {
-  return message.id !== 'welcome' && !message.id.startsWith('error-')
-}
+function isConversationMessage(message: ChatMessage): boolean { return message.id !== 'welcome' && !message.id.startsWith('error-') }

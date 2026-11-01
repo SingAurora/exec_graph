@@ -30,6 +30,7 @@ type Draft struct {
 	Title      string                    `json:"title"`
 	Objective  string                    `json:"objective"`
 	Expression action.DocumentUpdate     `json:"expression"`
+	Agreement  *action.DocumentUpdate    `json:"agreement,omitempty"`
 	Reviews    []action.SourceAssessment `json:"reviews"`
 }
 
@@ -42,6 +43,7 @@ type View struct {
 	Draft            *Draft                        `json:"draft,omitempty"`
 	CreateAction     *action.CreateActionInput     `json:"createAction,omitempty"`
 	UpdateExpression *action.UpdateExpressionInput `json:"updateExpression,omitempty"`
+	UpdateAgreement  *action.UpdateAgreementInput  `json:"updateAgreement,omitempty"`
 }
 
 // Message 描述实际传给模型的角色和正文。

@@ -9,7 +9,7 @@ const node = (number, parentId, expressionMarkdown) => ({ id: String(number), pr
 function render(actions, id, recordMode = 'expression') {
   return renderToStaticMarkup(createElement(ToastContext.Provider, { value: { showToast: noop } }, createElement(ActionDetail, {
     node: actions.find((item) => item.id === id), actions, users: [], recordMode, branches: [], isHighlightTip: false,
-    onHighlight: noop, onHide: noop, onLocate: noop, onModeChange: noop, onOpenArchive: noop, onContinue: noop, onSelect: noop, onEditExpression: () => true, onUpdateAgreement: () => true,
+    onHighlight: noop, onHide: noop, onLocate: noop, onModeChange: noop, onOpenArchive: noop, onContinue: noop, onSelect: noop, onEditExpression: () => true, onEditAgreement: noop,
   })))
 }
 const switches = (html) => html.match(/<div class="flex items-center gap-5">([\s\S]*?)<\/div>/)?.[1] ?? ''
