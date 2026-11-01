@@ -284,7 +284,7 @@ function AppContent({ profile, projects, actions, allUsers, sources, csrfToken, 
   const saveProfile = async (value: UserProfile) => {
     const avatarAssetId = await imageAsset(value.avatar, profile.avatar, profile.avatarAssetId)
     const backgroundAssetId = await imageAsset(value.backgroundImage, profile.backgroundImage, profile.backgroundAssetId)
-    await commands.profileUpdate.mutateAsync({ name: value.name, bio: value.bio, gender: value.gender, avatarAssetId, backgroundAssetId, expectedVersion: profile.version })
+    await commands.profileUpdate.mutateAsync({ name: value.name, bio: value.bio, gender: value.gender, locationCode: value.location?.code ?? null, avatarAssetId, backgroundAssetId, expectedVersion: profile.version })
   }
   const profileReturnGraph = route === 'profile' ? query.get('fromGraph') : null
   const profileReturn = profileReturnGraph ? () => openProject(profileReturnGraph) : () => navigate(profileBackHash)

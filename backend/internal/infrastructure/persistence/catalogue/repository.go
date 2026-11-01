@@ -11,6 +11,7 @@ import (
 	"github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/model"
 	"github.com/singaurora/exec-graph/backend/internal/shared/fault"
 	"github.com/singaurora/exec-graph/backend/internal/shared/id"
+	sharedlocation "github.com/singaurora/exec-graph/backend/internal/shared/location"
 	"gorm.io/gorm"
 )
 
@@ -107,7 +108,13 @@ func (r *Repository) profiles(ctx context.Context, users []model.User) ([]app.Pr
 		if list == nil {
 			list = []string{}
 		}
-		views = append(views, app.ProfileView{ID: u.UUID, Name: u.Name, Gender: u.Gender, Bio: u.BiographyMarkdown, Avatar: avatar, BackgroundImage: MediaURL(u.CoverAssetUUID), AvatarAssetID: u.AvatarAssetUUID, BackgroundAssetID: u.CoverAssetUUID, ActiveDays: len(days[u.UUID]), Highlights: app.Highlights{ExpressionNodeIDs: list}})
+		var profileLocation *app.LocationView
+		if u.LocationCode != nil {
+			if value, ok := sharedlocation.Lookup(*u.LocationCode); ok {
+				profileLocation = &app.LocationView{Code: value.Code, ProvinceCode: value.ProvinceCode, Province: value.Province, CityCode: value.CityCode, City: value.City, DistrictCode: value.DistrictCode, District: value.District}
+			}
+		}
+		views = append(views, app.ProfileView{ID: u.UUID, Name: u.Name, Gender: u.Gender, Bio: u.BiographyMarkdown, Location: profileLocation, Avatar: avatar, BackgroundImage: MediaURL(u.CoverAssetUUID), AvatarAssetID: u.AvatarAssetUUID, BackgroundAssetID: u.CoverAssetUUID, ActiveDays: len(days[u.UUID]), Highlights: app.Highlights{ExpressionNodeIDs: list}})
 	}
 	aliases, err := r.aliases(ctx, "user", ids)
 	if err != nil {

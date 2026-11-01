@@ -88,7 +88,7 @@ type DocumentUpdate =
 
 | 路径 | 请求 | 成功 data |
 | --- | --- | --- |
-| `/profiles/update` | `expectedVersion`、`name`、`gender`、`bio`、`avatarAssetId`、`backgroundAssetId` | 当前 `AccountView` |
+| `/profiles/update` | `expectedVersion`、`name`、`gender`、`bio`、`locationCode`、`avatarAssetId`、`backgroundAssetId` | 当前 `AccountView` |
 | `/profiles/highlights-set` | `expectedVersion`、`expressionNodeIds` | 当前 `AccountView` |
 
 资料只能修改当前账户。昵称最多 30 个字符，简介最多 1000 个字符，性别为 `unknown`／`male`／`female`；图片的资产规则与图资料相同。资料和精选各自保存，不覆盖另一部分。

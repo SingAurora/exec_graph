@@ -19,7 +19,7 @@ func main() {
 
 func run() error {
 	if len(os.Args) < 2 {
-		return fmt.Errorf("用法: manage check|migrate|verify|seed-demo|prune-media [--create-database]")
+		return fmt.Errorf("用法: manage check|migrate|verify|seed-demo|clear-demo|prune-media [--create-database]")
 	}
 	command := os.Args[1]
 	flags := flag.NewFlagSet(command, flag.ContinueOnError)
@@ -30,7 +30,7 @@ func run() error {
 	if flags.NArg() != 0 {
 		return fmt.Errorf("不支持额外位置参数")
 	}
-	if command != "check" && command != "migrate" && command != "verify" && command != "seed-demo" && command != "prune-media" {
+	if command != "check" && command != "migrate" && command != "verify" && command != "seed-demo" && command != "clear-demo" && command != "prune-media" {
 		return fmt.Errorf("未知管理命令")
 	}
 	if *create {
@@ -61,6 +61,12 @@ func run() error {
 			return err
 		}
 		fmt.Println(message)
+	case "clear-demo":
+		report, err := bootstrap.ClearDemo(ctx, deps)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("演示数据已清理：保留测试账号 %d 个，重置资料 %d 个，删除业务记录 %d 条（图 %d、行动 %d、文档版本 %d、AI 对话 %d、AI 消息 %d、AI 生成 %d、图片 %d）\n", report.Users, report.ProfilesReset, report.Total(), report.Graphs, report.Actions, report.DocumentVersions, report.Conversations, report.Messages, report.Generations, report.MediaAssets)
 	case "check":
 		fmt.Println("MySQL 与 Redis 连接可用；未修改表或清空数据")
 	case "migrate":

@@ -95,7 +95,7 @@ func New(repository Repository, sessions Sessions, passwords Passwords, ttl time
 // Login 使用邮箱和密码认证，拒绝在错误响应中泄露账户存在性。
 func (s *Service) Login(ctx context.Context, email, password, source string) (LoginResult, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
-	if len(email) > constants.EmailMaxBytes || len(password) == 0 || len(password) > constants.PasswordMaxBytes {
+	if len(email) > constants.EmailMaxBytes || len(password) == 0 || len(password) > constants.LegacyPasswordMaxBytes {
 		return LoginResult{}, fault.New(fault.Invalid, "邮箱或密码格式不正确")
 	}
 	allowed, err := s.sessions.Allow(ctx, "login:"+source+":"+email, 10, 15*time.Minute)

@@ -28,7 +28,6 @@ export function EditAgreement({ markdown, draftKey, onSave, onSaved, onCancel }:
     try {
       if (!await onSave(value)) { showToast({ kind: 'error', message: '节点状态已变化，无法保存约定' }); return }
       local.remove()
-      showToast({ kind: 'info', message: value.trim() ? `已${label}` : '已清空约定' })
       onSaved()
     } catch (error) { showToast({ kind: 'error', message: error instanceof Error ? error.message : '保存失败，请重试' }) }
     finally { setSaving(false) }

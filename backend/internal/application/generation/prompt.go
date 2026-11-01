@@ -141,7 +141,7 @@ func parse(content, mode string, hasParent bool, sources []action.GenerationSour
 		return Draft{}, err
 	}
 	if mode == "action" && (strings.TrimSpace(raw.Title) == "" || utf8.RuneCountInString(raw.Title) > constants.ActionTitleLimit || strings.TrimSpace(raw.Objective) == "" || utf8.RuneCountInString(raw.Objective) > constants.DocumentLimit) {
-		return Draft{}, fault.New(fault.Invalid, "AI 行动文稿不完整")
+		return Draft{}, fault.New(fault.Invalid, "请补充这次实际做了什么、过程、结果或明确感受")
 	}
 	if mode == "expression" && (raw.Title != "" || raw.Objective != "") {
 		return Draft{}, fault.New(fault.Invalid, "表达修改不能携带新行动事实")

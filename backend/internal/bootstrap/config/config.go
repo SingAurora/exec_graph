@@ -86,9 +86,11 @@ type ObjectStorage struct {
 
 // AI 是仅服务端持有的平台模型配置，不支持用户密钥。
 type AI struct {
-	BaseURL string `yaml:"base_url"`
-	Model   string `yaml:"model"`
-	APIKey  string `yaml:"api_key"`
+	BaseURL       string `yaml:"base_url"`
+	Model         string `yaml:"model"` // 兼容读取旧配置；模型选择使用两个角色字段。
+	DraftModel    string `yaml:"draft_model"`
+	AnalysisModel string `yaml:"analysis_model"`
+	APIKey        string `yaml:"api_key"`
 }
 
 // Security 仅为旧配置解析保留，当前不恢复个人 AI Key 的加密存储。
@@ -138,8 +140,11 @@ func Load(path string) (Config, error) {
 	if c.AI.BaseURL == "" {
 		c.AI.BaseURL = "https://api.deepseek.com"
 	}
-	if c.AI.Model == "" {
-		c.AI.Model = "deepseek-flash"
+	if c.AI.DraftModel == "" {
+		c.AI.DraftModel = "deepseek-v4-pro"
+	}
+	if c.AI.AnalysisModel == "" {
+		c.AI.AnalysisModel = "deepseek-v4-pro"
 	}
 	if value := os.Getenv("DEEPSEEK_API_KEY"); value != "" {
 		c.AI.APIKey = value
@@ -148,7 +153,13 @@ func Load(path string) (Config, error) {
 		c.AI.BaseURL = value
 	}
 	if value := os.Getenv("EXEC_GRAPH_AI_MODEL"); value != "" {
-		c.AI.Model = value
+		c.AI.DraftModel = value
+	}
+	if value := os.Getenv("EXEC_GRAPH_AI_DRAFT_MODEL"); value != "" {
+		c.AI.DraftModel = value
+	}
+	if value := os.Getenv("EXEC_GRAPH_AI_ANALYSIS_MODEL"); value != "" {
+		c.AI.AnalysisModel = value
 	}
 	if enabled := os.Getenv("EXEC_GRAPH_MAIL_ENABLED"); enabled != "" {
 		c.Mail.Enabled, err = strconv.ParseBool(enabled)

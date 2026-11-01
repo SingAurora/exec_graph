@@ -37,4 +37,8 @@ describe('public profile preview', () => {
     expect(html).toContain('查看unknown-user的主页')
     expect(html).toContain('href="#profile?userId=unknown-user"')
   })
+
+  test('shows the default biography prompt when the profile biography is empty', () => {
+    expect(renderCard({ profile: { ...profile, bio: ' ' } })).toContain('该用户没有更多想表达的事情。')
+  })
 })

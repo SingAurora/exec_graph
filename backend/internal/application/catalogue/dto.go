@@ -3,6 +3,17 @@ package catalogue
 
 import "time"
 
+// LocationView 是公开显示的中国大陆省、市、区县地址。
+type LocationView struct {
+	Code         string `json:"code"`
+	ProvinceCode string `json:"provinceCode"`
+	Province     string `json:"province"`
+	CityCode     string `json:"cityCode"`
+	City         string `json:"city"`
+	DistrictCode string `json:"districtCode"`
+	District     string `json:"district"`
+}
+
 // Highlights 只保存按用户顺序选择的表达节点。
 type Highlights struct {
 	ExpressionNodeIDs []string `json:"expressionNodeIds"`
@@ -10,17 +21,18 @@ type Highlights struct {
 
 // ProfileView 是不含邮箱和测试管理标记的公开资料。
 type ProfileView struct {
-	LegacyID          string     `json:"legacyId,omitempty"`
-	ID                string     `json:"id"`
-	Name              string     `json:"name"`
-	Gender            string     `json:"gender"`
-	Bio               string     `json:"bio"`
-	Avatar            string     `json:"avatar"`
-	BackgroundImage   *string    `json:"backgroundImage,omitempty"`
-	AvatarAssetID     *string    `json:"avatarAssetId"`
-	BackgroundAssetID *string    `json:"backgroundAssetId"`
-	ActiveDays        int        `json:"activeDays"`
-	Highlights        Highlights `json:"highlights"`
+	LegacyID          string        `json:"legacyId,omitempty"`
+	ID                string        `json:"id"`
+	Name              string        `json:"name"`
+	Gender            string        `json:"gender"`
+	Bio               string        `json:"bio"`
+	Location          *LocationView `json:"location,omitempty"`
+	Avatar            string        `json:"avatar"`
+	BackgroundImage   *string       `json:"backgroundImage,omitempty"`
+	AvatarAssetID     *string       `json:"avatarAssetId"`
+	BackgroundAssetID *string       `json:"backgroundAssetId"`
+	ActiveDays        int           `json:"activeDays"`
+	Highlights        Highlights    `json:"highlights"`
 }
 
 // GraphView 保留当前 UI 的 Project 字段语义。

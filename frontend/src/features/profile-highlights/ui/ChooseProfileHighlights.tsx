@@ -10,7 +10,6 @@ import { Dialog } from '../../../shared/ui/dialog/Dialog'
 import { getMarkdownSummary } from '../../../shared/lib/markdownSummary'
 import { getSearchExcerpt } from '../../../shared/lib/search'
 import { HighlightedText } from '../../../shared/ui/HighlightedText'
-import { useToast } from '../../../shared/ui/toast/useToast'
 import { setProfileHighlights } from '../api/commands'
 import { HighlightCandidates } from './HighlightCandidates'
 
@@ -31,7 +30,6 @@ export function ChooseProfileHighlights({ userId, highlights, candidates, projec
   const available = candidates.filter(({ node }) => !draft.includes(node.id))
   const session = useQuery({ queryKey: profileKeys.session, queryFn: ({ signal }) => readSession(signal) })
   const client = useQueryClient()
-  const { showToast } = useToast()
   const save = useMutation({
     mutationFn: async () => {
       if (!session.data || session.data.user.id !== userId) throw new Error('当前账户已变化，请重新打开主页')
@@ -40,7 +38,6 @@ export function ChooseProfileHighlights({ userId, highlights, candidates, projec
     onSuccess(user) {
       client.setQueryData<SessionView>(profileKeys.session, (current) => current?.user.id === user.id ? { ...current, user } : current)
       void client.invalidateQueries({ queryKey: profileKeys.catalogue(userId) })
-      showToast({ kind: 'info', message: '主页精选已保存' })
       onClose()
     },
     onError() {

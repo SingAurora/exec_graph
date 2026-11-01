@@ -20,6 +20,8 @@ EXEC_GRAPH_DATABASE_SCHEMA=exec_graph go run ./cmd/manage verify
 
 可用环境变量：`EXEC_GRAPH_CONFIG`、`EXEC_GRAPH_DATABASE_SCHEMA`、`EXEC_GRAPH_REDIS_PREFIX`、`EXEC_GRAPH_ADDR`、`EXEC_GRAPH_ENV`、`EXEC_GRAPH_ENABLE_DEMO_LOGIN`、`EXEC_GRAPH_ALLOWED_ORIGINS`（逗号分隔的精确 Origin）、`EXEC_GRAPH_FRONTEND_DIR`。生产环境禁止演示登录，默认不开启。
 
+本地开发默认监听 `127.0.0.1:8080`，前端 Vite 默认监听 `http://localhost:5173` 并代理 `/api` 到后端。可在仓库根目录运行 `./dev.sh` 同时启动前后端，按 `Ctrl+C` 一起停止；单独启动后端时，在 `backend` 目录运行 `go run ./cmd/api`。
+
 ## Go 同时提供前端与 API
 
 部署后只运行一个 Go 进程：`/` 提供前端首页，构建资源从 `frontend/dist` 读取，`/api/commands/...` 继续提供业务接口。不需要运行 Vite，也不需要 Nginx。原有 `/#my`、`/#project?...` 等 hash 路由保持不变。
@@ -118,7 +120,7 @@ journalctl -u exec-graph -n 50 --no-pager
 
 ```sh
 EXEC_GRAPH_DATABASE_SCHEMA=exec_graph go run ./cmd/manage seed-demo
-EXEC_GRAPH_DATABASE_SCHEMA=exec_graph EXEC_GRAPH_ADDR=127.0.0.1:8081 EXEC_GRAPH_ENABLE_DEMO_LOGIN=true EXEC_GRAPH_ALLOWED_ORIGINS=http://localhost:5174 go run ./cmd/api
+EXEC_GRAPH_DATABASE_SCHEMA=exec_graph EXEC_GRAPH_ADDR=127.0.0.1:8080 EXEC_GRAPH_ENABLE_DEMO_LOGIN=true EXEC_GRAPH_ALLOWED_ORIGINS=http://localhost:5173 go run ./cmd/api
 ```
 
 导入当前前端的 7 位演示作者、9 张图、37 条行动和 7 张本地图片。每位作者都有 `users.is_test_account = true`、`test_dataset = frontend-demo-v1` 数据库标记。精选保留 5 个表达，约定沿主要来源继承。合入来源仅提供事实背景，主动清空不会变回继承。
@@ -128,6 +130,8 @@ EXEC_GRAPH_DATABASE_SCHEMA=exec_graph EXEC_GRAPH_ADDR=127.0.0.1:8081 EXEC_GRAPH_
 默认给测试号生成未知随机密码。需要验证密码登录时，在**首次导入前**通过 `EXEC_GRAPH_DEMO_PASSWORD` 设置主测试号 `qiao@example.com` 的密码；不要写进源码或命令历史。已导入数据不会因再次设置环境变量而重置密码。开发环境可使用 `/auth/demo-login` 登录固定的乔账号，不接受任意用户 ID。
 
 后端已嵌入导出夹具，启动和导入均不依赖前端源码。只有明确更新测试夹具时，才在仓库根目录运行 `bun backend/scripts/export-demo.ts`；导出后的 JSON 和图片需一并审查。夹具变化需要新的导入版本和显式迁移方案，不要直接删除已使用的数据集标记。
+
+需要保留测试账号、从空业务状态开始时，显式执行 `go run ./cmd/manage clear-demo`。命令清空 `frontend-demo-v1` 测试账号名下的图、行动、文档、AI 记录、精选、关注、图片登记与演示简介，保留姓名、性别、邮箱和密码。范围包含这些账号后续手动创建的业务内容，已有真实内容后不要重跑；内嵌测试夹具仍供回归测试使用，不会随 API 启动重新导入。图片登记清理不枚举或删除云端存储桶对象。
 
 ## 已实现接口
 
@@ -168,7 +172,7 @@ EXEC_GRAPH_DATABASE_SCHEMA=exec_graph EXEC_GRAPH_ADDR=127.0.0.1:8081 EXEC_GRAPH_
 
 ## 外部能力配置
 
-参考 `etc/config.example.yaml`。真实邮件需 `mail.enabled`、发件地址、模板 ID、区域及服务端凭据；真实图片需 `storage.enabled`、bucket、region 和专用 `media_prefix`。旧配置的凭据仅由 bootstrap 创建 SDK 时读取，不进入业务用例。平台 AI 配置 `ai.base_url`、`ai.model`、`ai.api_key`，也可通过 `DEEPSEEK_API_KEY` 注入密钥，示例模型为 `deepseek-flash`。不要把真实配置提交到 Git。
+参考 `etc/config.example.yaml`。真实邮件需 `mail.enabled`、发件地址、模板 ID、区域及服务端凭据；真实图片需 `storage.enabled`、bucket、region 和专用 `media_prefix`。旧配置的凭据仅由 bootstrap 创建 SDK 时读取，不进入业务用例。平台 AI 配置 `ai.base_url`、`ai.draft_model`、`ai.analysis_model`、`ai.api_key`，也可通过 `DEEPSEEK_API_KEY` 注入密钥。行动、表达、约定和独立核验统一默认使用开启 thinking 的 `deepseek-v4-pro`。不要把真实配置提交到 Git。
 
 第四阶段 schema v2 增加图片保留登记表，已有 v1 数据执行同一 `manage migrate` 升级，保留原用户和业务身份。上传未保存的图片一天后可回收；本地草稿续期七天，公开或历史引用仍受保护。API 启动时及每小时扫描一批，也可运行：
 

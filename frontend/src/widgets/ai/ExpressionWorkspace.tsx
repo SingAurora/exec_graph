@@ -16,7 +16,7 @@ import { ExpressionAgreements } from './ExpressionAgreements'
 import { getActionDraftKey } from '../../entities/action/lib/draft-key'
 import { useLocalDraft } from '../../shared/lib/local-draft/useLocalDraft'
 import { LocalDraftControls } from '../../shared/ui/LocalDraftControls'
-import { createWorkspaceView, isExpressionWorkspaceDraft, reconcileWorkspaceDraft, type ExpressionWorkspaceDraft } from './model/workspace-draft'
+import { appendWorkspaceError, createWorkspaceView, isExpressionWorkspaceDraft, reconcileWorkspaceDraft, type ExpressionWorkspaceDraft } from './model/workspace-draft'
 
 /** 延续已有节点的对话修改表达；行动事实和约定在此只读，不创建新行动。 */
 export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profileName, profileId, profile, users = [], contextGuide, onBack, onConfirm }: {
@@ -84,7 +84,7 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
       local.update((current) => ({ ...current, generation: result, draftDocument: draft.expression.mode === 'update' ? draft.expression.markdown : '', generated: true, contextSignature,
         messages: [...current.messages, { id: 'expression-ai-' + result.generationId, speaker: 'ai', body: draft.reply }] }))
     } catch (error) {
-      update({ messages: [...savedMessages, { id: `error-${Date.now()}`, speaker: 'ai', body: '暂时无法更新表达：' + (error instanceof Error ? error.message : '请求失败，请稍后重试。') }], input: clean })
+      local.update((current) => ({ ...current, messages: appendWorkspaceError(current.messages, '暂时无法更新表达：' + (error instanceof Error ? error.message : '请求失败，请稍后重试。')), input: clean }))
     } finally {
       setSending(false)
     }
@@ -115,7 +115,6 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
               try {
                 if (!generation?.updateExpression || !await onConfirm(generation.updateExpression)) { showToast({ kind: 'error', message: '节点状态已变化，无法保存表达' }); return }
                 local.remove()
-                showToast({ kind: 'info', message: document.trim() ? `已${label}` : '已清空表达' })
               } catch (error) { showToast({ kind: 'error', message: error instanceof Error ? error.message : '保存失败，请重试' }) }
               finally { setSaving(false) }
         }}><Check size={15} />保存表达</button></>} />

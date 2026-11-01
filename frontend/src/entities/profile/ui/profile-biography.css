@@ -8,7 +8,9 @@
   .profile-biography .record-markdown pre { max-width: 100%; overflow-x: auto; border-radius: 6px; background: var(--soft); padding: 10px; }
   .profile-biography .record-document-figure { margin: 12px 0 0; }
   .profile-biography .record-document-figure img { max-width: min(100%, 360px); max-height: 220px; object-fit: contain; }
+  .profile-biography-placeholder { color: var(--muted); font-size: 14px; line-height: 1.75; }
   .profile-biography-compact .record-markdown { color: var(--muted); font-size: 13px; line-height: 1.5; }
+  .profile-biography-compact.profile-biography-placeholder { font-size: 13px; line-height: 1.5; }
   .profile-biography-compact .record-markdown > :not(:has(.record-document-figure)) { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; margin: 0; font-size: 13px; line-height: 1.5; }
   .profile-biography-compact .record-markdown > :has(.record-document-figure) { margin: 0; }
   .profile-biography-compact .record-document-figure { margin-top: 8px; }

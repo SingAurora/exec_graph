@@ -8,6 +8,7 @@ import type { Project } from '../../entities/project/model/types'
 import type { UserProfile } from '../../entities/profile/model/types'
 import { ProfileCover } from '../../entities/profile/ui/ProfileCover'
 import { ProfileBiography } from '../../entities/profile/ui/ProfileBiography'
+import { formatMainlandLocation } from '../../entities/profile/model/mainland-regions'
 import { Avatar } from '../../shared/ui/Avatar'
 import { ImagePreviewTrigger } from '../../shared/ui/ImagePreviewTrigger'
 import { GenderMark } from '../../shared/ui/profile/GenderMark'
@@ -44,8 +45,9 @@ export function PublicProfile({ profile, currentUserId, following, users, projec
         <div className="mt-2 grid min-w-0 gap-0.5 px-6">
           <h2 className="flex min-w-0 items-center gap-1.5 text-xl font-semibold" title={profile.name}><span className="min-w-0 truncate">{profile.name}</span><span className="shrink-0"><GenderMark gender={profile.gender} /></span></h2>
           {self && profile.email && <p className="truncate text-sm text-muted" title={profile.email}>{profile.email}</p>}
+          {profile.location && <p className="text-sm text-muted">{formatMainlandLocation(profile.location.code)}</p>}
         </div>
-        {profile.bio.trim() && <div className="mt-3 px-5"><ProfileBiography biography={profile.bio} /></div>}
+        <div className="mt-3 px-5"><ProfileBiography biography={profile.bio} /></div>
         <div className="mt-4 flex flex-wrap gap-x-7 gap-y-2 px-5 text-sm text-muted"><span><strong className="font-semibold text-ink">{expressionCount}</strong> 表达</span><span><strong className="font-semibold text-ink">{agreementResponses.length}</strong> 约定</span><span><strong className="font-semibold text-ink">{authorActions.length}</strong> 行动</span><span><strong className="font-semibold text-ink">{related.length}</strong> 图</span></div>
       </header>
       <ActivityFeed actions={actions} projects={projects} users={users} authorIds={[profile.id]} graphItems={related} agreementResponses={agreementResponses} active={active} tabRequest={activityTabRequest}

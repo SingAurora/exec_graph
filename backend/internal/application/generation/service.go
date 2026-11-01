@@ -19,14 +19,15 @@ import (
 
 // Service 管理输入快照、网络调用和结果落库三个独立步骤。
 type Service struct {
-	store    Store
-	provider Provider
-	limits   Limits
+	store            Store
+	draftProvider    Provider
+	analysisProvider Provider
+	limits           Limits
 }
 
 // New 创建平台生成用例。
-func New(store Store, provider Provider, limits Limits) *Service {
-	return &Service{store, provider, limits}
+func New(store Store, draftProvider, analysisProvider Provider, limits Limits) *Service {
+	return &Service{store: store, draftProvider: draftProvider, analysisProvider: analysisProvider, limits: limits}
 }
 
 // Generate 首次调用同步生成；重复键只读取原任务，不再次计费或重复写消息。
@@ -35,7 +36,11 @@ func (s *Service) Generate(ctx context.Context, actor identity.Actor, key string
 	if !id.Valid(key) || !id.Valid(input.GraphID) || (input.ConversationID != "" && !id.Valid(input.ConversationID)) || strings.TrimSpace(input.Message) == "" || utf8.RuneCountInString(input.Message) > constants.AIInputLimit || input.MergedParentIDs == nil || input.SourceVersions == nil || (input.Mode != "action" && input.Mode != "expression") {
 		return out, fault.New(fault.Invalid, "生成输入、来源列表或提交键不合法")
 	}
-	if s.provider.Model() == "" {
+	initialProvider := s.draftProvider
+	if input.Mode == "expression" {
+		initialProvider = s.analysisProvider
+	}
+	if initialProvider == nil || initialProvider.Model() == "" || s.analysisProvider == nil || s.analysisProvider.Model() == "" {
 		return out, fault.New(fault.Unavailable, "平台 AI 暂未启用")
 	}
 	if input.Mode == "expression" && (!id.Valid(input.NodeID) || input.ExpectedVersion == 0 || input.ParentID != "" || len(input.MergedParentIDs) != 0 || len(input.SourceVersions) != 0) {
@@ -74,7 +79,8 @@ func (s *Service) Generate(ctx context.Context, actor identity.Actor, key string
 		if err := s.limits.Check(usage); err != nil {
 			return err
 		}
-		batch, request, err := prepare(tx, actor, key, input, digest[:], s.provider.Model(), now)
+		model := "draft=" + s.draftProvider.Model() + ";analysis=" + s.analysisProvider.Model()
+		batch, request, err := prepare(tx, actor, key, input, digest[:], model, now)
 		if err != nil {
 			return err
 		}
@@ -90,7 +96,7 @@ func (s *Service) Generate(ctx context.Context, actor identity.Actor, key string
 	}
 	modelCtx, cancelModel := context.WithTimeout(ctx, constants.AITimeout)
 	defer cancelModel()
-	completion, callError := s.provider.Complete(modelCtx, messages)
+	completion, callError := initialProvider.Complete(modelCtx, messages)
 	var draft Draft
 	if callError == nil {
 		draft, callError = parse(completion.Content, input.Mode, input.ParentID != "", pending.Sources)
@@ -100,7 +106,11 @@ func (s *Service) Generate(ctx context.Context, actor identity.Actor, key string
 		checks, callError = verificationPrompt(pending.snapshot, draft)
 		if callError == nil {
 			var checked Completion
-			checked, callError = s.provider.Complete(modelCtx, checks)
+			verifier := s.analysisProvider
+			if input.Mode == "action" && len(pending.Sources) == 0 {
+				verifier = s.draftProvider
+			}
+			checked, callError = verifier.Complete(modelCtx, checks)
 			completion.InputTokens += checked.InputTokens
 			completion.OutputTokens += checked.OutputTokens
 			if callError == nil {
@@ -113,6 +123,10 @@ func (s *Service) Generate(ctx context.Context, actor identity.Actor, key string
 	defer cancel()
 	err = s.store.Within(finishCtx, actor, func(tx Transaction) error {
 		if callError != nil {
+			var invalid *fault.Error
+			if errors.As(callError, &invalid) && invalid.Code == fault.Invalid {
+				return tx.Fail(pending.ID, "content_invalid")
+			}
 			if errors.Is(callError, errUnverified) {
 				return tx.Fail(pending.ID, "content_unverified")
 			}
@@ -126,6 +140,10 @@ func (s *Service) Generate(ctx context.Context, actor identity.Actor, key string
 		return err
 	})
 	if callError != nil {
+		var invalid *fault.Error
+		if errors.As(callError, &invalid) && invalid.Code == fault.Invalid {
+			return View{}, errors.Join(callError, err)
+		}
 		if errors.Is(callError, errUnverified) {
 			return View{}, errors.Join(fault.New(fault.Invalid, "行动或表达未通过依据核验，请补充具体行动，避免无依据的观点后重新整理"), err)
 		}

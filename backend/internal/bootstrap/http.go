@@ -52,9 +52,18 @@ func HTTP(deps *Dependencies, logger *slog.Logger) http.Handler {
 		// 测试可只装配数据库依赖；未注入云客户端时显式禁用真实上传。
 		objects = storage.Disabled()
 	}
-	provider := deps.AI
-	if provider == nil {
-		provider = ai.Disabled()
+	draftProvider, analysisProvider := deps.DraftAI, deps.AnalysisAI
+	if draftProvider == nil {
+		draftProvider = deps.AI
+	}
+	if analysisProvider == nil {
+		analysisProvider = deps.AI
+	}
+	if draftProvider == nil {
+		draftProvider = ai.Disabled()
+	}
+	if analysisProvider == nil {
+		analysisProvider = ai.Disabled()
 	}
 	sender := deps.Mail
 	if sender == nil {
@@ -84,7 +93,7 @@ func HTTP(deps *Dependencies, logger *slog.Logger) http.Handler {
 		httpprofile.New(appprofile.New(profile.New(deps.DB)), identityService),
 		httpfollowing.New(appfollowing.New(following.New(deps.DB)), identityService),
 		httpmedia.New(appmedia.New(media.New(deps.DB), objects, mediaLimits(deps.Config)), identityService),
-		httpgeneration.New(appgeneration.New(generation.New(deps.DB), provider, generationLimits(deps.Config)), identityService),
+		httpgeneration.New(appgeneration.New(generation.New(deps.DB), draftProvider, analysisProvider, generationLimits(deps.Config)), identityService),
 		httpaccount.New(appaccount.New(account.New(deps.DB, identityRepository), deps.Sessions, sender, security.Passwords{}, identityService, codeTTL), identityService, deps.Config.App.Environment == "production", int(deps.Config.App.SessionTTL().Seconds())),
 		deps.Config.App.AllowedOrigins, logger, deps.Frontend,
 	)

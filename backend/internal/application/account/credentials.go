@@ -2,9 +2,7 @@ package account
 
 import (
 	"context"
-	"strings"
 	"time"
-	"unicode"
 	"unicode/utf8"
 
 	"github.com/singaurora/exec-graph/backend/internal/application/identity"
@@ -12,21 +10,19 @@ import (
 	"github.com/singaurora/exec-graph/backend/internal/shared/constants"
 	"github.com/singaurora/exec-graph/backend/internal/shared/fault"
 	"github.com/singaurora/exec-graph/backend/internal/shared/id"
-	"github.com/singaurora/exec-graph/backend/internal/shared/textinput"
 )
 
 func validateNewPassword(password string) error {
-	if strings.ContainsFunc(password, unicode.IsSpace) {
-		return fault.New(fault.Invalid, "密码不能包含空格或其他空白字符")
-	}
-	if !utf8.ValidString(password) || textinput.HasUnsafeCharacters(password) {
-		return fault.New(fault.Invalid, "密码不能包含控制字符或不可见格式字符")
-	}
 	if utf8.RuneCountInString(password) < constants.PasswordMinCharacters {
 		return fault.New(fault.Invalid, "密码至少需要 8 位")
 	}
 	if len(password) > constants.PasswordMaxBytes {
-		return fault.New(fault.Invalid, "密码最多 256 字节")
+		return fault.New(fault.Invalid, "密码最多 32 位")
+	}
+	for index := 0; index < len(password); index++ {
+		if password[index] < '!' || password[index] > '~' {
+			return fault.New(fault.Invalid, "密码只能包含英文、数字和普通符号，不能包含空格")
+		}
 	}
 	return nil
 }
@@ -94,7 +90,7 @@ func (s *Service) current(ctx context.Context, actor identity.Actor, password st
 	if account.View.ID == "" || account.Disabled || account.AuthVersion != actor.AuthVersion {
 		return account, fault.New(fault.Unauthenticated, "会话已失效，请重新登录")
 	}
-	if len(password) > constants.PasswordMaxBytes || !s.passwords.Verify(account.PasswordHash, password) {
+	if len(password) > constants.LegacyPasswordMaxBytes || !s.passwords.Verify(account.PasswordHash, password) {
 		return account, fault.New(fault.Invalid, "当前密码不正确")
 	}
 	return account, nil

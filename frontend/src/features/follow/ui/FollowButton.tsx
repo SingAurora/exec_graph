@@ -21,10 +21,11 @@ export function FollowButton({ kind, name, following, disabledReason, onChange }
     pending.current = true; setSaving(true)
     try {
       if (!await onChange(next)) { if (undo) showToast({ kind: 'warning', message: '对象已不可关注' }); return }
-      if (undo) { showToast({ message: '已恢复关注' }); return }
-      showToast({ message: next ? `已关注${kind === 'graph' ? '图' : ''}「${name}」` : `已取消关注「${name}」`,
-      duration: next ? undefined : 4000,
-      action: next ? undefined : { label: '撤销', onClick: () => { void change(true, true) } },
+      if (undo) return
+      if (next) return
+      showToast({ message: `已取消关注「${name}」`,
+      duration: 4000,
+      action: { label: '撤销', onClick: () => { void change(true, true) } },
       })
     } catch (error) { showToast({ kind: 'error', message: error instanceof Error ? error.message : '关注操作失败，请重试' }) }
     finally { pending.current = false; setSaving(false) }

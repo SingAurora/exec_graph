@@ -22,10 +22,10 @@ describe('sidebar profile shortcuts', () => {
     expect(html).not.toContain('完成记录')
   })
 
-  test('keeps zero-count shortcuts and omits an unset biography without placeholder copy', () => {
+  test('keeps zero-count shortcuts and shows the default biography prompt when unset', () => {
     const html = render({ profile: { ...profile, bio: '   ' }, stats: { actions: 0, expressions: 0, agreements: 0 } })
     expect(html.match(/共 0 条/g)).toHaveLength(3)
-    expect(html).not.toContain('<p')
+    expect(html).toContain('该用户没有更多想表达的事情。')
     expect(html).toContain('qiao@example.com')
   })
 })

@@ -25,7 +25,7 @@ export function DeleteProject({ title, nodeCount, onDelete, disabledReason }: De
     }
     setSaving(true)
     try {
-      if (await onDelete(expectedNodeCount)) { showToast({ kind: 'info', message: '已删除行动图' }); setConfirmationCount(undefined) }
+      if (await onDelete(expectedNodeCount)) setConfirmationCount(undefined)
       else showToast({ kind: 'error', message: '图状态已变化或无删除权限，请重新确认后重试' })
     } catch (error) { showToast({ kind: 'error', message: error instanceof Error ? error.message : '删除失败，请重试' }) }
     finally { setSaving(false) }

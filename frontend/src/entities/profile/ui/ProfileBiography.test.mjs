@@ -32,7 +32,7 @@ describe('Markdown biographies', () => {
     expect(imageOnly).toContain('src="/cover.jpg"')
     expect(imageOnly).not.toContain('[cover]')
     expect(render('普通简介', true)).toContain('普通简介')
-    expect(render('   ')).toBe('')
+    expect(render('   ')).toContain('该用户没有更多想表达的事情。')
   })
 
   test('neither full nor compact biographies linkify URLs, emails, references or linked images', () => {

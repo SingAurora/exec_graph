@@ -20,6 +20,7 @@ import (
 // Client 只使用组合根传入的平台配置。
 type Client struct {
 	endpoint, model, key string
+	thinking             string
 	http                 *http.Client
 }
 
@@ -28,11 +29,28 @@ func Disabled() *Client { return &Client{} }
 
 // New 创建有超时和重定向限制的模型客户端。
 func New(c config.AI) (*Client, error) {
+	model := c.DraftModel
+	if model == "" {
+		model = "deepseek-v4-pro"
+	}
+	return NewModel(c, model, true)
+}
+
+// NewAnalysis 创建用于表达、约定和独立核验的深度分析客户端。
+func NewAnalysis(c config.AI) (*Client, error) {
+	return NewModel(c, c.AnalysisModel, true)
+}
+
+func NewModel(c config.AI, model string, thinking bool) (*Client, error) {
 	base, err := url.Parse(c.BaseURL)
-	if err != nil || base.Scheme != "https" || base.Host == "" || base.User != nil || base.RawQuery != "" || base.Fragment != "" || len(c.Model) > 100 {
+	if err != nil || base.Scheme != "https" || base.Host == "" || base.User != nil || base.RawQuery != "" || base.Fragment != "" || len(model) > 100 {
 		return nil, fmt.Errorf("平台 AI 地址或模型配置不合法")
 	}
-	return &Client{endpoint: strings.TrimRight(c.BaseURL, "/") + "/chat/completions", model: c.Model, key: c.APIKey, http: &http.Client{Timeout: constants.AITimeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}, nil
+	mode := "disabled"
+	if thinking {
+		mode = "enabled"
+	}
+	return &Client{endpoint: strings.TrimRight(c.BaseURL, "/") + "/chat/completions", model: model, key: c.APIKey, thinking: mode, http: &http.Client{Timeout: constants.AITimeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}, nil
 }
 
 // Model 密钥未配置时返回空，生成用例明确拒绝请求。
@@ -73,7 +91,7 @@ func (c *Client) Complete(ctx context.Context, messages []app.Message) (app.Comp
 		return app.Completion{}, fault.New(fault.Unavailable, "平台 AI 暂未启用")
 	}
 	input := completionRequest{Model: c.model, Messages: messages, MaxTokens: constants.AIOutputTokens}
-	input.ResponseFormat.Type, input.Thinking.Type = "json_object", "disabled"
+	input.ResponseFormat.Type, input.Thinking.Type = "json_object", c.thinking
 	body, err := json.Marshal(input)
 	if err != nil {
 		return app.Completion{}, err

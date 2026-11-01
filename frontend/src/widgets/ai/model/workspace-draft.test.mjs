@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { createWorkspaceView, isActionWorkspaceDraft, isExpressionWorkspaceDraft, reconcileWorkspaceDraft } from './workspace-draft.ts'
+import { appendWorkspaceError, createWorkspaceView, isActionWorkspaceDraft, isExpressionWorkspaceDraft, reconcileWorkspaceDraft } from './workspace-draft.ts'
 import { getActionDraftKey } from '../../../entities/action/lib/draft-key.ts'
 import { isAgreementDraft } from '../../../features/action-agreement/model/draft.ts'
 
@@ -12,6 +12,20 @@ const draft = () => ({
 })
 
 describe('local workspace drafts', () => {
+  test('failed generation keeps the just-sent user message and replaces only older error notices', () => {
+    const messages = [
+      { id: 'welcome', speaker: 'ai', body: '先说说行动' },
+      { id: 'error-old', speaker: 'ai', body: '上次失败' },
+      { id: 'user-current', speaker: 'user', body: '今天骑了十公里' },
+    ]
+
+    expect(appendWorkspaceError(messages, 'AI 暂时不可用')).toMatchObject([
+      { id: 'welcome', speaker: 'ai', body: '先说说行动' },
+      { id: 'user-current', speaker: 'user', body: '今天骑了十公里' },
+      { speaker: 'ai', body: 'AI 暂时不可用' },
+    ])
+  })
+
   test('keeps the conversation, unsent input, both documents, merge choices, reviews and view after serialization', () => {
     const restored = JSON.parse(JSON.stringify(draft()))
     expect(isActionWorkspaceDraft(restored)).toBe(true)

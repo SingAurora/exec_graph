@@ -106,7 +106,7 @@ type Completion struct {
 	InputTokens, OutputTokens uint32
 }
 
-// Provider 由 bootstrap 注入平台模型，不接受用户密钥或任意上游地址。
+// Provider 由 bootstrap 注入一个平台模型，不接受用户密钥或任意上游地址。
 type Provider interface {
 	Model() string
 	Complete(context.Context, []Message) (Completion, error)

@@ -33,6 +33,10 @@ func TestParsePreservesExplicitAssessmentAndDocumentIntent(t *testing.T) {
 	if _, err := parse(base, "action", false, sources); err == nil {
 		t.Fatal("首次行动继承了不存在的表达")
 	}
+	insufficient := strings.Replace(base, `"title":"骑行","objective":"骑了六公里"`, `"title":"","objective":""`, 1)
+	if _, err := parse(insufficient, "action", true, sources); err == nil || !strings.Contains(err.Error(), "请补充这次实际做了什么") {
+		t.Fatalf("缺少行动事实时没有返回明确提示: %v", err)
+	}
 	if _, err := parse(base, "expression", false, sources); err == nil {
 		t.Fatal("表达修改允许继承而非明确确认")
 	}

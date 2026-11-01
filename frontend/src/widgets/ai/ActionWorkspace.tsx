@@ -15,7 +15,8 @@ import { HelpPopover } from '../../shared/ui/help/HelpPopover'
 import { WorkspaceFrame } from './WorkspaceFrame'
 import { useLocalDraft } from '../../shared/lib/local-draft/useLocalDraft'
 import { LocalDraftControls } from '../../shared/ui/LocalDraftControls'
-import { createWorkspaceView, isActionWorkspaceDraft, reconcileWorkspaceDraft, type ActionWorkspaceDraft } from './model/workspace-draft'
+import { BusinessRequestError } from '../../shared/api/errors'
+import { appendWorkspaceError, createWorkspaceView, isActionWorkspaceDraft, reconcileWorkspaceDraft, type ActionWorkspaceDraft } from './model/workspace-draft'
 
 type ActionWorkspaceProps = {
   graphId: string
@@ -129,7 +130,9 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
         agreementReviews: draft.reviews.map((review) => ({ nodeNumber: actions?.find((node) => node.id === review.sourceId)?.number ?? 0, complies: review.complies, reason: review.exceptionReason ?? '' })), messages: [...current.messages, { id: 'ai-' + result.generationId, speaker: 'ai', body: draft.reply }],
         generated: true, sourcesChanged: false, contextSignature: signatureFor(mergedParentIds) }))
     } catch (error) {
-      update({ messages: [...messages.filter((message) => !message.id.startsWith('error-')), { id: 'error-' + Date.now(), speaker: 'ai', body: '暂时无法更新记录：' + (error instanceof Error ? error.message : '请求失败，请稍后重试。') }], input: clean })
+      const message = error instanceof Error ? error.message : '请求失败，请稍后重试。'
+      const prefix = error instanceof BusinessRequestError && error.kind === 'business' && error.code === 10001 ? '' : '暂时无法更新记录：'
+      local.update((current) => ({ ...current, messages: appendWorkspaceError(current.messages, prefix + message), input: clean }))
     } finally { setSending(false) }
   }
 

@@ -1,9 +1,9 @@
 app:
   host: 127.0.0.1
-  port: 8081
+  port: 8080
   session_ttl_hours: 168
   allowed_origins:
-    - http://localhost:5174
+    - http://localhost:5173
   environment: development
   enable_demo_login: false
   # 留空只提供 API；部署时设为前端 dist 的路径，相对路径以进程工作目录为准。
@@ -48,7 +48,9 @@ security:
   credential_encryption_key: ""
 ai:
   base_url: https://api.deepseek.com
-  model: deepseek-flash
+  # 行动、表达、约定及独立核验统一使用 Pro，并开启 thinking。
+  draft_model: deepseek-v4-pro
+  analysis_model: deepseek-v4-pro
   # 也可仅通过服务端环境变量 DEEPSEEK_API_KEY 提供。
   api_key: ""
 # 所有值必须为正整数；省略字段使用以下默认值。每日次数按 UTC 自然日统计。

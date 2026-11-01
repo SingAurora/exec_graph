@@ -5,6 +5,7 @@ import { Avatar } from '../../../shared/ui/Avatar'
 import { GenderMark } from '../../../shared/ui/profile/GenderMark'
 import { ProfileBiography } from './ProfileBiography'
 import { ProfileCover } from './ProfileCover'
+import { formatMainlandLocation } from '../model/mainland-regions'
 
 type ProfilePreviewProps = {
   profile?: UserProfile
@@ -50,7 +51,8 @@ export function ProfilePreviewCard({ profile, userId, href }: Pick<ProfilePrevie
           <Popover.Close asChild><a id={nameId} href={profileHref} className={`min-w-0 truncate rounded-sm text-base font-semibold hover:text-signal ${linkClass}`}>{name}</a></Popover.Close>
           {profile && <GenderMark gender={profile.gender} />}
         </div>
-        {profile?.bio.trim() && <div className="mt-3"><ProfileBiography biography={profile.bio} compact /></div>}
+        {profile?.location && <p className="mt-1 text-xs text-muted">{formatMainlandLocation(profile.location.code)}</p>}
+        {profile && <div className="mt-3"><ProfileBiography biography={profile.bio} compact /></div>}
       </div>
     </section>
   )

@@ -5,6 +5,7 @@ import { sendCode as requestCode } from '../../auth/api/account'
 import { changeCredentials } from '../api/commands'
 import { useQueryClient } from '@tanstack/react-query'
 import { profileKeys } from '../../../entities/profile/api/profiles'
+import { passwordMaxCharacters } from '../../../entities/account/lib/validation'
 import { validateNewEmail, validateSecurityForm, type SecurityFieldErrors, type SecurityFieldName, type SecurityFormKind } from '../lib/validation'
 
 type SecurityFormProps = {
@@ -98,7 +99,7 @@ export function SecurityForm({ kind, email, countdown, csrfToken, onRequestCode,
         ? <SecurityField {...field('email')} label="新邮箱" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} placeholder="输入新的邮箱地址" />
         : <>
           <SecurityField key={`current-${resetVersion}`} {...field('currentPassword')} label="当前密码" type="password" autoComplete="current-password" placeholder="输入当前密码" />
-          <SecurityField key={`password-${resetVersion}`} {...field('password')} label="新密码" type="password" autoComplete="new-password" placeholder="至少 8 位，不含空格且不同于当前密码" />
+          <SecurityField key={`password-${resetVersion}`} {...field('password')} label="新密码" type="password" autoComplete="new-password" maxLength={passwordMaxCharacters} placeholder="8–32 位英文、数字或符号且不同于当前密码" />
           <SecurityField key={`confirmation-${resetVersion}`} {...field('confirmation')} label="确认新密码" type="password" autoComplete="new-password" placeholder="再次输入新密码" />
         </>}
       <SecurityField {...field('code')} label={isEmail ? '新邮箱验证码' : '绑定邮箱验证码'} inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="6 位数字验证码"

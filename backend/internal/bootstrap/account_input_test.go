@@ -19,7 +19,7 @@ func TestRealAccountInputRules(t *testing.T) {
 	s := writeFixtureDependencies(t, nil, nil, sender)
 	anon := writeClient{url: s.server.URL, http: &http.Client{Timeout: 40 * time.Second}}
 	email := id.New() + "@example.com"
-	password := strings.Repeat("😀", 8)
+	password := "Ab!12345"
 	anon.call(t, "POST", "auth/code-send", account.CodeInput{Purpose: "register", Email: email}, 200, "")
 	registration := account.RegisterInput{Email: email, Code: sender.code(email), Password: password, Name: " " + strings.Repeat("😀", 30) + " "}
 	for _, name := range []string{strings.Repeat("😀", 31), "昵称\u200b", "昵称\n"} {
@@ -27,13 +27,13 @@ func TestRealAccountInputRules(t *testing.T) {
 		input.Name = name
 		anon.call(t, "POST", "auth/register", input, 400, "")
 	}
-	invalidPasswords := []string{"pass word", "pass\u00a0word", "pass\u3000word", "pass\u200bword", "pass\u202eword", strings.Repeat("😀", 7), strings.Repeat("😀", 65)}
+	invalidPasswords := []string{"pass word", "中文密码测试八位", "pass\u200bword", "pass\u202eword", strings.Repeat("a", 7), strings.Repeat("a", 33)}
 	for _, password := range invalidPasswords {
 		input := registration
 		input.Password = password
 		anon.call(t, "POST", "auth/register", input, 400, "")
 	}
-	longEmail := strings.Repeat("a", 64) + "@" + strings.Repeat("b", 63) + "." + strings.Repeat("c", 63) + "." + strings.Repeat("d", 62)
+	longEmail := strings.Repeat("a", 53) + "@example.com"
 	anon.call(t, "POST", "auth/code-send", account.CodeInput{Purpose: "register", Email: longEmail}, 400, "")
 	tooLong := registration
 	tooLong.Email = longEmail
@@ -73,7 +73,7 @@ func TestRealAccountInputRules(t *testing.T) {
 	client.call(t, "GET", "auth/session", nil, 401, "")
 	client = authRequest(t, anon, "auth/login", map[string]string{"email": email, "password": change.Password}, 200)
 	anon.call(t, "POST", "auth/code-send", account.CodeInput{Purpose: "reset-password", Email: email}, 200, "")
-	reset := account.ResetInput{Email: email, Code: sender.code(email), Password: strings.Repeat("😀", 64)}
+	reset := account.ResetInput{Email: email, Code: sender.code(email), Password: "Reset!12345678"}
 	for _, password := range invalidPasswords {
 		input := reset
 		input.Password = password

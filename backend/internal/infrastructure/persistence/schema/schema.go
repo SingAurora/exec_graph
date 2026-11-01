@@ -75,6 +75,14 @@ func Migrate(ctx context.Context, db *gorm.DB) error {
 				return fmt.Errorf("记录上传资产迁移版本: %w", err)
 			}
 		}
+		if applied < 3 {
+			if err := conn.Session(&gorm.Session{NewDB: true}).Set("gorm:table_options", "ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_cs").AutoMigrate(&model.User{}); err != nil {
+				return fmt.Errorf("添加用户所在地字段: %w", err)
+			}
+			if err := conn.Create(&model.SchemaVersion{Version: 3, AppliedAt: time.Now().UTC()}).Error; err != nil {
+				return fmt.Errorf("记录所在地迁移版本: %w", err)
+			}
+		}
 		return Check(ctx, conn)
 	})
 }

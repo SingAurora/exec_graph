@@ -34,7 +34,7 @@ func New(repo Repository, codes Codes, sender Sender, passwords identity.Passwor
 func emailAddress(value string) (string, error) {
 	value = strings.ToLower(strings.TrimSpace(value))
 	if len(value) > constants.EmailMaxBytes {
-		return "", fault.New(fault.Invalid, "邮箱最多 254 字节")
+		return "", fault.New(fault.Invalid, "邮箱最多 64 个字符")
 	}
 	parsed, err := mail.ParseAddress(value)
 	if err != nil || parsed.Address != value || textinput.HasUnsafeCharacters(value) || !strings.Contains(value, ".") {

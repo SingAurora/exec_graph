@@ -2,17 +2,44 @@ package profile
 
 import (
 	"context"
+	"encoding/json"
+
 	"github.com/singaurora/exec-graph/backend/internal/application/identity"
 )
 
+// NullableLocationCode 区分“明确清空所在地”和“请求没有提交所在地字段”。
+type NullableLocationCode struct {
+	Value   *string
+	Present bool
+}
+
+// UnmarshalJSON 允许区县代码或 null，不接受其他 JSON 类型。
+func (v *NullableLocationCode) UnmarshalJSON(data []byte) error {
+	v.Present = true
+	if string(data) == "null" {
+		v.Value = nil
+		return nil
+	}
+	var value string
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	v.Value = &value
+	return nil
+}
+
+// MarshalJSON 让内部测试和 HTTP 客户端把值编码为区县代码或 null，而不是暴露包装结构。
+func (v NullableLocationCode) MarshalJSON() ([]byte, error) { return json.Marshal(v.Value) }
+
 // UpdateProfileInput 不包含邮箱、测试标记或可由客户端指定的用户身份。
 type UpdateProfileInput struct {
-	ExpectedVersion   uint32  `json:"expectedVersion"`
-	Name              string  `json:"name"`
-	Gender            string  `json:"gender"`
-	Bio               string  `json:"bio"`
-	AvatarAssetID     *string `json:"avatarAssetId"`
-	BackgroundAssetID *string `json:"backgroundAssetId"`
+	ExpectedVersion   uint32               `json:"expectedVersion"`
+	Name              string               `json:"name"`
+	Gender            string               `json:"gender"`
+	Bio               string               `json:"bio"`
+	LocationCode      NullableLocationCode `json:"locationCode"`
+	AvatarAssetID     *string              `json:"avatarAssetId"`
+	BackgroundAssetID *string              `json:"backgroundAssetId"`
 }
 
 // SetHighlightsInput 的数组顺序就是主页展示顺序，允许清空。

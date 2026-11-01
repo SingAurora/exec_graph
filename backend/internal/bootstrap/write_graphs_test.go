@@ -84,7 +84,7 @@ func TestRealGraphProfileFollowingWrites(t *testing.T) {
 	jo.call(t, "POST", "profiles/highlights-set", profile.SetHighlightsInput{ExpectedVersion: selected.Version, ExpressionNodeIDs: tooMany}, 400, "")
 	jo.call(t, "POST", "profiles/highlights-set", profile.SetHighlightsInput{ExpectedVersion: selected.Version, ExpressionNodeIDs: []string{newOrder[0], newOrder[0]}}, 400, "")
 	jo.call(t, "POST", "profiles/highlights-set", profile.SetHighlightsInput{ExpectedVersion: selected.Version, ExpressionNodeIDs: []string{id.Demo("action", "cooking-2")}}, 403, "")
-	info := profile.UpdateProfileInput{ExpectedVersion: selected.Version, Name: "数据库里的新昵称", Gender: "unknown", Bio: "真实保存的简介"}
+	info := profile.UpdateProfileInput{ExpectedVersion: selected.Version, Name: "数据库里的新昵称", Gender: "unknown", Bio: "真实保存的简介", LocationCode: profile.NullableLocationCode{Present: true}}
 	saved := decode[identity.AccountView](t, jo.call(t, "POST", "profiles/update", info, 200, ""))
 	if saved.Name != info.Name || saved.Version != selected.Version+1 || len(saved.Highlights.ExpressionNodeIDs) != 5 {
 		t.Fatal("资料更新覆盖了精选或未增加版本")

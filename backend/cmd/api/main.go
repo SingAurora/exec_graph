@@ -3,8 +3,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/singaurora/exec-graph/backend/internal/bootstrap"
 	"os"
+
+	"github.com/singaurora/exec-graph/backend/internal/bootstrap"
 )
 
 func main() {

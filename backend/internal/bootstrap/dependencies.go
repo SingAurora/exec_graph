@@ -19,13 +19,15 @@ import (
 
 // Dependencies 集中持有当前启动模式需要的资源。
 type Dependencies struct {
-	Config   config.Config
-	DB       *gorm.DB
-	Sessions *session.Store
-	Objects  appmedia.Objects
-	AI       appgeneration.Provider
-	Mail     appaccount.Sender
-	Frontend fs.FS
+	Config     config.Config
+	DB         *gorm.DB
+	Sessions   *session.Store
+	Objects    appmedia.Objects
+	AI         appgeneration.Provider
+	DraftAI    appgeneration.Provider
+	AnalysisAI appgeneration.Provider
+	Mail       appaccount.Sender
+	Frontend   fs.FS
 }
 
 // Open 加载旧配置并创建 MySQL、Redis 连接。
@@ -44,11 +46,17 @@ func Open(ctx context.Context, needRedis bool) (*Dependencies, error) {
 		deps.Close()
 		return nil, err
 	}
-	deps.AI, err = ai.New(c.AI)
+	deps.DraftAI, err = ai.New(c.AI)
 	if err != nil {
 		deps.Close()
 		return nil, err
 	}
+	deps.AnalysisAI, err = ai.NewAnalysis(c.AI)
+	if err != nil {
+		deps.Close()
+		return nil, err
+	}
+	deps.AI = deps.DraftAI
 	deps.Mail, err = mail.New(c.Mail, c.Credentials)
 	if err != nil {
 		deps.Close()

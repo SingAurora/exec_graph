@@ -5,6 +5,7 @@ import { readImageFile } from '../../../shared/lib/image'
 import { ProjectAvatar } from '../../../entities/project/ui/ProjectAvatar'
 import { defaultProjectBackground } from '../../../entities/project/lib/appearance'
 import { useToast } from '../../../shared/ui/toast/useToast'
+import { ImageCropDialog, type ImageCropSource } from '../../../shared/ui/image-crop/ImageCropDialog'
 
 type ProjectSettingsPanelProps = {
   id?: string
@@ -21,6 +22,7 @@ export function ProjectSettingsPanel({ id, project, onSave, canEdit = true, dele
   const [description, setDescription] = useState(project.description)
   const [avatar, setAvatar] = useState(project.avatar ?? '')
   const [backgroundImage, setBackgroundImage] = useState(project.backgroundImage ?? '')
+  const [imageLoading, setImageLoading] = useState(false)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -31,11 +33,10 @@ export function ProjectSettingsPanel({ id, project, onSave, canEdit = true, dele
   }, [project])
 
   const submit = async () => {
-    if (!title.trim() || saving) return
+    if (!title.trim() || saving || imageLoading) return
     setSaving(true)
     try {
       await onSave({ title: title.trim(), description: description.trim(), avatar: avatar.trim() || undefined, backgroundImage: backgroundImage.trim() || undefined })
-      showToast({ kind: 'info', message: '已保存' })
     } catch (error) { showToast({ kind: 'error', message: error instanceof Error ? error.message : '保存失败，请重试' }) }
     finally { setSaving(false) }
   }
@@ -44,11 +45,11 @@ export function ProjectSettingsPanel({ id, project, onSave, canEdit = true, dele
     <section id={id} className="mt-5 rounded-lg border border-line bg-surface px-6 py-5 max-[700px]:px-4">
       <div className="border-b border-line pb-4"><h3 className="text-[16px] font-semibold">图设置</h3></div>
       {canEdit && <form className="mt-5 grid gap-3" onSubmit={(event) => { event.preventDefault(); submit() }}>
-        <fieldset className="contents" disabled={saving}>
+        <fieldset className="contents" disabled={saving || imageLoading}>
         <label className="grid gap-1.5 text-xs font-semibold text-ink" htmlFor="graph-title">图标题<input id="graph-title" className="h-10 rounded-md border border-line bg-paper px-3 text-[13px] font-normal outline-none focus:border-signal focus:shadow-[0_0_0_3px_rgb(35_107_89_/_0.1)]" value={title} maxLength={60} onChange={(event) => setTitle(event.target.value)} /></label>
         <label className="grid gap-1.5 text-xs font-semibold text-ink" htmlFor="graph-description">图简介<textarea id="graph-description" className="min-h-24 resize-y rounded-md border border-line bg-paper px-3 py-2.5 text-[13px] font-normal leading-[1.6] outline-none focus:border-signal focus:shadow-[0_0_0_3px_rgb(35_107_89_/_0.1)]" value={description} maxLength={240} onChange={(event) => setDescription(event.target.value)} /></label>
-        <ProjectImageField label="图头像" value={avatar} fallback={title} kind="avatar" onChange={setAvatar} />
-        <ProjectImageField label="背景图" value={backgroundImage} kind="background" onChange={setBackgroundImage} />
+        <ProjectImageField label="图头像" value={avatar} fallback={title} kind="avatar" onChange={setAvatar} onLoadingChange={setImageLoading} />
+        <ProjectImageField label="背景图" value={backgroundImage} kind="background" onChange={setBackgroundImage} onLoadingChange={setImageLoading} />
         <div className="mt-3 flex justify-end"><button className="primary-button" type="submit" disabled={!title.trim()}>保存</button></div>
         </fieldset>
       </form>}
@@ -57,9 +58,12 @@ export function ProjectSettingsPanel({ id, project, onSave, canEdit = true, dele
   )
 }
 
-function ProjectImageField({ label, value, fallback, kind, onChange }: { label: string; value: string; fallback?: string; kind: 'avatar' | 'background'; onChange: (value: string) => void }) {
+function ProjectImageField({ label, value, fallback, kind, onChange, onLoadingChange }: { label: string; value: string; fallback?: string; kind: 'avatar' | 'background'; onChange: (value: string) => void; onLoadingChange: (loading: boolean) => void }) {
   const inputId = useId()
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [source, setSource] = useState<ImageCropSource>()
+  const [cropOpen, setCropOpen] = useState(false)
   const previewImage = value || (kind === 'background' ? defaultProjectBackground : '')
 
   const selectImage = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -70,26 +74,35 @@ function ProjectImageField({ label, value, fallback, kind, onChange }: { label: 
       setError('请选择图片文件')
       return
     }
+    setLoading(true)
+    onLoadingChange(true)
     try {
       setError('')
-      onChange(await readImageFile(file))
+      setSource({ url: await readImageFile(file), size: file.size })
+      setCropOpen(true)
     } catch {
       setError('图片读取失败，请重试')
+    } finally {
+      setLoading(false)
+      onLoadingChange(false)
     }
   }
 
   return (
-    <div className="grid gap-2">
-      <span className="text-xs font-semibold text-ink">{label}</span>
-      <div className="flex items-center gap-3">
-        <label className={`group relative grid cursor-pointer place-items-center overflow-hidden border border-dashed border-line bg-paper transition hover:border-signal ${kind === 'avatar' ? 'size-16 rounded-[14px]' : 'h-20 min-w-0 flex-1 max-w-[320px] rounded-md'}`} htmlFor={inputId}>
-          {kind === 'avatar' ? <ProjectAvatar project={{ title: fallback ?? '', avatar: value }} size="settings" /> : <span className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: `url("${previewImage}")` }} />}
-          <span className="absolute inset-0 grid place-items-center bg-black/45 text-[11px] font-semibold text-white opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100"><ImagePlus size={18} /><span className="sr-only">{value ? '更换图片' : '上传图片'}</span></span>
-        </label>
-        <input id={inputId} className="sr-only" type="file" accept="image/*" title={`上传${label}`} onChange={selectImage} />
-        {value && <button className="text-button shrink-0" type="button" onClick={() => { setError(''); onChange('') }}><Trash2 size={14} />{kind === 'avatar' ? '使用文字头像' : '恢复默认'}</button>}
+    <>
+      <div className="grid gap-2">
+        <span className="text-xs font-semibold text-ink">{label}</span>
+        <div className="flex items-center gap-3">
+          <label className={`group relative grid cursor-pointer place-items-center overflow-hidden border border-dashed border-line bg-paper transition hover:border-signal ${kind === 'avatar' ? 'size-16 rounded-[14px]' : 'h-20 min-w-0 flex-1 max-w-[320px] rounded-md'}`} htmlFor={inputId} title={loading ? '正在读取图片' : `编辑${label}`}>
+            {kind === 'avatar' ? <ProjectAvatar project={{ title: fallback ?? '', avatar: value }} size="settings" /> : <span className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: `url("${previewImage}")` }} />}
+            <span className="absolute inset-0 grid place-items-center bg-black/45 text-[11px] font-semibold text-white opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100"><ImagePlus size={18} /><span className="sr-only">{value ? '更换图片' : '上传图片'}</span></span>
+          </label>
+          <input id={inputId} className="sr-only" type="file" accept="image/*" title={`上传${label}`} disabled={loading} onChange={selectImage} />
+          {value && <button className="text-button shrink-0" type="button" onClick={() => { setError(''); onChange('') }}><Trash2 size={14} />{kind === 'avatar' ? '使用文字头像' : '恢复默认'}</button>}
+        </div>
+        {error && <span className="text-[11px] text-coral">{error}</span>}
       </div>
-      {error && <span className="text-[11px] text-coral">{error}</span>}
-    </div>
+      <ImageCropDialog open={cropOpen} image={source} variant={kind === 'avatar' ? 'avatar' : 'graph-cover'} onOpenChange={setCropOpen} onConfirm={onChange} />
+    </>
   )
 }

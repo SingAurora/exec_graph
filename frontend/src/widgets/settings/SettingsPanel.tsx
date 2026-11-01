@@ -2,6 +2,7 @@ import { LockKeyhole, Palette, PanelsTopLeft, UserRound } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { AvatarEditor } from '../../features/profile/ui/AvatarEditor'
 import { ProfileBackgroundEditor } from '../../features/profile/ui/ProfileBackgroundEditor'
+import { MainlandLocationSelect } from '../../features/profile/ui/MainlandLocationSelect'
 import { AccountSecurity } from '../../features/account-security/ui/AccountSecurity'
 import { GenderMark } from '../../shared/ui/profile/GenderMark'
 import { Select } from '../../shared/ui/select/Select'
@@ -9,6 +10,7 @@ import { TabsContent, TabsList, TabsRoot, TabsTrigger } from '../../shared/ui/ta
 import { useToast } from '../../shared/ui/toast/useToast'
 import { HelpPopover } from '../../shared/ui/help/HelpPopover'
 import type { UserProfile } from '../../entities/profile/model/types'
+import { BIO_INPUT_PLACEHOLDER } from '../../entities/profile/model/defaults'
 import { validateNickname } from '../../entities/profile/lib/name-validation'
 import { ComponentShowcase } from './components/ComponentShowcase'
 import { AppearanceSettings } from './AppearanceSettings'
@@ -49,7 +51,6 @@ export function SettingsPanel({ profile, csrfToken, darkMode, showActionGraphLeg
     setSaving(true)
     try {
       await onSave({ ...draft, name: draft.name.trim(), bio: draft.bio.trim() })
-      showToast({ kind: 'info', message: '个人资料已保存' })
     } catch (error) { showToast({ kind: 'error', message: error instanceof Error ? error.message : '保存失败，请重试' }) }
     finally { setSaving(false) }
   }
@@ -70,6 +71,7 @@ export function SettingsPanel({ profile, csrfToken, darkMode, showActionGraphLeg
                 {nameError && <span className="text-xs text-coral">{nameError}</span>}
               </label>
               <div className="form-field"><span>性别</span><Select className="!h-10 w-full !border !border-line !bg-surface !text-sm !font-normal" label="性别" value={draft.gender} onValueChange={(value) => update('gender', value as UserProfile['gender'])} options={[{ value: 'male', label: <span className="inline-flex items-center gap-1.5"><GenderMark gender="male" />男</span> }, { value: 'female', label: <span className="inline-flex items-center gap-1.5"><GenderMark gender="female" />女</span> }, { value: 'unknown', label: '不展示' }]} /></div>
+              <div className="form-field"><span>所在地</span><MainlandLocationSelect value={draft.location} disabled={saving} onChange={(location) => update('location', location)} /><span className="text-xs text-muted">仅选择中国大陆省、市、区县，保存后会显示在公开资料中。</span></div>
               <div className="form-field">
                 <div className="flex items-center gap-1"><label htmlFor="profile-biography">个人简介</label><HelpPopover title="个人简介">
                   <p>支持 Markdown 加粗、列表、表情符号和图片链接。不支持普通链接；站内跳转、网页和邮箱链接都只显示文字，不能点击。</p>
@@ -77,7 +79,7 @@ export function SettingsPanel({ profile, csrfToken, darkMode, showActionGraphLeg
                   <p>最多 1000 个字符，包含 Markdown 标记和图片网址。</p>
                   <p>主页展示完整简介；左下角卡片显示首段文字和第一张图片。修改后点击「保存资料」生效。</p>
                 </HelpPopover></div>
-                <textarea id="profile-biography" className="form-input min-h-36 resize-y leading-6" rows={5} maxLength={1000} value={draft.bio} onChange={(event) => update('bio', event.target.value)} placeholder="写一点关于自己的事" />
+                <textarea id="profile-biography" className="form-input min-h-36 resize-y leading-6" rows={5} maxLength={1000} value={draft.bio} onChange={(event) => update('bio', event.target.value)} placeholder={BIO_INPUT_PLACEHOLDER} />
               </div>
               <div className="flex justify-end"><button className="primary-button" type="submit" disabled={Boolean(nameError) || backgroundLoading}>保存资料</button></div>
               </fieldset>

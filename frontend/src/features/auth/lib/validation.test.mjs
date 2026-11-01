@@ -44,23 +44,23 @@ describe('account form validation', () => {
   })
 
   test('email limits apply to the normalized UTF-8 bytes', () => {
-    const email = `${'a'.repeat(64)}@${'b'.repeat(63)}.${'c'.repeat(63)}.${'d'.repeat(61)}`
+    const email = `${'a'.repeat(30)}@${'b'.repeat(10)}.example.com`
     expect(validateAuthField('register', 'email', ` ${email.toUpperCase()} `)).toBeUndefined()
-    expect(validateAuthField('login', 'email', `${email}x`)).toContain('254')
-    expect(validateAuthField('forgot', 'email', `${'é'.repeat(122)}@example.com`)).toContain('254')
+    expect(validateAuthField('login', 'email', `${'a'.repeat(53)}@example.com`)).toContain('64')
+    expect(validateAuthField('forgot', 'email', `${'é'.repeat(27)}@example.com`)).toContain('64')
   })
 
-  test('new passwords preserve visible symbols and Unicode while enforcing code point and byte limits', () => {
+  test('new passwords accept visible ASCII symbols and enforce the 8–32 character limit', () => {
     for (const view of ['register', 'forgot']) {
-      for (const password of ['Ab!\'"\\;9', '中文密码测试八位', '😀'.repeat(8), 'é'.repeat(128), '😀'.repeat(64), '开发者👩‍💻的密码']) {
+      for (const password of ['Ab!\'"\\;9', 'a'.repeat(32), 'A1!simple-pass']) {
         expect(validateAuthField(view, 'password', password)).toBeUndefined()
       }
-      expect(validateAuthField(view, 'password', '😀'.repeat(7))).toContain('8 位')
-      for (const password of ['a'.repeat(257), 'é'.repeat(129), '😀'.repeat(65)]) {
-        expect(validateAuthField(view, 'password', password)).toContain('256')
+      expect(validateAuthField(view, 'password', '1234567')).toContain('8 位')
+      for (const password of ['a'.repeat(33), '中文密码测试八位', '😀'.repeat(8)]) {
+        expect(validateAuthField(view, 'password', password)).toContain(password.length > 32 ? '32' : '只能包含')
       }
-      for (const character of [' ', '\t', '\n', '\u00a0', '\u0085', '\u3000', '\u2028', '\u0000', '\u007f', '\u200b', '\u202e', '\u2066', '\ufeff']) {
-        expect(validateAuthField(view, 'password', `pass${character}word`)).toContain('不能包含')
+      for (const character of [' ', '\t', '\n', '\u00a0', '\u3000', '\u0000', '\u007f']) {
+        expect(validateAuthField(view, 'password', `pass${character}word`)).toContain('只能包含')
       }
     }
   })

@@ -160,7 +160,7 @@ describe('HTTP mock contract through the real request client', () => {
     const publicUser = (await getAPI('/api/commands/profiles/catalogue')).find((item) => item.id === user.id)
     expect(publicUser.highlights).toEqual(highlights)
     expect(publicUser.email).toBeUndefined()
-    const updated = await updateProfile({ expectedVersion: 2, name: user.name, gender: user.gender, bio: '新的个人简介', avatarAssetId: null, backgroundAssetId: null }, writeOptions())
+    const updated = await updateProfile({ expectedVersion: 2, name: user.name, gender: user.gender, bio: '新的个人简介', locationCode: null, avatarAssetId: null, backgroundAssetId: null }, writeOptions())
     expect(updated.highlights).toEqual(highlights)
     const reordered = await setProfileHighlights({ expressionNodeIds: [first.node.id, second.node.id], expectedVersion: 3 }, writeOptions())
     expect(reordered.highlights.expressionNodeIds).toEqual([first.node.id, second.node.id])

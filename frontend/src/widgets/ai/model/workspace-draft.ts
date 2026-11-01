@@ -47,6 +47,11 @@ export function createWorkspaceView(): WorkspaceView {
   return { tab: 'conversation', positions: {} }
 }
 
+/** 在最新对话后追加失败提示，保留请求发出后已加入草稿的用户消息。 */
+export function appendWorkspaceError(messages: ChatMessage[], body: string): ChatMessage[] {
+  return [...messages.filter((message) => !message.id.startsWith('error-')), { id: `error-${Date.now()}`, speaker: 'ai', body }]
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }

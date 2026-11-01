@@ -41,6 +41,9 @@ func TestMySQLMigrationAndConstraints(t *testing.T) {
 	if err := Migrate(ctx, db); err != nil {
 		t.Fatal(err)
 	}
+	if !db.Migrator().HasColumn(&model.User{}, "location_code") {
+		t.Fatal("users 表缺少所在地字段")
+	}
 	if err := Migrate(ctx, db); err != nil {
 		t.Fatalf("重复迁移失败: %v", err)
 	}
@@ -58,7 +61,7 @@ func TestMySQLMigrationAndConstraints(t *testing.T) {
 	if err := db.Migrator().DropTable(&model.MediaRetention{}); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.Where("version = ?", 2).Delete(&model.SchemaVersion{}).Error; err != nil {
+	if err := db.Where("version >= ?", 2).Delete(&model.SchemaVersion{}).Error; err != nil {
 		t.Fatal(err)
 	}
 	if err := Migrate(ctx, db); err != nil {

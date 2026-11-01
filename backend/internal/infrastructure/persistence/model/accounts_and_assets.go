@@ -12,6 +12,7 @@ type User struct {
 	Name              string     `gorm:"column:name;type:varchar(30);not null;index:ix_users_name,priority:1;comment:公开昵称，不要求唯一"`
 	Gender            string     `gorm:"column:gender;type:varchar(8) CHARACTER SET ascii COLLATE ascii_bin;not null;default:'unknown'"`
 	BiographyMarkdown string     `gorm:"column:biography_markdown;type:text;not null;comment:个人简介 Markdown，接口仍映射为 bio"`
+	LocationCode      *string    `gorm:"column:location_code;type:char(6) CHARACTER SET ascii COLLATE ascii_bin;index:ix_users_location,priority:1;comment:中国大陆区县行政区划代码"`
 	Version           uint32     `gorm:"column:version;type:int unsigned;not null;default:1;comment:资料及精选共用的并发版本"`
 	DisabledAt        *time.Time `gorm:"column:disabled_at;type:datetime(6);comment:停用后拒绝建立会话和业务写入"`
 	CreatedAt         time.Time  `gorm:"column:created_at;type:datetime(6);not null;default:CURRENT_TIMESTAMP(6)"`

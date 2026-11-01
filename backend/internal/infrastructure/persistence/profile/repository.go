@@ -34,7 +34,7 @@ func (t *profileTransaction) Version() (uint32, error) {
 }
 
 func (t *profileTransaction) Update(input app.UpdateProfileInput) error {
-	return t.DB.Model(&model.User{}).Where("uuid = ?", t.Actor.UserID).Select("Name", "Gender", "BiographyMarkdown", "AvatarAssetUUID", "CoverAssetUUID", "Version", "UpdatedAt").Updates(model.User{Name: input.Name, Gender: input.Gender, BiographyMarkdown: input.Bio, AvatarAssetUUID: input.AvatarAssetID, CoverAssetUUID: input.BackgroundAssetID, Version: input.ExpectedVersion + 1, UpdatedAt: time.Now().UTC()}).Error
+	return t.DB.Model(&model.User{}).Where("uuid = ?", t.Actor.UserID).Select("Name", "Gender", "BiographyMarkdown", "LocationCode", "AvatarAssetUUID", "CoverAssetUUID", "Version", "UpdatedAt").Updates(model.User{Name: input.Name, Gender: input.Gender, BiographyMarkdown: input.Bio, LocationCode: input.LocationCode.Value, AvatarAssetUUID: input.AvatarAssetID, CoverAssetUUID: input.BackgroundAssetID, Version: input.ExpectedVersion + 1, UpdatedAt: time.Now().UTC()}).Error
 }
 
 func (t *profileTransaction) Candidates(ids []string) ([]app.Candidate, error) {

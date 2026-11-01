@@ -10,6 +10,7 @@ import (
 	"github.com/singaurora/exec-graph/backend/internal/shared/constants"
 	"github.com/singaurora/exec-graph/backend/internal/shared/fault"
 	"github.com/singaurora/exec-graph/backend/internal/shared/id"
+	"github.com/singaurora/exec-graph/backend/internal/shared/location"
 )
 
 // Service 保存资料用例端口。
@@ -38,6 +39,14 @@ func (s *Service) Update(ctx context.Context, actor identity.Actor, input Update
 	}
 	if input.ExpectedVersion == 0 || utf8.RuneCountInString(input.Bio) > constants.BiographyLimit || (input.Gender != "unknown" && input.Gender != "male" && input.Gender != "female") {
 		return out, fault.New(fault.Invalid, "昵称、性别或简介格式不合法")
+	}
+	if !input.LocationCode.Present {
+		return out, fault.New(fault.Invalid, "缺少所在地")
+	}
+	if input.LocationCode.Value != nil {
+		if _, ok := location.Lookup(*input.LocationCode.Value); !ok {
+			return out, fault.New(fault.Invalid, "所在地必须是中国大陆的区县")
+		}
 	}
 	input.Name = name
 	err = s.store.Within(ctx, actor, func(tx Transaction) error {

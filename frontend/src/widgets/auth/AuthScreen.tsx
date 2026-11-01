@@ -3,6 +3,7 @@ import {CircleAlert, Eye, EyeOff, Moon, Sun} from 'lucide-react'
 import accessImage from '../../../assets/auth-mountain-walk.jpg'
 import registerImage from '../../../assets/auth-valley-hike.jpg'
 import type {AuthView} from '../../shared/lib/navigation'
+import {passwordMaxCharacters} from '../../entities/account/lib/validation'
 import {type AuthFieldErrors, type AuthFieldName, validateAuthField, validateAuthForm} from '../../features/auth/lib/validation'
 import {Brand} from '../../shared/ui/Brand'
 import {useToast} from '../../shared/ui/toast/useToast'
@@ -158,7 +159,8 @@ export function AuthScreen({view, darkMode, onToggleTheme, onEnter}: AuthScreenP
                             <div className="auth-password">
                                 <input id="auth-password" name="password" required type={showPassword ? 'text' : 'password'}
                                        autoComplete={isLogin ? 'current-password' : 'new-password'}
-                                       placeholder={isLogin ? '输入密码' : '至少 8 位，不含空格'} {...feedbackProps('password')} />
+                                       maxLength={isLogin ? undefined : passwordMaxCharacters}
+                                       placeholder={isLogin ? '输入密码' : '8–32 位英文、数字或符号'} {...feedbackProps('password')} />
                                 <button className="auth-eye" type="button" onClick={() => setShowPassword((value) => !value)}
                                         title={showPassword ? '隐藏密码' : '显示密码'}>
                                     {showPassword ? <EyeOff size={17}/> : <Eye size={17}/>}

@@ -34,3 +34,11 @@ func SeedDemo(ctx context.Context, deps *Dependencies, password string) (string,
 	}
 	return fmt.Sprintf("导入完成：%d 个数据库标记测试用户、%d 张图、%d 条行动", len(data.Users), len(data.Graphs), len(data.Nodes)), nil
 }
+
+// ClearDemo 删除演示数据集的业务记录，保留测试账号及登录凭据。
+func ClearDemo(ctx context.Context, deps *Dependencies) (demoseed.CleanupReport, error) {
+	if err := schema.Check(ctx, deps.DB); err != nil {
+		return demoseed.CleanupReport{}, err
+	}
+	return demoseed.New(deps.DB).Cleanup(ctx, "frontend-demo-v1")
+}

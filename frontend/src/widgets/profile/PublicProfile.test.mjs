@@ -104,6 +104,11 @@ describe('profile header images', () => {
     expect(render({ email: 'qiao@example.com' }, { currentUserId: 'someone-else' })).not.toContain('qiao@example.com')
   })
 
+  test('shows the default biography prompt on a profile page when the biography is empty', () => {
+    expect(render({ bio: '   ' })).toContain('该用户没有更多想表达的事情。')
+    expect(render({ bio: '真实简介内容' })).toContain('真实简介内容')
+  })
+
   test('custom avatars and backgrounds open image previews rather than profile links', () => {
     const html = render({ avatar: '/avatar.jpg', backgroundImage: '/cover.jpg' })
     expect(html).toContain('src="/avatar.jpg"')

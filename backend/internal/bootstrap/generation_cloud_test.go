@@ -23,22 +23,28 @@ func TestRealPlatformAIAndPublication(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	provider, err := ai.New(c.AI)
+	draftProvider, err := ai.New(c.AI)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if provider.Model() == "" {
+	analysisProvider, err := ai.NewAnalysis(c.AI)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if draftProvider.Model() == "" || analysisProvider.Model() == "" {
 		t.Fatal("未配置平台模型密钥，不能声称真实 AI 验收通过")
 	}
-	observed := &cloudRecordingProvider{provider: provider}
+	observedDraft := &cloudRecordingProvider{provider: draftProvider}
+	observedAnalysis := &cloudRecordingProvider{provider: analysisProvider}
 	t.Cleanup(func() {
 		if t.Failed() {
-			for i, result := range observed.results {
+			for i, result := range append(observedDraft.results, observedAnalysis.results...) {
 				t.Logf("测试模型第 %d 轮耗时 %s，错误 %v，测试响应：%s", i+1, result.elapsed, result.err, result.completion.Content)
 			}
 		}
 	})
-	s := writeFixtureDependencies(t, nil, observed)
+	s := writeFixtureDependencies(t, nil, observedDraft)
+	s.deps.DraftAI, s.deps.AnalysisAI, s.deps.AI = observedDraft, observedAnalysis, observedDraft
 	jo := s.as(t, id.Demo("user", "jo"))
 	g := jo.graph(t)
 	input := app.GenerateInput{Mode: "action", GraphID: g.ID, Message: "我今天骑自行车通勤十二公里，用了四十分钟。我发现提前十分钟出门可以避开拥堵，想继续保持。只记录这些事实和观点。", MergedParentIDs: []string{}, SourceVersions: []action.SourceVersion{}, Agreement: action.DocumentUpdate{Mode: "clear"}}
@@ -75,7 +81,7 @@ func TestRealPlatformAIAndPublication(t *testing.T) {
 			}
 		})
 	}
-	t.Logf("平台模型 %s：生成、服务端确认、持久化读取通过", provider.Model())
+	t.Logf("平台模型 draft=%s analysis=%s：生成、服务端确认、持久化读取通过", draftProvider.Model(), analysisProvider.Model())
 }
 
 func cloudBool(value bool) *bool { return &value }

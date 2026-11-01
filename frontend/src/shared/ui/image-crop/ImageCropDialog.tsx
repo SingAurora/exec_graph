@@ -9,7 +9,7 @@ export type ImageCropSource = { url: string; size: number }
 type ImageCropDialogProps = {
   open: boolean
   image?: ImageCropSource
-  variant: 'avatar' | 'cover'
+  variant: 'avatar' | 'cover' | 'graph-cover'
   onOpenChange: (open: boolean) => void
   onConfirm: (image: string) => void
 }
@@ -17,6 +17,7 @@ type ImageCropDialogProps = {
 const cropFormats = {
   avatar: { title: '编辑头像', previewWidth: 280, outputWidth: 512, outputHeight: 512, submit: '使用此头像', dialogClass: 'w-[min(calc(100%-40px),380px)]' },
   cover: { title: '编辑主页背景', previewWidth: 640, outputWidth: 1600, outputHeight: 320, submit: '使用此背景', dialogClass: 'w-[min(calc(100%-40px),696px)]' },
+  'graph-cover': { title: '编辑图背景', previewWidth: 640, outputWidth: 1600, outputHeight: 600, submit: '使用此背景', dialogClass: 'w-[min(calc(100%-40px),696px)]' },
 }
 
 /** Shared crop dialog with fixed avatar and profile-cover formats. */
@@ -31,7 +32,7 @@ export function ImageCropDialog({ open, image, variant, onOpenChange, onConfirm 
 
 function ImageCropEditor({ image, format, onCancel, onConfirm }: {
   image: ImageCropSource
-  format: typeof cropFormats.avatar
+  format: typeof cropFormats[keyof typeof cropFormats]
   onCancel: () => void
   onConfirm: (image: string) => void
 }) {
