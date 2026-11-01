@@ -26,9 +26,9 @@ export function MainlandLocationSelect({ value, disabled = false, onChange }: Ma
 	}
   return (
 		<div className="grid grid-cols-3 gap-2">
-			<select className="form-input min-w-0" value={provinceCode} disabled={disabled} onChange={(event) => { const next = event.target.value; setProvinceCode(next); setCityCode(''); setDistrictCode(''); onChange(undefined) }}><option value="">省级地区</option>{mainlandRegions.map((province) => <option value={province.code} key={province.code}>{province.name}</option>)}</select>
+			<select className="form-input min-w-0" value={provinceCode} disabled={disabled} onChange={(event) => { const next = event.target.value; setProvinceCode(next); setCityCode(''); setDistrictCode(''); onChange(undefined) }}><option value="">省份</option>{mainlandRegions.map((province) => <option value={province.code} key={province.code}>{province.name}</option>)}</select>
 			<select className="form-input min-w-0" value={cityCode} disabled={disabled || !selectedProvince} onChange={(event) => { const next = event.target.value; setCityCode(next); setDistrictCode(''); onChange(undefined) }}><option value="">城市</option>{(selectedProvince?.children ?? []).map((city) => <option value={city.code} key={city.code}>{city.name}</option>)}</select>
-			<select className="form-input min-w-0" value={districtCode} disabled={disabled || !selectedCity} onChange={(event) => emitDistrict(event.target.value)}><option value="">区 / 县</option>{(selectedCity?.children ?? []).map((district) => <option value={district.code} key={district.code}>{district.name}</option>)}</select>
+			<select className="form-input min-w-0" value={districtCode} disabled={disabled || !selectedCity} onChange={(event) => emitDistrict(event.target.value)}><option value="">区县</option>{(selectedCity?.children ?? []).map((district) => <option value={district.code} key={district.code}>{district.name}</option>)}</select>
     </div>
   )
 }

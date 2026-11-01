@@ -71,7 +71,7 @@ export function SettingsPanel({ profile, csrfToken, darkMode, showActionGraphLeg
                 {nameError && <span className="text-xs text-coral">{nameError}</span>}
               </label>
               <div className="form-field"><span>性别</span><Select className="!h-10 w-full !border !border-line !bg-surface !text-sm !font-normal" label="性别" value={draft.gender} onValueChange={(value) => update('gender', value as UserProfile['gender'])} options={[{ value: 'male', label: <span className="inline-flex items-center gap-1.5"><GenderMark gender="male" />男</span> }, { value: 'female', label: <span className="inline-flex items-center gap-1.5"><GenderMark gender="female" />女</span> }, { value: 'unknown', label: '不展示' }]} /></div>
-              <div className="form-field"><span>所在地</span><MainlandLocationSelect value={draft.location} disabled={saving} onChange={(location) => update('location', location)} /><span className="text-xs text-muted">仅选择中国大陆省、市、区县，保存后会显示在公开资料中。</span></div>
+              <div className="form-field"><span>所在地</span><MainlandLocationSelect value={draft.location} disabled={saving} onChange={(location) => update('location', location)} /></div>
               <div className="form-field">
                 <div className="flex items-center gap-1"><label htmlFor="profile-biography">个人简介</label><HelpPopover title="个人简介">
                   <p>支持 Markdown 加粗、列表、表情符号和图片链接。不支持普通链接；站内跳转、网页和邮箱链接都只显示文字，不能点击。</p>
