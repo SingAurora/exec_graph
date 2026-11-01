@@ -81,7 +81,7 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
       const draft = result.draft
       if (draft.expression.mode === 'inherit') throw new Error('表达没有变化，请说明想调整的内容')
       local.update((current) => ({ ...current, generation: result, draftDocument: draft.expression.mode === 'update' ? draft.expression.markdown : '', generated: true, contextSignature,
-        messages: [...current.messages, { id: 'expression-ai-' + result.generationId, speaker: 'ai', body: draft.reply }] }))
+        messages: [...current.messages, { id: 'expression-ai-' + result.generationId, speaker: 'ai', body: draft.reply, model: result.model }] }))
     } catch (error) {
       const business = error instanceof BusinessRequestError && error.kind === 'business'
       const append = business ? appendWorkspaceNotice : appendWorkspaceError
@@ -105,7 +105,7 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
         </HelpPopover>}
       context={{ label: `节点 #${node.number}`, title: node.title, facts: context?.facts.filter((fact) => fact.number !== node.number) ?? [] }}
       messages={conversation} profileName={profileName} profile={profile} users={users} defaultAuthorId={profileId}
-      input={input} inputLabel="表达对话内容" placeholder="说说想保留或调整的看法" sending={sending} disabled={saving || !local.ready || !canEdit}
+      input={input} inputLabel="表达对话内容" placeholder="说说想保留或调整的看法" sending={sending} fallbackAIName={generation?.model} disabled={saving || !local.ready || !canEdit}
       onInputChange={(input) => update({ input })} onSend={send} onBack={onBack}
       action={{ title: node.title, markdown: node.objectiveMarkdown ?? node.markdown, images: node.images, status: '只读', empty: '暂无行动记录' }}
       expression={{ markdown: document, images: draftDocument === undefined ? expression.sourceNode?.images : [], status: expressionStatus, empty: '暂无表达' }}

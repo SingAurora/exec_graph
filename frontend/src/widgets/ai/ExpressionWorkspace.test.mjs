@@ -14,7 +14,7 @@ describe('expression revision workspace', () => {
     expect(html).toContain('已有表达')
     expect(html).not.toContain('原始行动对话')
     expect(html).toContain('>修改表达</h2>')
-    expect(html.match(/id="[^"]*-content-objective"[\s\S]*?<\/div>/)?.[0]).toContain('实际行动')
+    expect(html.match(/id="[^"]*-content-objective"[\s\S]*?(?=id="[^"]*-content-expression")/)?.[0]).toContain('实际行动')
     expect(html).toContain('实际行动')
     expect(html).toContain('只读')
     expect(html).not.toContain('只读文档')

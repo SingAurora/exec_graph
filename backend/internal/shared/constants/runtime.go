@@ -20,7 +20,7 @@ const (
 	BiographyLimit = 1000
 	// HighlightLimit 限制精选表达数量。
 	HighlightLimit = 5
-	// DocumentLimit 限制单份 Markdown 字符数。
+	// DocumentLimit 限制表达、约定等文档的 Markdown 字符数。
 	DocumentLimit = 100000
 	// DirectSourceLimit 限制一次行动采用的直接来源数量。
 	DirectSourceLimit = 50
@@ -29,7 +29,9 @@ const (
 	// ImageAltLimit 限制图片描述字符数。
 	ImageAltLimit = 500
 	// ActionTitleLimit 限制生成的行动标题字符数。
-	ActionTitleLimit = 200
+	ActionTitleLimit = 30
+	// ActionContentLimit 限制生成的行动正文（objective）字符数。
+	ActionContentLimit = 2000
 	// DependencyTimeout 限制启动探测和数据库连接等待。
 	DependencyTimeout = 5 * time.Second
 	// HTTPHeaderTimeout 限制请求头等待。

@@ -119,7 +119,11 @@ func validInputMessages(input GenerateInput) bool {
 		if strings.TrimSpace(message) == "" {
 			return false
 		}
-		count += utf8.RuneCountInString(message)
+		length := utf8.RuneCountInString(message)
+		if length > constants.AIUserMessageLimit {
+			return false
+		}
+		count += length
 	}
 	return count <= constants.AIInputLimit
 }

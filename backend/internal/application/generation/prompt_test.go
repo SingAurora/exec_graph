@@ -7,6 +7,7 @@ import (
 
 	"github.com/singaurora/exec-graph/backend/internal/application/action"
 	"github.com/singaurora/exec-graph/backend/internal/application/catalogue"
+	"github.com/singaurora/exec-graph/backend/internal/shared/constants"
 )
 
 func TestParsePreservesExplicitAssessmentAndDocumentIntent(t *testing.T) {
@@ -68,6 +69,38 @@ func TestParseAllowsOmittedReviewsWhenActionHasNoSources(t *testing.T) {
 	draft, err = parse(withIrrelevantOutput, "action", false, nil)
 	if err != nil || len(draft.Reviews) != 0 || draft.Expression.Mode != "clear" {
 		t.Fatalf("行动模式应忽略未使用的表达与无来源核对输出: %+v %v", draft, err)
+	}
+}
+
+func TestParseEnforcesActionContentLimit(t *testing.T) {
+	atLimit := `{"reply":"已整理","title":"骑行","objective":"` + strings.Repeat("字", constants.ActionContentLimit) + `"}`
+	if _, err := parse(atLimit, "action", false, nil); err != nil {
+		t.Fatalf("达到上限的行动正文被拒绝: %v", err)
+	}
+	overLimit := `{"reply":"已整理","title":"骑行","objective":"` + strings.Repeat("字", constants.ActionContentLimit+1) + `"}`
+	_, err := parse(overLimit, "action", false, nil)
+	if err == nil || !strings.Contains(err.Error(), "2000") {
+		t.Fatalf("超长行动正文未被拒绝或提示不明确: %v", err)
+	}
+}
+
+func TestParseEnforcesActionTitleLimit(t *testing.T) {
+	atLimit := `{"reply":"已整理","title":"` + strings.Repeat("字", constants.ActionTitleLimit) + `","objective":"骑了六公里。"}`
+	if _, err := parse(atLimit, "action", false, nil); err != nil {
+		t.Fatalf("达到上限的行动标题被拒绝: %v", err)
+	}
+	overLimit := `{"reply":"已整理","title":"` + strings.Repeat("字", constants.ActionTitleLimit+1) + `","objective":"骑了六公里。"}`
+	_, err := parse(overLimit, "action", false, nil)
+	if err == nil || !strings.Contains(err.Error(), "30") {
+		t.Fatalf("超长行动标题未被拒绝或提示不明确: %v", err)
+	}
+}
+
+func TestParseExplainsWhenActionHasNoDraft(t *testing.T) {
+	content := `{"reply":"","title":"","objective":""}`
+	_, err := parse(content, "action", false, nil)
+	if err == nil || !strings.Contains(err.Error(), "还没有具体行动可整理") {
+		t.Fatalf("没有行动草稿时返回了技术错误: %v", err)
 	}
 }
 

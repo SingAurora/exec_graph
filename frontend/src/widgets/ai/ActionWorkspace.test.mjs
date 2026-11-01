@@ -20,6 +20,7 @@ describe('action workspace', () => {
     expect(html).toContain('>AI 对话</span>')
     expect(html).toContain('>行动</span>')
     expect(html).toContain('title="发送"')
+    expect(html).toContain('复制对话')
     expect(html).not.toContain('>发布行动</button>')
     expect(html).not.toContain('之后发生的行动')
   })

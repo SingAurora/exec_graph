@@ -66,7 +66,7 @@ func publish(tx Transaction, actor identity.Actor, input CreateActionInput) (cat
 	if generation.InheritedExpressionID != expectedInherited {
 		return zero, fault.New(fault.Conflict, "生成采用的继承表达已变化，请重新生成")
 	}
-	if strings.TrimSpace(generation.Title) == "" || utf8.RuneCountInString(generation.Title) > constants.ActionTitleLimit || strings.TrimSpace(generation.Objective) == "" || utf8.RuneCountInString(generation.Objective) > constants.DocumentLimit {
+	if strings.TrimSpace(generation.Title) == "" || utf8.RuneCountInString(generation.Title) > constants.ActionTitleLimit || strings.TrimSpace(generation.Objective) == "" || utf8.RuneCountInString(generation.Objective) > constants.ActionContentLimit {
 		return zero, fault.New(fault.Conflict, "生成文稿不完整或超过长度限制")
 	}
 	if err := ValidateDocument(generation.Expression, input.ParentID != ""); err != nil {

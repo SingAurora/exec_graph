@@ -11,7 +11,7 @@ export type GenerateInput = {
 export type GenerationRequest = { key: string; input: GenerateInput }
 /** 生成结果与发布参数成套返回，前端不重新拼装 AI 正文。 */
 export type GenerationView = {
-  generationId: string; conversationId: string; status: 'pending' | 'succeeded' | 'failed'; errorCode?: string
+  generationId: string; conversationId: string; status: 'pending' | 'succeeded' | 'failed'; model?: string; errorCode?: string
   draft?: { reply: string; title: string; objective: string; expression: DocumentUpdate; agreement?: DocumentUpdate; reviews: SourceAssessment[] }
   createAction?: CreateActionInput
   updateExpression?: { nodeId: string; expectedVersion: number; generationId: string }

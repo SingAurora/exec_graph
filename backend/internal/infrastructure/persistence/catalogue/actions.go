@@ -6,6 +6,7 @@ import (
 
 	app "github.com/singaurora/exec-graph/backend/internal/application/catalogue"
 	"github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/model"
+	"github.com/singaurora/exec-graph/backend/internal/shared/aimodel"
 	"github.com/singaurora/exec-graph/backend/internal/shared/fault"
 	"gorm.io/gorm"
 )
@@ -98,6 +99,25 @@ func (r *Repository) actions(ctx context.Context, nodes []model.ActionNode) ([]a
 			return nil, err
 		}
 	}
+	// AI 消息的模型不在消息表里，按生成记录的 output_message_uuid 还原；旧夹具和演示数据没有真实模型，留空由前端回退。
+	aiMessageIDs := []string{}
+	for _, message := range messages {
+		if message.Speaker == "ai" {
+			aiMessageIDs = append(aiMessageIDs, message.UUID)
+		}
+	}
+	byOutputModel := map[string]string{}
+	if len(aiMessageIDs) > 0 {
+		var generations []model.AIGeneration
+		if err := db.Select("mode", "model", "output_message_uuid").Where("output_message_uuid IN ?", aiMessageIDs).Find(&generations).Error; err != nil {
+			return nil, err
+		}
+		for _, generation := range generations {
+			if generation.OutputMessageUUID != nil {
+				byOutputModel[*generation.OutputMessageUUID] = aimodel.ResponseModel(generation.Mode, generation.Model)
+			}
+		}
+	}
 	byID := map[string]*app.ActionView{}
 	for _, n := range nodes {
 		result = append(result, app.ActionView{ID: n.UUID, GraphID: n.GraphUUID, Number: n.NodeNumber, AuthorID: n.AuthorUUID, Title: n.Title, Markdown: n.ObjectiveMarkdown, ObjectiveMarkdown: n.ObjectiveMarkdown, Version: n.Version, CreatedAt: n.CreatedAt, Images: []app.Image{}, Conversation: []app.Message{}, ExpressionConversation: []app.Message{}, AgreementConversation: []app.Message{}, ReferenceAgreements: []app.Assessment{}, ContextSnapshot: &app.ContextSnapshot{DirectNodeIDs: []string{}, HistoryNodeCount: n.HistoryNodeCount, Guide: n.ContextGuideSnapshot}})
@@ -160,7 +180,7 @@ func (r *Repository) actions(ctx context.Context, nodes []model.ActionNode) ([]a
 			continue
 		}
 		node := byID[*conv.NodeUUID]
-		view := app.Message{ID: message.UUID, Speaker: message.Speaker, Body: message.Body}
+		view := app.Message{ID: message.UUID, Speaker: message.Speaker, Body: message.Body, Model: byOutputModel[message.UUID]}
 		if message.AuthorUUID != nil {
 			view.AuthorID = *message.AuthorUUID
 		}

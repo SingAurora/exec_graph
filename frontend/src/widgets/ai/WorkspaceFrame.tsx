@@ -1,13 +1,15 @@
-import { ArrowLeft, ArrowUp, Check, ChevronDown, Clipboard, Footprints, LoaderCircle, MessageCircle, ScrollText, Sparkles } from 'lucide-react'
+import { ArrowLeft, ArrowUp, ChevronDown, Footprints, LoaderCircle, MessageCircle, ScrollText, Sparkles } from 'lucide-react'
 import { useLayoutEffect, useRef, useState, type FormEvent, type ReactNode, type UIEvent } from 'react'
 import type { ActionExpressionContext, ActionExpressionMessage } from '../../entities/action/model/types'
+import { ACTION_CONTENT_LIMIT, ACTION_TITLE_LIMIT } from '../../entities/action/model/limits'
 import type { PostImage } from '../../shared/model/content'
 import type { UserProfile } from '../../entities/profile/model/types'
-import { Avatar } from '../../shared/ui/Avatar'
-import { ProfilePreview } from '../../entities/profile/ui/ProfilePreview'
 import { MarkdownContent } from '../../shared/ui/MarkdownContent'
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from '../../shared/ui/tabs/Tabs'
+import { CopyConversationButton } from '../../shared/ui/CopyConversationButton'
+import { formatConversationForCopy } from '../../shared/lib/format-conversation'
 import type { WorkspaceView } from './model/workspace-draft'
+import { CHAT_INPUT_LIMIT, resizeChatInput } from './model/chat-input'
 
 type WorkspaceTab = 'conversation' | 'objective' | 'expression' | 'agreement'
 type DocumentPreview = { title?: string; markdown: string; images?: PostImage[]; status?: string; empty: string }
@@ -19,6 +21,13 @@ function visiblePreviewTitle(preview: DocumentPreview): string | undefined {
   const firstLine = preview.markdown.trimStart().split('\n', 1)[0]?.replace(/^#{1,6}\s+/, '').trim()
   return firstLine === title ? undefined : title
 }
+
+/** 按 Unicode 码点计数，与服务端 utf8.RuneCountInString 的口径一致。 */
+function characterCount(value: string): number {
+  return [...value].length
+}
+
+
 type WorkspaceFrameProps = {
   title: string
   tabs?: WorkspaceTab[]
@@ -39,6 +48,7 @@ type WorkspaceFrameProps = {
   placeholder: string
   sending: boolean
   sendingLabel?: string
+  fallbackAIName?: string
   disabled?: boolean
   onInputChange: (value: string) => void
   onSend: (event: FormEvent) => void
@@ -51,9 +61,8 @@ type WorkspaceFrameProps = {
 }
 
 /** 三类工作区共用界面框架；各工作区只显示当前业务需要的文档栏目。 */
-export function WorkspaceFrame({ title, tabs = ['conversation', 'objective', 'expression', 'agreement'], help, draftControls, view, onViewChange, restoring = false, context, contextControls, messages, profileName, profile, users = [], defaultAuthorId, input, inputLabel = '对话内容', placeholder, sending, sendingLabel = '正在整理', disabled = false, onInputChange, onSend, onBack, action, actionControls, expression, agreement, footer }: WorkspaceFrameProps) {
+export function WorkspaceFrame({ title, tabs = ['conversation', 'objective', 'expression', 'agreement'], help, draftControls, view, onViewChange, restoring = false, context, contextControls, messages, profileName, profile, users = [], defaultAuthorId, input, inputLabel = '对话内容', placeholder, sending, sendingLabel = '正在整理', fallbackAIName, disabled = false, onInputChange, onSend, onBack, action, actionControls, expression, agreement, footer }: WorkspaceFrameProps) {
   const [localTab, setTab] = useState<WorkspaceTab>('conversation')
-  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle')
   const requestedTab = view?.tab ?? localTab
   const tab = tabs.includes(requestedTab) ? requestedTab : tabs[0] ?? 'conversation'
   const panels = useRef<Partial<Record<WorkspaceTab, HTMLDivElement | null>>>({})
@@ -62,6 +71,11 @@ export function WorkspaceFrame({ title, tabs = ['conversation', 'objective', 'ex
   const lastMessageId = messages.at(-1)?.id
   const previousMessageId = useRef(lastMessageId)
   const initialized = useRef(false)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+
+  useLayoutEffect(() => {
+    resizeChatInput(inputRef.current)
+  }, [input, tab])
 
   const changeTab = (value: string) => {
     const current = panels.current[tab]
@@ -95,21 +109,14 @@ export function WorkspaceFrame({ title, tabs = ['conversation', 'objective', 'ex
     positions.current[value] = top
     if (view && onViewChange && view.positions[value] !== top) onViewChange({ ...view, positions: { ...view.positions, [value]: top } })
   }
-  const copyConversation = async () => {
-    const text = messages.map((message) => {
+  const copyText = formatConversationForCopy(messages.filter((message) => message.id !== 'welcome'), {
+    resolveUserName: (message) => {
       const authorId = message.authorId ?? defaultAuthorId ?? profile?.id
       const author = users.find((user) => user.id === authorId) ?? (authorId === profile?.id ? profile : undefined)
-      const authorName = author?.name ?? authorId ?? profileName
-      return `${message.speaker === 'user' ? authorName : 'AI'}：\n${message.body}`
-    }).join('\n\n')
-    try {
-      await navigator.clipboard.writeText(text)
-      setCopyStatus('copied')
-      window.setTimeout(() => setCopyStatus('idle'), 1800)
-    } catch {
-      setCopyStatus('failed')
-    }
-  }
+      return author?.name ?? authorId ?? profileName
+    },
+    fallbackAIName: fallbackAIName ?? '引序 AI',
+  })
 
   return (
     <section className="flex h-[calc(100dvh-116px)] min-h-[500px] flex-col pt-[22px]">
@@ -142,36 +149,35 @@ export function WorkspaceFrame({ title, tabs = ['conversation', 'objective', 'ex
           </div>
           <TabsContent value="conversation" keepMounted className="flex min-h-0 flex-1 flex-col">
             <div className="flex shrink-0 justify-end px-6 pt-3">
-              <button className="quiet-button" type="button" onClick={copyConversation} title="复制当前对话内容">
-                {copyStatus === 'copied' ? <Check size={14} /> : <Clipboard size={14} />}{copyStatus === 'copied' ? '已复制' : copyStatus === 'failed' ? '复制失败' : '复制对话'}
-              </button>
+              <CopyConversationButton text={copyText} />
             </div>
             <div ref={(element) => { panels.current.conversation = element }} onScroll={(event) => rememberScroll('conversation', event)} className="grid min-h-0 flex-1 content-start gap-4 overflow-y-auto overscroll-contain px-6 py-6">
-              {messages.map((message) => {
-                const authorId = message.authorId ?? defaultAuthorId ?? profile?.id
-                const author = users.find((user) => user.id === authorId) ?? (authorId === profile?.id ? profile : undefined)
-                const authorName = author?.name ?? authorId ?? profileName
-                return (
-                  <div className={'flex max-w-[90%] items-end gap-2 ' + (message.speaker === 'user' ? 'ml-auto flex-row-reverse' : '')} key={message.id}>
-                    {message.speaker === 'ai' ? <span className="grid size-[25px] shrink-0 place-items-center rounded-full bg-signal-soft text-signal"><Sparkles size={13} /></span> : authorId ? <ProfilePreview profile={author} userId={authorId} className="inline-flex shrink-0 rounded-lg focus-visible:outline-2 focus-visible:outline-signal"><Avatar profile={author} label={authorName} size="small" /></ProfilePreview> : <Avatar label={authorName} size="small" />}
-                    <div className={'min-w-0 rounded-lg px-3 py-2.5 text-[13px] leading-[1.7] ' + (message.id.startsWith('error-') ? 'border border-coral/30 bg-paper text-coral' : message.speaker === 'user' ? 'bg-soft' : 'border border-line bg-paper')}><MarkdownContent markdown={message.body} /></div>
-                  </div>
-                )
-              })}
+              {messages.map((message) => (
+                <div className={'w-fit max-w-full ' + (message.speaker === 'user' ? 'ml-auto' : '')} key={message.id}>
+                  <div className={'min-w-0 rounded-lg px-3 py-2.5 text-[13px] leading-[1.7] ' + (message.id.startsWith('error-') ? 'border border-coral/30 bg-paper text-coral' : message.speaker === 'user' ? 'bg-soft' : 'border border-line bg-paper')}><MarkdownContent markdown={message.body} /></div>
+                </div>
+              ))}
               {sending && <div className="flex items-center gap-2 text-xs text-muted"><LoaderCircle size={14} className="animate-spin" />{sendingLabel}</div>}
             </div>
             <form className="mx-6 mb-5 flex shrink-0 items-end gap-2 rounded-lg border border-line bg-paper px-3 py-2" onSubmit={onSend}>
-              <textarea className="min-h-12 max-h-32 w-full resize-y border-0 bg-transparent py-1.5 text-sm leading-[1.6] outline-none" title={inputLabel} value={input} onChange={(event) => onInputChange(event.target.value)} placeholder={placeholder} disabled={sending || disabled} />
-              <button className="icon-button border-signal bg-signal text-on-signal" type="submit" title="发送" disabled={!input.trim() || sending || disabled}><ArrowUp size={18} /></button>
+              <textarea ref={inputRef} className="workspace-chat-input min-h-12 max-h-32 w-full resize-none overflow-y-auto border-0 bg-transparent py-1.5 text-sm leading-[1.6] outline-none" title={inputLabel} maxLength={CHAT_INPUT_LIMIT} value={input} onChange={(event) => onInputChange(event.target.value)} placeholder={placeholder} disabled={sending || disabled} />
+              <span className={`shrink-0 self-end pb-2 text-[11px] leading-4 tabular-nums ${input.length >= CHAT_INPUT_LIMIT ? 'text-coral' : 'text-muted'}`} title={`最多 ${CHAT_INPUT_LIMIT} 字`}>{input.length}/{CHAT_INPUT_LIMIT}</span>
+              <button className="icon-button border-signal bg-signal text-on-signal" type="submit" title="发送" disabled={!input.trim() || input.length > CHAT_INPUT_LIMIT || sending || disabled}><ArrowUp size={18} /></button>
             </form>
           </TabsContent>
           {(['objective', 'expression'] as const).filter((value) => tabs.includes(value)).map((value) => {
             const preview = value === 'objective' ? action : expression
             const title = visiblePreviewTitle(preview)
+            const titleCount = value === 'objective' ? characterCount(preview.title ?? '') : 0
+            const contentCount = value === 'objective' ? characterCount(preview.markdown) : 0
             return (
               <TabsContent value={value} keepMounted className="min-h-0 flex-1" key={value}>
                 <div ref={(element) => { panels.current[value] = element }} onScroll={(event) => rememberScroll(value, event)} className="h-full overflow-y-auto overscroll-contain px-6 py-5">
-                  {title && <h2 className="mb-4 break-words text-xl font-semibold leading-[1.5] tracking-[-.02em] text-ink">{title}</h2>}
+                  {title && <h2 className={`${value === 'objective' ? 'mb-2' : 'mb-4'} break-words text-xl font-semibold leading-[1.5] tracking-[-.02em] text-ink`}>{title}</h2>}
+                  {value === 'objective' && <p className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] leading-4 tabular-nums text-muted">
+                    <span className={titleCount > ACTION_TITLE_LIMIT ? 'text-coral' : undefined}>标题 {titleCount}/{ACTION_TITLE_LIMIT}</span>
+                    <span className={contentCount > ACTION_CONTENT_LIMIT ? 'text-coral' : undefined}>正文 {contentCount}/{ACTION_CONTENT_LIMIT}</span>
+                  </p>}
                   {value === 'objective' && actionControls}
                   {preview.status && <p className="mb-4 text-xs leading-5 text-muted">{preview.status}</p>}
                   {preview.markdown.trim() ? <MarkdownContent markdown={preview.markdown} images={preview.images} /> : <p className="py-5 text-sm leading-7 text-muted">{preview.empty}</p>}

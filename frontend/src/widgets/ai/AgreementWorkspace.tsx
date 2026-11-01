@@ -74,7 +74,7 @@ export function AgreementWorkspace({ node, csrfToken, draftKey, actions, profile
       if (!draft) throw new Error('AI 没有返回约定草稿，请重新发送。')
       if (draft.mode === 'inherit') throw new Error('约定没有变化，请说明要补充或调整的内容')
       local.update((current) => ({ ...current, generation: result, draftDocument: draft.mode === 'update' ? draft.markdown : '', generated: true, contextSignature: signature,
-        messages: [...current.messages, { id: `agreement-ai-${result.generationId}`, speaker: 'ai', body: result.draft!.reply }] }))
+        messages: [...current.messages, { id: `agreement-ai-${result.generationId}`, speaker: 'ai', body: result.draft!.reply, model: result.model }] }))
     } catch (error) {
       const business = error instanceof BusinessRequestError && error.kind === 'business'
       const append = business ? appendWorkspaceNotice : appendWorkspaceError
@@ -93,7 +93,7 @@ export function AgreementWorkspace({ node, csrfToken, draftKey, actions, profile
       help={<HelpPopover title="约定的作用"><p>约定说明后来引用这个节点时，你希望对方满足什么条件。它不同于本次行动是否满足来源节点的约定。</p><p>约定从当前节点向后生效；保存后不会改写已有引用的核对结果。</p></HelpPopover>}
       context={{ label: `节点 #${node.number}`, title: node.title, facts: context?.facts.filter((fact) => fact.number !== node.number) ?? [] }}
       messages={conversation} profileName={profileName} profile={profile} users={users} defaultAuthorId={profileId}
-      input={input} inputLabel="约定对话内容" placeholder="说说你希望对方满足什么条件" sending={sending} disabled={saving || !local.ready || !canEdit}
+      input={input} inputLabel="约定对话内容" placeholder="说说你希望对方满足什么条件" sending={sending} fallbackAIName={generation?.model} disabled={saving || !local.ready || !canEdit}
       onInputChange={(input) => update({ input })} onSend={send} onBack={onBack}
       action={{ title: node.title, markdown: node.objectiveMarkdown ?? node.markdown, images: node.images, status: '只读', empty: '暂无行动记录' }}
       expression={{ markdown: expression.markdown, images: expression.sourceNode?.images, status: '只读', empty: '暂无表达' }}

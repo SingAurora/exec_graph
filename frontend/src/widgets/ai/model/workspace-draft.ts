@@ -89,6 +89,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function isMessage(value: unknown): boolean {
   return isRecord(value) && typeof value.id === 'string' && (value.speaker === 'ai' || value.speaker === 'user')
     && typeof value.body === 'string' && (value.authorId === undefined || typeof value.authorId === 'string')
+    && (value.model === undefined || typeof value.model === 'string')
 }
 function isMessages(value: unknown): boolean { return Array.isArray(value) && value.every(isMessage) }
 function isMode(value: unknown): boolean { return value === 'inherit' || value === 'update' || value === 'clear' }

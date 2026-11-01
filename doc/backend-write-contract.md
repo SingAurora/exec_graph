@@ -46,7 +46,7 @@ type CreateActionInput = {
 }
 ```
 
-成功返回 `ActionView`。标题、行动文稿、表达、后续约定及形成对话全部从 `generationId` 指向的服务端记录读取，不接受发布请求指定 `title`、`objectiveMarkdown`、`conversation`、作者、编号或时间。生成由 `POST /ai/generate` 发起，不直接发布业务事实。
+成功返回 `ActionView`。标题、行动文稿、表达、后续约定及形成对话全部从 `generationId` 指向的服务端记录读取，不接受发布请求指定 `title`、`objectiveMarkdown`、`conversation`、作者、编号或时间。生成由 `POST /ai/generate` 发起，不直接发布业务事实。生成标题最多 30 个字符，行动正文最多 2000 个字符；超长要求精简或拆成多个行动，不静默截断。
 
 确认前检查：
 

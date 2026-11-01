@@ -21,6 +21,19 @@ function panels(html) {
 }
 
 describe('action formation provenance', () => {
+  test('names AI turns by their actual model and offers copying the formation conversation', () => {
+    const action = node(1, undefined, undefined, {
+      conversation: [
+        { id: 'user-1', speaker: 'user', body: '做了一顿饭', authorId: 'jo' },
+        { id: 'ai-1', speaker: 'ai', body: '已整理行动', model: 'deepseek-v4-pro' },
+      ],
+    })
+    const html = render([action], '1')
+    expect(html).toContain('deepseek-v4-pro')
+    expect(html).toContain('复制对话')
+    expect(html).toContain('AI 对话</h3>')
+  })
+
   test('continues original dialogue with expression revision turns and credits the participant', () => {
     const action = node(1, undefined, '更新后的表达', {
       conversation: [{ id: 'original-user', speaker: 'user', body: '原本的行动对话' }],

@@ -60,12 +60,13 @@ type Image struct {
 	Alt     string  `json:"alt"`
 }
 
-// Message 是已确认形成过程中的一条消息。
+// Message 是已确认形成过程中的一条消息；AI 消息带实际生成模型名。
 type Message struct {
 	ID       string `json:"id"`
 	Speaker  string `json:"speaker"`
 	Body     string `json:"body"`
 	AuthorID string `json:"authorId,omitempty"`
+	Model    string `json:"model,omitempty"`
 }
 
 // Revision 只描述发布后的明确文档操作，不代表协作权限。

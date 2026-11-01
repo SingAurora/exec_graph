@@ -39,6 +39,7 @@ type View struct {
 	GenerationID     string                        `json:"generationId"`
 	ConversationID   string                        `json:"conversationId"`
 	Status           string                        `json:"status"`
+	Model            string                        `json:"model,omitempty"`
 	ErrorCode        string                        `json:"errorCode,omitempty"`
 	Draft            *Draft                        `json:"draft,omitempty"`
 	CreateAction     *action.CreateActionInput     `json:"createAction,omitempty"`

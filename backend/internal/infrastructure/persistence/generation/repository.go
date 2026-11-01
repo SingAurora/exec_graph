@@ -15,6 +15,7 @@ import (
 	read "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/catalogue"
 	"github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/model"
 	"github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/transaction"
+	"github.com/singaurora/exec-graph/backend/internal/shared/aimodel"
 	"github.com/singaurora/exec-graph/backend/internal/shared/constants"
 	"github.com/singaurora/exec-graph/backend/internal/shared/fault"
 	"gorm.io/gorm"
@@ -105,7 +106,7 @@ func (t *generationTransaction) Get(uuid string) (app.View, error) {
 }
 
 func (t *generationTransaction) view(row model.AIGeneration) (app.View, error) {
-	out := app.View{GenerationID: row.UUID, ConversationID: row.ConversationUUID, Status: row.Status}
+	out := app.View{GenerationID: row.UUID, ConversationID: row.ConversationUUID, Status: row.Status, Model: aimodel.ResponseModel(row.Mode, row.Model)}
 	if row.ErrorCode != nil {
 		out.ErrorCode = *row.ErrorCode
 	}

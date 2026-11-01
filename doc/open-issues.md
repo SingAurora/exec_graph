@@ -33,7 +33,7 @@
 
 **现状**
 
-- 后端 `GenerateInput` 已改为 `messages: string[]`，最多 50 条、合计 10000 字；每条写入 `ai_messages`，生成记录保存 `InputThroughSequence`。
+- 后端 `GenerateInput` 已改为 `messages: string[]`，每条最多 500 字、最多 50 条、合计 10000 字；每条写入 `ai_messages`，生成记录保存 `InputThroughSequence`。
 - 前端 [ActionWorkspace.tsx:111](../frontend/src/widgets/ai/ActionWorkspace.tsx#L111) 每次点击发送仍然提交 `messages: [clean]`，没有“先在本地收集、再批量整理”的第二步。
 - [workspace-draft.ts:18](../frontend/src/widgets/ai/model/workspace-draft.ts#L18) 的 `pendingReports` 除恢复旧草稿外没有写入点；`canPublish` 却要求 `!input.trim()`（[ActionWorkspace.tsx:85](../frontend/src/widgets/ai/ActionWorkspace.tsx#L85)），说明交互按“输入框里还有未整理报告”设计。
 - 对外契约 [backend-external-contract.md:88](backend-external-contract.md#L88) 已写成“点击‘整理行动’后批量提交”。
@@ -325,7 +325,7 @@
 以下在 2026-11-01 的工作区实测通过，修复上述问题时作为回归基线：
 
 - 后端：`go build ./...`、`go test ./...`、`go vet ./...` 通过；`gofmt`、`git diff --check` 无问题。
-- 前端：`bun run lint`、`bun run test`（324 项、70 个文件）、`bun run build` 通过。
+- 前端：`bun run lint`、`bun run test`（330 项、71 个文件）、`bun run build` 通过。
 - 未执行：`EXEC_GRAPH_INTEGRATION=1` 的真实 MySQL／Redis／云服务回归。涉及生成事务、配额、媒体回收或迁移的改动必须补跑。
 - 未验证：浏览器窄屏、真实 AI 生成、真实对象存储上传。它们仍按各自显式开关单独验收。
 

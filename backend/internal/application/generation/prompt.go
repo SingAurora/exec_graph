@@ -138,8 +138,14 @@ func parse(content, mode string, hasParent bool, sources []action.GenerationSour
 	if len(sources) == 0 {
 		raw.Reviews = []action.SourceAssessment{}
 	}
-	if (raw.Expression == nil && mode == "expression") || (raw.Expression != nil && (mode == "agreement" || (mode == "action" && len(sources) > 0))) || strings.TrimSpace(raw.Reply) == "" || utf8.RuneCountInString(raw.Reply) > constants.AIInputLimit || raw.Reviews == nil || len(raw.Reviews) != len(sources) {
-		return Draft{}, fault.New(fault.Invalid, "AI 输出不完整")
+	if strings.TrimSpace(raw.Reply) == "" {
+		if mode == "action" && strings.TrimSpace(raw.Title) == "" && strings.TrimSpace(raw.Objective) == "" {
+			return Draft{}, fault.New(fault.Invalid, "这次还没有具体行动可整理。请说说你实际做了什么、结果如何，或有什么感受。")
+		}
+		return Draft{}, fault.New(fault.Invalid, "这次整理没有完成，请重新发送。")
+	}
+	if (raw.Expression == nil && mode == "expression") || (raw.Expression != nil && (mode == "agreement" || (mode == "action" && len(sources) > 0))) || utf8.RuneCountInString(raw.Reply) > constants.AIInputLimit || raw.Reviews == nil || len(raw.Reviews) != len(sources) {
+		return Draft{}, fault.New(fault.Invalid, "这次整理没有完成，请重新发送。")
 	}
 	doc := action.DocumentUpdate{Mode: "clear"}
 	if raw.Expression != nil {
@@ -159,8 +165,14 @@ func parse(content, mode string, hasParent bool, sources []action.GenerationSour
 			doc = action.DocumentUpdate{Mode: "inherit"}
 		}
 	}
-	if mode == "action" && (strings.TrimSpace(raw.Title) == "" || utf8.RuneCountInString(raw.Title) > constants.ActionTitleLimit || strings.TrimSpace(raw.Objective) == "" || utf8.RuneCountInString(raw.Objective) > constants.DocumentLimit) {
+	if mode == "action" && (strings.TrimSpace(raw.Title) == "" || strings.TrimSpace(raw.Objective) == "") {
 		return Draft{}, fault.New(fault.Invalid, "请补充这次实际做了什么、过程、结果或明确感受")
+	}
+	if mode == "action" && utf8.RuneCountInString(raw.Title) > constants.ActionTitleLimit {
+		return Draft{}, fault.New(fault.Invalid, "行动标题超过"+strconv.Itoa(constants.ActionTitleLimit)+"字，请精简后重试")
+	}
+	if mode == "action" && utf8.RuneCountInString(raw.Objective) > constants.ActionContentLimit {
+		return Draft{}, fault.New(fault.Invalid, "行动正文超过"+strconv.Itoa(constants.ActionContentLimit)+"字，请精简或拆成多个行动后重试")
 	}
 	if (mode == "expression" || mode == "agreement") && (raw.Title != "" || raw.Objective != "") {
 		return Draft{}, fault.New(fault.Invalid, "表达修改不能携带新行动事实")

@@ -115,6 +115,12 @@
   .empty-state { @apply flex min-h-48 flex-col items-center justify-center gap-3 py-12 text-center text-sm text-muted; }
   .form-field { @apply grid gap-2 text-sm font-medium; }
   .form-input { @apply min-h-10 w-full rounded-md border border-line bg-surface px-3 py-2 text-sm font-normal text-ink outline-none focus:border-signal; }
+  /* AI 对话输入框：内容超过最大高度后显示主题色细滚动条，不额外占位。 */
+  .workspace-chat-input { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+  .workspace-chat-input::-webkit-scrollbar { width: 6px; }
+  .workspace-chat-input::-webkit-scrollbar-track { background: transparent; }
+  .workspace-chat-input::-webkit-scrollbar-thumb { border-radius: 999px; background: var(--line); }
+  .workspace-chat-input::-webkit-scrollbar-thumb:hover { background: var(--muted); }
   /* 摘要最多显示三行，超出的内容截断；不会改变原始正文。 */
   .post-summary-clamp { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
   /* 表达、约定等文档的 Markdown 排版；只影响此类内部的标题、段落和列表。 */

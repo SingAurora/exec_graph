@@ -10,4 +10,6 @@ export type ChatMessage = {
   id: string
   speaker: 'ai' | 'user'
   body: string
+  /** AI 回复实际使用的平台模型名；旧记录或非模型提示没有该字段。 */
+  model?: string
 }
