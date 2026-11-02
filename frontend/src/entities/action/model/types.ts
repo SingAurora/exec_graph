@@ -33,6 +33,8 @@ export type ActionNode = {
   projectId: string
   /** 图内稳定展示编号，和引用深度（第几层）分别计算。 */
   number: number
+  /** 行动节点版本；旧演示数据可能缺省。 */
+  version?: number
   /** 主要承接来源；表达和后续约定只沿这条关系继承。 */
   parentId?: string
   /** 额外引用的背景来源，参与事实上下文，但不会自动覆盖承接来源的表达／约定。 */
@@ -52,6 +54,11 @@ export type ActionNode = {
   expressionMarkdown?: string
   /** 表达的最近一次修改信息；修改通过延续既有对话完成，不新增行动。 */
   expressionSupplement?: ActionDocumentRevision
+  /** 节点文档发布状态：pending/generating/draft/published/failed；旧数据缺省视为已发布。 */
+  expressionStatus?: string
+  agreementStatus?: string
+  /** 表达和约定都发布后节点才可接续。 */
+  nodeReady?: boolean
   /** 发布后追加的表达对话，与原始 conversation 连续阅读，但不改写原始消息。 */
   expressionConversation?: ActionExpressionMessage[]
   /** 独立整理向后传递约定的对话。 */
@@ -107,7 +114,7 @@ export type ActionExpressionChange = {
 }
 
 /** 节点内可分别阅读的两份文档：行动事实与行动表达。 */
-export type ActionDocumentMode = 'objective' | 'expression'
+export type ActionDocumentMode = 'objective' | 'expression' | 'agreement'
 
 /** 接续时对表达／约定的三种独立选择：继承、更新、清空。 */
 export type ActionDocumentUpdateMode = 'inherit' | 'update' | 'clear'

@@ -11,6 +11,7 @@ import { useImageAssets } from '../features/media-upload/model/useImageAssets'
 import { resourceId } from '../shared/lib/resource-id'
 import { useAppNavigation } from './model/useAppNavigation'
 import { actionWorkspaceHash, readActionWorkspaceRoute } from './model/action-workspace-route'
+import { generateNodeDocuments } from '../features/action-generation/api/generation'
 import { getActionDraftKey } from '../entities/action/lib/draft-key'
 import type { FollowedSources } from '../entities/following/model/types'
 import type { GraphView } from '../entities/project/api/graphs'
@@ -250,6 +251,19 @@ function AppContent({ profile, projects, actions, allUsers, sources, csrfToken, 
     openProject(workspaceProjectId)
     return true
   }
+  // 节点详情里的 AI 草案可以直接发布，不必强迫作者再对话一轮。
+  const publishExpressionDraft = async () => {
+    if (!expressionAction || !workspaceProjectId) return false
+    await commands.nodeDocumentPublish.mutateAsync({ nodeId: expressionAction.id, expectedVersion: expressionAction.version ?? 0, kind: 'expression' })
+    openProject(workspaceProjectId)
+    return true
+  }
+  const publishAgreementDraft = async () => {
+    if (!expressionAction || !workspaceProjectId) return false
+    await commands.nodeDocumentPublish.mutateAsync({ nodeId: expressionAction.id, expectedVersion: expressionAction.version ?? 0, kind: 'agreement' })
+    openProject(workspaceProjectId)
+    return true
+  }
   const updateProject = async (projectId: string, patch: Pick<Project, 'title' | 'description' | 'avatar' | 'backgroundImage'>) => {
     const graph = projects.find((item) => item.id === projectId)
     if (!graph) {
@@ -277,6 +291,7 @@ function AppContent({ profile, projects, actions, allUsers, sources, csrfToken, 
     if (input.graphId !== workspaceProject.id || input.parentId !== workspaceParent?.id) return false
     const action = await commands.actionCreate.mutateAsync(input)
     openNode({ ...action, projectId: action.graphId }, 'objective')
+    void generateNodeDocuments(action.id, csrfToken).catch(() => undefined)
     return true
   }
   const setUserFollow = async (id: string, following: boolean) => {
@@ -304,7 +319,6 @@ function AppContent({ profile, projects, actions, allUsers, sources, csrfToken, 
       activeView={viewingOwnProfile ? 'my' : route}
       darkMode={darkMode}
       projectTitle={selectedProject?.title}
-      publishTitle={workspaceMode === 'expression' ? '整理表达' : workspaceMode === 'agreement' ? '整理约定' : undefined}
       backAction={
         route === 'graph-search' ? { label: '返回发现', onBack: () => navigate('home') }
           : route === 'projects' ? { label: '返回我的', onBack: () => navigate('my') }
@@ -360,6 +374,9 @@ function AppContent({ profile, projects, actions, allUsers, sources, csrfToken, 
             actions={selectedProjectActions} showActionGraphLegend={showActionGraphLegend}
             graphBackground={graphBackground}
             onCreateAction={startAction}
+            csrfToken={csrfToken}
+            onPublishNodeDocument={async (nodeId, expectedVersion, kind) => { await commands.nodeDocumentPublish.mutateAsync({ nodeId, expectedVersion, kind }) }}
+            onDeleteNode={async (node) => { await commands.actionDelete.mutateAsync({ nodeId: node.id, expectedVersion: node.version ?? 0 }) }}
             onContinueAction={(node) => startAction(selectedProject.id, node)}
             onOpenActionArchive={(node) => {
               setLastProjectId(node.projectId)
@@ -382,7 +399,7 @@ function AppContent({ profile, projects, actions, allUsers, sources, csrfToken, 
             actions={actions.filter((node) => node.projectId === expressionAction.projectId)}
             profileName={profile.name} profileId={profile.id} profile={profile} users={allUsers}
             contextGuide={workspaceProject?.contextGuide}
-            onBack={() => openProject(expressionAction.projectId)} onConfirm={confirmAgreement}
+            onBack={() => openProject(expressionAction.projectId)} onConfirm={confirmAgreement} onPublishDraft={publishAgreementDraft}
           />
         ) : workspaceMode === 'expression' && expressionAction ? (
           <ExpressionWorkspace
@@ -393,7 +410,7 @@ function AppContent({ profile, projects, actions, allUsers, sources, csrfToken, 
             actions={actions.filter((node) => node.projectId === expressionAction.projectId)}
             profileName={profile.name} profileId={profile.id} profile={profile} users={allUsers}
             contextGuide={workspaceProject?.contextGuide}
-            onBack={() => openProject(expressionAction.projectId)} onConfirm={confirmExpression}
+            onBack={() => openProject(expressionAction.projectId)} onConfirm={confirmExpression} onPublishDraft={publishExpressionDraft}
           />
         ) : workspaceMode === 'action' && workspaceProject && (!workspaceParentId || workspaceParent) && (workspaceParent || !actions.some((node) => node.projectId === workspaceProject.id)) ? (
           <ActionWorkspace

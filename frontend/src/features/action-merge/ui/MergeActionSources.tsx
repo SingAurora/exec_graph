@@ -1,4 +1,4 @@
-import { GitMerge, Plus, Search, X } from 'lucide-react'
+import { GitMerge, Search, X } from 'lucide-react'
 import { useRef, useState } from 'react'
 import type { ActionNode } from '../../../entities/action/model/types'
 import { getActionAgreement } from '../../../entities/action/lib/agreements'
@@ -9,13 +9,14 @@ import { HelpPopover } from '../../../shared/ui/help/HelpPopover'
 import { MarkdownContent } from '../../../shared/ui/MarkdownContent'
 
 /** 从其他路线终点选择合入背景；保留主要承接关系，各来源约定独立展示。 */
-export function MergeActionSources({ actions, parentId, selectedIds, reviews, disabled, onChange }: {
+export function MergeActionSources({ actions, parentId, selectedIds, reviews, disabled, onChange, compact = false }: {
   actions: ActionNode[]
   parentId: string
   selectedIds: string[]
   reviews: AIActionAgreementReview[]
   disabled: boolean
   onChange: (ids: string[]) => void
+  compact?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -32,34 +33,37 @@ export function MergeActionSources({ actions, parentId, selectedIds, reviews, di
     if (selectedIds.includes(id)) onChange(selectedIds.filter((item) => item !== id))
     else if (candidateIds.has(id)) onChange([...selectedIds, id])
   }
+  const renderSelectedChip = (id: string) => {
+    const node = actions.find((item) => item.id === id)
+    if (!node) return null
+    const agreement = getActionAgreement(actions, id).markdown
+    const review = reviews.find((item) => item.nodeNumber === node.number)
+    const stale = !candidateIds.has(id)
+    const status = stale ? '已非终端' : !agreement.trim() ? '无约定' : review?.complies === false ? '× 不满足约定' : review?.complies === true ? '满足约定' : '尚未核对'
+    return (
+      <span className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-line bg-paper px-2 py-1 text-xs" key={id} title={node.title}>
+        <GitMerge size={13} className="shrink-0 text-muted" /><span className="shrink-0">合入 #{node.number}</span>
+        <span className={`truncate ${stale || agreement.trim() && review?.complies === false ? 'text-coral' : agreement.trim() && review?.complies === true ? 'text-signal' : 'text-muted'}`}>{status}</span>
+        <button type="button" className="grid size-5 shrink-0 place-items-center rounded hover:bg-soft disabled:opacity-40" title={`移除合入节点 #${node.number}`} disabled={disabled} onClick={() => toggle(id)}><X size={12} /></button>
+      </span>
+    )
+  }
   return (
-    <div className="flex min-w-0 flex-wrap items-center gap-2">
-      {selectedIds.slice(0, 3).map((id) => {
-        const node = actions.find((item) => item.id === id)
-        if (!node) return null
-        const agreement = getActionAgreement(actions, id).markdown
-        const review = reviews.find((item) => item.nodeNumber === node.number)
-        const stale = !candidateIds.has(id)
-        const status = stale ? '已非终端' : !agreement.trim() ? '无约定' : review?.complies === false ? '× 不满足约定' : review?.complies === true ? '满足约定' : '尚未核对'
-        return (
-          <span className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-line bg-paper px-2 py-1 text-xs" key={id} title={node.title}>
-            <GitMerge size={13} className="shrink-0 text-muted" /><span className="shrink-0">合入 #{node.number}</span>
-            <span className={`truncate ${stale || agreement.trim() && review?.complies === false ? 'text-coral' : agreement.trim() && review?.complies === true ? 'text-signal' : 'text-muted'}`}>{status}</span>
-            <button type="button" className="grid size-5 shrink-0 place-items-center rounded hover:bg-soft disabled:opacity-40" title={`移除合入节点 #${node.number}`} disabled={disabled} onClick={() => toggle(id)}><X size={12} /></button>
-          </span>
-        )
-      })}
-      {selectedIds.length > 3 && <button type="button" className="rounded-md px-2 py-1 text-xs text-muted hover:bg-paper hover:text-signal disabled:opacity-40" disabled={disabled} onClick={() => { setQuery(''); setOpen(true) }}>另 {selectedIds.length - 3} 个合入</button>}
+    <div className={compact ? 'inline-flex min-w-0 items-center' : 'flex min-w-0 flex-wrap items-center gap-2'}>
+      {!compact && selectedIds.slice(0, 3).map(renderSelectedChip)}
+      {!compact && selectedIds.length > 3 && <button type="button" className="rounded-md px-2 py-1 text-xs text-muted hover:bg-paper hover:text-signal disabled:opacity-40" disabled={disabled} onClick={() => { setQuery(''); setOpen(true) }}>另 {selectedIds.length - 3} 个合入</button>}
       <div className="inline-flex items-center">
-        <button className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted hover:bg-paper hover:text-signal disabled:opacity-40" type="button" ref={trigger} disabled={disabled} onClick={() => setOpen(true)}><Plus size={14} />合入节点</button>
-        <HelpPopover title="合入节点">
+        <button className={compact ? 'inline-flex min-h-7 items-center gap-1 rounded-md border-0 bg-transparent px-1.5 text-[11px] text-muted transition hover:bg-soft hover:text-signal disabled:opacity-40' : 'inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted hover:bg-paper hover:text-signal disabled:opacity-40'} type="button" ref={trigger} disabled={disabled} onClick={() => setOpen(true)}><GitMerge size={14} />{compact && selectedIds.length ? `合入 ${selectedIds.length}` : '合入节点'}</button>
+        {!compact && <HelpPopover title="合入节点">
           <p>只能合入当前图内其他分支的终端节点，即尚未被后续节点承接或合入的节点。</p>
           <p>合入会将该节点及其引用历史纳入行动背景，因此选择分支最新的行动；承接节点及其已有历史无需重复选择。</p>
           <p>若选中的节点后来被接续或合入，会标记为“已非终端”。请移除后重新选择，并继续 AI 对话整理内容，再发布行动。</p>
-        </HelpPopover>
+        </HelpPopover>}
       </div>
       <Dialog open={open} onOpenChange={setOpen} returnFocusRef={trigger} title="合入节点" description="选择其他分支的终端节点，预览行动记录和约定。" className="!w-[min(100%-32px,860px)]">
-        <label className="mt-5 flex items-center gap-2 rounded-md border border-line bg-paper px-3 py-2 text-muted"><Search size={15} /><input className="w-full border-0 bg-transparent text-sm text-ink outline-none" title="搜索合入节点" placeholder="搜索节点编号或标题" value={query} onChange={(event) => setQuery(event.target.value)} /></label>
+        {compact && selectedIds.length > 0 && <div className="mt-4 flex max-h-28 flex-wrap gap-2 overflow-y-auto">{selectedIds.map(renderSelectedChip)}</div>}
+        <p className="mt-4 text-xs leading-5 text-muted">主要承接节点只有一个，已自动带入；这里选择的是其他分支的终端节点，作为基于约定的引用背景。</p>
+        <label className="mt-4 flex items-center gap-2 rounded-md border border-line bg-paper px-3 py-2 text-muted"><Search size={15} /><input className="w-full border-0 bg-transparent text-sm text-ink outline-none" title="搜索合入节点" placeholder="搜索节点编号或标题" value={query} onChange={(event) => setQuery(event.target.value)} /></label>
         <div className="mt-4 grid h-[min(55dvh,440px)] grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-5">
           <div className="overflow-y-auto pr-1">
             {visible.map((node) => <div key={node.id} className={`mb-1 flex items-start gap-2 rounded-md p-2 ${previewId === node.id ? 'bg-signal-soft' : 'hover:bg-soft'}`}>

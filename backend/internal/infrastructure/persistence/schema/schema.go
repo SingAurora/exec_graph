@@ -13,7 +13,7 @@ import (
 
 // Models 明确列出本版本所有持久化模型，不包含 ORM 关联。
 func Models() []any {
-	return append(initialModels(), &model.MediaRetention{})
+	return append(initialModels(), &model.MediaRetention{}, &model.NodeDocument{})
 }
 
 func initialModels() []any {
@@ -107,6 +107,14 @@ func Migrate(ctx context.Context, db *gorm.DB) error {
 			}
 			if err := conn.Create(&model.SchemaVersion{Version: 4, AppliedAt: time.Now().UTC()}).Error; err != nil {
 				return fmt.Errorf("记录约定生成迁移版本: %w", err)
+			}
+		}
+		if applied < 5 {
+			if err := conn.Session(&gorm.Session{NewDB: true}).Set("gorm:table_options", "ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_cs").AutoMigrate(&model.NodeDocument{}); err != nil {
+				return fmt.Errorf("添加节点文档状态: %w", err)
+			}
+			if err := conn.Create(&model.SchemaVersion{Version: 5, AppliedAt: time.Now().UTC()}).Error; err != nil {
+				return fmt.Errorf("记录节点文档迁移版本: %w", err)
 			}
 		}
 		return Check(ctx, conn)

@@ -11,6 +11,8 @@ import { HighlightedText } from '../../../shared/ui/HighlightedText'
 import { Avatar } from '../../../shared/ui/Avatar'
 import { ProfilePreview } from '../../../entities/profile/ui/ProfilePreview'
 import { RecordThumbnails } from '../../../shared/ui/RecordThumbnails'
+import { EmptyState } from '../../../shared/ui/empty-state/EmptyState'
+import { ListEnd } from '../../../shared/ui/ListEnd'
 
 type Props = {
   references: ActionReference[]
@@ -37,7 +39,7 @@ export function AgreementResponseList({ references, users, active, infinite = tr
     <div className="empty-state">{emptyContent}</div>
   )
   if (!responses.length) return (
-    <p className="py-16 text-center text-[17px]">暂无满足约定的跨用户引用</p>
+    <EmptyState title="暂无满足约定的跨用户引用" description="跨用户满足约定后，会在这里留下可追溯的引用。" />
   )
   return (
     <div className="min-w-0">
@@ -79,7 +81,7 @@ export function AgreementResponseList({ references, users, active, infinite = tr
           )
         })}
       </section>
-      {infinite && <p ref={endRef} className="py-8 text-center text-xs leading-5 text-muted">{hasMore ? '加载中…' : '没有更多了'}</p>}
+      {infinite && <ListEnd ref={endRef} hasMore={hasMore} className="py-8" />}
     </div>
   )
 }

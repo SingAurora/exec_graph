@@ -104,6 +104,9 @@ type ActionView struct {
 	ObjectiveMarkdown      string           `json:"objectiveMarkdown"`
 	ExpressionMarkdown     *string          `json:"expressionMarkdown,omitempty"`
 	AgreementMarkdown      *string          `json:"agreementMarkdown,omitempty"`
+	ExpressionStatus       string           `json:"expressionStatus,omitempty"`
+	AgreementStatus        string           `json:"agreementStatus,omitempty"`
+	NodeReady              bool             `json:"nodeReady"`
 	ExpressionSupplement   *Revision        `json:"expressionSupplement,omitempty"`
 	AgreementSupplement    *Revision        `json:"agreementSupplement,omitempty"`
 	ReferenceAgreements    []Assessment     `json:"referenceAgreements"`

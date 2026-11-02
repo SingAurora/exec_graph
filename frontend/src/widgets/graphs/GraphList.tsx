@@ -5,6 +5,7 @@ import { ProjectAvatar } from '../../entities/project/ui/ProjectAvatar'
 import { formatFullPublicationTime, formatPublicationTime } from '../../shared/lib/date'
 import { HighlightedText } from '../../shared/ui/HighlightedText'
 import { getSearchExcerpt } from '../../shared/lib/search'
+import { ListEnd } from '../../shared/ui/ListEnd'
 
 type Props = {
   items: GraphActivity[]
@@ -35,7 +36,7 @@ export function GraphList({ items, onOpen, empty = '暂无行动图', infinite =
           <ArrowUpRight size={17} className="mt-1 shrink-0 text-muted group-hover:text-signal" />
         </button>)}
       </div>
-      {infinite && <p ref={endRef} className="py-8 text-center text-xs leading-5 text-muted">{hasMore ? '加载中…' : '没有更多了'}</p>}
+      {infinite && <ListEnd ref={endRef} hasMore={hasMore} className="py-8" />}
     </div>
   )
 }

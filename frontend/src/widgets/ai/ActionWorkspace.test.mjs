@@ -11,18 +11,32 @@ const render = (props) => renderToStaticMarkup(createElement(ActionWorkspace, {
 describe('action workspace', () => {
   test('a root records only action facts', () => {
     const html = render({ hasParent: false })
-    expect(html).toContain('>记录第一次行动</h2>')
+    expect(html).toContain('>记录行动</h2>')
+    expect(html).toContain('>行动</span>')
     expect(html).toContain('trigger-conversation')
     expect(html.match(/<textarea/g)).toHaveLength(1)
     expect(html).toContain('先说说这次实际做了什么')
-    expect(html).not.toContain('>表达</span>')
-    expect(html).not.toContain('>约定</span>')
     expect(html).toContain('>AI 对话</span>')
     expect(html).toContain('>行动</span>')
     expect(html).toContain('title="发送"')
-    expect(html).toContain('复制对话')
+    expect(html).toContain('title="复制当前对话内容"')
     expect(html).not.toContain('>发布行动</button>')
     expect(html).not.toContain('之后发生的行动')
+  })
+
+  test('switches between the conversation composer and the image composer', () => {
+    const html = render({ hasParent: false })
+    expect(html).toContain('>文字</button>')
+    expect(html).toContain('>图片</button>')
+    expect(html).toContain('title="发送"')
+    expect(html).not.toContain('添加图片')
+  })
+
+  test('shows the workspace status in the tab strip instead of a footer', () => {
+    const html = render({ hasParent: false })
+    expect(html).toContain('>尚未整理</span>')
+    expect(html).not.toContain('切换到「行动」')
+    expect(html).not.toContain('本轮未完成')
   })
 
   test('renders a retained AI clarification from a saved conversation', () => {
@@ -35,24 +49,20 @@ describe('action workspace', () => {
   test('a continuation keeps only action tabs while retaining its source context', () => {
     const html = render({ hasParent: true, contextTitle: '先把鸡蛋盛出来', sourceNodeNumber: 8, expressionSourceNumber: 2, inheritedExpression: '先盛蛋减少等待', inheritedExpressionImages: [{ url: '/inherited-meal.jpg', alt: '继承表达的配图' }], historyFacts: [{ number: 8, title: '先把鸡蛋盛出来', authorId: 'lin', markdown: '行动记录' }] })
     expect(html).toContain('承接 #8')
-    expect(html).toContain('历史 1 个节点')
+    expect(html).toContain('title="查看节点信息和操作"')
     expect(html).toContain('>AI 对话</span>')
     expect(html).toContain('>行动</span>')
-    expect(html).not.toContain('>表达</span>')
-    expect(html).not.toContain('>约定</span>')
   })
 
   test('a continuation does not expose agreement editing in the action workspace', () => {
     const html = render({ hasParent: true, inheritedAgreement: '记录总用时', sourceNodeNumber: 8 })
     expect(html).not.toContain('记录总用时')
     expect(html).not.toContain('约定处理方式')
-    expect(html).not.toContain('>约定</span>')
   })
 
   test('a continuation with no inherited documents keeps both previews empty', () => {
     const html = render({ hasParent: true, sourceNodeNumber: 3 })
     expect(html).not.toContain('继承自 节点 #3')
-    expect(html).not.toContain('>约定</span>')
   })
 
   test('previews real Markdown without a second document heading or nested scrolling renderer', () => {

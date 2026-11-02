@@ -49,6 +49,7 @@ func (t *actionTransaction) Graph(uuid string) (app.Graph, error) {
 	var nodes []model.ActionNode
 	var edges []model.ActionReference
 	var states []model.DocumentState
+	var nodeDocuments []model.NodeDocument
 	if err := t.DB.Where("graph_uuid = ?", uuid).Find(&nodes).Error; err != nil {
 		return graph, err
 	}
@@ -56,6 +57,9 @@ func (t *actionTransaction) Graph(uuid string) (app.Graph, error) {
 		return graph, err
 	}
 	if err := t.DB.Where("graph_uuid = ?", uuid).Find(&states).Error; err != nil {
+		return graph, err
+	}
+	if err := t.DB.Where("graph_uuid = ?", uuid).Find(&nodeDocuments).Error; err != nil {
 		return graph, err
 	}
 	docIDs := []string{}
@@ -89,11 +93,20 @@ func (t *actionTransaction) Graph(uuid string) (app.Graph, error) {
 		}
 		byNode[state.NodeUUID][state.Kind] = doc
 	}
-	for _, node := range nodes {
-		if len(byNode[node.UUID]) != 2 {
-			return graph, fault.New(fault.Unavailable, "行动文档状态不完整")
+	statuses := map[string]map[string]string{}
+	for _, document := range nodeDocuments {
+		if statuses[document.NodeUUID] == nil {
+			statuses[document.NodeUUID] = map[string]string{}
 		}
-		graph.Nodes = append(graph.Nodes, app.Node{ID: node.UUID, AuthorID: node.AuthorUUID, Version: node.Version, Number: node.NodeNumber, Level: node.NodeLevel, Expression: byNode[node.UUID]["expression"], Agreement: byNode[node.UUID]["agreement"]})
+		statuses[document.NodeUUID][document.Kind] = document.Status
+	}
+	for _, node := range nodes {
+		status := statuses[node.UUID]
+		expressionStatus, agreementStatus := "", ""
+		if status != nil {
+			expressionStatus, agreementStatus = status["expression"], status["agreement"]
+		}
+		graph.Nodes = append(graph.Nodes, app.Node{ID: node.UUID, AuthorID: node.AuthorUUID, Version: node.Version, Number: node.NodeNumber, Level: node.NodeLevel, Title: node.Title, Objective: node.ObjectiveMarkdown, Expression: byNode[node.UUID]["expression"], Agreement: byNode[node.UUID]["agreement"], ExpressionStatus: expressionStatus, AgreementStatus: agreementStatus})
 	}
 	for _, edge := range edges {
 		graph.Edges = append(graph.Edges, app.Edge{SourceID: edge.SourceNodeUUID, TargetID: edge.TargetNodeUUID, Kind: edge.Kind})

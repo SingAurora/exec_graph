@@ -31,7 +31,7 @@ func Disabled() *Client { return &Client{} }
 func New(c config.AI) (*Client, error) {
 	model := c.DraftModel
 	if model == "" {
-		model = "deepseek-v4-pro"
+		model = "deepseek-flash"
 	}
 	return NewModel(c, model, false)
 }

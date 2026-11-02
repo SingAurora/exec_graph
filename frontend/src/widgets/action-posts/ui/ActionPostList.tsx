@@ -13,6 +13,8 @@ import { HighlightedText } from '../../../shared/ui/HighlightedText'
 import { Avatar } from '../../../shared/ui/Avatar'
 import { ProfilePreview } from '../../../entities/profile/ui/ProfilePreview'
 import { RecordThumbnails } from '../../../shared/ui/RecordThumbnails'
+import { EmptyState } from '../../../shared/ui/empty-state/EmptyState'
+import { ListEnd } from '../../../shared/ui/ListEnd'
 
 type ActionPostListProps = {
   nodes: ActionNode[]
@@ -40,16 +42,17 @@ export function ActionPostList({ nodes, actions, users, mode, searchQuery, infin
     <div className="empty-state">{emptyContent}</div>
   )
   if (!nodes.length) return (
-    <div className="py-16 text-center">
-      <h3 className="text-[17px]">{mode === 'expression' ? '暂无表达' : '暂无行动'}</h3>
-    </div>
+    <EmptyState
+      title={mode === 'expression' ? '暂无表达' : '暂无行动'}
+      description={mode === 'expression' ? '路线终点还没有可展示的表达。' : '还没有发布过行动，先记录一次实际经历。'}
+    />
   )
   return (
     <div className="min-w-0">
       <section>
         {(infinite ? nodes.slice(0, visibleCount) : nodes).map((node) => <ActionPostItem key={node.id} node={node} level={levels.get(node.id)} contextCount={contextCounts.get(node.id)} actions={actions} users={users} mode={mode} searchQuery={searchQuery} presentation={presentation} onExplore={onExplore} renderContext={renderContext} />)}
       </section>
-      {infinite && <p ref={endRef} className="py-8 text-center text-xs leading-5 text-muted">{hasMore ? '加载中…' : '没有更多了'}</p>}
+      {infinite && <ListEnd ref={endRef} hasMore={hasMore} className="py-8" />}
     </div>
   )
 }

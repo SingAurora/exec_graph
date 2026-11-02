@@ -36,6 +36,53 @@ export function readImageFile(file: File) {
   })
 }
 
+export type ScaledImageOptions = {
+  maxWidth: number
+  maxHeight: number
+  quality: number
+}
+
+/** Loads a local image URL so it can be measured and compressed without cropping. */
+export function loadImage(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image()
+    image.addEventListener('load', () => resolve(image))
+    image.addEventListener('error', () => reject(new Error('图片无法读取')))
+    image.src = url
+  })
+}
+
+/** Scales the full image down to fit a bounding box, preserving aspect ratio and never upscaling. */
+export function renderScaledImage(image: HTMLImageElement, options: ScaledImageOptions) {
+  const scale = Math.min(1, options.maxWidth / image.naturalWidth, options.maxHeight / image.naturalHeight)
+  const width = Math.max(1, Math.round(image.naturalWidth * scale))
+  const height = Math.max(1, Math.round(image.naturalHeight * scale))
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const context = canvas.getContext('2d')
+  if (!context) throw new Error('当前浏览器不支持图片处理')
+  // Flatten transparency to white when exporting JPEG instead of producing black areas.
+  context.fillStyle = '#ffffff'
+  context.fillRect(0, 0, width, height)
+  context.drawImage(image, 0, 0, image.naturalWidth, image.naturalHeight, 0, 0, width, height)
+  return canvas.toDataURL('image/jpeg', options.quality)
+}
+
+/** Converts a cropped data URL back to a File for the existing media upload API. */
+export function dataUrlToFile(dataUrl: string, filename: string): File {
+  const comma = dataUrl.indexOf(',')
+  if (comma < 0) throw new Error('图片数据格式不正确')
+  const header = dataUrl.slice(0, comma)
+  const payload = dataUrl.slice(comma + 1)
+  const mimeType = /^data:([^;]+)/.exec(header)?.[1] ?? 'image/jpeg'
+  if (!header.includes(';base64')) throw new Error('图片数据格式不正确')
+  const binary = atob(payload)
+  const bytes = new Uint8Array(binary.length)
+  for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index)
+  return new File([bytes], filename, { type: mimeType })
+}
+
 /** Renders a square crop to a compressed local image data URL. */
 export function renderCroppedImage(image: HTMLImageElement, crop: SquareCrop, options: ImageRenderOptions) {
   return renderRectangularCroppedImage(image, {

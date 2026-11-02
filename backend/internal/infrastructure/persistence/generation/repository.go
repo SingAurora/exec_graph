@@ -38,6 +38,11 @@ func (r *Repository) Within(ctx context.Context, actor identity.Actor, run func(
 func (t *generationTransaction) Graph(uuid string) (appaction.Graph, error) {
 	return actions.InScope(t.Scope).Graph(uuid)
 }
+
+// CheckAssets 复用统一资产校验，只接受当前账号已就绪的站内图片。
+func (t *generationTransaction) CheckAssets(ids ...*string) error {
+	return t.Scope.CheckAssets(ids...)
+}
 func (t *generationTransaction) Facts(uuid string) ([]catalogue.ActionView, error) {
 	return read.New(t.DB).Actions(t.DB.Statement.Context, uuid)
 }
@@ -67,6 +72,34 @@ func (t *generationTransaction) Existing(key string) (*app.Request, error) {
 		}
 	}
 	return &app.Request{Digest: record.RequestSHA256, View: view}, nil
+}
+
+// Placement 读取当前账号尚未确认的行动草稿，供图片放置使用。
+func (t *generationTransaction) Placement(uuid string) (app.Placement, error) {
+	row, err := t.lock(uuid)
+	if err != nil {
+		return app.Placement{}, err
+	}
+	if row.Mode != "action" || row.Status != "succeeded" || row.ConfirmedAt != nil || row.ObjectiveMarkdown == nil {
+		return app.Placement{}, fault.New(fault.Conflict, "当前草稿不可放置图片，请先完成行动整理")
+	}
+	return app.Placement{GenerationID: row.UUID, ActorID: row.RequestedByUUID, Mode: row.Mode, Status: row.Status, Objective: *row.ObjectiveMarkdown}, nil
+}
+
+// UpdatePlacement 只替换正文中的图片引用，正文文字由 application 校验保持不变。
+func (t *generationTransaction) UpdatePlacement(uuid, objective string) (app.View, error) {
+	row, err := t.lock(uuid)
+	if err != nil {
+		return app.View{}, err
+	}
+	if row.Mode != "action" || row.Status != "succeeded" || row.ConfirmedAt != nil {
+		return app.View{}, fault.New(fault.Conflict, "当前草稿不可放置图片，请先完成行动整理")
+	}
+	if err := t.DB.Model(&model.AIGeneration{}).Where("uuid = ? AND confirmed_at IS NULL AND status = ?", uuid, "succeeded").Update("objective_markdown", objective).Error; err != nil {
+		return app.View{}, err
+	}
+	row.ObjectiveMarkdown = &objective
+	return t.view(row)
 }
 
 func (t *generationTransaction) lock(uuid string) (model.AIGeneration, error) {
@@ -157,6 +190,10 @@ func (t *generationTransaction) view(row model.AIGeneration) (app.View, error) {
 		}
 		confirmation.SourceVersions = append(confirmation.SourceVersions, appaction.SourceVersion{NodeID: source.SourceNodeUUID, Version: source.SourceNodeVersion})
 		confirmation.ReferenceAgreements = append(confirmation.ReferenceAgreements, review)
+	}
+	if row.Mode == "action" {
+		draft.Images = app.ImagesFromMarkdown(draft.Objective)
+		confirmation.Images = draft.Images
 	}
 	out.Draft = draft
 	if row.Mode == "action" {

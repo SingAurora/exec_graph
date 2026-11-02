@@ -10,7 +10,7 @@ import { readDocument } from './action-input'
 export function generationHandlers(db: MockDatabase) {
   return [
     http.post('*/api/commands/ai/generate', mockResponse(db, async (request) => {
-      const body = await readBody(request, ['mode', 'graphId', 'conversationId', 'nodeId', 'expectedVersion', 'messages', 'parentId', 'mergedParentIds', 'sourceVersions', 'agreement'])
+      const body = await readBody(request, ['mode', 'graphId', 'conversationId', 'nodeId', 'expectedVersion', 'messages', 'parentId', 'mergedParentIds', 'sourceVersions', 'agreement', 'currentDocument'])
       return idempotent(db, request, body, () => {
         requireInput(body.mode === 'action' || body.mode === 'expression')
         requireInput(Array.isArray(body.messages) && body.messages.length > 0 && body.messages.every((message) => typeof message === 'string' && message.trim()))

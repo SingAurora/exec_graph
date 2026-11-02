@@ -37,3 +37,8 @@ export function reviseAgreement(input: { nodeId: string; expectedVersion: number
 export function documentUpdate(markdown: string | undefined): DocumentUpdate {
   return markdown === undefined ? { mode: 'inherit' } : markdown.trim() ? { mode: 'update', markdown } : { mode: 'clear' }
 }
+
+/** 删除作者尚未被接续的终端节点。 */
+export function deleteAction(input: { nodeId: string; expectedVersion: number }, options: BusinessRequestOptions): Promise<unknown> {
+  return postAPI('/api/commands/actions/delete', input, options)
+}

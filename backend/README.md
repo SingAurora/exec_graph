@@ -172,7 +172,7 @@ EXEC_GRAPH_DATABASE_SCHEMA=exec_graph EXEC_GRAPH_ADDR=127.0.0.1:8080 EXEC_GRAPH_
 
 ## 外部能力配置
 
-参考 `etc/config.example.yaml`。真实邮件需 `mail.enabled`、发件地址、模板 ID、区域及服务端凭据；真实图片需 `storage.enabled`、bucket、region 和专用 `media_prefix`。旧配置的凭据仅由 bootstrap 创建 SDK 时读取，不进入业务用例。平台 AI 配置 `ai.base_url`、`ai.draft_model`、`ai.analysis_model`、`ai.api_key`，也可通过 `DEEPSEEK_API_KEY` 注入密钥。行动、表达、约定和独立核验统一默认使用开启 thinking 的 `deepseek-v4-pro`。不要把真实配置提交到 Git。
+参考 `etc/config.example.yaml`。真实邮件需 `mail.enabled`、发件地址、模板 ID、区域及服务端凭据；真实图片需 `storage.enabled`、bucket、region 和专用 `media_prefix`。旧配置的凭据仅由 bootstrap 创建 SDK 时读取，不进入业务用例。平台 AI 配置 `ai.base_url`、`ai.draft_model`、`ai.analysis_model`、`ai.api_key`，也可通过 `DEEPSEEK_API_KEY` 注入密钥。行动、表达、约定和独立核验统一默认使用开启 thinking 的 `deepseek-flash`。不要把真实配置提交到 Git。
 
 第四阶段 schema v2 增加图片保留登记表，已有 v1 数据执行同一 `manage migrate` 升级，保留原用户和业务身份。上传未保存的图片一天后可回收；本地草稿续期七天，公开或历史引用仍受保护。API 启动时及每小时扫描一批，也可运行：
 

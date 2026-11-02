@@ -16,6 +16,14 @@ describe('effective action expressions', () => {
     expect(getActionExpression([...actions, updated], '4')).toEqual({ markdown: '新的观点', sourceNode: updated })
   })
 
+  test('a node with its own document status never inherits an ancestor expression', () => {
+    const root = node('1', undefined, '父节点表达')
+    const pending = node('2', '1', undefined, { expressionStatus: 'pending' })
+    expect(getActionExpression([root, pending], '2')).toEqual({ markdown: '', sourceNode: pending })
+    const published = node('3', '2', '自己的表达', { expressionStatus: 'published' })
+    expect(getActionExpression([root, pending, published], '3')).toEqual({ markdown: '自己的表达', sourceNode: published })
+  })
+
   test('explicit clearing stops inheritance until a later explicit update', () => {
     const cleared = node('2', '1', '')
     const actions = [node('1', undefined, '旧观点'), cleared, node('3', '2')]

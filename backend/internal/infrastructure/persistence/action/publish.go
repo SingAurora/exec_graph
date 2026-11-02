@@ -1,6 +1,8 @@
 package action
 
 import (
+	"time"
+
 	app "github.com/singaurora/exec-graph/backend/internal/application/action"
 	"github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/model"
 	"github.com/singaurora/exec-graph/backend/internal/shared/id"
@@ -28,41 +30,20 @@ func (t *actionTransaction) Publish(p app.Publication) error {
 			return err
 		}
 	}
-	for _, kind := range []string{"expression", "agreement"} {
-		doc := p.Generation.Expression
-		previous := ""
-		if kind == "agreement" {
-			doc = p.Generation.Agreement
-		}
-		if len(p.Sources) > 0 {
-			if kind == "expression" {
-				previous = p.Sources[0].ExpressionID
-			} else {
-				previous = p.Sources[0].AgreementID
-			}
-		}
-		state := model.DocumentState{GraphUUID: p.GraphID, NodeUUID: p.ID, Kind: kind, Mode: doc.Mode, EffectiveVersionUUID: pointer(previous), UpdatedAt: p.CreatedAt}
-		if doc.Mode != "inherit" {
-			uuid := id.New()
-			markdown, change := "", "initial"
-			if doc.Markdown != nil {
-				markdown = *doc.Markdown
-			}
-			if doc.Mode == "clear" {
-				change = "clear"
-			}
-			version := model.DocumentVersion{UUID: uuid, GraphUUID: p.GraphID, NodeUUID: p.ID, Kind: kind, RevisionNumber: 1, Mode: doc.Mode, ChangeKind: change, Markdown: markdown, ActorUUID: p.ActorID, GenerationUUID: &p.Generation.ID, PreviousVersionUUID: pointer(previous), CreatedAt: p.CreatedAt}
-			if err := t.DB.Create(&version).Error; err != nil {
-				return err
-			}
-			state.LocalVersionUUID, state.EffectiveVersionUUID = &uuid, &uuid
-		}
-		if err := t.DB.Create(&state).Error; err != nil {
+	for i, image := range p.Images {
+		if err := t.DB.Create(&model.ActionImage{NodeUUID: p.ID, AssetUUID: &image.AssetID, Position: uint16(i + 1), AltText: image.Alt}).Error; err != nil {
 			return err
 		}
 	}
-	for i, image := range p.Images {
-		if err := t.DB.Create(&model.ActionImage{NodeUUID: p.ID, AssetUUID: &image.AssetID, Position: uint16(i + 1), AltText: image.Alt}).Error; err != nil {
+	return nil
+}
+
+// InitializeNodeDocuments 创建两个待发布文档状态；行动已公开，但 AI 文档尚未发布。
+func (t *actionTransaction) InitializeNodeDocuments(graphID, nodeID string) error {
+	now := time.Now().UTC()
+	for _, kind := range []string{"expression", "agreement"} {
+		row := model.NodeDocument{UUID: id.New(), GraphUUID: graphID, NodeUUID: nodeID, Kind: kind, Status: "pending", CreatedAt: now, UpdatedAt: now}
+		if err := t.DB.Create(&row).Error; err != nil {
 			return err
 		}
 	}

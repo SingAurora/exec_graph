@@ -108,9 +108,13 @@
   .section-kicker, .eyebrow { @apply font-sans text-xs font-semibold tracking-[.06em] text-muted; }
   /* 图标、主操作、次要操作和纯文字按钮；组件使用 className="primary-button" 等。 */
   .icon-button { @apply inline-grid size-8 shrink-0 place-items-center rounded-md border border-line bg-transparent text-muted transition hover:border-signal hover:text-signal; }
+  /* 对话右上角的复制只保留图标，不加外框，避免打断状态文字的轻量层级。 */
+  .copy-icon-button { @apply inline-grid size-6 shrink-0 place-items-center rounded border-0 bg-transparent text-muted transition hover:text-signal; }
   .primary-button { @apply inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md border-0 bg-signal px-3.5 py-2 text-[13px] font-semibold text-on-signal transition hover:bg-signal-dark; }
   .quiet-button { @apply inline-flex min-h-8 items-center justify-center gap-1.5 rounded-md border border-line bg-transparent px-3 py-1.5 text-[13px] font-medium text-muted transition hover:border-signal hover:text-signal; }
   .text-button { @apply inline-flex min-h-8 items-center gap-1.5 border-0 bg-transparent px-0 py-1.5 text-[13px] font-medium text-muted hover:text-signal; }
+  /* 图名片信息层上的操作：半透明玻璃按钮，避免强调色大块压住背景图。 */
+  .header-action { @apply inline-flex min-h-8 shrink-0 items-center justify-center gap-1.5 rounded-md border border-white/55 bg-white/45 px-3 py-1.5 text-[13px] font-medium text-ink backdrop-blur-md transition hover:border-white/80 hover:bg-white/65 hover:text-signal dark:border-white/15 dark:bg-black/25 dark:hover:border-white/30 dark:hover:bg-black/40; }
   /* 列表空状态，以及表单字段和输入框的统一外观。 */
   .empty-state { @apply flex min-h-48 flex-col items-center justify-center gap-3 py-12 text-center text-sm text-muted; }
   .form-field { @apply grid gap-2 text-sm font-medium; }
@@ -132,6 +136,24 @@
   .record-markdown ul, .record-markdown ol { margin: 10px 0 0; padding-left: 22px; }
   .record-markdown li { margin-top: 5px; }
   .record-markdown strong { color: var(--ink); font-weight: 600; }
+  /* 对话气泡使用更紧凑、偏聊天的排版，避免复用文档的大标题和大段间距。 */
+  .chat-markdown { color: var(--ink); font-size: 14px; line-height: 1.72; letter-spacing: .002em; overflow-wrap: anywhere; }
+  .chat-markdown > :first-child { margin-top: 0; }
+  .chat-markdown > :last-child { margin-bottom: 0; }
+  .chat-markdown p { margin: 8px 0 0; }
+  .chat-markdown h1 { margin: 14px 0 6px; font-size: 18px; line-height: 1.45; letter-spacing: -.02em; }
+  .chat-markdown h2 { margin: 14px 0 6px; font-size: 16px; line-height: 1.5; }
+  .chat-markdown h3 { margin: 12px 0 5px; font-size: 15px; line-height: 1.55; }
+  .chat-markdown ul, .chat-markdown ol { margin: 8px 0 0; padding-left: 20px; }
+  .chat-markdown li { margin-top: 3px; }
+  .chat-markdown li > p { margin-top: 0; }
+  .chat-markdown blockquote { margin: 10px 0 0; border-left: 2px solid var(--line); padding-left: 10px; color: var(--muted); }
+  .chat-markdown code { border-radius: 4px; background: var(--soft); padding: 1px 4px; font-size: .92em; }
+  .chat-markdown pre { margin: 10px 0 0; overflow-x: auto; border-radius: 6px; background: var(--soft); padding: 10px 12px; }
+  .chat-markdown pre code { background: transparent; padding: 0; }
+  .chat-markdown a { color: var(--signal); text-decoration: underline; text-underline-offset: 2px; }
+  .chat-markdown hr { margin: 12px 0; border: 0; border-top: 1px solid var(--line); }
+  .chat-markdown-error, .chat-markdown-error a, .chat-markdown-error strong { color: var(--coral); }
   /* 文档图片保持比例且不超出容器；这里只定义外观，点击预览由组件逻辑处理。 */
   .record-document-figure { display: block; margin: 18px 0; }
   .record-document-figure img { display: block; width: auto; max-width: 100%; height: auto; border-radius: 6px; cursor: zoom-in; transition: opacity .15s; }

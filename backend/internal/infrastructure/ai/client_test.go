@@ -62,7 +62,7 @@ func TestActionDraftDisablesThinking(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 			t.Error(err)
 		}
-		if input.Model != "deepseek-v4-pro" || input.Thinking.Type != "disabled" {
+		if input.Model != "deepseek-flash" || input.Thinking.Type != "disabled" {
 			t.Errorf("行动草稿配置错误: model=%s thinking=%s", input.Model, input.Thinking.Type)
 		}
 		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{}"},"finish_reason":"stop"}]}`))
@@ -84,13 +84,13 @@ func TestAnalysisClientEnablesThinking(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 			t.Error(err)
 		}
-		if input.Model != "deepseek-v4-pro" || input.Thinking.Type != "enabled" {
+		if input.Model != "deepseek-flash" || input.Thinking.Type != "enabled" {
 			t.Errorf("分析客户端配置错误: model=%s thinking=%s", input.Model, input.Thinking.Type)
 		}
 		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{}"},"finish_reason":"stop"}]}`))
 	}))
 	defer server.Close()
-	client, err := NewModel(config.AI{BaseURL: server.URL, APIKey: "test-only"}, "deepseek-v4-pro", true)
+	client, err := NewModel(config.AI{BaseURL: server.URL, APIKey: "test-only"}, "deepseek-flash", true)
 	if err != nil {
 		t.Fatal(err)
 	}

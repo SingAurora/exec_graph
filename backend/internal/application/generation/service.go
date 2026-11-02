@@ -36,6 +36,9 @@ func (s *Service) Generate(ctx context.Context, actor identity.Actor, key string
 	if !id.Valid(key) || !id.Valid(input.GraphID) || (input.ConversationID != "" && !id.Valid(input.ConversationID)) || !validInputMessages(input) || input.MergedParentIDs == nil || input.SourceVersions == nil || (input.Mode != "action" && input.Mode != "expression" && input.Mode != "agreement") {
 		return out, fault.New(fault.Invalid, "生成输入、来源列表或提交键不合法")
 	}
+	if !validInputImages(input) || (input.Mode != "action" && len(input.Images) != 0) {
+		return out, fault.New(fault.Invalid, "请为每张图片填写备注，图片最多 12 张且备注不超过 30 字")
+	}
 	initialProvider := s.draftProvider
 	if input.Mode == "expression" || input.Mode == "agreement" {
 		initialProvider = s.analysisProvider
@@ -157,6 +160,9 @@ func (s *Service) process(ctx context.Context, actor identity.Actor, mode string
 			}
 		}
 	}
+	if callError == nil && mode == "action" {
+		callError = applyImages(&draft, pending.Images)
+	}
 	finishCtx, cancelFinish := context.WithTimeout(context.WithoutCancel(ctx), constants.HTTPRequestTimeout)
 	defer cancelFinish()
 	var out View
@@ -179,6 +185,9 @@ func (s *Service) process(ctx context.Context, actor identity.Actor, mode string
 		}
 		var err error
 		out, err = tx.Get(pending.ID)
+		if err == nil && out.Draft != nil {
+			out.Draft.InvalidImages = draft.InvalidImages
+		}
 		return err
 	})
 	if callError != nil {
@@ -195,7 +204,12 @@ func (s *Service) process(ctx context.Context, actor identity.Actor, mode string
 }
 
 func prepare(tx Transaction, actor identity.Actor, key string, input GenerateInput, digest []byte, model string, now time.Time) (Pending, []Message, error) {
-	batch := Pending{ID: id.New(), RequestKey: key, ActorID: actor.UserID, Mode: input.Mode, GraphID: input.GraphID, NodeID: input.NodeID, ExpectedVersion: input.ExpectedVersion, Model: model, Digest: digest, InputMessages: trimMessages(input.Messages), Agreement: input.Agreement, CreatedAt: now}
+	batch := Pending{ID: id.New(), RequestKey: key, ActorID: actor.UserID, Mode: input.Mode, GraphID: input.GraphID, NodeID: input.NodeID, ExpectedVersion: input.ExpectedVersion, Model: model, Digest: digest, InputMessages: trimMessages(input.Messages), Images: trimImages(input.Images), Agreement: input.Agreement, CreatedAt: now}
+	for _, image := range batch.Images {
+		if err := tx.CheckAssets(&image.AssetID); err != nil {
+			return batch, nil, err
+		}
+	}
 	graph, err := tx.Graph(input.GraphID)
 	if err != nil {
 		return batch, nil, err
@@ -234,6 +248,15 @@ func prepare(tx Transaction, actor identity.Actor, key string, input GenerateInp
 			}
 		}
 		batch.InheritedExpressionID, starts = node.Expression.ID, []string{node.ID}
+		if input.Mode == "expression" {
+			batch.Initial = node.ExpressionStatus != "published"
+		} else {
+			batch.Initial = node.AgreementStatus != "published"
+		}
+		batch.CurrentDocument = strings.TrimSpace(input.CurrentDocument)
+		if batch.CurrentDocument != "" {
+			batch.Initial = false
+		}
 	}
 	batch.Conversation, err = tx.Conversation(input)
 	if err != nil {
@@ -255,6 +278,29 @@ func prepare(tx Transaction, actor identity.Actor, key string, input GenerateInp
 		batch.ContextDigest = digest[:]
 	}
 	return batch, request, err
+}
+
+func validInputImages(input GenerateInput) bool {
+	if len(input.Images) > constants.ActionImageLimit {
+		return false
+	}
+	seen := map[string]bool{}
+	for _, image := range input.Images {
+		alt := strings.TrimSpace(image.Alt)
+		if !id.Valid(image.AssetID) || alt == "" || utf8.RuneCountInString(alt) > constants.ImageAltLimit || seen[strings.ToLower(image.AssetID)] {
+			return false
+		}
+		seen[strings.ToLower(image.AssetID)] = true
+	}
+	return true
+}
+
+func trimImages(images []action.ImageInput) []action.ImageInput {
+	trimmed := make([]action.ImageInput, len(images))
+	for i, image := range images {
+		trimmed[i] = action.ImageInput{AssetID: strings.ToLower(strings.TrimSpace(image.AssetID)), Alt: strings.TrimSpace(image.Alt)}
+	}
+	return trimmed
 }
 
 func trimMessages(messages []string) []string {

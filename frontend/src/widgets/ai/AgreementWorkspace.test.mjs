@@ -17,13 +17,15 @@ function render() {
 }
 
 describe('agreement workspace', () => {
-  test('restores only the agreement conversation and keeps action documents read-only', () => {
+  test('restores only the agreement conversation without an action view', () => {
     const html = render()
-    expect(html).toContain('修改约定')
+    expect(html).toContain('>拟定约定</h2>')
+    expect(html).toContain('>约定</span>')
     expect(html).toContain('约定对话历史应恢复')
     expect(html).not.toContain('行动对话不能混入约定对话')
-    expect(html).toContain('行动事实')
+    expect(html).not.toContain('行动事实')
     expect(html).toContain('引用时记录观察结果')
-    expect(html).toContain('保存约定')
+    expect(html).not.toContain('保存约定')
+    expect(html).not.toContain('发布约定')
   })
 })

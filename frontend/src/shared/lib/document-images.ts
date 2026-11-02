@@ -29,6 +29,16 @@ export function getMarkdownImages(markdown: string): PostImage[] {
   return images
 }
 
+/** 将后端保存的 asset:UUID 图片引用解析为当前图片列表中的稳定地址。 */
+export function resolveAssetImageUrls(markdown: string, images: PostImage[]): string {
+  if (!images.length || !markdown.includes('asset:')) return markdown
+  const byAsset = new Map(images.flatMap((image) => image.assetId ? [[image.assetId, image.url] as const] : []))
+  return markdown.replace(/\]\(asset:([0-9a-fA-F-]{36})\)/g, (whole, assetId: string) => {
+    const url = byAsset.get(assetId)
+    return url ? `](${url})` : whole
+  })
+}
+
 /** Keeps inline image positions and appends legacy attachments not already embedded. */
 export function remarkDocumentImages({ images }: { images: PostImage[] }) {
   return (tree: Root) => {

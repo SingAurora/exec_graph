@@ -16,9 +16,9 @@ export function TabsRoot({ value, onValueChange, children, className }: TabsRoot
 }
 
 /** Tab list with the settings page's visual treatment. */
-export function TabsList({ children, sticky = false, showDivider = true, compact = false }: { children: ReactNode; sticky?: boolean; showDivider?: boolean; compact?: boolean }) {
+export function TabsList({ children, sticky = false, showDivider = true, compact = false, flush = false }: { children: ReactNode; sticky?: boolean; showDivider?: boolean; compact?: boolean; flush?: boolean }) {
   return (
-    <TabsPrimitive.List className={`flex overflow-x-auto ${compact ? 'gap-5' : 'mt-[23px] gap-[26px]'} ${showDivider ? 'border-b border-line' : ''} ${sticky ? 'sticky top-0 z-20 bg-paper' : ''}`}>{children}</TabsPrimitive.List>
+    <TabsPrimitive.List className={`flex min-w-0 overflow-x-auto ${compact ? 'gap-5' : `${flush ? '' : 'mt-[23px]'} gap-[26px]`} ${showDivider ? 'border-b border-line' : ''} ${sticky ? 'sticky top-0 z-20 bg-paper' : ''}`}>{children}</TabsPrimitive.List>
   )
 }
 

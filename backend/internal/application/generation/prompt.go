@@ -39,6 +39,13 @@ type contextSnapshot struct {
 	CurrentAgreement    string                `json:"currentAgreement"`
 	DownstreamAgreement action.DocumentUpdate `json:"downstreamAgreement"`
 	PreviousDraft       *Draft                `json:"previousDraft,omitempty"`
+	Images              []snapshotImage       `json:"images,omitempty"`
+	Initial             bool                  `json:"initial,omitempty"`
+}
+
+type snapshotImage struct {
+	Ref string `json:"ref"`
+	Alt string `json:"alt"`
 }
 
 type report struct {
@@ -47,7 +54,10 @@ type report struct {
 }
 
 func snapshotFor(graph action.Graph, history map[string]bool, nodes []catalogue.ActionView, p Pending, hasParent bool) contextSnapshot {
-	snapshot := contextSnapshot{Mode: p.Mode, ActorID: p.ActorID, NodeID: p.NodeID, Reports: []report{}, Guide: p.Guide, HasParent: hasParent, Facts: []fact{}, Sources: []source{}, DownstreamAgreement: p.Agreement, PreviousDraft: p.Conversation.PreviousDraft}
+	snapshot := contextSnapshot{Mode: p.Mode, ActorID: p.ActorID, NodeID: p.NodeID, Reports: []report{}, Guide: p.Guide, HasParent: hasParent, Facts: []fact{}, Sources: []source{}, DownstreamAgreement: p.Agreement, PreviousDraft: p.Conversation.PreviousDraft, Images: []snapshotImage{}, Initial: p.Initial}
+	for i, image := range p.Images {
+		snapshot.Images = append(snapshot.Images, snapshotImage{Ref: "image:" + strconv.Itoa(i+1), Alt: image.Alt})
+	}
 	for i, message := range p.Conversation.Messages {
 		if message.Role == "user" && message.AuthorID == p.ActorID && p.ActorID != "" {
 			snapshot.Reports = append(snapshot.Reports, report{"report-" + strconv.Itoa(i), message.Content})
@@ -74,6 +84,13 @@ func snapshotFor(graph action.Graph, history map[string]bool, nodes []catalogue.
 		snapshot.Sources = append(snapshot.Sources, source{s.NodeID, n.Expression.Markdown, n.Agreement.Markdown})
 		if s.Kind == "primary" {
 			snapshot.CurrentExpression = n.Expression.Markdown
+		}
+	}
+	if p.CurrentDocument != "" {
+		if p.Mode == "expression" {
+			snapshot.CurrentExpression = p.CurrentDocument
+		} else if p.Mode == "agreement" {
+			snapshot.CurrentAgreement = p.CurrentDocument
 		}
 	}
 	if p.Mode == "expression" || p.Mode == "agreement" {
@@ -112,12 +129,13 @@ type modelDocument struct {
 	Markdown string `json:"markdown"`
 }
 type modelDraft struct {
-	Reply      string                    `json:"reply"`
-	Title      string                    `json:"title"`
-	Objective  string                    `json:"objective"`
-	Expression *modelDocument            `json:"expression"`
-	Agreement  *modelDocument            `json:"agreement"`
-	Reviews    []action.SourceAssessment `json:"reviews"`
+	Reply         string                    `json:"reply"`
+	Title         string                    `json:"title"`
+	Objective     string                    `json:"objective"`
+	Expression    *modelDocument            `json:"expression"`
+	Agreement     *modelDocument            `json:"agreement"`
+	Reviews       []action.SourceAssessment `json:"reviews"`
+	InvalidImages []ImageIssue              `json:"invalidImages"`
 }
 
 func parse(content, mode string, hasParent bool, sources []action.GenerationSource) (Draft, error) {
@@ -222,5 +240,5 @@ func parse(content, mode string, hasParent bool, sources []action.GenerationSour
 		}
 		reviews = append(reviews, review)
 	}
-	return Draft{Reply: raw.Reply, Title: raw.Title, Objective: raw.Objective, Expression: doc, Agreement: agreement, Reviews: reviews}, nil
+	return Draft{Reply: raw.Reply, Title: raw.Title, Objective: raw.Objective, Expression: doc, Agreement: agreement, Reviews: reviews, InvalidImages: raw.InvalidImages}, nil
 }

@@ -13,6 +13,7 @@ export type WorkspaceView = {
 /** 一次连续对话中尚未发布的全部内容；本地保存不等于服务已接受发布。 */
 export type ActionWorkspaceDraft = {
   images?: PostImage[]
+  imagePlacementPending?: boolean
   generationRequest?: GenerationRequest
   generation?: GenerationView
   pendingReports?: string[]
@@ -120,6 +121,7 @@ export function isActionWorkspaceDraft(value: unknown): value is ActionWorkspace
   return isGenerationState(value) && isMessages(value.messages) && typeof value.input === 'string' && typeof value.document === 'string'
     && (value.pendingReports === undefined || (Array.isArray(value.pendingReports) && value.pendingReports.every((message) => typeof message === 'string')))
     && (value.images === undefined || (Array.isArray(value.images) && value.images.length <= 12 && value.images.every((image) => isRecord(image) && typeof image.assetId === 'string' && typeof image.url === 'string' && typeof image.alt === 'string')))
+    && (value.imagePlacementPending === undefined || typeof value.imagePlacementPending === 'boolean')
     && typeof details.title === 'string' && typeof details.description === 'string' && typeof details.note === 'string'
     && Array.isArray(details.points) && details.points.every((point) => typeof point === 'string')
     && typeof value.generated === 'boolean' && isMode(expression.mode) && typeof expression.markdown === 'string'

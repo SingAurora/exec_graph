@@ -1,12 +1,13 @@
 import { ArrowUpDown, Footprints, MessageCircle, Plus, ScrollText, Search, Settings2, Sparkles } from 'lucide-react'
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ActionDocumentMode, ActionNode, BranchMode } from '../../../entities/action/model/types'
-import { getAncestors } from '../../../entities/action/lib/graph'
-import { getActionExpression, getActionExpressionNodes, sortActionsNewestFirst } from '../../../entities/action/lib/expressions'
+import { getActionParentIds, getAncestors } from '../../../entities/action/lib/graph'
+import { getActionExpressionNodes, sortActionsNewestFirst } from '../../../entities/action/lib/expressions'
 import { getPublishedExpressions } from '../../../entities/action/lib/published'
 import { getActionReferences, type ActionReference } from '../../../entities/action/lib/references'
 import { ActionGraph } from '../../action-graph/ui/ActionGraph'
 import { ActionDetail } from '../../action-detail/ui/ActionDetail'
+import { useNodeDocuments } from '../../../features/action-generation/model/useNodeDocuments'
 import { ActionReadingPane } from '../../action-detail/ui/ActionReadingPane'
 import { ActionReferenceDetail } from '../../action-reference/ui/ActionReferenceDetail'
 import type { Project } from '../../../entities/project/model/types'
@@ -22,6 +23,7 @@ import { GraphDetailsAside } from '../../graph-details/ui/GraphDetailsAside'
 import { GraphSearch } from '../../graph-search/ui/GraphSearch'
 import { FollowButton } from '../../../features/follow/ui/FollowButton'
 import type { GraphBackgroundPreferences } from '../../../shared/ui/graph-background/model'
+import { EmptyState } from '../../../shared/ui/empty-state/EmptyState'
 
 /** 图详情接收业务数据及应用层回调；界面不直接发请求或导入演示数据。 */
 export type ProjectDetailProps = {
@@ -39,6 +41,9 @@ export type ProjectDetailProps = {
   onUpdateProject: (projectId: string, patch: Pick<Project, 'title' | 'description' | 'avatar' | 'backgroundImage'>) => void | Promise<void>
   onEditExpression: (node: ActionNode) => void
   onEditAgreement: (node: ActionNode) => void
+  csrfToken: string
+  onPublishNodeDocument: (nodeId: string, expectedVersion: number, kind: 'expression' | 'agreement') => Promise<void>
+  onDeleteNode: (node: ActionNode) => Promise<void>
   onDeleteProject: (projectId: string, expectedNodeCount: number) => boolean | Promise<boolean>
   following: boolean
   onSetGraphFollow: (projectId: string, following: boolean) => boolean | Promise<boolean>
@@ -48,7 +53,7 @@ type GraphSelection = { kind: 'node' | 'reference'; id: string }
 type ProjectTab = 'expressions' | 'agreements' | 'facts' | 'explore' | 'search' | 'settings'
 
 /** 图详情协调中心：装配表达、约定、行动和探索，管理选择、定位及各栏目阅读状态。 */
-export function ProjectDetail({ project, active = true, externalFocus, currentUserId, users, actions, showActionGraphLegend, graphBackground, onCreateAction, onContinueAction, onOpenActionArchive, onUpdateProject, onEditExpression, onEditAgreement, onDeleteProject, following, onSetGraphFollow }: ProjectDetailProps) {
+export function ProjectDetail({ project, active = true, externalFocus, currentUserId, users, actions, showActionGraphLegend, graphBackground, onCreateAction, onContinueAction, onOpenActionArchive, onUpdateProject, onEditExpression, onEditAgreement, csrfToken, onPublishNodeDocument, onDeleteNode, onDeleteProject, following, onSetGraphFollow }: ProjectDetailProps) {
   const handledExternalFocus = useRef<string | undefined>(undefined)
   const workspaceRef = useRef<HTMLDivElement>(null)
   const tabScroll = useRef<Partial<Record<ProjectTab, number>>>({})
@@ -84,7 +89,11 @@ export function ProjectDetail({ project, active = true, externalFocus, currentUs
   const [selection, setSelection] = useState<GraphSelection>()
   const selectedReference = selection?.kind === 'reference' ? references.find((reference) => reference.id === selection.id) : undefined
   const selected = selectedReference ? undefined : actions.find((node) => selection?.kind === 'node' && node.id === selection.id) ?? defaultNode
-  const visibleDocumentMode = selected && getActionExpression(actions, selected.id).markdown.trim() ? documentMode : 'objective'
+  const nodeDocuments = useNodeDocuments({
+    node: selected, csrfToken,
+    enabled: Boolean(selected && selected.authorId === currentUserId && selected.nodeReady === false),
+    onPublished: onPublishNodeDocument,
+  })
   const selectNode = (id: string) => {
     if (selected?.id !== id) setDocumentMode('objective')
     setSelection({ kind: 'node', id })
@@ -193,8 +202,8 @@ export function ProjectDetail({ project, active = true, externalFocus, currentUs
       }
     }}>
       <ProjectHeader project={project} participantCount={participantIds.length} expressionCount={expressionNodes.length} actions={<div className="flex items-center gap-2">
-        <FollowButton kind="graph" name={project.title} following={following} disabledReason={!actions.length ? '发布第一次行动后才能关注此图' : undefined} onChange={(next) => onSetGraphFollow(project.id, next)} />
-        {!actions.length && <button className="primary-button" type="button" onClick={createAction}><Plus size={16} />记录第一次行动</button>}
+        <FollowButton kind="graph" name={project.title} following={following} variant="header" disabledReason={!actions.length ? '发布第一次行动后才能关注此图' : undefined} onChange={(next) => onSetGraphFollow(project.id, next)} />
+        {!actions.length && <button className="header-action font-semibold" type="button" onClick={createAction}><Plus size={16} />记录第一次行动</button>}
       </div>} />
       <TabsRoot value={activeTab} onValueChange={(value) => switchTab(value as ProjectTab)}>
         <TabsList sticky showDivider={false}>
@@ -224,12 +233,12 @@ export function ProjectDetail({ project, active = true, externalFocus, currentUs
           </div>
         </TabsContent>
         <TabsContent value="explore" keepMounted={visitedExplore}>
-          {!actions.length ? <p className="py-16 text-center text-[17px]">暂无节点</p> : <div className="relative mt-5">
+          {!actions.length ? <EmptyState title="暂无节点" description="发布第一次行动后，可以在这里查看节点关系。" /> : <div className="relative mt-5">
           <div ref={workspaceRef} className={`grid h-[calc(100dvh-44px)] scroll-mt-11 overflow-hidden rounded-lg border border-line bg-surface outline-none ${detailsVisible ? 'grid-cols-[342px_minmax(0,1fr)]' : 'grid-cols-1'}`} tabIndex={-1}>
             <ActionGraph actions={actions} highlightedPath={highlightedPath} users={users} selectedId={selected?.id} selectedReferenceId={selectedReference?.id} showLegend={showActionGraphLegend} background={graphBackground} active={active && activeTab === 'explore'} focusRequest={focusRequest} locateRequest={nodeLocateRequest} detailsVisible={detailsVisible} onClearHighlight={() => setHighlightTipId(undefined)} onSelect={selectNode} onSelectReference={(id) => { setSelection({ kind: 'reference', id }); setDetailsVisible(true) }} onFitViewport={() => workspaceRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' })} />
-            <ActionReadingPane readingKey={selectedReference ? `reference:${selectedReference.id}` : `node:${selected?.id}:${visibleDocumentMode}`} focusRequest={focusRequest} hidden={!detailsVisible} active={active && activeTab === 'explore' && detailsVisible}>
+            <ActionReadingPane readingKey={selectedReference ? `reference:${selectedReference.id}` : `node:${selected?.id}:${documentMode}`} focusRequest={focusRequest} hidden={!detailsVisible} active={active && activeTab === 'explore' && detailsVisible}>
               {selectedReference ? <ActionReferenceDetail reference={selectedReference} actions={actions} users={users} onHide={hideDetails} onSelectNode={selectNode} />
-                : selected ? <ActionDetail node={selected} actions={actions} users={users} author={users.find((user) => user.id === selected.authorId)} isHighlightTip={highlightTipId === selected.id} onHighlight={() => setHighlightTipId(selected.id)} onHide={hideDetails} onLocate={() => setNodeLocateRequest((value) => value + 1)} recordMode={visibleDocumentMode} onModeChange={setDocumentMode} branches={actions.filter((node) => node.parentId === selected.id)} onOpenArchive={() => openArchive(selected)} onContinue={() => continueAction(selected)} onSelect={selectNode} onEditExpression={editExpression} onEditAgreement={onEditAgreement} />
+                : selected ? <ActionDetail node={selected} actions={actions} users={users} author={users.find((user) => user.id === selected.authorId)} isHighlightTip={highlightTipId === selected.id} onHighlight={() => setHighlightTipId(selected.id)} onHide={hideDetails} onLocate={() => setNodeLocateRequest((value) => value + 1)} recordMode={documentMode} onModeChange={setDocumentMode} branches={actions.filter((node) => node.parentId === selected.id)} onOpenArchive={() => openArchive(selected)} onContinue={() => continueAction(selected)} onSelect={selectNode} onEditExpression={editExpression} onEditAgreement={onEditAgreement} terminal={!actions.some((node) => getActionParentIds(node).includes(selected.id))} canDelete={selected.authorId === currentUserId && !actions.some((node) => getActionParentIds(node).includes(selected.id))} onDelete={() => { void onDeleteNode(selected) }} documents={nodeDocuments.documents} documentsLoading={nodeDocuments.loading} documentsError={nodeDocuments.error} isAuthor={selected.authorId === currentUserId} />
                   : <p className="p-6 text-sm text-muted">暂无行动</p>}
             </ActionReadingPane>
           </div>

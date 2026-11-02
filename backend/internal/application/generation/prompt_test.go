@@ -146,3 +146,24 @@ func TestPromptOnlyUsesReachableFactsAndKeepsOriginalAgreements(t *testing.T) {
 		t.Fatalf("事实或原始约定丢失: %+v", snapshot)
 	}
 }
+
+func TestInitialNodeDocumentSnapshotMarksFirstGeneration(t *testing.T) {
+	pending := Pending{Mode: "expression", Initial: true, Guide: "记录真实经历"}
+	snapshot := snapshotFor(action.Graph{}, nil, nil, pending, true)
+	if !snapshot.Initial {
+		t.Fatal("首次节点文档没有标记 initial")
+	}
+	messages, err := prompt(snapshot, pending)
+	if err != nil || len(messages) == 0 || !strings.Contains(messages[0].Content, `"initial":true`) {
+		t.Fatalf("首次生成标记没有进入提示词: %v %v", messages, err)
+	}
+}
+
+func TestSnapshotUsesAuthorDraftAsCurrentDocument(t *testing.T) {
+	graph := action.Graph{Nodes: []action.Node{{ID: "node", Expression: action.Document{Markdown: "已发布表达"}, Agreement: action.Document{Markdown: "已发布约定"}}}}
+	pending := Pending{Mode: "expression", NodeID: "node", CurrentDocument: "正在调整的表达草案"}
+	snapshot := snapshotFor(graph, nil, nil, pending, false)
+	if snapshot.CurrentExpression != "正在调整的表达草案" {
+		t.Fatalf("草案没有作为当前表达: %q", snapshot.CurrentExpression)
+	}
+}

@@ -22,16 +22,43 @@ type GenerateInput struct {
 	MergedParentIDs []string               `json:"mergedParentIds"`
 	SourceVersions  []action.SourceVersion `json:"sourceVersions"`
 	Agreement       action.DocumentUpdate  `json:"agreement"`
+	Images          []action.ImageInput    `json:"images"`
+	// CurrentDocument 是作者正在调整的私有表达/约定草案；仅 expression/agreement 模式使用。
+	CurrentDocument string `json:"currentDocument,omitempty"`
 }
 
 // Draft 是平台模型输出的可确认草稿，约定核对必须区分 null 和 false。
 type Draft struct {
-	Reply      string                    `json:"reply"`
-	Title      string                    `json:"title"`
-	Objective  string                    `json:"objective"`
-	Expression action.DocumentUpdate     `json:"expression"`
-	Agreement  *action.DocumentUpdate    `json:"agreement,omitempty"`
-	Reviews    []action.SourceAssessment `json:"reviews"`
+	Reply         string                    `json:"reply"`
+	Title         string                    `json:"title"`
+	Objective     string                    `json:"objective"`
+	Expression    action.DocumentUpdate     `json:"expression"`
+	Agreement     *action.DocumentUpdate    `json:"agreement,omitempty"`
+	Reviews       []action.SourceAssessment `json:"reviews"`
+	Images        []action.ImageInput       `json:"images,omitempty"`
+	InvalidImages []ImageIssue              `json:"invalidImages,omitempty"`
+}
+
+// ImageIssue 说明本轮没有放入正文的图片及原因。
+type ImageIssue struct {
+	Ref    string `json:"ref"`
+	Reason string `json:"reason"`
+}
+
+// PlaceImagesInput 只对已有行动草稿做图片放置，不提交正文或新的行动报告。
+type PlaceImagesInput struct {
+	GenerationID string              `json:"generationId"`
+	Images       []action.ImageInput `json:"images"`
+}
+
+// Placement 是图片放置事务内读取的当前草稿。
+type Placement struct {
+	GenerationID string
+	ActorID      string
+	Mode         string
+	Status       string
+	Objective    string
+	Confirmed    bool
 }
 
 // View 是仅生成发起者可读的结果及对应确认参数。
@@ -71,6 +98,9 @@ type Pending struct {
 	ContextDigest                                                []byte
 	Conversation                                                 Conversation
 	InputMessages                                                []string
+	Images                                                       []action.ImageInput
+	Initial                                                      bool
+	CurrentDocument                                              string
 	InputThroughSequence                                         uint32
 	ExpectedVersion                                              uint32
 	InheritedExpressionID                                        string
@@ -93,6 +123,9 @@ type Transaction interface {
 	Graph(string) (action.Graph, error)
 	Facts(string) ([]catalogue.ActionView, error)
 	Conversation(GenerateInput) (Conversation, error)
+	CheckAssets(...*string) error
+	Placement(string) (Placement, error)
+	UpdatePlacement(string, string) (View, error)
 	Reserve(Pending) error
 	Get(string) (View, error)
 	Complete(string, Draft, uint32, uint32) error

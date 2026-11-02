@@ -43,10 +43,10 @@ describe('local workspace drafts', () => {
 
   test('keeps the model name attached to an AI turn in a saved draft', () => {
     const saved = { ...draft(), messages: [
-      { id: 'ai-1', speaker: 'ai', body: '已整理', model: 'deepseek-v4-pro' },
+      { id: 'ai-1', speaker: 'ai', body: '已整理', model: 'deepseek-flash' },
     ] }
     expect(isActionWorkspaceDraft(saved)).toBe(true)
-    expect(saved.messages[0].model).toBe('deepseek-v4-pro')
+    expect(saved.messages[0].model).toBe('deepseek-flash')
     expect(isActionWorkspaceDraft({ ...saved, messages: [{ ...saved.messages[0], model: 1 }] })).toBe(false)
   })
 

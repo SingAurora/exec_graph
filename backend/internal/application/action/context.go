@@ -139,6 +139,9 @@ func ResolveSources(graph Graph, input CreateActionInput) ([]GenerationSource, u
 		if !ok {
 			return nil, 0, 0, fault.New(fault.Invalid, "来源核对与引用列表不一致")
 		}
+		if !nodeDocumentsPublished(node) {
+			return nil, 0, 0, fault.New(fault.Conflict, "来源节点的表达或约定尚未发布，暂不能接续")
+		}
 		kind := "merged"
 		if index == 0 {
 			kind = "primary"
@@ -181,4 +184,11 @@ func sameSources(left, right []GenerationSource) bool {
 func sameBool(a, b *bool) bool { return (a == nil && b == nil) || (a != nil && b != nil && *a == *b) }
 func sameString(a, b *string) bool {
 	return (a == nil && b == nil) || (a != nil && b != nil && *a == *b)
+}
+
+// nodeDocumentsPublished 要求节点自己的表达和约定都已发布；空状态用于兼容还没有
+// action_node_documents 行的旧节点。
+func nodeDocumentsPublished(node Node) bool {
+	return (node.ExpressionStatus == "" || node.ExpressionStatus == "published") &&
+		(node.AgreementStatus == "" || node.AgreementStatus == "published")
 }

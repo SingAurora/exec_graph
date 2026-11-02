@@ -25,11 +25,11 @@ describe('action formation provenance', () => {
     const action = node(1, undefined, undefined, {
       conversation: [
         { id: 'user-1', speaker: 'user', body: '做了一顿饭', authorId: 'jo' },
-        { id: 'ai-1', speaker: 'ai', body: '已整理行动', model: 'deepseek-v4-pro' },
+        { id: 'ai-1', speaker: 'ai', body: '已整理行动', model: 'deepseek-flash' },
       ],
     })
     const html = render([action], '1')
-    expect(html).toContain('deepseek-v4-pro')
+    expect(html).toContain('deepseek-flash')
     expect(html).toContain('复制对话')
     expect(html).toContain('AI 对话</h3>')
   })

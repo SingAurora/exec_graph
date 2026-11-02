@@ -48,9 +48,9 @@ security:
   credential_encryption_key: ""
 ai:
   base_url: https://api.deepseek.com
-  # 行动、表达、约定及独立核验统一使用 Pro，并开启 thinking。
-  draft_model: deepseek-v4-pro
-  analysis_model: deepseek-v4-pro
+  # 行动、表达、约定及独立核验统一使用 Flash，并开启 thinking。
+  draft_model: deepseek-flash
+  analysis_model: deepseek-flash
   # 也可仅通过服务端环境变量 DEEPSEEK_API_KEY 提供。
   api_key: ""
 # 所有值必须为正整数；省略字段使用以下默认值。每日次数按 UTC 自然日统计。

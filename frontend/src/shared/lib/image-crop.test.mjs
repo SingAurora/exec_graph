@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { getCropLayout, moveCropPosition, zoomCropPosition } from './image-crop.ts'
-import { renderCroppedImage, renderRectangularCroppedImage } from './image.ts'
+import { dataUrlToFile, renderCroppedImage, renderRectangularCroppedImage, renderScaledImage } from './image.ts'
 
 describe('image crop geometry', () => {
   test('fills a banner with portrait and landscape images without empty edges', () => {
@@ -40,6 +40,40 @@ describe('image crop geometry', () => {
     const small = getCropLayout(image, { width: 320, height: 64 }, 2, position)
     expect(large.offsetX / large.scale).toBeCloseTo(small.offsetX / small.scale)
     expect(large.offsetY / large.scale).toBeCloseTo(small.offsetY / small.scale)
+  })
+})
+
+describe('uncropped image compression', () => {
+  test('preserves the full image aspect ratio and never upscales', () => {
+    const previousDocument = Object.getOwnPropertyDescriptor(globalThis, 'document')
+    const calls = []
+    const canvas = {
+      width: 0, height: 0,
+      getContext: () => ({ fillRect() {}, drawImage: (...args) => calls.push(args) }),
+      toDataURL: (mime, quality) => `${mime};quality=${quality}`,
+    }
+    Object.defineProperty(globalThis, 'document', { configurable: true, value: { createElement: () => canvas } })
+    try {
+      const large = { naturalWidth: 2000, naturalHeight: 1000 }
+      expect(renderScaledImage(large, { maxWidth: 1600, maxHeight: 1600, quality: .78 })).toBe('image/jpeg;quality=0.78')
+      expect([canvas.width, canvas.height]).toEqual([1600, 800])
+      expect(calls[0]).toEqual([large, 0, 0, 2000, 1000, 0, 0, 1600, 800])
+      const small = { naturalWidth: 800, naturalHeight: 600 }
+      renderScaledImage(small, { maxWidth: 1600, maxHeight: 1600, quality: .88 })
+      expect([canvas.width, canvas.height]).toEqual([800, 600])
+    } finally {
+      if (previousDocument) Object.defineProperty(globalThis, 'document', previousDocument)
+      else Reflect.deleteProperty(globalThis, 'document')
+    }
+  })
+})
+
+describe('cropped image upload conversion', () => {
+  test('turns a compressed data URL into an uploadable file', async () => {
+    const file = dataUrlToFile('data:image/jpeg;base64,aGVsbG8=', 'action-image.jpg')
+    expect(file.name).toBe('action-image.jpg')
+    expect(file.type).toBe('image/jpeg')
+    expect(await file.text()).toBe('hello')
   })
 })
 

@@ -2,6 +2,8 @@
 package generation
 
 import (
+	"context"
+
 	"github.com/gin-gonic/gin"
 	app "github.com/singaurora/exec-graph/backend/internal/application/generation"
 	"github.com/singaurora/exec-graph/backend/internal/application/identity"
@@ -21,6 +23,13 @@ func New(service *app.Service, auth *identity.Service) *Handler { return &Handle
 // Generate 使用服务端上下文和平台密钥生成，浏览器不提交 system prompt。
 func (h *Handler) Generate(c *gin.Context) {
 	common.CommandWithTimeout(c, h.auth, constants.AIRequestTimeout, h.service.Generate)
+}
+
+// PlaceImages 只对当前草稿做图片放置，不重新生成或核验正文。
+func (h *Handler) PlaceImages(c *gin.Context) {
+	common.CommandWithTimeout(c, h.auth, constants.AIRequestTimeout, func(ctx context.Context, actor identity.Actor, _ string, input app.PlaceImagesInput) (app.View, error) {
+		return h.service.PlaceImages(ctx, actor, input)
+	})
 }
 
 // Get 只向当前会话返回本人发起的生成。

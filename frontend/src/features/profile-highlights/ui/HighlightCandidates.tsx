@@ -3,6 +3,7 @@ import { useRef, useState, type ReactNode } from 'react'
 import type { ProfileHighlightEntry } from '../../../entities/action/lib/profile-highlights'
 import type { Project } from '../../../entities/project/model/types'
 import { useInfiniteList } from '../../../shared/lib/useInfiniteList'
+import { ListEnd } from '../../../shared/ui/ListEnd'
 import { Pagination } from '../../../shared/ui/Pagination'
 import { SearchInput } from '../../../shared/ui/SearchInput'
 import { searchHighlightCandidates } from '../lib/search'
@@ -46,7 +47,7 @@ export function HighlightCandidates({ active, candidates, projects, full, onAdd,
           {renderEntry(entry, keyword)}
           <div className="mt-2 flex justify-end"><button type="button" className="icon-button" title="添加表达" disabled={full} onClick={() => onAdd(entry.node.id)}><Plus size={16} /></button></div>
         </li>)}</ul>
-        {!keyword && <p ref={endRef} className="py-3 text-center text-xs text-muted">{hasMore ? '加载中…' : matches.length ? '已显示全部可选表达' : ''}</p>}
+        {!keyword && (hasMore || matches.length > 0) && <ListEnd ref={endRef} hasMore={hasMore} doneLabel={matches.length ? '已显示全部可选表达' : undefined} className="py-3" />}
       </div>
       {keyword && pageCount > 1 && <Pagination currentPage={currentPage} pageCount={pageCount} onChange={(next) => { setPage(next); scrollRef.current?.scrollTo({ top: 0 }) }} />}
     </section>

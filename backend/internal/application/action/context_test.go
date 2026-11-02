@@ -76,3 +76,29 @@ func TestDocumentIntentAndAssessmentPresence(t *testing.T) {
 		t.Fatal("未知核对字段应拒绝")
 	}
 }
+
+func TestSourceResolutionRequiresPublishedNodeDocuments(t *testing.T) {
+	uuid := id.New()
+	input := CreateActionInput{ParentID: uuid, MergedParentIDs: []string{}, SourceVersions: []SourceVersion{{NodeID: uuid, Version: 1}}, ReferenceAgreements: []SourceAssessment{{SourceID: uuid, Provided: true}}}
+	for _, node := range []Node{
+		{ID: uuid, Version: 1, Level: 1, ExpressionStatus: "pending", AgreementStatus: "published"},
+		{ID: uuid, Version: 1, Level: 1, ExpressionStatus: "published", AgreementStatus: "draft"},
+	} {
+		if _, _, _, err := ResolveSources(Graph{Nodes: []Node{node}}, input); err == nil {
+			t.Fatalf("未发布的节点文档被允许接续: %+v", node)
+		}
+	}
+	node := Node{ID: uuid, Version: 1, Level: 1, ExpressionStatus: "published", AgreementStatus: "published"}
+	if _, _, _, err := ResolveSources(Graph{Nodes: []Node{node}}, input); err != nil {
+		t.Fatalf("已发布节点文档被拒绝: %v", err)
+	}
+}
+
+func TestPublicationNumberResetsAnEmptyGraphToRootOne(t *testing.T) {
+	if got := publicationNumber(Graph{NextNumber: 7}, nil); got != 1 {
+		t.Fatalf("空图根节点编号应回到 1，得到 %d", got)
+	}
+	if got := publicationNumber(Graph{NextNumber: 7, Nodes: []Node{{ID: "existing"}}}, []GenerationSource{{NodeID: "existing"}}); got != 7 {
+		t.Fatalf("非空图不应重置编号，得到 %d", got)
+	}
+}

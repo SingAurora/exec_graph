@@ -36,8 +36,8 @@ func TestAIModelDefaultsUseDeepSeekPro(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if loaded.AI.DraftModel != "deepseek-v4-pro" || loaded.AI.AnalysisModel != "deepseek-v4-pro" {
-		t.Fatalf("AI 默认模型未统一为 Pro: draft=%q analysis=%q", loaded.AI.DraftModel, loaded.AI.AnalysisModel)
+	if loaded.AI.DraftModel != "deepseek-flash" || loaded.AI.AnalysisModel != "deepseek-flash" {
+		t.Fatalf("AI 默认模型未统一为 Flash: draft=%q analysis=%q", loaded.AI.DraftModel, loaded.AI.AnalysisModel)
 	}
 	if loaded.AI.Model != "deepseek-flash" {
 		t.Fatalf("旧配置应保留可读取但不覆盖模型默认值: model=%q", loaded.AI.Model)

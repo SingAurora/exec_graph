@@ -1,12 +1,9 @@
-import { ArrowRight, ChevronDown, MessageCircle, Route } from 'lucide-react'
-import { Popover } from 'radix-ui'
-import { useMemo } from 'react'
+import { ArrowRight, ChevronDown, Ellipsis, History, LoaderCircle, MessageCircle, Route, Trash2 } from 'lucide-react'
+import { AlertDialog, DropdownMenu, Popover } from 'radix-ui'
+import { useMemo, useState } from 'react'
 import type { ActionDocumentMode, ActionNode } from '../../../entities/action/model/types'
 import { getActionParentIds } from '../../../entities/action/lib/graph'
-import { canEditActionExpression, getActionExpression, getActionExpressionOrigin } from '../../../entities/action/lib/expressions'
-import { EditExpression } from '../../../features/action-expression/ui/EditExpression'
 import { getActionLevels } from '../../../entities/action/lib/levels'
-import { ExpressionContent } from '../../../entities/action/ui/ExpressionContent'
 import type { UserProfile } from '../../../entities/profile/model/types'
 import { formatFullPublicationTime, formatPublicationTime } from '../../../shared/lib/date'
 import { Avatar } from '../../../shared/ui/Avatar'
@@ -14,7 +11,9 @@ import { ProfilePreview } from '../../../entities/profile/ui/ProfilePreview'
 import { MarkdownContent } from '../../../shared/ui/MarkdownContent'
 import { HelpPopover } from '../../../shared/ui/help/HelpPopover'
 import { DetailPanelControls } from '../../../shared/ui/DetailPanelControls'
-import { ActionOwnAgreement, ActionSourceAgreements } from './ActionAgreements'
+import { ActionSourceAgreements } from './ActionAgreements'
+import { NodeDocumentHistory } from '../../../features/action-generation/ui/NodeDocumentHistory'
+import type { NodeDocument } from '../../../features/action-generation/api/generation'
 
 /** 头部只显示承接和合入的直接来源；完整祖先背景留在形成过程展示。 */
 function ActionSources({ node, actions, users, onSelect }: { node: ActionNode; actions: ActionNode[]; users: UserProfile[]; onSelect: (id: string) => void }) {
@@ -60,8 +59,8 @@ function ActionSources({ node, actions, users, onSelect }: { node: ActionNode; a
   )
 }
 
-/** 当前节点阅读区：切换行动／有效表达，提供接续、编辑与形成过程入口。 */
-export function ActionDetail({ node, actions, users, author, isHighlightTip, onHighlight, onHide, onLocate, recordMode, onModeChange, branches, onOpenArchive, onContinue, onSelect, onEditExpression, onEditAgreement }: {
+/** 当前节点阅读区：行动、表达、约定三个平行文档 tab；草稿通过 AI 对话编辑。 */
+export function ActionDetail({ node, actions, users, author, isHighlightTip, onHighlight, onHide, onLocate, recordMode, onModeChange, branches, onOpenArchive, onContinue, onSelect, onEditExpression, onEditAgreement, terminal = false, canDelete = false, onDelete, documents = [], documentsLoading = false, documentsError = '', isAuthor = false }: {
   node: ActionNode
   actions: ActionNode[]
   users: UserProfile[]
@@ -77,25 +76,84 @@ export function ActionDetail({ node, actions, users, author, isHighlightTip, onH
   onContinue: () => void
   onSelect: (nodeId: string) => void
   onEditExpression: (node: ActionNode) => void
-	onEditAgreement: (node: ActionNode) => void
+  onEditAgreement: (node: ActionNode) => void
+  terminal?: boolean
+  canDelete?: boolean
+  onDelete?: () => void
+  documents?: NodeDocument[]
+  documentsLoading?: boolean
+  documentsError?: string
+  isAuthor?: boolean
 }) {
   const objectiveMarkdown = node.objectiveMarkdown ?? node.markdown
   const levels = useMemo(() => getActionLevels(actions), [actions])
   const level = levels.get(node.id)
-  const expression = getActionExpression(actions, node.id)
-  const hasExpression = Boolean(expression.markdown.trim())
-  const activeMode = hasExpression ? recordMode : 'objective'
-  const documentModes: ActionDocumentMode[] = hasExpression ? ['objective', 'expression'] : ['objective']
   const authorName = author?.name ?? node.authorId
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const nodeReady = node.nodeReady !== false
+  const documentFor = (kind: 'expression' | 'agreement') => documents.find((document) => document.kind === kind)
+  const statusFor = (kind: 'expression' | 'agreement') => documentFor(kind)?.status
+    ?? (kind === 'expression' ? node.expressionStatus : node.agreementStatus)
+    ?? ((kind === 'expression' ? node.expressionMarkdown : node.agreementMarkdown)?.trim() ? 'published' : 'pending')
+  const tabStatusClass = (status?: string) => status === 'failed' ? 'bg-coral' : status === 'published' || !status ? 'hidden' : status === 'pending' || status === 'generating' ? 'bg-warning animate-pulse' : 'bg-warning'
+  const tabs: { key: ActionDocumentMode; label: string }[] = [
+    { key: 'objective', label: '行动' },
+    { key: 'expression', label: '表达' },
+    { key: 'agreement', label: '约定' },
+  ]
+  const renderDocument = (kind: 'expression' | 'agreement') => {
+    const published = (kind === 'expression' ? node.expressionMarkdown : node.agreementMarkdown)?.trim() ?? ''
+    const document = documentFor(kind)
+    const draft = document?.draftMarkdown?.trim() ?? ''
+    const status = statusFor(kind)
+    if (published) return <MarkdownContent markdown={published} showImageCaptions={false} />
+    if (!isAuthor) return <div className="flex min-h-40 items-center justify-center text-sm text-muted">作者正在完成{kind === 'expression' ? '表达' : '约定'}，尚未发布。</div>
+    if (documentsError) return <p className="py-5 text-sm text-coral">{documentsError}</p>
+    if (documentsLoading && !document) return <div className="flex min-h-40 items-center justify-center gap-2 text-sm text-muted"><LoaderCircle size={16} className="animate-spin" />正在读取{kind === 'expression' ? '表达' : '约定'}状态…</div>
+    if (status === 'failed' || document?.status === 'failed') return <div className="min-h-40 py-5"><p className="text-sm font-medium text-coral">AI 生成失败</p><p className="mt-2 text-sm leading-6 text-muted">{document?.errorMessage ?? '请稍后重试生成。'}</p></div>
+    if (draft) return <div><div className="mb-4 inline-flex items-center gap-2 rounded-md bg-signal-soft px-2.5 py-1 text-xs font-medium text-signal">AI 草案 · 尚未发布</div><MarkdownContent markdown={draft} showImageCaptions={false} /></div>
+    if (status === 'pending' || status === 'generating') return <div className="flex min-h-40 items-center justify-center gap-2 text-sm text-muted"><LoaderCircle size={16} className="animate-spin" />AI 正在生成{kind === 'expression' ? '表达' : '约定'}草稿…</div>
+    return <p className="py-5 text-sm text-muted">还没有{kind === 'expression' ? '表达' : '约定'}。</p>
+  }
+  const menuItemClass = 'flex w-full cursor-default select-none items-center gap-2 rounded px-2.5 py-2 text-left text-sm text-ink outline-none data-[highlighted]:bg-soft data-[highlighted]:text-signal'
+  const moreMenu = (showDelete = false) => <DropdownMenu.Root>
+    <DropdownMenu.Trigger asChild><button className="icon-button ml-auto" type="button" title="更多操作"><Ellipsis size={17} /></button></DropdownMenu.Trigger>
+    <DropdownMenu.Portal><DropdownMenu.Content align="end" sideOffset={6} className="z-50 min-w-44 rounded-md border border-line bg-surface p-1 shadow-app">
+      <DropdownMenu.Item className={menuItemClass} onSelect={onOpenArchive}><MessageCircle size={15} />查看形成过程</DropdownMenu.Item>
+      {(node.expressionMarkdown || node.agreementMarkdown) && <DropdownMenu.Item className={menuItemClass} onSelect={() => setHistoryOpen(true)}><History size={15} />版本历史</DropdownMenu.Item>}
+      {showDelete && canDelete && onDelete && <><DropdownMenu.Separator className="my-1 h-px bg-line" /><DropdownMenu.Item className="flex w-full cursor-default select-none items-center gap-2 rounded px-2.5 py-2 text-left text-sm text-coral outline-none data-[highlighted]:bg-soft" onSelect={() => setDeleteOpen(true)}><Trash2 size={15} />删除节点</DropdownMenu.Item></>}
+    </DropdownMenu.Content></DropdownMenu.Portal>
+  </DropdownMenu.Root>
+  const renderFooter = () => {
+    if (recordMode === 'objective') {
+      if (!nodeReady) return <>
+        <span className="text-xs text-muted">{isAuthor ? '表达和约定都发布后，节点才能被接续' : '表达或约定尚未发布，节点暂不可接续'}</span>
+        {moreMenu(false)}
+      </>
+      return <>
+        <button className="primary-button" type="button" onClick={onContinue}><ArrowRight size={16} />接续行动</button>
+        {moreMenu(true)}
+      </>
+    }
+    const kind = recordMode
+    const published = (kind === 'expression' ? node.expressionMarkdown : node.agreementMarkdown)?.trim() ?? ''
+    const document = documentFor(kind)
+    const draft = document?.draftMarkdown?.trim() ?? ''
+    if (published) return <>
+      {terminal && <button className="quiet-button" type="button" onClick={() => kind === 'expression' ? onEditExpression(node) : onEditAgreement(node)}>编辑{kind === 'expression' ? '表达' : '约定'}</button>}
+      {moreMenu(false)}
+    </>
+    if (!isAuthor) return <span className="text-xs text-muted">作者尚未发布{kind === 'expression' ? '表达' : '约定'}</span>
+    if (document?.status === 'failed' || draft) return <button className="primary-button" type="button" onClick={() => kind === 'expression' ? onEditExpression(node) : onEditAgreement(node)}>编辑{kind === 'expression' ? '表达' : '约定'}</button>
+    return <span className="text-xs text-muted">AI 正在生成{kind === 'expression' ? '表达' : '约定'}草稿…</span>
+  }
   return (
     <article>
       <header className="px-6 pb-4 pt-5">
         <div className="flex items-start justify-between gap-4 text-xs leading-5 text-muted">
           <div className="flex min-h-8 min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
-            <span className="inline-flex items-center gap-2 whitespace-nowrap">
-              <span className="text-[13px] font-medium tabular-nums text-ink">节点 #{node.number}</span>
-              {level !== undefined && <span>第 {level} 层</span>}
-            </span>
+            <span className="inline-flex items-center gap-2 whitespace-nowrap"><span className="text-[13px] font-medium tabular-nums text-ink">节点 #{node.number}</span>{level !== undefined && <span>第 {level} 层</span>}</span>
             <ActionSources node={node} actions={actions} users={users} onSelect={onSelect} />
           </div>
           <div className="flex shrink-0 items-center gap-1">
@@ -105,49 +163,43 @@ export function ActionDetail({ node, actions, users, author, isHighlightTip, onH
         </div>
         <h3 className="mt-2 text-xl font-semibold leading-[1.55] tracking-[-.02em] text-ink">{node.title}</h3>
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs leading-5 text-muted">
-          <ProfilePreview profile={author} userId={node.authorId} className="inline-flex min-w-0 items-center gap-2 rounded-sm text-ink hover:text-signal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal" href={`#profile?userId=${encodeURIComponent(node.authorId)}&fromGraph=${encodeURIComponent(node.projectId)}&fromTab=explore`}>
-            <Avatar profile={author} label={authorName.slice(0, 1)} size="small" />
-            <span className="max-w-[180px] truncate text-sm font-medium">{authorName}</span>
-          </ProfilePreview>
+          <ProfilePreview profile={author} userId={node.authorId} className="inline-flex min-w-0 items-center gap-2 rounded-sm text-ink hover:text-signal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal" href={`#profile?userId=${encodeURIComponent(node.authorId)}&fromGraph=${encodeURIComponent(node.projectId)}&fromTab=explore`}><Avatar profile={author} label={authorName.slice(0, 1)} size="small" /><span className="max-w-[180px] truncate text-sm font-medium">{authorName}</span></ProfilePreview>
           <time dateTime={node.createdAt} title={formatFullPublicationTime(node.createdAt)}>{formatPublicationTime(node.createdAt)}</time>
         </div>
       </header>
       <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-line bg-surface/95 px-6 py-2 backdrop-blur-sm">
-        <div className="flex items-center gap-5">
-          {documentModes.map((mode) => <button key={mode} className={`min-h-8 border-0 bg-transparent px-0 py-1 text-sm font-medium transition-colors ${activeMode === mode ? 'text-signal' : 'text-muted hover:text-signal'}`} type="button" onClick={() => onModeChange(mode)}>{mode === 'objective' ? '行动' : '表达'}</button>)}
-        </div>
-        <HelpPopover title="行动与表达">
-          <p>行动记录本次实际发生的事情；表达没有更新时沿用承接节点的表达，可以主动清空。合入来源不会自动覆盖表达。</p>
-          <p>沿用的表达保留来源作者。“查看形成过程”可查看完整文档、上下文来源和 AI 对话。</p>
-        </HelpPopover>
+        <div className="flex items-center gap-5">{tabs.map((tab) => {
+          const status = tab.key === 'objective' ? 'published' : statusFor(tab.key)
+          return <button key={tab.key} className={`inline-flex min-h-8 items-center gap-1.5 border-0 bg-transparent px-0 py-1 text-sm font-medium transition-colors ${recordMode === tab.key ? 'text-signal' : 'text-muted hover:text-signal'}`} type="button" onClick={() => onModeChange(tab.key)}>{tab.label}<span className={`size-1.5 rounded-full ${tabStatusClass(status)}`} /></button>
+        })}</div>
+        <HelpPopover title="行动、表达与约定"><p>三个文档属于同一个节点：行动是事实，表达是这条分支的概括，约定是未来什么行动会引起作者兴趣。</p><p>表达和约定由 AI 生成草稿，作者分别发布；两者都发布后节点才能被接续。被接续后不可再修改。</p></HelpPopover>
       </div>
       <div className="action-reading-document px-6 py-5">
-        {activeMode === 'expression' ? <ExpressionContent expression={expression} origin={getActionExpressionOrigin(actions, node.id)} onSelectSource={(id) => { onSelect(id); onModeChange('expression') }} showImageCaptions={false} /> : <MarkdownContent markdown={objectiveMarkdown} images={node.images} showImageCaptions={false} />}
+        {recordMode === 'objective' ? <MarkdownContent markdown={objectiveMarkdown} images={node.images} showImageCaptions={false} /> : renderDocument(recordMode)}
+        {recordMode === 'agreement' && <div className="mt-8 border-t border-line pt-4"><ActionSourceAgreements node={node} actions={actions} users={users} onSelect={onSelect} /></div>}
       </div>
-      <footer className="flex flex-wrap items-center gap-x-5 gap-y-3 px-6 pb-6 pt-1">
-        <button className="primary-button" type="button" onClick={onContinue}><ArrowRight size={16} />接续行动</button>
-        {canEditActionExpression(actions, node.id) && <EditExpression markdown={expression.markdown} onOpen={() => onEditExpression(node)} />}
-        <button className="inline-flex min-h-9 items-center gap-1.5 border-0 bg-transparent px-0 text-sm text-muted hover:text-signal" type="button" onClick={onOpenArchive}><MessageCircle size={16} />查看形成过程</button>
-      </footer>
-      <section className="space-y-2 px-6 pb-6">
-        <ActionOwnAgreement key={node.id} node={node} actions={actions} onSelect={onSelect} onEdit={onEditAgreement} />
-        <ActionSourceAgreements node={node} actions={actions} users={users} onSelect={onSelect} />
-      </section>
+      <footer className="flex flex-wrap items-center gap-x-5 gap-y-3 px-6 pb-6 pt-1">{renderFooter()}</footer>
       {branches.length > 0 && <section className="border-t border-line px-6 py-5">
         <h4 className="text-sm font-medium">后续行动 <span className="ml-1 text-xs font-normal text-muted">{branches.length}</span></h4>
         <div className="mt-2 divide-y divide-line">{branches.map((branch) => {
           const branchAuthor = users.find((user) => user.id === branch.authorId)
-          return (
-            <div className="flex w-full items-center gap-3 py-3" key={branch.id}>
-              <ProfilePreview profile={branchAuthor} userId={branch.authorId} className="inline-flex shrink-0 rounded-lg focus-visible:outline-2 focus-visible:outline-signal"><Avatar profile={branchAuthor} label={branchAuthor?.name ?? branch.authorId} size="small" /></ProfilePreview>
-              <button className="group flex min-w-0 flex-1 items-center gap-3 border-0 bg-transparent p-0 text-left" type="button" onClick={() => onSelect(branch.id)}>
-                <span className="min-w-0 flex-1"><strong className="block text-sm font-medium leading-6 group-hover:text-signal">{branch.title}</strong><span className="mt-1 block text-xs text-muted">{branchAuthor?.name ?? branch.authorId} · 节点 #{branch.number}</span></span>
-                <ArrowRight size={15} className="shrink-0 text-muted group-hover:text-signal" />
-              </button>
-            </div>
-          )
+          return <div className="flex w-full items-center gap-3 py-3" key={branch.id}>
+            <ProfilePreview profile={branchAuthor} userId={branch.authorId} className="inline-flex shrink-0 rounded-lg focus-visible:outline-2 focus-visible:outline-signal"><Avatar profile={branchAuthor} label={branchAuthor?.name ?? branch.authorId} size="small" /></ProfilePreview>
+            <button className="group flex min-w-0 flex-1 items-center gap-3 border-0 bg-transparent p-0 text-left" type="button" onClick={() => onSelect(branch.id)}><span className="min-w-0 flex-1"><strong className="block text-sm font-medium leading-6 group-hover:text-signal">{branch.title}</strong><span className="mt-1 block text-xs text-muted">{branchAuthor?.name ?? branch.authorId} · 节点 #{branch.number}</span></span><ArrowRight size={15} className="shrink-0 text-muted group-hover:text-signal" /></button>
+          </div>
         })}</div>
       </section>}
+      <NodeDocumentHistory nodeId={node.id} open={historyOpen} onOpenChange={setHistoryOpen} />
+      <AlertDialog.Root open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialog.Portal>
+          <AlertDialog.Overlay className="fixed inset-0 z-50 bg-black/35 backdrop-blur-[2px]" />
+          <AlertDialog.Content className="fixed left-1/2 top-1/2 z-50 w-[420px] max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-line bg-surface p-6 text-ink shadow-app outline-none">
+            <AlertDialog.Title className="text-base font-semibold">删除这个行动节点？</AlertDialog.Title>
+            <AlertDialog.Description className="mt-3 break-words text-sm leading-[1.8] text-muted">将删除「{node.title}」及其表达、约定和版本历史。该节点必须尚未被接续；删除后无法恢复。</AlertDialog.Description>
+            <div className="mt-6 flex justify-end gap-2"><AlertDialog.Cancel asChild><button className="quiet-button" type="button">取消</button></AlertDialog.Cancel><AlertDialog.Action asChild><button className="primary-button !bg-coral !text-white" type="button" onClick={onDelete}>确认删除</button></AlertDialog.Action></div>
+          </AlertDialog.Content>
+        </AlertDialog.Portal>
+      </AlertDialog.Root>
     </article>
   )
 }

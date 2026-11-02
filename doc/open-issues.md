@@ -325,7 +325,7 @@
 以下在 2026-11-01 的工作区实测通过，修复上述问题时作为回归基线：
 
 - 后端：`go build ./...`、`go test ./...`、`go vet ./...` 通过；`gofmt`、`git diff --check` 无问题。
-- 前端：`bun run lint`、`bun run test`（330 项、71 个文件）、`bun run build` 通过。
+- 前端：`bun run lint`、`bun run test`（345 项、75 个文件）、`bun run build` 通过。
 - 未执行：`EXEC_GRAPH_INTEGRATION=1` 的真实 MySQL／Redis／云服务回归。涉及生成事务、配额、媒体回收或迁移的改动必须补跑。
 - 未验证：浏览器窄屏、真实 AI 生成、真实对象存储上传。它们仍按各自显式开关单独验收。
 

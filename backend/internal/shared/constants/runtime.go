@@ -26,8 +26,10 @@ const (
 	DirectSourceLimit = 50
 	// ActionImageLimit 限制行动配图数量。
 	ActionImageLimit = 12
-	// ImageAltLimit 限制图片描述字符数。
-	ImageAltLimit = 500
+	// ImageAltLimit 限制行动图片备注字符数。
+	ImageAltLimit = 30
+	// ImageIssueReasonLimit 限制无效图片原因说明字符数。
+	ImageIssueReasonLimit = 500
 	// ActionTitleLimit 限制生成的行动标题字符数。
 	ActionTitleLimit = 30
 	// ActionContentLimit 限制生成的行动正文（objective）字符数。
@@ -49,5 +51,5 @@ const (
 	// PasswordParallelism 是 Argon2id 的并行度。
 	PasswordParallelism = 2
 	// LatestSchemaVersion 是当前应用要求的迁移版本。
-	LatestSchemaVersion uint64 = 4
+	LatestSchemaVersion uint64 = 5
 )

@@ -8,11 +8,12 @@ type Props = {
   name: string
   following: boolean
   disabledReason?: string
+  variant?: 'default' | 'header'
   onChange: (following: boolean) => boolean | Promise<boolean>
 }
 
 /** Follows an object explicitly, with a recoverable unsubscribe and shared feedback. */
-export function FollowButton({ kind, name, following, disabledReason, onChange }: Props) {
+export function FollowButton({ kind, name, following, disabledReason, variant = 'default', onChange }: Props) {
   const { showToast } = useToast()
   const pending = useRef(false)
   const [saving, setSaving] = useState(false)
@@ -31,7 +32,8 @@ export function FollowButton({ kind, name, following, disabledReason, onChange }
     finally { pending.current = false; setSaving(false) }
   }
   const Icon = following ? Check : kind === 'graph' ? BookmarkPlus : UserPlus
-  const button = <button type="button" className={following || disabledReason ? 'quiet-button shrink-0' : 'primary-button shrink-0'} title={`${following ? '取消关注' : '关注'}${kind === 'graph' ? '图' : '用户'}：${name}${disabledReason ? `，${disabledReason}` : ''}`} disabled={Boolean(disabledReason) || saving} onClick={() => { void change(!following) }}><Icon size={15} />{following ? '已关注' : '关注'}</button>
+  const buttonClass = variant === 'header' ? 'header-action' : following || disabledReason ? 'quiet-button shrink-0' : 'primary-button shrink-0'
+  const button = <button type="button" className={buttonClass} title={`${following ? '取消关注' : '关注'}${kind === 'graph' ? '图' : '用户'}：${name}${disabledReason ? `，${disabledReason}` : ''}`} disabled={Boolean(disabledReason) || saving} onClick={() => { void change(!following) }}><Icon size={15} />{following ? '已关注' : '关注'}</button>
   return (
     disabledReason ? <Tooltip content={disabledReason}><span className="inline-flex" tabIndex={0}>{button}</span></Tooltip> : button
   )

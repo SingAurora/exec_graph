@@ -57,6 +57,7 @@ func (r *Repository) actions(ctx context.Context, nodes []model.ActionNode) ([]a
 	db := r.db.WithContext(ctx)
 	var references []model.ActionReference
 	var states []model.DocumentState
+	var nodeDocuments []model.NodeDocument
 	var documents []model.DocumentVersion
 	var images []model.ActionImage
 	var conversations []model.AIConversation
@@ -64,6 +65,9 @@ func (r *Repository) actions(ctx context.Context, nodes []model.ActionNode) ([]a
 		return nil, err
 	}
 	if err := db.Where("node_uuid IN ?", ids).Find(&states).Error; err != nil {
+		return nil, err
+	}
+	if err := db.Where("node_uuid IN ?", ids).Find(&nodeDocuments).Error; err != nil {
 		return nil, err
 	}
 	localIDs := []string{}
@@ -86,6 +90,13 @@ func (r *Repository) actions(ctx context.Context, nodes []model.ActionNode) ([]a
 	byDocument := map[string]model.DocumentVersion{}
 	for _, d := range documents {
 		byDocument[d.UUID] = d
+	}
+	byNodeDocument := map[string]map[string]model.NodeDocument{}
+	for _, document := range nodeDocuments {
+		if byNodeDocument[document.NodeUUID] == nil {
+			byNodeDocument[document.NodeUUID] = map[string]model.NodeDocument{}
+		}
+		byNodeDocument[document.NodeUUID][document.Kind] = document
 	}
 	convIDs := []string{}
 	byConv := map[string]model.AIConversation{}
@@ -124,6 +135,14 @@ func (r *Repository) actions(ctx context.Context, nodes []model.ActionNode) ([]a
 	}
 	for i := range result {
 		byID[result[i].ID] = &result[i]
+		statuses := byNodeDocument[result[i].ID]
+		if statuses == nil {
+			// 旧节点没有节点文档行，按已发布兼容。
+			result[i].ExpressionStatus, result[i].AgreementStatus, result[i].NodeReady = "published", "published", true
+		} else {
+			result[i].ExpressionStatus, result[i].AgreementStatus = statuses["expression"].Status, statuses["agreement"].Status
+			result[i].NodeReady = result[i].ExpressionStatus == "published" && result[i].AgreementStatus == "published"
+		}
 	}
 	for _, edge := range references {
 		node := byID[edge.TargetNodeUUID]

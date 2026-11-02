@@ -13,6 +13,7 @@ import (
 	appgraph "github.com/singaurora/exec-graph/backend/internal/application/graph"
 	appidentity "github.com/singaurora/exec-graph/backend/internal/application/identity"
 	appmedia "github.com/singaurora/exec-graph/backend/internal/application/media"
+	nodedoc "github.com/singaurora/exec-graph/backend/internal/application/nodedoc"
 	appprofile "github.com/singaurora/exec-graph/backend/internal/application/profile"
 	httpaccount "github.com/singaurora/exec-graph/backend/internal/http/endpoint/account"
 	httpaction "github.com/singaurora/exec-graph/backend/internal/http/endpoint/action"
@@ -73,6 +74,7 @@ func HTTP(deps *Dependencies, logger *slog.Logger) http.Handler {
 	if codeTTL == 0 {
 		codeTTL = constants.DefaultCodeTTL
 	}
+	actionStore := action.New(deps.DB)
 	ready := func(ctx context.Context) error {
 		ctx, cancel := context.WithTimeout(ctx, constants.DependencyTimeout)
 		defer cancel()
@@ -89,7 +91,7 @@ func HTTP(deps *Dependencies, logger *slog.Logger) http.Handler {
 		httpidentity.New(identityService, deps.Config.App.Environment == "production", int(deps.Config.App.SessionTTL().Seconds())),
 		httpcatalogue.New(catalogueService, identityService, ready),
 		httpgraph.New(appgraph.New(graph.New(deps.DB)), identityService),
-		httpaction.New(appaction.New(action.New(deps.DB)), identityService),
+		httpaction.New(appaction.New(actionStore), identityService, nodedoc.New(actionStore, draftProvider)),
 		httpprofile.New(appprofile.New(profile.New(deps.DB)), identityService),
 		httpfollowing.New(appfollowing.New(following.New(deps.DB)), identityService),
 		httpmedia.New(appmedia.New(media.New(deps.DB), objects, mediaLimits(deps.Config)), identityService),

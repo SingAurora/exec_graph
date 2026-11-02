@@ -21,7 +21,7 @@ describe('platform AI completion', () => {
     expect(requests).toHaveLength(1)
     expect(requests[0].url).toBe('/platform-ai-api/v1/chat/completions')
     expect(requests[0].headers).toEqual({ 'Content-Type': 'application/json' })
-    expect(requests[0].body).toEqual({ model: 'deepseek-v4-pro', messages, thinking: { type: 'enabled' } })
+    expect(requests[0].body).toEqual({ model: 'deepseek-flash', messages, thinking: { type: 'enabled' } })
   })
 
   test('requests structured output through the same platform service', async () => {

@@ -1,8 +1,7 @@
-import { ChevronDown, FilePlus2, Pencil, ScrollText } from 'lucide-react'
+import { ChevronDown, ScrollText } from 'lucide-react'
 import { useId, useState } from 'react'
 import type { ActionNode } from '../../../entities/action/model/types'
 import { getActionSourceAgreements, getUnreviewedAgreementCount } from '../../../entities/action/lib/references'
-import { canEditActionAgreement, getActionAgreement, getActionAgreementOrigin } from '../../../entities/action/lib/agreements'
 import { AgreementContent } from '../../../entities/action/ui/AgreementContent'
 import type { UserProfile } from '../../../entities/profile/model/types'
 import { HelpPopover } from '../../../shared/ui/help/HelpPopover'
@@ -41,7 +40,7 @@ export function ActionSourceAgreements({ node, actions, users, onSelect }: { nod
               {exception && <p className="mt-1.5 whitespace-pre-wrap text-xs leading-[1.8] text-muted">不符合原因：{reference.exceptionReason?.trim() || '尚未填写'}</p>}
               <details className="mt-2">
                 <summary className="cursor-pointer text-xs leading-5 text-muted hover:text-signal">查看约定</summary>
-                <div className="mt-2 border-l-2 border-line pl-3"><AgreementContent agreement={reference.agreement} origin={getActionAgreementOrigin(actions, reference.source.id)} onSelectSource={onSelect} /></div>
+                <div className="mt-2 border-l-2 border-line pl-3"><AgreementContent agreement={reference.agreement} onSelectSource={onSelect} /></div>
               </details>
             </section>
           )
@@ -52,25 +51,22 @@ export function ActionSourceAgreements({ node, actions, users, onSelect }: { nod
 }
 
 /** 本节点约定：留给后来引用者的条件；修改它不会改变本次已记录的来源核对。 */
-export function ActionOwnAgreement({ node, actions, onSelect, onEdit }: { node: ActionNode; actions: ActionNode[]; onSelect: (id: string) => void; onEdit?: (node: ActionNode) => void }) {
+export function ActionOwnAgreement({ node, onSelect }: { node: ActionNode; onSelect: (id: string) => void }) {
   const [expanded, setExpanded] = useState(false)
   const contentId = useId()
-  const agreement = getActionAgreement(actions, node.id)
-  const canEdit = Boolean(onEdit) && canEditActionAgreement(actions, node.id)
-  const hasContent = Boolean(agreement.markdown.trim())
-  const EditIcon = hasContent ? Pencil : FilePlus2
+  const agreement = { markdown: node.agreementMarkdown ?? '' }
   return (
     <section className="rounded-lg border border-line bg-soft/40">
       <div className="flex items-center gap-3 px-3">
         <button className="flex min-h-10 min-w-0 flex-1 items-center gap-2 border-0 bg-transparent p-0 text-left text-xs leading-5 hover:text-signal" type="button" onClick={() => setExpanded((value) => !value)}><ScrollText size={14} className="shrink-0 text-muted" /><span className="font-medium">约定</span>{!agreement.markdown.trim() && <span className="text-muted">无约定</span>}<ChevronDown size={14} className={`ml-auto shrink-0 text-muted transition-transform ${expanded ? 'rotate-180' : ''}`} /></button>
-        {canEdit && <button className="inline-flex min-h-8 shrink-0 items-center gap-1.5 border-0 bg-transparent px-0 text-xs font-medium text-muted hover:text-signal" type="button" onClick={() => onEdit?.(node)}><EditIcon size={14} />{hasContent ? '修改约定' : '补充约定'}</button>}
       </div>
       <div id={contentId} hidden={!expanded} className="border-t border-line p-3">
-        <div className="mb-2 flex items-center justify-between text-xs text-muted"><span>后续引用采用的约定</span><HelpPopover title="约定的继承">
-          <p>默认沿承接关系继承，修改后从本节点向后生效；清空后，后续未修改时也无约定。合入来源的约定分别核对，不自动拼接。</p>
-          <p>设置后续约定与遵守来源约定是两件事，新版本不会改写历史核对结果。</p>
+        <div className="mb-2 flex items-center justify-between text-xs text-muted"><span>本节点对后续行动的条件</span><HelpPopover title="节点约定">
+          <p>每个节点只使用自己的约定；子行动核对父节点已发布的约定，不继承、不拼接。</p>
+          <p>满足约定表示有继续沟通的意愿；不满足只作为引用箭头状态，不阻止节点存在。</p>
         </HelpPopover></div>
-        <AgreementContent agreement={agreement} origin={getActionAgreementOrigin(actions, node.id)} onSelectSource={onSelect} />
+        <AgreementContent agreement={agreement} onSelectSource={onSelect} />
+        {node.agreementStatus && node.agreementStatus !== 'published' && <p className="mt-2 text-xs text-muted">{node.agreementStatus === 'failed' ? '约定生成失败，等待重试' : '约定尚未发布'}</p>}
       </div>
     </section>
   )

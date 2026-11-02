@@ -141,10 +141,10 @@ func Load(path string) (Config, error) {
 		c.AI.BaseURL = "https://api.deepseek.com"
 	}
 	if c.AI.DraftModel == "" {
-		c.AI.DraftModel = "deepseek-v4-pro"
+		c.AI.DraftModel = "deepseek-flash"
 	}
 	if c.AI.AnalysisModel == "" {
-		c.AI.AnalysisModel = "deepseek-v4-pro"
+		c.AI.AnalysisModel = "deepseek-flash"
 	}
 	if value := os.Getenv("DEEPSEEK_API_KEY"); value != "" {
 		c.AI.APIKey = value

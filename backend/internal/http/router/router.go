@@ -64,6 +64,18 @@ func New(auth *identity.Handler, read *catalogue.Handler, graphs *graph.Handler,
 	group.POST("/media/retain", images.Retain)
 	// 从真实引用背景和本人连续对话生成行动或表达草稿。
 	group.POST("/ai/generate", ai.Generate)
+	// 为已发布的节点生成独立的表达/约定草案。
+	group.POST("/ai/node-documents", actions.NodeDocuments)
+	// 读取节点自己的已发布文档版本。
+	group.GET("/actions/document-history", actions.History)
+	// 删除作者尚未被接续的终端节点。
+	group.POST("/actions/delete", actions.Delete)
+	// 读取作者自己的节点表达/约定草案。
+	group.GET("/actions/node-documents", actions.Documents)
+	// 发布节点当前的表达/约定草案。
+	group.POST("/actions/publish-document", actions.PublishDocument)
+	// 只对当前行动草稿放置图片，不改写正文。
+	group.POST("/ai/place-images", ai.PlaceImages)
 	// 读取本人发起的生成状态、草稿和确认参数。
 	group.GET("/ai/generation", ai.Get)
 	// 创建空图，使用提交键保证重复请求只创建一次。

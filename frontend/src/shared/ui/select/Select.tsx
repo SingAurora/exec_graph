@@ -23,12 +23,12 @@ export function Select({ value, options, label, className, disabled = false, onV
   return (
     <SelectPrimitive.Root value={value} onValueChange={onValueChange} disabled={disabled}>
       <SelectPrimitive.Trigger className={`inline-flex h-9 min-w-[126px] items-center justify-between gap-4 rounded-md border-0 bg-transparent px-2.5 py-0 text-xs font-semibold text-ink outline-none focus-visible:rounded focus-visible:shadow-[0_0_0_3px_rgb(35_107_89_/_0.1)] disabled:cursor-not-allowed disabled:opacity-50 ${className ?? ''}`.trim()} title={label}>
-        <SelectPrimitive.Value>{selectedOption?.label}</SelectPrimitive.Value>
+        <SelectPrimitive.Value className="min-w-0 flex-1 truncate text-left">{selectedOption?.label}</SelectPrimitive.Value>
         <SelectPrimitive.Icon asChild><ChevronDown size={14} /></SelectPrimitive.Icon>
       </SelectPrimitive.Trigger>
       <SelectPrimitive.Portal>
-        <SelectPrimitive.Content className="z-40 min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-md border border-line bg-surface p-1 shadow-app" position="popper" sideOffset={5}>
-          <SelectPrimitive.Viewport>
+        <SelectPrimitive.Content className="z-40 min-w-[var(--radix-select-trigger-width)] max-h-[min(320px,var(--radix-select-content-available-height))] overflow-hidden rounded-md border border-line bg-surface p-1 shadow-app" position="popper" sideOffset={5}>
+          <SelectPrimitive.Viewport className="max-h-[inherit] overflow-y-auto">
             {options.map((option) => <SelectPrimitive.Item className="relative flex min-h-8 items-center rounded px-[9px] pr-[30px] text-xs text-ink outline-none select-none data-[highlighted]:bg-soft data-[highlighted]:text-signal" value={option.value} key={option.value}>
               <SelectPrimitive.ItemText>{option.label}</SelectPrimitive.ItemText>
               <SelectPrimitive.ItemIndicator className="absolute right-2 inline-flex items-center text-signal"><Check size={14} /></SelectPrimitive.ItemIndicator>

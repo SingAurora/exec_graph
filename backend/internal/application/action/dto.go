@@ -85,6 +85,41 @@ type UpdateAgreementInput struct {
 	Document        DocumentUpdate `json:"document"`
 }
 
+// NodeDocument 是节点自己的表达或约定草案及发布状态。
+type NodeDocument struct {
+	Kind             string `json:"kind"`
+	Status           string `json:"status"`
+	DraftMarkdown    string `json:"draftMarkdown,omitempty"`
+	PublishedVersion string `json:"publishedVersion,omitempty"`
+	ErrorCode        string `json:"errorCode,omitempty"`
+	ErrorMessage     string `json:"errorMessage,omitempty"`
+}
+
+// DocumentVersionView 是节点已发布表达/约定的一次不可变版本。
+type DocumentVersionView struct {
+	Kind         string    `json:"kind"`
+	Revision     uint32    `json:"revision"`
+	Mode         string    `json:"mode"`
+	Markdown     string    `json:"markdown"`
+	ActorID      string    `json:"actorId"`
+	ChangeKind   string    `json:"changeKind"`
+	GenerationID string    `json:"generationId,omitempty"`
+	CreatedAt    time.Time `json:"createdAt"`
+}
+
+// DeleteNodeInput 删除终端行动节点。
+type DeleteNodeInput struct {
+	NodeID          string `json:"nodeId"`
+	ExpectedVersion uint32 `json:"expectedVersion"`
+}
+
+// PublishNodeDocumentInput 将节点当前 AI 草案发布为不可变文档版本。
+type PublishNodeDocumentInput struct {
+	NodeID          string `json:"nodeId"`
+	ExpectedVersion uint32 `json:"expectedVersion"`
+	Kind            string `json:"kind"`
+}
+
 // Document 是解析后的有效版本，空 ID 表示从未有明确版本。
 type Document struct {
 	ID       string
@@ -97,13 +132,17 @@ type Document struct {
 
 // Node 是事务内计算引用背景所需的行动事实。
 type Node struct {
-	ID         string
-	AuthorID   string
-	Version    uint32
-	Number     uint32
-	Level      uint32
-	Expression Document
-	Agreement  Document
+	ID               string
+	AuthorID         string
+	Version          uint32
+	Number           uint32
+	Level            uint32
+	Title            string
+	Objective        string
+	Expression       Document
+	Agreement        Document
+	ExpressionStatus string
+	AgreementStatus  string
 }
 
 // Edge 是由旧行动指向新行动的引用关系。
@@ -218,6 +257,11 @@ type Transaction interface {
 	Generation(string) (Generation, error)
 	CheckAssets(...*string) error
 	Publish(Publication) error
+	InitializeNodeDocuments(graphID, nodeID string) error
+	NodeDocuments(nodeID string) ([]NodeDocument, error)
+	DocumentHistory(nodeID string) ([]DocumentVersionView, error)
+	SaveNodeDocuments(nodeID string, documents []NodeDocument) error
+	DeleteNode(graphID, nodeID string) error
 	Revise(Revision) error
 	Confirm(generationID, nodeID string, initial bool) error
 	View(string) (catalogue.ActionView, error)

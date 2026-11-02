@@ -5,7 +5,8 @@ import { graphKeys, type GraphView } from '../../entities/project/api/graphs'
 import { profileKeys, type SessionView } from '../../entities/profile/api/profiles'
 import { followingKeys } from '../../entities/following/api/following'
 import { createGraph, removeGraph, updateGraph } from '../../features/project/api/commands'
-import { createAction, reviseAgreement, reviseExpression } from '../../features/action/api/commands'
+import { createAction, deleteAction, reviseAgreement, reviseExpression } from '../../features/action/api/commands'
+import { publishNodeDocument } from '../../features/action-generation/api/generation'
 import { setFollowing } from '../../features/follow/api/commands'
 import { updateProfile } from '../../features/profile/api/commands'
 
@@ -54,10 +55,15 @@ export function useAppCommands(scope: string, csrfToken: string) {
   }, onSuccess(node) { actionSubmission.current = undefined; updateNode(node) } })
   const expressionUpdate = useMutation({ mutationFn: (input: Parameters<typeof reviseExpression>[0]) => reviseExpression(input, options), onSuccess: updateNode })
   const agreementUpdate = useMutation({ mutationFn: (input: Parameters<typeof reviseAgreement>[0]) => reviseAgreement(input, options), onSuccess: updateNode })
+  const actionDelete = useMutation({ mutationFn: (input: { nodeId: string; expectedVersion: number }) => deleteAction(input, options), onSuccess(_data, input) {
+    client.setQueriesData<VersionedAction[]>({ queryKey: actionKeys.scope(scope) }, (nodes) => nodes?.filter((node) => node.id !== input.nodeId))
+    void client.invalidateQueries({ queryKey: actionKeys.scope(scope) })
+  } })
+  const nodeDocumentPublish = useMutation({ mutationFn: (input: { nodeId: string; expectedVersion: number; kind: 'expression' | 'agreement' }) => publishNodeDocument(input.nodeId, input.expectedVersion, input.kind, csrfToken), onSuccess: updateNode })
   const followUpdate = useMutation({ mutationFn: (input: Parameters<typeof setFollowing>[0]) => setFollowing(input, options), onSuccess(sources) { client.setQueryData(followingKeys.sources(scope), sources) } })
   const profileUpdate = useMutation({ mutationFn: (input: Parameters<typeof updateProfile>[0]) => updateProfile(input, options), onSuccess(user) {
     client.setQueryData<SessionView>(profileKeys.session, (session) => session ? { ...session, user } : session)
     void client.invalidateQueries({ queryKey: profileKeys.catalogue(scope) })
   } })
-  return { graphCreate, graphUpdate, graphDelete, actionCreate, expressionUpdate, agreementUpdate, followUpdate, profileUpdate }
+  return { graphCreate, graphUpdate, graphDelete, actionCreate, actionDelete, expressionUpdate, agreementUpdate, nodeDocumentPublish, followUpdate, profileUpdate }
 }

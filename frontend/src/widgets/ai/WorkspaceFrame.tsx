@@ -1,12 +1,14 @@
-import { ArrowLeft, ArrowUp, ChevronDown, Footprints, LoaderCircle, MessageCircle, ScrollText, Sparkles } from 'lucide-react'
+import { ArrowLeft, ChevronDown, Footprints, LoaderCircle, MessageCircle, ScrollText, SendHorizontal, Sparkles } from 'lucide-react'
 import { useLayoutEffect, useRef, useState, type FormEvent, type ReactNode, type UIEvent } from 'react'
 import type { ActionExpressionContext, ActionExpressionMessage } from '../../entities/action/model/types'
 import { ACTION_CONTENT_LIMIT, ACTION_TITLE_LIMIT } from '../../entities/action/model/limits'
 import type { PostImage } from '../../shared/model/content'
 import type { UserProfile } from '../../entities/profile/model/types'
 import { MarkdownContent } from '../../shared/ui/MarkdownContent'
+import { RecordThumbnails } from '../../shared/ui/RecordThumbnails'
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from '../../shared/ui/tabs/Tabs'
 import { CopyConversationButton } from '../../shared/ui/CopyConversationButton'
+import { Dialog } from '../../shared/ui/dialog/Dialog'
 import { formatConversationForCopy } from '../../shared/lib/format-conversation'
 import type { WorkspaceView } from './model/workspace-draft'
 import { CHAT_INPUT_LIMIT, resizeChatInput } from './model/chat-input'
@@ -37,7 +39,12 @@ type WorkspaceFrameProps = {
   onViewChange?: (view: WorkspaceView) => void
   restoring?: boolean
   context?: { label: string; title?: string; facts: ActionExpressionContext['facts'] }
-  contextControls?: ReactNode
+  tabActions?: ReactNode
+  composerMode?: 'conversation' | 'image'
+  onComposerModeChange?: (mode: 'conversation' | 'image') => void
+  imageComposer?: ReactNode
+  imageModeBadge?: string | number
+  status?: { text: string; tone: 'muted' | 'signal' | 'warning' | 'coral' }
   messages: ActionExpressionMessage[]
   profileName: string
   profile?: UserProfile
@@ -57,12 +64,13 @@ type WorkspaceFrameProps = {
   actionControls?: ReactNode
   expression: DocumentPreview
   agreement: ReactNode
-  footer: ReactNode
+  footer?: ReactNode
 }
 
 /** 三类工作区共用界面框架；各工作区只显示当前业务需要的文档栏目。 */
-export function WorkspaceFrame({ title, tabs = ['conversation', 'objective', 'expression', 'agreement'], help, draftControls, view, onViewChange, restoring = false, context, contextControls, messages, profileName, profile, users = [], defaultAuthorId, input, inputLabel = '对话内容', placeholder, sending, sendingLabel = '正在整理', fallbackAIName, disabled = false, onInputChange, onSend, onBack, action, actionControls, expression, agreement, footer }: WorkspaceFrameProps) {
+export function WorkspaceFrame({ title, tabs = ['conversation', 'objective', 'expression', 'agreement'], help, draftControls, view, onViewChange, restoring = false, context, tabActions, composerMode = 'conversation', onComposerModeChange, imageComposer, imageModeBadge, status, messages, profileName, profile, users = [], defaultAuthorId, input, inputLabel = '对话内容', placeholder, sending, sendingLabel = '正在整理', fallbackAIName, disabled = false, onInputChange, onSend, onBack, action, actionControls, expression, agreement, footer }: WorkspaceFrameProps) {
   const [localTab, setTab] = useState<WorkspaceTab>('conversation')
+  const [nodeInfoOpen, setNodeInfoOpen] = useState(false)
   const requestedTab = view?.tab ?? localTab
   const tab = tabs.includes(requestedTab) ? requestedTab : tabs[0] ?? 'conversation'
   const panels = useRef<Partial<Record<WorkspaceTab, HTMLDivElement | null>>>({})
@@ -109,6 +117,7 @@ export function WorkspaceFrame({ title, tabs = ['conversation', 'objective', 'ex
     positions.current[value] = top
     if (view && onViewChange && view.positions[value] !== top) onViewChange({ ...view, positions: { ...view.positions, [value]: top } })
   }
+  const statusDot = status?.tone === 'coral' ? 'bg-coral' : status?.tone === 'warning' ? 'bg-warning' : status?.tone === 'signal' ? 'bg-signal' : 'bg-muted'
   const copyText = formatConversationForCopy(messages.filter((message) => message.id !== 'welcome'), {
     resolveUserName: (message) => {
       const authorId = message.authorId ?? defaultAuthorId ?? profile?.id
@@ -119,26 +128,16 @@ export function WorkspaceFrame({ title, tabs = ['conversation', 'objective', 'ex
   })
 
   return (
-    <section className="flex h-[calc(100dvh-116px)] min-h-[500px] flex-col pt-[22px]">
-      <header className="flex min-h-9 shrink-0 items-center gap-3">
-        <button className="icon-button" type="button" onClick={onBack} title="返回行动图"><ArrowLeft size={17} /></button>
+    <section className="relative flex h-[calc(100dvh-116px)] min-h-[500px] flex-col">
+      <header className="relative flex min-h-9 shrink-0 items-center gap-3">
+        <div className="absolute -left-[38px] top-0 z-10"><button className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border-0 bg-transparent p-0 text-muted transition-colors hover:bg-soft hover:text-signal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal" type="button" title="返回行动图" onClick={onBack}><ArrowLeft size={18} strokeWidth={1.8} /></button></div>
         <h2 className="text-lg font-semibold tracking-[-.02em]">{title}</h2>
-        <div className="ml-auto flex items-center gap-3">{draftControls}{help}</div>
+        <div className="ml-auto flex min-w-0 items-center justify-end gap-2">{help}</div>
       </header>
-      {context && <div className="mt-3 shrink-0 rounded-md bg-soft px-3 py-2 text-xs leading-5"><div className="flex min-w-0 items-center gap-3">
-        <span className="shrink-0 text-muted">{context.label}</span>
-        <span className="min-w-0 flex-1 truncate" title={context.title}>{context.title}</span>
-        <details className="group/history relative shrink-0">
-          <summary className="flex cursor-pointer list-none items-center gap-1 text-muted hover:text-signal [&::-webkit-details-marker]:hidden">历史 {context.facts.length} 个节点<ChevronDown size={13} className="transition-transform group-open/history:rotate-180" /></summary>
-          <div className="absolute right-0 top-full z-30 mt-2 max-h-64 w-80 overflow-y-auto rounded-lg border border-line bg-surface p-3 shadow-lg">
-            {context.facts.length ? context.facts.map((fact) => <p className="py-1.5 text-xs leading-5" key={fact.number}><span className="mr-2 tabular-nums text-muted">#{fact.number}</span>{fact.title}</p>) : <p className="text-muted">无历史节点</p>}
-          </div>
-        </details>
-      </div>{contextControls && <div className="mt-2">{contextControls}</div>}</div>}
       <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-line bg-surface">
         <TabsRoot value={tab} onValueChange={changeTab} className="flex min-h-0 flex-1 flex-col">
-          <div className="shrink-0 px-5">
-            <TabsList showDivider={false}>
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-line bg-surface px-5">
+            <TabsList showDivider={false} flush>
               {tabs.map((value) => <TabsTrigger key={value} value={value}><span className="inline-flex items-center gap-1.5">
                 {value === 'conversation' ? <><Sparkles size={16} />AI 对话</>
                   : value === 'objective' ? <><Footprints size={16} />行动</>
@@ -146,24 +145,46 @@ export function WorkspaceFrame({ title, tabs = ['conversation', 'objective', 'ex
                       : <><ScrollText size={16} />约定</>}
               </span></TabsTrigger>)}
             </TabsList>
-          </div>
-          <TabsContent value="conversation" keepMounted className="flex min-h-0 flex-1 flex-col">
-            <div className="flex shrink-0 justify-end px-6 pt-3">
-              <CopyConversationButton text={copyText} />
+            <div className="flex min-w-0 items-center justify-end gap-2">
+              {tabActions}
+              <button className="text-button min-w-0 max-w-[22vw] gap-1 text-[11px] leading-4" type="button" onClick={() => setNodeInfoOpen(true)} title="查看节点信息和操作">
+                <span className="truncate">{context?.label ?? '节点信息'}</span><ChevronDown size={12} className="shrink-0" />
+              </button>
+              {status && <span className="flex min-w-0 items-center gap-1.5 text-[11px] leading-4" title={status.text}><span className={`size-1.5 shrink-0 rounded-full ${statusDot}`} /><span className="max-w-[28vw] truncate max-[700px]:max-w-[32vw]">{status.text}</span></span>}
             </div>
+          </div>
+          <TabsContent value="conversation" keepMounted className="flex min-h-0 flex-1 flex-col bg-paper">
             <div ref={(element) => { panels.current.conversation = element }} onScroll={(event) => rememberScroll('conversation', event)} className="grid min-h-0 flex-1 content-start gap-4 overflow-y-auto overscroll-contain px-6 py-6">
               {messages.map((message) => (
-                <div className={'w-fit max-w-full ' + (message.speaker === 'user' ? 'ml-auto' : '')} key={message.id}>
-                  <div className={'min-w-0 rounded-lg px-3 py-2.5 text-[13px] leading-[1.7] ' + (message.id.startsWith('error-') ? 'border border-coral/30 bg-paper text-coral' : message.speaker === 'user' ? 'bg-soft' : 'border border-line bg-paper')}><MarkdownContent markdown={message.body} /></div>
+                <div className={'w-fit max-w-[78%] max-[700px]:max-w-[88%] ' + (message.speaker === 'user' ? 'ml-auto' : '')} key={message.id}>
+                  <div className={'min-w-0 rounded-xl px-4 py-3 shadow-[0_1px_2px_rgba(0,0,0,.025)] ' + (message.id.startsWith('error-') ? 'border border-coral/30 bg-surface' : message.speaker === 'user' ? 'bg-soft' : 'border border-line bg-surface')}>
+                    <MarkdownContent markdown={message.body} className={`chat-markdown${message.id.startsWith('error-') ? ' chat-markdown-error' : ''}`} />
+                    {message.images?.length ? <RecordThumbnails images={message.images} size="small" /> : null}
+                  </div>
                 </div>
               ))}
               {sending && <div className="flex items-center gap-2 text-xs text-muted"><LoaderCircle size={14} className="animate-spin" />{sendingLabel}</div>}
             </div>
-            <form className="mx-6 mb-5 flex shrink-0 items-end gap-2 rounded-lg border border-line bg-paper px-3 py-2" onSubmit={onSend}>
-              <textarea ref={inputRef} className="workspace-chat-input min-h-12 max-h-32 w-full resize-none overflow-y-auto border-0 bg-transparent py-1.5 text-sm leading-[1.6] outline-none" title={inputLabel} maxLength={CHAT_INPUT_LIMIT} value={input} onChange={(event) => onInputChange(event.target.value)} placeholder={placeholder} disabled={sending || disabled} />
-              <span className={`shrink-0 self-end pb-2 text-[11px] leading-4 tabular-nums ${input.length >= CHAT_INPUT_LIMIT ? 'text-coral' : 'text-muted'}`} title={`最多 ${CHAT_INPUT_LIMIT} 字`}>{input.length}/{CHAT_INPUT_LIMIT}</span>
-              <button className="icon-button border-signal bg-signal text-on-signal" type="submit" title="发送" disabled={!input.trim() || input.length > CHAT_INPUT_LIMIT || sending || disabled}><ArrowUp size={18} /></button>
-            </form>
+            <div className="shrink-0 border-t border-line bg-surface px-6 pb-5 pt-3">
+              {imageComposer && <div className="mb-3 flex items-center gap-2">
+                <div className="inline-flex rounded-md border border-line bg-paper p-0.5">
+                  <button className="rounded px-3 py-1.5 text-xs font-medium text-muted data-[active=true]:bg-soft data-[active=true]:text-signal" type="button" data-active={composerMode === 'conversation'} onClick={() => onComposerModeChange?.('conversation')}>文字</button>
+                  <button className="rounded px-3 py-1.5 text-xs font-medium text-muted data-[active=true]:bg-soft data-[active=true]:text-signal" type="button" data-active={composerMode === 'image'} onClick={() => onComposerModeChange?.('image')}>图片{imageModeBadge !== undefined && imageModeBadge !== 0 ? ` ${imageModeBadge}` : ''}</button>
+                </div>
+              </div>}
+              {imageComposer && composerMode === 'image' ? <div>{imageComposer}<div className="mt-2"><CopyConversationButton text={copyText} label="复制对话" className="text-button text-xs" /></div></div> : <form className="flex flex-col gap-2" onSubmit={onSend}>
+                <div className="rounded-lg border border-line bg-paper px-3 py-2 transition-colors focus-within:border-signal">
+                  <textarea ref={inputRef} className="workspace-chat-input min-h-12 max-h-32 w-full resize-none overflow-y-auto border-0 bg-transparent py-1.5 text-sm leading-[1.6] outline-none" title={inputLabel} maxLength={CHAT_INPUT_LIMIT} value={input} onChange={(event) => onInputChange(event.target.value)} placeholder={placeholder} disabled={sending || disabled} />
+                </div>
+                <div className="flex min-w-0 items-center justify-between gap-3">
+                  <CopyConversationButton text={copyText} label="复制对话" className="text-button text-xs" />
+                  <div className="flex shrink-0 items-center gap-3">
+                    <span className={`text-[11px] leading-4 tabular-nums ${input.length >= CHAT_INPUT_LIMIT ? 'text-coral' : 'text-muted'}`} title={`最多 ${CHAT_INPUT_LIMIT} 字`}>{input.length}/{CHAT_INPUT_LIMIT}</span>
+                    <button className="inline-grid size-8 shrink-0 place-items-center rounded-md border-0 bg-transparent text-signal transition hover:bg-soft disabled:cursor-not-allowed disabled:text-muted disabled:hover:bg-transparent" type="submit" title="发送" disabled={!input.trim() || input.length > CHAT_INPUT_LIMIT || sending || disabled}><SendHorizontal size={17} /></button>
+                  </div>
+                </div>
+              </form>}
+            </div>
           </TabsContent>
           {(['objective', 'expression'] as const).filter((value) => tabs.includes(value)).map((value) => {
             const preview = value === 'objective' ? action : expression
@@ -172,7 +193,7 @@ export function WorkspaceFrame({ title, tabs = ['conversation', 'objective', 'ex
             const contentCount = value === 'objective' ? characterCount(preview.markdown) : 0
             return (
               <TabsContent value={value} keepMounted className="min-h-0 flex-1" key={value}>
-                <div ref={(element) => { panels.current[value] = element }} onScroll={(event) => rememberScroll(value, event)} className="h-full overflow-y-auto overscroll-contain px-6 py-5">
+                <div ref={(element) => { panels.current[value] = element }} onScroll={(event) => rememberScroll(value, event)} className="h-full overflow-y-auto overscroll-contain bg-paper px-6 py-5">
                   {title && <h2 className={`${value === 'objective' ? 'mb-2' : 'mb-4'} break-words text-xl font-semibold leading-[1.5] tracking-[-.02em] text-ink`}>{title}</h2>}
                   {value === 'objective' && <p className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] leading-4 tabular-nums text-muted">
                     <span className={titleCount > ACTION_TITLE_LIMIT ? 'text-coral' : undefined}>标题 {titleCount}/{ACTION_TITLE_LIMIT}</span>
@@ -186,11 +207,22 @@ export function WorkspaceFrame({ title, tabs = ['conversation', 'objective', 'ex
             )
           })}
           {tabs.includes('agreement') && <TabsContent value="agreement" keepMounted className="min-h-0 flex-1">
-            <div ref={(element) => { panels.current.agreement = element }} onScroll={(event) => rememberScroll('agreement', event)} className="h-full overflow-y-auto overscroll-contain py-5">{agreement}</div>
+            <div ref={(element) => { panels.current.agreement = element }} onScroll={(event) => rememberScroll('agreement', event)} className="h-full overflow-y-auto overscroll-contain bg-paper py-5">{agreement}</div>
           </TabsContent>}
         </TabsRoot>
-        <div className="flex shrink-0 items-center justify-between gap-3 border-t border-line px-6 py-3">{footer}</div>
+        {footer && <div className="flex shrink-0 items-center justify-between gap-3 border-t border-line bg-surface px-6 py-3">{footer}</div>}
       </div>
+      <Dialog open={nodeInfoOpen} onOpenChange={setNodeInfoOpen} title="节点信息" description="当前节点的详细信息和可执行操作">
+        <div className="mt-4 grid gap-4 text-sm">
+          <div><p className="text-xs text-muted">{context?.label ?? '当前行动'}</p><p className="mt-1 font-medium leading-6">{context?.title ?? '尚未发布节点'}</p></div>
+          <div><p className="mb-2 text-xs font-medium text-muted">历史节点</p>{context?.facts.length ? context.facts.map((fact) => <p className="py-1 text-xs leading-5" key={fact.number}><span className="mr-2 tabular-nums text-muted">#{fact.number}</span>{fact.title}</p>) : <p className="text-xs text-muted">暂无历史节点</p>}</div>
+          {draftControls && <div className="border-t border-line pt-3">{draftControls}</div>}
+          <div className="mt-2 flex justify-end gap-3">
+            <button className="quiet-button" type="button" onClick={() => { setNodeInfoOpen(false); onBack() }}>返回行动图</button>
+            <button className="primary-button" type="button" onClick={() => setNodeInfoOpen(false)}>关闭</button>
+          </div>
+        </div>
+      </Dialog>
     </section>
   )
 }

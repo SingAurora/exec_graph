@@ -198,7 +198,7 @@ type DocumentUpdate =
 
 当前读取接口：`auth/session`、`profiles/catalogue`、`graphs/catalogue`、`graphs/detail`、`actions/context`、`actions/detail`、`following/sources`。写入接口：`profiles/update`、`profiles/highlights-set`、`graphs/create`、`graphs/update`、`graphs/delete`、`actions/create`、`expressions/update`、`agreements/update`、`following/set`。领域 API 内的 TypeScript 输入和输出是这些已实现接口的 DTO。
 
-认证还包括 `auth/login`、`auth/logout`、`auth/code-send`、`auth/register`、`auth/password-reset`、`auth/password-change`、`auth/email-change`，测试号登录为显式开发开关控制的 `auth/demo-login`。图片使用 `media/upload`、`media/retain`、`media/file`；AI 使用 `ai/generate` 和 `ai/generation`。
+认证还包括 `auth/login`、`auth/logout`、`auth/code-send`、`auth/register`、`auth/password-reset`、`auth/password-change`、`auth/email-change`，测试号登录为显式开发开关控制的 `auth/demo-login`。图片使用 `media/upload`、`media/retain`、`media/file`；AI 使用 `ai/generate`、`ai/generation`、`ai/node-documents` 和独立的 `ai/place-images`；节点文档使用 `actions/node-documents`、`actions/publish-document`、`actions/document-history` 和 `actions/delete`。
 
 - `POST profiles/highlights-set` 单独保存当前账户的主页精选：仅传 `expressionNodeIds`，最多 5 个，允许空数组，并携带 `expectedVersion`。数组顺序就是展示顺序；只接收本人分支上的非空本人表达，沿用本人表达的节点也可以选择，以保留具体分支及约定的身份。拒绝重复、越权、空内容及版本冲突，不改动其他资料。账户和公开用户 DTO 的 `highlights` 返回表达节点 ID，旧资料缺少时按未精选处理，旧独立约定字段不再参与展示。约定不存精选副本，由各选中节点沿承接链读取有效约定，尊重主动清空及图边界，不混入合入分支；继承他人约定保留来源作者。同节点修改后随事实刷新，下游新增或分叉不自动替换所选节点；被删除或有效表达已清空的所选记录不再展示。
 

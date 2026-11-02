@@ -13,28 +13,27 @@ function render(actions, id) {
 }
 
 describe('node agreement overview', () => {
-  test('reference details and formation history both read the source effective version', () => {
-    const actions = [node('1', { agreementMarkdown: '必须记录完整用时' }), node('2', { parentId: '1' }),
+  test('reference details and formation history read the source node own agreement', () => {
+    const actions = [node('1', { agreementMarkdown: '祖先约定' }), node('2', { parentId: '1', agreementMarkdown: '直接约定' }),
       node('3', { parentId: '2', agreementMarkdown: '', referenceAgreements: [{ sourceId: '2', complies: true }] })]
     const reference = getActionReferences(actions).find((item) => item.target.id === '3')
     const line = renderToStaticMarkup(createElement(ActionReferenceDetail, { reference, actions, users, onSelectNode() {}, onHide() {} }))
     const archive = renderToStaticMarkup(createElement(ArchiveBackground, { node: actions[2], actions, onSelectSource() {} }))
     for (const html of [line, archive]) {
-      expect(html).toContain('必须记录完整用时')
-      expect(html).toContain('继承自')
-      expect(html).toContain('查看约定版本节点 #1')
+      expect(html).toContain('直接约定')
+      expect(html).not.toContain('祖先约定')
       expect(html).toContain('满足来源约定')
     }
   })
-  test('lists each direct source effective agreement, including inherited versions, without adding ancestor entries', () => {
+  test('lists each direct source own agreement and does not add inherited ancestors', () => {
     const actions = [node('1', { agreementMarkdown: '祖先约定' }), node('2', { parentId: '1' }), node('3', { agreementMarkdown: '直接约定' }), node('4', { projectId: 'other', agreementMarkdown: '其他图约定' }),
       node('5', { parentId: '2', mergedParentIds: ['3', '3', '4'] })]
-    expect(getActionSourceAgreements(actions, '5').map((reference) => reference.source.id)).toEqual(['2', '3'])
+    expect(getActionSourceAgreements(actions, '5').map((reference) => reference.source.id)).toEqual(['3'])
     expect(getActionSourceAgreements(actions, '2').map((reference) => reference.source.id)).toEqual(['1'])
     const html = render(actions, '5')
     expect(html).toMatch(/<button[^>]*title="行动 3"[^>]*>合入 #3<\/button>/)
-    expect(html).toContain('祖先约定')
-    expect(html).toContain('查看约定版本节点 #1')
+    expect(html).toContain('直接约定')
+    expect(html).not.toContain('祖先约定')
     expect(html).not.toMatch(/<button[^>]*>承接 #1<\/button>/)
     expect(html).not.toContain('其他图约定')
     expect(render(actions, '1')).toBe('')
@@ -82,7 +81,11 @@ describe('node agreement overview', () => {
     expect(html).toContain('<strong>后续引用</strong>')
     expect(render([action], '1')).toBe('')
     const child = node('2', { parentId: '1' })
-    expect(renderOwn([action, child], child)).toContain('继承自')
+    expect(renderOwn([action, child], child)).toContain('无约定')
+    expect(renderOwn([action, child], child)).not.toContain('继承自')
+    const own = { ...child, agreementMarkdown: '子节点自己的约定' }
+    expect(renderOwn([action, own], own)).toContain('子节点自己的约定')
+    expect(renderOwn([action, own], own)).not.toContain('<strong>后续引用</strong>')
     const cleared = { ...child, agreementMarkdown: '' }
     expect(renderOwn([action, cleared], cleared)).toContain('无约定')
     expect(renderOwn([action, cleared], cleared)).not.toContain('<strong>后续引用</strong>')

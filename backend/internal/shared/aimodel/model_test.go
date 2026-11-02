@@ -3,13 +3,13 @@ package aimodel
 import "testing"
 
 func TestResponseModel(t *testing.T) {
-	stored := "draft=deepseek-v4-pro;analysis=deepseek-v4-pro"
+	stored := "draft=deepseek-flash;analysis=deepseek-flash"
 	for _, test := range []struct {
 		name, mode, stored, want string
 	}{
-		{"action uses draft model", "action", stored, "deepseek-v4-pro"},
-		{"expression uses analysis model", "expression", stored, "deepseek-v4-pro"},
-		{"agreement uses analysis model", "agreement", stored, "deepseek-v4-pro"},
+		{"action uses draft model", "action", stored, "deepseek-flash"},
+		{"expression uses analysis model", "expression", stored, "deepseek-flash"},
+		{"agreement uses analysis model", "agreement", stored, "deepseek-flash"},
 		{"different models stay distinct", "expression", "draft=draft-model;analysis=analysis-model", "analysis-model"},
 		{"whitespace is trimmed", "action", " draft = draft-model ; analysis = analysis-model ", "draft-model"},
 		{"unknown fixture is empty", "action", "integration-fixture", ""},

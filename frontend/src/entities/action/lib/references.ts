@@ -1,6 +1,6 @@
 import type { ActionAgreement, ActionNode } from '../model/types'
-import { getActionParentIds } from './graph'
 import { getActionAgreements } from './agreements'
+import { getActionParentIds } from './graph'
 
 /** 一条真实引用箭头的展示模型：source 是被引用节点，target 是后续回应节点。 */
 export type ActionReference = {
@@ -24,7 +24,7 @@ export function getActionReferences(actions: ActionNode[]): ActionReference[] {
     const source = byId.get(sourceId)
     if (!source || source.projectId !== target.projectId) return []
     const assessment = target.referenceAgreements?.find((item) => item.sourceId === sourceId)
-    const agreement = agreements.get(source.id)!
+    const agreement = source.agreementStatus !== undefined ? { markdown: source.agreementMarkdown ?? '' } : agreements.get(source.id)!
     // 四种状态分别是无约定、未核对、已满足和不满足；只有不满足显示叉号。
     const agreementStatus = !agreement.markdown.trim() ? 'unrestricted'
       : !assessment ? 'unreviewed' : assessment.complies ? 'satisfied' : 'exception'
@@ -35,9 +35,19 @@ export function getActionReferences(actions: ActionNode[]): ActionReference[] {
   }))
 }
 
-/** 本次各直接来源分别使用自己的有效约定，不把已被替换的祖先约定累计叠加。 */
+/** 本次各直接来源只使用自己节点的约定，不沿祖先继承。 */
 export function getActionSourceAgreements(actions: ActionNode[], nodeId: string): ActionReference[] {
-  return getActionReferences(actions).filter((reference) => reference.target.id === nodeId && reference.agreementStatus !== 'unrestricted')
+  const byId = new Map(actions.map((node) => [node.id, node]))
+  return actions.filter((node) => node.id === nodeId).flatMap((target) => getActionParentIds(target).flatMap((sourceId): ActionReference[] => {
+    const source = byId.get(sourceId)
+    if (!source || source.projectId !== target.projectId) return []
+    const assessment = target.referenceAgreements?.find((item) => item.sourceId === sourceId)
+    const agreement = { markdown: source.agreementMarkdown ?? '' }
+    const agreementStatus = !agreement.markdown.trim() ? 'unrestricted'
+      : !assessment ? 'unreviewed' : assessment.complies ? 'satisfied' : 'exception'
+    return [{ id: `${source.id}:${target.id}`, source, target, sameAuthor: source.authorId === target.authorId,
+      incorporated: source.id !== target.parentId, agreement, agreementStatus, exceptionReason: assessment?.exceptionReason }]
+  })).filter((reference) => reference.agreementStatus !== 'unrestricted')
 }
 
 /** 统计存在约定但尚未核对的直接引用。 */

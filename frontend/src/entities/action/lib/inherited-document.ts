@@ -45,6 +45,12 @@ function createDocumentResolver(nodes: ActionNode[], field: InheritedDocumentFie
       visited.add(current.id)
       const cached = resolved.get(current.id)
       if (cached) { document = cached; break }
+      // 新节点有自己的文档状态，绝不再沿祖先继承；只有旧夹具没有状态字段时才走旧回退。
+      const statusField = field === 'expressionMarkdown' ? 'expressionStatus' : 'agreementStatus'
+      if (current[statusField] !== undefined) {
+        document = { markdown: current[field] ?? '', sourceNode: current }
+        break
+      }
       // 必须判断 undefined；空字符串也是明确版本，表示到这里停止继承，不能用 || 回退。
       const markdown = current[field]
       if (markdown !== undefined) { document = { markdown, sourceNode: current }; break }
@@ -59,6 +65,7 @@ function createDocumentResolver(nodes: ActionNode[], field: InheritedDocumentFie
 /** 查找非空文档实际继承的版本，或本次修改替换的上一版本，供来源说明使用。 */
 export function getInheritedActionDocumentOrigin(nodes: ActionNode[], nodeId: string, field: InheritedDocumentField): { kind: 'modified' | 'inherited'; node: ActionNode } | undefined {
   const node = nodes.find((item) => item.id === nodeId)
+  if (node && (field === 'expressionMarkdown' ? node.expressionStatus : node.agreementStatus) !== undefined) return undefined
   const document = getInheritedActionDocument(nodes, nodeId, field)
   if (!node || !document.markdown.trim() || !document.sourceNode) return undefined
   if (document.sourceNode.id !== nodeId) return { kind: 'inherited', node: document.sourceNode }

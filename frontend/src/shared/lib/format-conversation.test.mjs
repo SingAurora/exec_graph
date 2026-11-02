@@ -3,7 +3,7 @@ import { formatConversationForCopy } from './format-conversation.ts'
 
 const messages = [
   { speaker: 'user', body: '我做了好多事情', authorId: 'jo' },
-  { speaker: 'ai', body: '请补充这次实际做了什么', model: 'deepseek-v4-pro' },
+  { speaker: 'ai', body: '请补充这次实际做了什么', model: 'deepseek-flash' },
   { speaker: 'user', body: '我洗了菜', authorId: 'lin' },
   { speaker: 'ai', body: '已整理', model: ' ' },
 ]
@@ -14,7 +14,7 @@ describe('conversation copy', () => {
       resolveUserName: (message) => message.authorId === 'jo' ? '乔' : '林岚',
     })
     expect(text).toContain('乔：\n我做了好多事情')
-    expect(text).toContain('deepseek-v4-pro：\n请补充这次实际做了什么')
+    expect(text).toContain('deepseek-flash：\n请补充这次实际做了什么')
     expect(text).toContain('林岚：\n我洗了菜')
     expect(text).toContain('引序 AI：\n已整理')
   })
