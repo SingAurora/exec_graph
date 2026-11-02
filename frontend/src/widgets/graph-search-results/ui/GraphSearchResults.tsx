@@ -30,7 +30,7 @@ export function GraphSearchResults({ projects, actions, keyword, page, onSearch,
         <button type="submit" className="quiet-button h-10">搜索</button>
       </form>
       {keyword && <p className="mt-4 text-xs leading-5 text-muted">找到 {items.length} 个图</p>}
-      <GraphList items={items.slice((currentPage - 1) * pageSize, currentPage * pageSize)} searchQuery={keyword} onOpen={onOpenProject} dividers={false} empty={keyword ? '没有找到相关图' : '输入图名称或简介搜索'} />
+      <GraphList items={items.slice((currentPage - 1) * pageSize, currentPage * pageSize)} searchQuery={keyword} onOpen={onOpenProject} dividers={false} showEnd={currentPage === pageCount} />
       {items.length > pageSize && <Pagination currentPage={currentPage} pageCount={pageCount} onChange={onPageChange} />}
     </section>
   )

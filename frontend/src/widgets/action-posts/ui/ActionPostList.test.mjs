@@ -11,13 +11,13 @@ const render = (props) => renderToStaticMarkup(createElement(ActionPostList, {
 describe('empty graph lists', () => {
   test('the action list stays empty without duplicating the header creation entry', () => {
     const html = render({ mode: 'objective' })
-    expect(html).toContain('暂无行动')
+    expect(html).toContain('暂无数据')
     expect(html).not.toContain('<button')
   })
 
   test('the expression list remains empty without an action creation prompt', () => {
     const html = render({ mode: 'expression' })
-    expect(html).toContain('暂无表达')
+    expect(html).toContain('暂无数据')
     expect(html).not.toContain('<button')
   })
 })

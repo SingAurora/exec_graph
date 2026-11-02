@@ -3,15 +3,18 @@ import { Avatar } from '../../../shared/ui/Avatar'
 import { HighlightedText } from '../../../shared/ui/HighlightedText'
 import { getMarkdownSummary } from '../../../shared/lib/markdownSummary'
 import { ProfilePreview } from '../../../entities/profile/ui/ProfilePreview'
+import { ListEnd } from '../../../shared/ui/ListEnd'
 
 /** User identities open a preview and retain the graph return destination in its profile links. */
-export function UserSearchResults({ users, projectId, actionCounts, query }: {
+export function UserSearchResults({ users, projectId, actionCounts, query, showEnd = false }: {
   users: UserProfile[]
   projectId: string
   actionCounts: Map<string, number>
   query: string
+  showEnd?: boolean
 }) {
   return (
+    <div>
     <ul className="mt-2">
       {users.map((user) => <li key={user.id}>
         <div className="flex items-start gap-3 rounded-lg px-1 py-5">
@@ -24,5 +27,7 @@ export function UserSearchResults({ users, projectId, actionCounts, query }: {
         </div>
       </li>)}
     </ul>
+    {showEnd && users.length > 0 && <ListEnd hasMore={false} className="py-6" />}
+    </div>
   )
 }

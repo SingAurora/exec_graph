@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { getProfileActivity, getProfileActivityDays } from '../../entities/action/lib/profile-activity'
 import type { ActionDocumentMode, ActionNode } from '../../entities/action/model/types'
 import { ListEnd } from '../../shared/ui/ListEnd'
+import { ListEmptyState } from '../../shared/ui/empty-state/EmptyState'
 import { ActionHeatmap } from './ActionHeatmap'
 import { ProfileTimelineItem } from './ProfileTimelineItem'
 
@@ -54,7 +55,7 @@ export function ProfileHome({ userId, actions, active, onOpenNode }: {
         </div>
         <div ref={timelineRef} className="h-[420px] overflow-y-auto overscroll-contain rounded-lg border border-line px-4 py-4 [scrollbar-gutter:stable]" tabIndex={0}
           onScroll={(event) => { if (active) scrollTop.current = event.currentTarget.scrollTop }}>
-          {!filtered.length && <p className="py-12 text-center text-sm text-muted">{selectedDate ? '这一天没有行动' : '还没有行动记录'}</p>}
+          {!filtered.length && (selectedDate ? <p className="py-12 text-center text-sm text-muted">这一天没有行动</p> : <ListEmptyState compact />)}
           <div>{visibleActivity.map((item, index) => <ProfileTimelineItem key={item.node.id} node={item.node} last={index === visibleActivity.length - 1} onOpenNode={onOpenNode} />)}</div>
           {filtered.length > 0 && <ListEnd ref={endRef} hasMore={hasMore} className="py-6" />}
         </div>

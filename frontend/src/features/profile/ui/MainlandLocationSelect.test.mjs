@@ -15,6 +15,17 @@ describe('mainland location select', () => {
     expect(html).toContain('区县')
   })
 
+  test('offers a clear action only when a location is selected', () => {
+    expect(render({})).not.toContain('清除所在地')
+    const province = mainlandRegions[0]
+    const city = province.children[0]
+    const district = city.children[0]
+    expect(render({ value: {
+      code: district.code, provinceCode: province.code, province: province.name,
+      cityCode: city.code, city: city.name, districtCode: district.code, district: district.name,
+    } })).toContain('清除所在地')
+  })
+
   test('shows the selected province, city and district names', () => {
     const province = mainlandRegions[0]
     const city = province.children[0]

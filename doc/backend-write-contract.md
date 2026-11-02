@@ -91,7 +91,7 @@ type DocumentUpdate =
 | `/profiles/update` | `expectedVersion`、`name`、`gender`、`bio`、`locationCode`、`avatarAssetId`、`backgroundAssetId` | 当前 `AccountView` |
 | `/profiles/highlights-set` | `expectedVersion`、`expressionNodeIds` | 当前 `AccountView` |
 
-资料只能修改当前账户。昵称最多 30 个字符，简介最多 1000 个字符，性别为 `unknown`／`male`／`female`；图片的资产规则与图资料相同。资料和精选各自保存，不覆盖另一部分。
+资料只能修改当前账户。昵称去除首尾空白后最多 30 个 Unicode 码点，简介去除首尾空白后最多 512 个 Unicode 码点，性别为 `unknown`／`male`／`female`；两者均远低于数据库 `varchar(30)`／`text` 的容量。图片的资产规则与图资料相同。资料和精选各自保存，不覆盖另一部分。
 
 精选最多五个，顺序以数组为准，空数组表示清空。只允许本人分支上的非空本人表达；本人行动继承本人的表达，或本人整理并确认的表达，都可选择。不能精选他人的表达、重复节点、已删除图或有效表达已清空的节点。
 

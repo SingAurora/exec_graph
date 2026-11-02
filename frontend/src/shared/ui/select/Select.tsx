@@ -8,22 +8,23 @@ export type SelectOption = {
 }
 
 type SelectProps = {
-  value: string
+  value?: string
   options: SelectOption[]
   label: string
+  placeholder?: string
   className?: string
   disabled?: boolean
   onValueChange: (value: string) => void
 }
 
 /** Single-value select with the application's visual language. */
-export function Select({ value, options, label, className, disabled = false, onValueChange }: SelectProps) {
+export function Select({ value, options, label, placeholder, className, disabled = false, onValueChange }: SelectProps) {
   const selectedOption = options.find((option) => option.value === value)
 
   return (
     <SelectPrimitive.Root value={value} onValueChange={onValueChange} disabled={disabled}>
       <SelectPrimitive.Trigger className={`inline-flex h-9 min-w-[126px] items-center justify-between gap-4 rounded-md border-0 bg-transparent px-2.5 py-0 text-xs font-semibold text-ink outline-none focus-visible:rounded focus-visible:shadow-[0_0_0_3px_rgb(35_107_89_/_0.1)] disabled:cursor-not-allowed disabled:opacity-50 ${className ?? ''}`.trim()} title={label}>
-        <SelectPrimitive.Value className="min-w-0 flex-1 truncate text-left">{selectedOption?.label}</SelectPrimitive.Value>
+        <SelectPrimitive.Value className="min-w-0 flex-1 truncate text-left" placeholder={placeholder}>{selectedOption?.label}</SelectPrimitive.Value>
         <SelectPrimitive.Icon asChild><ChevronDown size={14} /></SelectPrimitive.Icon>
       </SelectPrimitive.Trigger>
       <SelectPrimitive.Portal>

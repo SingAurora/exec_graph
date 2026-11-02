@@ -12,6 +12,8 @@ import { HelpPopover } from '../../shared/ui/help/HelpPopover'
 import type { UserProfile } from '../../entities/profile/model/types'
 import { BIO_INPUT_PLACEHOLDER } from '../../entities/profile/model/defaults'
 import { validateNickname } from '../../entities/profile/lib/name-validation'
+import { validateBiography } from '../../entities/profile/lib/bio-validation'
+import { PROFILE_BIO_LIMIT } from '../../entities/profile/model/limits'
 import { ComponentShowcase } from './components/ComponentShowcase'
 import { AppearanceSettings } from './AppearanceSettings'
 import type { GraphBackgroundPreferences } from '../../shared/ui/graph-background/model'
@@ -32,7 +34,7 @@ type SettingsTab = 'profile' | 'account' | 'preferences' | 'components'
 const categories = [
   { id: 'profile', label: '个人资料', icon: UserRound },
   { id: 'account', label: '账户安全', icon: LockKeyhole },
-  { id: 'preferences', label: '外观', icon: Palette },
+  { id: 'preferences', label: '界面外观', icon: Palette },
   { id: 'components', label: '组件演示', icon: PanelsTopLeft },
 ] as const
 
@@ -44,10 +46,12 @@ export function SettingsPanel({ profile, csrfToken, darkMode, showActionGraphLeg
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile')
   const { showToast } = useToast()
   const nameError = validateNickname(draft.name)
+  const bioError = validateBiography(draft.bio)
+  const bioLength = [...draft.bio.trim()].length
   const update = <K extends keyof UserProfile>(key: K, value: UserProfile[K]) => setDraft((current) => ({ ...current, [key]: value }))
   const saveProfile = async (event: FormEvent) => {
     event.preventDefault()
-    if (nameError || backgroundLoading || saving) return
+    if (nameError || bioError || backgroundLoading || saving) return
     setSaving(true)
     try {
       await onSave({ ...draft, name: draft.name.trim(), bio: draft.bio.trim() })
@@ -60,11 +64,11 @@ export function SettingsPanel({ profile, csrfToken, darkMode, showActionGraphLeg
         <TabsList showDivider={false}>{categories.filter(({ id }) => id !== 'components' || profile.isTestAccount).map(({ id, label, icon: Icon }) => <TabsTrigger key={id} value={id}><span className="inline-flex items-center gap-1.5"><Icon size={16} />{label}</span></TabsTrigger>)}</TabsList>
         <TabsContent value="profile" keepMounted>
           <div className="mt-7 grid grid-cols-[minmax(130px,1fr)_minmax(0,460px)] items-start gap-8">
-            <div><h2 className="text-base font-semibold">公开资料</h2><a className="text-button mt-2" href={'#profile?userId=' + encodeURIComponent(profile.id)}>查看我的主页</a></div>
+            <div><h2 className="text-base font-semibold">公开资料</h2></div>
             <form className="grid gap-5" onSubmit={saveProfile}>
               <fieldset className="contents" disabled={saving}>
-              <div className="flex items-center gap-4"><AvatarEditor value={draft.avatar} fallback={draft.name.slice(0, 1)} onChange={(avatar) => update('avatar', avatar)} /><span className="text-sm text-muted">个人头像</span></div>
-              <ProfileBackgroundEditor value={draft.backgroundImage} onChange={(image) => update('backgroundImage', image)} onLoadingChange={setBackgroundLoading} />
+              <ProfileBackgroundEditor label="主页形象" value={draft.backgroundImage} onChange={(image) => update('backgroundImage', image)} onLoadingChange={setBackgroundLoading}
+                avatar={<AvatarEditor value={draft.avatar} fallback={draft.name.slice(0, 1)} onChange={(avatar) => update('avatar', avatar)} />} />
               <label className="form-field">
                 昵称
                 <input className="form-input" required value={draft.name} onChange={(event) => update('name', event.target.value)} placeholder="昵称" />
@@ -76,12 +80,13 @@ export function SettingsPanel({ profile, csrfToken, darkMode, showActionGraphLeg
                 <div className="flex items-center gap-1"><label htmlFor="profile-biography">个人简介</label><HelpPopover title="个人简介">
                   <p>支持 Markdown 加粗、列表、表情符号和图片链接。不支持普通链接；站内跳转、网页和邮箱链接都只显示文字，不能点击。</p>
                   <pre className="whitespace-pre-wrap break-all rounded-md bg-soft p-3 font-mono text-[11px] leading-6">{'🍅 **认真吃饭，随手记录。**\n\n从一盘番茄炒蛋开始。\n\n![图片说明](https://example.com/photo.jpg)'}</pre>
-                  <p>最多 1000 个字符，包含 Markdown 标记和图片网址。</p>
+                  <p>最多 {PROFILE_BIO_LIMIT} 个字符，包含 Markdown 标记和图片网址；首尾空白不计入。</p>
                   <p>主页展示完整简介；左下角卡片显示首段文字和第一张图片。修改后点击「保存资料」生效。</p>
                 </HelpPopover></div>
-                <textarea id="profile-biography" className="form-input min-h-36 resize-y leading-6" rows={5} maxLength={1000} value={draft.bio} onChange={(event) => update('bio', event.target.value)} placeholder={BIO_INPUT_PLACEHOLDER} />
+                <textarea id="profile-biography" className="form-input min-h-36 resize-y leading-6" rows={5} value={draft.bio} onChange={(event) => update('bio', event.target.value)} placeholder={BIO_INPUT_PLACEHOLDER} />
+                <div className="flex items-center justify-between gap-3 text-xs leading-5"><span className="text-coral">{bioError}</span><span className={`shrink-0 tabular-nums ${bioError ? 'text-coral' : 'text-muted'}`}>{bioLength}/{PROFILE_BIO_LIMIT}</span></div>
               </div>
-              <div className="flex justify-end"><button className="primary-button" type="submit" disabled={Boolean(nameError) || backgroundLoading}>保存资料</button></div>
+              <div className="flex justify-end"><button className="primary-button" type="submit" disabled={Boolean(nameError) || Boolean(bioError) || backgroundLoading}>保存资料</button></div>
               </fieldset>
             </form>
           </div>

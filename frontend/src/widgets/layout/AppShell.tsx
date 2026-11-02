@@ -8,11 +8,12 @@ import { SidebarProfileCard, type SidebarProfileStats } from './SidebarProfileCa
 import { AppBackdrop } from './AppBackdrop'
 
 type AppShellProps = {
-  profile: UserProfile
-  profileStats: SidebarProfileStats
+  profile?: UserProfile
+  profileStats?: SidebarProfileStats
   activeView: AppView
   darkMode: boolean
-  onLogout: () => void
+  loading?: boolean
+  onLogout?: () => void
   onToggleTheme: () => void
   backAction?: { label: string; onBack: () => void }
   projectTitle?: string
@@ -27,7 +28,7 @@ const globalNavigation: { view: AppView; label: string; icon: typeof Home }[] = 
 ]
 
 /** 应用外壳：左侧导航和本人资料、顶部标题与返回入口；children 是当前业务页面。 */
-export function AppShell({ profile, profileStats, activeView, darkMode, onLogout, onToggleTheme, backAction, projectTitle, children }: AppShellProps) {
+export function AppShell({ profile, profileStats, activeView, darkMode, loading = false, onLogout, onToggleTheme, backAction, projectTitle, children }: AppShellProps) {
   const globalView = activeView === 'graph-search' ? 'home' : ['projects', 'publish', 'project', 'action-archive'].includes(activeView) ? 'my' : activeView
   const pageTitle: Record<AppView, string> = { my: '我的', following: '关注', home: '发现', settings: '设置', project: projectTitle ?? '行动图', projects: '行动图', publish: '记录行动', topic: '发现', 'action-archive': '形成过程', profile: '主页', 'graph-search': '搜索图' }
 
@@ -40,8 +41,8 @@ export function AppShell({ profile, profileStats, activeView, darkMode, onLogout
           {globalNavigation.map(({ view, label, icon: Icon }) => <a className={'flex items-center gap-3 rounded-lg px-3 py-3 text-[15px] font-medium transition hover:bg-soft hover:text-ink ' + (globalView === view ? 'bg-soft font-semibold text-signal' : 'text-muted')} href={'#' + view} key={view}><Icon size={19} strokeWidth={1.8} />{label}</a>)}
         </nav>
         <div className="mt-auto grid gap-5">
-          <SidebarProfileCard profile={profile} stats={profileStats} />
-          <div className="grid grid-cols-2 gap-[7px]"><button className="inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-md border border-line bg-transparent px-[7px] py-1.5 text-xs font-semibold text-muted transition hover:border-signal hover:text-signal" type="button" onClick={onToggleTheme}><span className="inline-flex">{darkMode ? <Sun size={15} /> : <Moon size={15} />}</span>{darkMode ? '浅色模式' : '深色模式'}</button><button className="inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-md border border-line bg-transparent px-[7px] py-1.5 text-xs font-semibold text-muted transition hover:border-coral hover:text-coral" type="button" onClick={onLogout}><span className="inline-flex"><LogOut size={15} /></span>退出登录</button></div>
+          {!loading && profile && profileStats && <SidebarProfileCard profile={profile} stats={profileStats} />}
+          <div className={loading ? 'grid gap-[7px]' : 'grid grid-cols-2 gap-[7px]'}><button className="inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-md border border-line bg-transparent px-[7px] py-1.5 text-xs font-semibold text-muted transition hover:border-signal hover:text-signal" type="button" onClick={onToggleTheme}><span className="inline-flex">{darkMode ? <Sun size={15} /> : <Moon size={15} />}</span>{darkMode ? '浅色模式' : '深色模式'}</button>{!loading && onLogout && <button className="inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-md border border-line bg-transparent px-[7px] py-1.5 text-xs font-semibold text-muted transition hover:border-coral hover:text-coral" type="button" onClick={onLogout}><span className="inline-flex"><LogOut size={15} /></span>退出登录</button>}</div>
         </div>
       </aside>
       <main className={'relative min-w-0 pt-[30px] ' + (activeView === 'project' ? 'pb-0' : 'pb-20')} id="top">

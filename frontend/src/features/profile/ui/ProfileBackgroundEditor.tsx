@@ -1,14 +1,16 @@
 import { ImagePlus, RotateCcw } from 'lucide-react'
-import { useId, useRef, useState, type ChangeEvent } from 'react'
+import { useId, useRef, useState, type ChangeEvent, type ReactNode } from 'react'
 import { ProfileCover } from '../../../entities/profile/ui/ProfileCover'
 import { readImageFile } from '../../../shared/lib/image'
 import { ImageCropDialog, type ImageCropSource } from '../../../shared/ui/image-crop/ImageCropDialog'
 
 /** Crops and compresses a local profile cover before updating the profile form draft. */
-export function ProfileBackgroundEditor({ value, onChange, onLoadingChange }: {
+export function ProfileBackgroundEditor({ value, onChange, onLoadingChange, avatar, label = '主页背景图' }: {
   value?: string
   onChange: (image: string | undefined) => void
   onLoadingChange: (loading: boolean) => void
+  avatar?: ReactNode
+  label?: string
 }) {
   const input = useRef<HTMLInputElement>(null)
   const errorId = useId()
@@ -36,8 +38,11 @@ export function ProfileBackgroundEditor({ value, onChange, onLoadingChange }: {
   }
   return (
     <div className="grid gap-2.5">
-      <span className="text-sm font-medium">主页背景图</span>
-      <ProfileCover image={value} size="preview" />
+      <span className="text-sm font-medium">{label}</span>
+      <div>
+        <ProfileCover image={value} size="preview" />
+        {avatar && <div className="relative -mt-12 flex items-end px-5">{avatar}</div>}
+      </div>
       <div className="flex items-center gap-3">
         <button className="quiet-button" type="button" disabled={loading} onClick={() => input.current?.click()}><ImagePlus size={15} />{loading ? '读取中…' : value ? '更换背景图' : '上传背景图'}</button>
         {value && <button className="text-button" type="button" disabled={loading} onClick={() => { setError(''); onChange(undefined) }}><RotateCcw size={14} />恢复默认</button>}

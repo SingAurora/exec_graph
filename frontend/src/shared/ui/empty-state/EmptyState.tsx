@@ -4,14 +4,15 @@ type EmptyStateProps = {
   title: string
   description?: string
   action?: ReactNode
+  compact?: boolean
   className?: string
 }
 
 /** 公共空状态：统一的轻量 SVG 插画、标题和可选操作，供列表、图栏目和搜索结果复用。 */
-export function EmptyState({ title, description, action, className = '' }: EmptyStateProps) {
+export function EmptyState({ title, description, action, compact = false, className = '' }: EmptyStateProps) {
   return (
-    <div className={`empty-state ${className}`}>
-      <EmptyStateIllustration />
+    <div className={`empty-state ${compact ? 'min-h-0 py-6' : ''} ${className}`}>
+      <EmptyStateIllustration compact={compact} />
       <div className="grid max-w-sm gap-1">
         <p className="text-[15px] font-medium text-ink">{title}</p>
         {description && <p className="text-xs leading-5 text-muted">{description}</p>}
@@ -21,10 +22,15 @@ export function EmptyState({ title, description, action, className = '' }: Empty
   )
 }
 
+/** 查询接口返回空列表时的统一空数据状态，不区分具体列表内容。 */
+export function ListEmptyState({ className = '', compact = false }: { className?: string; compact?: boolean }) {
+  return <EmptyState compact={compact} title="暂无数据" description="这里还没有可以展示的内容" className={className} />
+}
+
 /** 空状态公共插画；使用主题变量，随明暗主题变化，不依赖外部图片资源。 */
-export function EmptyStateIllustration() {
+export function EmptyStateIllustration({ compact = false }: { compact?: boolean }) {
   return (
-    <svg className="h-auto w-[148px]" viewBox="0 0 160 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg className={`h-auto ${compact ? 'w-[104px]' : 'w-[148px]'}`} viewBox="0 0 160 120" fill="none" xmlns="http://www.w3.org/2000/svg">
       <ellipse cx="80" cy="101" rx="46" ry="7" fill="var(--soft)" />
       <circle cx="78" cy="62" r="15" stroke="var(--signal)" strokeWidth="1" strokeDasharray="3 4" opacity=".35" />
       <path d="M42 84C58 80 61 67 78 62C93 57 98 45 108 36" stroke="var(--line)" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="4 6" />

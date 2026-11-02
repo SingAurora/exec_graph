@@ -23,7 +23,7 @@ import { GraphDetailsAside } from '../../graph-details/ui/GraphDetailsAside'
 import { GraphSearch } from '../../graph-search/ui/GraphSearch'
 import { FollowButton } from '../../../features/follow/ui/FollowButton'
 import type { GraphBackgroundPreferences } from '../../../shared/ui/graph-background/model'
-import { EmptyState } from '../../../shared/ui/empty-state/EmptyState'
+import { ListEmptyState } from '../../../shared/ui/empty-state/EmptyState'
 
 /** 图详情接收业务数据及应用层回调；界面不直接发请求或导入演示数据。 */
 export type ProjectDetailProps = {
@@ -233,7 +233,7 @@ export function ProjectDetail({ project, active = true, externalFocus, currentUs
           </div>
         </TabsContent>
         <TabsContent value="explore" keepMounted={visitedExplore}>
-          {!actions.length ? <EmptyState title="暂无节点" description="发布第一次行动后，可以在这里查看节点关系。" /> : <div className="relative mt-5">
+          {!actions.length ? <ListEmptyState /> : <div className="relative mt-5">
           <div ref={workspaceRef} className={`grid h-[calc(100dvh-44px)] scroll-mt-11 overflow-hidden rounded-lg border border-line bg-surface outline-none ${detailsVisible ? 'grid-cols-[342px_minmax(0,1fr)]' : 'grid-cols-1'}`} tabIndex={-1}>
             <ActionGraph actions={actions} highlightedPath={highlightedPath} users={users} selectedId={selected?.id} selectedReferenceId={selectedReference?.id} showLegend={showActionGraphLegend} background={graphBackground} active={active && activeTab === 'explore'} focusRequest={focusRequest} locateRequest={nodeLocateRequest} detailsVisible={detailsVisible} onClearHighlight={() => setHighlightTipId(undefined)} onSelect={selectNode} onSelectReference={(id) => { setSelection({ kind: 'reference', id }); setDetailsVisible(true) }} onFitViewport={() => workspaceRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' })} />
             <ActionReadingPane readingKey={selectedReference ? `reference:${selectedReference.id}` : `node:${selected?.id}:${documentMode}`} focusRequest={focusRequest} hidden={!detailsVisible} active={active && activeTab === 'explore' && detailsVisible}>

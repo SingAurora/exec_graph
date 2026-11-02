@@ -24,10 +24,10 @@ describe('full graph search results', () => {
     expect(render({ page: 99 })).toEqual(second)
   })
 
-  test('distinguishes no matches from a blank search without listing unrelated graphs', () => {
-    expect(render({ keyword: '没有' })).toContain('没有找到相关图')
+  test('uses the shared empty data state for blank and unmatched searches', () => {
+    expect(render({ keyword: '没有' })).toContain('暂无数据')
     const blank = render({ keyword: '' })
-    expect(blank).toContain('输入图名称或简介搜索')
+    expect(blank).toContain('暂无数据')
     expect(blank).not.toContain('练习 11')
     expect(blank).not.toContain('title="下一页"')
   })

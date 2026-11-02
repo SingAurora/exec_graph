@@ -10,10 +10,11 @@ describe('shared list end marker', () => {
     expect(html).toContain('animate-spin')
   })
 
-  test('shows a check icon and the default completion label when exhausted', () => {
+  test('shows only the completion label when exhausted', () => {
     const html = renderToStaticMarkup(createElement(ListEnd, { hasMore: false }))
     expect(html).toContain('没有更多了')
-    expect(html).toContain('lucide-check')
+    expect(html).not.toContain('lucide-check')
+    expect(html).not.toContain('rounded-full')
   })
 
   test('accepts a list-specific completion label', () => {

@@ -4,6 +4,7 @@ import type { ProfileHighlightEntry } from '../../../entities/action/lib/profile
 import type { Project } from '../../../entities/project/model/types'
 import { useInfiniteList } from '../../../shared/lib/useInfiniteList'
 import { ListEnd } from '../../../shared/ui/ListEnd'
+import { ListEmptyState } from '../../../shared/ui/empty-state/EmptyState'
 import { Pagination } from '../../../shared/ui/Pagination'
 import { SearchInput } from '../../../shared/ui/SearchInput'
 import { searchHighlightCandidates } from '../lib/search'
@@ -42,7 +43,7 @@ export function HighlightCandidates({ active, candidates, projects, full, onAdd,
       </form>
       <p className="mb-2 text-xs text-muted">{keyword ? '搜索结果' : '可选表达'} · 共 {matches.length} 条</p>
       <div ref={scrollRef} className="max-h-[40dvh] overflow-x-hidden overflow-y-auto overscroll-contain pr-4 [scrollbar-gutter:stable]">
-        {!matches.length && <p className="py-5 text-sm text-muted">{keyword ? '没有匹配的表达' : '暂无其他可选表达'}</p>}
+        {!matches.length && <ListEmptyState compact />}
         <ul className="divide-y divide-line">{visible.map((entry) => <li key={entry.node.id} className="py-3">
           {renderEntry(entry, keyword)}
           <div className="mt-2 flex justify-end"><button type="button" className="icon-button" title="添加表达" disabled={full} onClick={() => onAdd(entry.node.id)}><Plus size={16} /></button></div>

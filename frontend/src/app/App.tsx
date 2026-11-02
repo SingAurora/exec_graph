@@ -3,10 +3,11 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useAppResources } from './model/useAppResources'
 import { useAppCommands } from './model/useAppCommands'
 import { useAppearance } from './model/useAppearance'
-import { isAuthView, useHashRoute } from '../shared/lib/navigation'
+import { isAppView, isAuthView, useHashRoute } from '../shared/lib/navigation'
 import { profileKeys, type SessionView } from '../entities/profile/api/profiles'
 import { logout } from '../features/auth/api/account'
 import { useToast } from '../shared/ui/toast/useToast'
+import { ListSkeleton } from '../shared/ui/ListSkeleton'
 import { useImageAssets } from '../features/media-upload/model/useImageAssets'
 import { resourceId } from '../shared/lib/resource-id'
 import { useAppNavigation } from './model/useAppNavigation'
@@ -53,6 +54,9 @@ export function App() {
   const client = useQueryClient()
   const [darkMode, toggleTheme] = useAppearance()
   const [authView] = useHashRoute('login', isAuthView)
+  const rawView = window.location.hash.slice(1).split('?')[0]
+  const loadingView = isAppView(rawView) && rawView !== 'topic' ? rawView : 'home'
+  const loadingAuth = isAuthView(rawView)
   const { showToast } = useToast()
   const enter = async (session: SessionView) => {
     await client.cancelQueries()
@@ -81,17 +85,27 @@ export function App() {
     !resources.sources ||
     !resources.csrfToken
   ) {
-    return (
-      <main
-        className="grid min-h-dvh place-content-center gap-4 bg-paper p-8 text-center text-sm text-copy"
-      >
-        <p>{resources.error?.message ?? '正在加载…'}</p>
-        {resources.error && (
+    if (resources.error) {
+      return (
+        <main className="grid min-h-dvh place-content-center gap-4 bg-paper p-8 text-center text-sm text-copy">
+          <p>{resources.error.message}</p>
           <button className="quiet-button" type="button" onClick={resources.retry}>
             重试
           </button>
-        )}
-      </main>
+        </main>
+      )
+    }
+    if (loadingAuth) {
+      return (
+        <main className="grid min-h-dvh place-content-center bg-paper p-8">
+          <ListSkeleton rows={3} className="w-[min(360px,calc(100vw-48px))]" />
+        </main>
+      )
+    }
+    return (
+      <AppShell activeView={loadingView} darkMode={darkMode} loading onToggleTheme={toggleTheme}>
+        <div className="pt-6"><ListSkeleton rows={5} /></div>
+      </AppShell>
     )
   }
 

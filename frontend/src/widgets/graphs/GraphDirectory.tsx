@@ -38,7 +38,7 @@ export function GraphDirectory({ currentUserId, projects, actions, onCreateProje
           <label className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-md border border-line bg-surface px-3 text-muted focus-within:border-signal"><Search size={16} /><input className="min-w-0 flex-1 border-0 bg-transparent text-sm text-ink outline-none" type="search" title="搜索行动图" placeholder="搜索图名称或简介" value={keyword} onChange={(event) => { setKeyword(event.target.value); setPage(1) }} /></label>
           <span className="flex items-center rounded-md border border-line bg-surface pl-3 text-muted"><ArrowUpDown size={15} /><Select label="行动图排序" value={sort} onValueChange={(value) => { setSort(value); setPage(1) }} options={[{ value: 'activity', label: '最近行动' }, { value: 'created', label: '最近创建' }, { value: 'name', label: '名称排序' }]} /></span>
         </div>
-        {groups.map(({ id }) => <TabsContent key={id} value={id}><GraphList items={filtered.slice((currentPage - 1) * graphPageSize, currentPage * graphPageSize)} onOpen={onOpenProject} empty={query ? '没有找到相关行动图' : '暂无行动图'} /></TabsContent>)}
+        {groups.map(({ id }) => <TabsContent key={id} value={id}><GraphList items={filtered.slice((currentPage - 1) * graphPageSize, currentPage * graphPageSize)} onOpen={onOpenProject} showEnd={currentPage === pageCount} /></TabsContent>)}
       </TabsRoot>
       {filtered.length > graphPageSize && <Pagination currentPage={currentPage} pageCount={pageCount} onChange={setPage} />}
     </section>

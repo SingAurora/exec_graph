@@ -1,6 +1,7 @@
 package profile
 
 import (
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -19,7 +20,7 @@ func NormalizeName(value string) (string, error) {
 		return "", fault.New(fault.Invalid, "昵称不能包含换行、控制字符或不可见格式字符")
 	}
 	if utf8.RuneCountInString(name) > constants.ProfileNameLimit {
-		return "", fault.New(fault.Invalid, "昵称最多 30 个字符")
+		return "", fault.New(fault.Invalid, "昵称最多 "+strconv.Itoa(constants.ProfileNameLimit)+" 个字符")
 	}
 	return name, nil
 }

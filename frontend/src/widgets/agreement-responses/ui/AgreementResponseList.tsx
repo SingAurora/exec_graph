@@ -11,7 +11,7 @@ import { HighlightedText } from '../../../shared/ui/HighlightedText'
 import { Avatar } from '../../../shared/ui/Avatar'
 import { ProfilePreview } from '../../../entities/profile/ui/ProfilePreview'
 import { RecordThumbnails } from '../../../shared/ui/RecordThumbnails'
-import { EmptyState } from '../../../shared/ui/empty-state/EmptyState'
+import { ListEmptyState } from '../../../shared/ui/empty-state/EmptyState'
 import { ListEnd } from '../../../shared/ui/ListEnd'
 
 type Props = {
@@ -20,14 +20,14 @@ type Props = {
   active: boolean
   infinite?: boolean
   searchQuery?: string
-  emptyContent?: ReactNode
   presentation?: 'default' | 'feed'
+  showEnd?: boolean
   onExplore: (reference: ActionReference) => void
   renderContext?: (reference: ActionReference) => ReactNode
 }
 
 /** 展示“谁以行动满足了谁的约定”；正文进入真实引用箭头，人物与图片保留独立交互。 */
-export function AgreementResponseList({ references, users, active, infinite = true, searchQuery, emptyContent, presentation = 'default', onExplore, renderContext }: Props) {
+export function AgreementResponseList({ references, users, active, infinite = true, searchQuery, presentation = 'default', showEnd, onExplore, renderContext }: Props) {
   const feed = presentation === 'feed'
   const responses = useMemo(() => getSatisfiedAgreementResponses(references), [references])
   // 配图必须来自被满足的那份约定，不能借用回应行动或新设置的后续约定图片。
@@ -35,12 +35,7 @@ export function AgreementResponseList({ references, users, active, infinite = tr
   const usersById = useMemo(() => new Map(users.map((user) => [user.id, user])), [users])
   const { visibleCount, endRef, hasMore } = useInfiniteList({ itemCount: responses.length, infinite, active })
 
-  if (!responses.length && emptyContent) return (
-    <div className="empty-state">{emptyContent}</div>
-  )
-  if (!responses.length) return (
-    <EmptyState title="暂无满足约定的跨用户引用" description="跨用户满足约定后，会在这里留下可追溯的引用。" />
-  )
+  if (!responses.length) return <ListEmptyState />
   return (
     <div className="min-w-0">
       <section>
@@ -81,7 +76,7 @@ export function AgreementResponseList({ references, users, active, infinite = tr
           )
         })}
       </section>
-      {infinite && <ListEnd ref={endRef} hasMore={hasMore} className="py-8" />}
+      {(showEnd ?? infinite) && <ListEnd ref={endRef} hasMore={infinite && hasMore} className="py-8" />}
     </div>
   )
 }

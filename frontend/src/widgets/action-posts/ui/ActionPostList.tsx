@@ -13,7 +13,7 @@ import { HighlightedText } from '../../../shared/ui/HighlightedText'
 import { Avatar } from '../../../shared/ui/Avatar'
 import { ProfilePreview } from '../../../entities/profile/ui/ProfilePreview'
 import { RecordThumbnails } from '../../../shared/ui/RecordThumbnails'
-import { EmptyState } from '../../../shared/ui/empty-state/EmptyState'
+import { ListEmptyState } from '../../../shared/ui/empty-state/EmptyState'
 import { ListEnd } from '../../../shared/ui/ListEnd'
 
 type ActionPostListProps = {
@@ -24,35 +24,27 @@ type ActionPostListProps = {
   searchQuery?: string
   infinite?: boolean
   active?: boolean
-  emptyContent?: ReactNode
   presentation?: 'default' | 'feed'
+  showEnd?: boolean
   onExplore: (node: ActionNode, mode: ActionDocumentMode) => void
   renderContext?: (node: ActionNode) => ReactNode
 }
 
 /** 表达／行动共用内容条目；文档、用户资料和图片各有独立入口，不互相触发跳转。 */
-export function ActionPostList({ nodes, actions, users, mode, searchQuery, infinite = false, active = true, emptyContent, presentation = 'default', onExplore, renderContext }: ActionPostListProps) {
+export function ActionPostList({ nodes, actions, users, mode, searchQuery, infinite = false, active = true, presentation = 'default', showEnd, onExplore, renderContext }: ActionPostListProps) {
   const levels = useMemo(() => getActionLevels(actions), [actions])
   const contextCounts = useMemo(() => presentation === 'feed' && mode === 'expression'
     ? new Map(nodes.map((node) => [node.id, getActionContextIds(actions.filter((action) => action.projectId === node.projectId), node.id).size]))
     : new Map<string, number>(), [actions, nodes, mode, presentation])
   const { visibleCount, endRef, hasMore } = useInfiniteList({ itemCount: nodes.length, infinite, active })
 
-  if (!nodes.length && emptyContent) return (
-    <div className="empty-state">{emptyContent}</div>
-  )
-  if (!nodes.length) return (
-    <EmptyState
-      title={mode === 'expression' ? '暂无表达' : '暂无行动'}
-      description={mode === 'expression' ? '路线终点还没有可展示的表达。' : '还没有发布过行动，先记录一次实际经历。'}
-    />
-  )
+  if (!nodes.length) return <ListEmptyState />
   return (
     <div className="min-w-0">
       <section>
         {(infinite ? nodes.slice(0, visibleCount) : nodes).map((node) => <ActionPostItem key={node.id} node={node} level={levels.get(node.id)} contextCount={contextCounts.get(node.id)} actions={actions} users={users} mode={mode} searchQuery={searchQuery} presentation={presentation} onExplore={onExplore} renderContext={renderContext} />)}
       </section>
-      {infinite && <ListEnd ref={endRef} hasMore={hasMore} className="py-8" />}
+      {(showEnd ?? infinite) && <ListEnd ref={endRef} hasMore={infinite && hasMore} className="py-8" />}
     </div>
   )
 }

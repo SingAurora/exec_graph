@@ -46,11 +46,12 @@ describe('public discovery', () => {
 
   test('empty discovery keeps every category with empty states and no invented activity', () => {
     const html = render({ projects: [], actions: [] })
-    expect(html).toContain('暂无表达')
+    expect(html).toContain('暂无数据')
+    expect(html).toMatch(/class="empty-state[^"]*"[\s\S]*?<svg/)
     expect(html).not.toContain('>暂无行动<')
-    expect(html).toContain('暂无满足约定的跨用户引用')
+    expect(html).toContain('暂无数据')
     expect(html).not.toContain('暂无行动图')
-    expect(html).toContain('暂无活跃的图')
+    expect(html).toContain('暂无数据')
     expect(html).not.toContain('data-node-id')
     expect(html).not.toContain('data-reference-id')
   })

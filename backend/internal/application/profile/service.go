@@ -4,7 +4,6 @@ package profile
 import (
 	"context"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/singaurora/exec-graph/backend/internal/application/identity"
 	"github.com/singaurora/exec-graph/backend/internal/shared/constants"
@@ -37,8 +36,12 @@ func (s *Service) Update(ctx context.Context, actor identity.Actor, input Update
 	if err != nil {
 		return out, err
 	}
-	if input.ExpectedVersion == 0 || utf8.RuneCountInString(input.Bio) > constants.BiographyLimit || (input.Gender != "unknown" && input.Gender != "male" && input.Gender != "female") {
-		return out, fault.New(fault.Invalid, "昵称、性别或简介格式不合法")
+	bio, err := NormalizeBio(input.Bio)
+	if err != nil {
+		return out, err
+	}
+	if input.ExpectedVersion == 0 || (input.Gender != "unknown" && input.Gender != "male" && input.Gender != "female") {
+		return out, fault.New(fault.Invalid, "资料版本或性别格式不合法")
 	}
 	if !input.LocationCode.Present {
 		return out, fault.New(fault.Invalid, "缺少所在地")
@@ -49,6 +52,7 @@ func (s *Service) Update(ctx context.Context, actor identity.Actor, input Update
 		}
 	}
 	input.Name = name
+	input.Bio = bio
 	err = s.store.Within(ctx, actor, func(tx Transaction) error {
 		if err := checkVersion(tx, input.ExpectedVersion); err != nil {
 			return err

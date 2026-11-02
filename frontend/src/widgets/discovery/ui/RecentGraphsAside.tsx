@@ -8,6 +8,7 @@ import { DiscoverySearch } from '../../../features/search-discovery/ui/Discovery
 import { formatFullPublicationTime, formatPublicationTime } from '../../../shared/lib/date'
 import { getSearchExcerpt } from '../../../shared/lib/search'
 import { HighlightedText } from '../../../shared/ui/HighlightedText'
+import { ListEmptyState } from '../../../shared/ui/empty-state/EmptyState'
 
 type Props = {
   items: GraphActivity[]
@@ -38,7 +39,7 @@ export function RecentGraphsAside({ items, projects, actions, onOpen, onSearchAl
             {!query && lastActionAt && <time className="text-[11px] leading-5 text-muted" dateTime={lastActionAt} title={formatFullPublicationTime(lastActionAt)}>最近行动 {formatPublicationTime(lastActionAt)}</time>}
           </span>
         </button>)}
-      </div> : <p className="py-5 text-center text-sm text-muted">{query ? '没有找到相关图' : '暂无活跃的图'}</p>}
+      </div> : <ListEmptyState compact />}
       {query && results.length > 3 && <button type="button" onClick={() => onSearchAll(query)} className="mt-4 inline-flex items-center gap-1.5 rounded-sm border-0 bg-transparent p-0 text-xs font-medium leading-5 text-signal hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal">查看更多<ArrowRight size={13} /></button>}
     </aside>
   )

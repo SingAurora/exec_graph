@@ -10,6 +10,7 @@ import { ProfileSearchForm } from '../../../features/search-profile/ui/ProfileSe
 import type { Project } from '../../../entities/project/model/types'
 import type { UserProfile } from '../../../entities/profile/model/types'
 import { Pagination } from '../../../shared/ui/Pagination'
+import { ListEmptyState } from '../../../shared/ui/empty-state/EmptyState'
 import { ActionPostList } from '../../action-posts/ui/ActionPostList'
 import { AgreementResponseList } from '../../agreement-responses/ui/AgreementResponseList'
 import { GraphList } from '../../graphs/GraphList'
@@ -72,10 +73,10 @@ export function ProfileSearchPanel({ scope, active, expressions, actions, allAct
         onReset={() => { setDraft(emptyCriteria); setSubmitted(null); setPage(1); pendingFocus.current = false }} />
       {submitted && <>
         <p ref={resultsRef} tabIndex={-1} className="mt-5 text-xs leading-5 text-muted outline-none">找到 {count} {scope === 'graphs' ? '个' : '条'}{labels[scope]}</p>
-        {!count ? <p className="py-12 text-center text-sm text-muted">没有找到相关{labels[scope]}</p>
-          : scope === 'graphs' ? <GraphList items={graphMatches.slice(start, start + pageSize).map((project) => getGraphActivity(project, allActions))} searchQuery={submitted.keyword} onOpen={onOpenProject} dividers={false} />
-            : scope === 'agreements' && onOpenReference ? <AgreementResponseList references={agreements.slice(start, start + pageSize)} users={users} active={active} infinite={false} presentation="feed" searchQuery={submitted.keyword} onExplore={onOpenReference} renderContext={(reference) => renderContext(reference.target)} />
-              : <ActionPostList nodes={documents.slice(start, start + pageSize)} actions={allActions} users={users} mode={scope === 'expressions' ? 'expression' : 'objective'} presentation={scope === 'expressions' ? 'feed' : 'default'} searchQuery={submitted.keyword} onExplore={onOpenNode} renderContext={renderContext} />}
+        {!count ? <ListEmptyState />
+          : scope === 'graphs' ? <GraphList items={graphMatches.slice(start, start + pageSize).map((project) => getGraphActivity(project, allActions))} searchQuery={submitted.keyword} onOpen={onOpenProject} dividers={false} showEnd={currentPage === pageCount} />
+            : scope === 'agreements' && onOpenReference ? <AgreementResponseList references={agreements.slice(start, start + pageSize)} users={users} active={active} infinite={false} presentation="feed" searchQuery={submitted.keyword} onExplore={onOpenReference} renderContext={(reference) => renderContext(reference.target)} showEnd={currentPage === pageCount} />
+              : <ActionPostList nodes={documents.slice(start, start + pageSize)} actions={allActions} users={users} mode={scope === 'expressions' ? 'expression' : 'objective'} presentation={scope === 'expressions' ? 'feed' : 'default'} searchQuery={submitted.keyword} onExplore={onOpenNode} renderContext={renderContext} showEnd={currentPage === pageCount} />}
         {pageCount > 1 && <Pagination currentPage={currentPage} pageCount={pageCount} onChange={(next) => { pendingFocus.current = true; setPage(next) }} />}
       </>}
     </div>

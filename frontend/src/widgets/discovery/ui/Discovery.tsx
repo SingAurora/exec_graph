@@ -64,7 +64,6 @@ export function Discovery({ actions, projects, users, active, onOpenNode, onOpen
     }
     setQueries((previous) => ({ ...previous, [tab]: value }))
   }
-  const emptySearch = (scope: DiscoveryTab) => queries[scope].trim() ? <p>没有找到相关{tabLabels[scope]}</p> : undefined
   const context = (node: ActionNode) => <GraphContextLink id={node.projectId} title={projectsById.get(node.projectId)?.title} onOpen={onOpenProject} />
 
   return (
@@ -80,8 +79,8 @@ export function Discovery({ actions, projects, users, active, onOpenNode, onOpen
         {query && <p className="mt-3 px-1 text-xs leading-5 text-muted">找到 {resultCounts[tab]} 条{tabLabels[tab]}</p>}
         <div className="mt-1 grid grid-cols-[minmax(0,1fr)_220px] items-start gap-7 max-[800px]:grid-cols-1">
           <div className="min-w-0">
-            <TabsContent value="expressions" keepMounted><ActionPostList key={queries.expressions.trim()} nodes={visibleExpressions} actions={publicActions} users={users} mode="expression" presentation="feed" searchQuery={queries.expressions.trim()} emptyContent={emptySearch('expressions')} infinite active={active && tab === 'expressions'} onExplore={onOpenNode} renderContext={context} /></TabsContent>
-            <TabsContent value="agreements" keepMounted><AgreementResponseList key={queries.agreements.trim()} references={visibleAgreements} users={users} presentation="feed" searchQuery={queries.agreements.trim()} emptyContent={emptySearch('agreements')} active={active && tab === 'agreements'} onExplore={onOpenReference} renderContext={(reference) => context(reference.target)} /></TabsContent>
+            <TabsContent value="expressions" keepMounted><ActionPostList key={queries.expressions.trim()} nodes={visibleExpressions} actions={publicActions} users={users} mode="expression" presentation="feed" searchQuery={queries.expressions.trim()} infinite active={active && tab === 'expressions'} onExplore={onOpenNode} renderContext={context} /></TabsContent>
+            <TabsContent value="agreements" keepMounted><AgreementResponseList key={queries.agreements.trim()} references={visibleAgreements} users={users} presentation="feed" searchQuery={queries.agreements.trim()} active={active && tab === 'agreements'} onExplore={onOpenReference} renderContext={(reference) => context(reference.target)} /></TabsContent>
           </div>
           <RecentGraphsAside items={graphs} projects={projects} actions={publicActions} onOpen={onOpenProject} onSearchAll={onSearchGraphs} />
         </div>

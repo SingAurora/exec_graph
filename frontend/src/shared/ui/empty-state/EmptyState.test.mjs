@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { EmptyState, EmptyStateIllustration } from './EmptyState.tsx'
+import { EmptyState, EmptyStateIllustration, ListEmptyState } from './EmptyState.tsx'
 
 describe('shared empty state', () => {
   test('renders a reusable illustration with title, description and optional action', () => {
@@ -14,6 +14,13 @@ describe('shared empty state', () => {
     expect(html).toContain('暂无表达')
     expect(html).toContain('路线终点还没有可展示的表达。')
     expect(html).toContain('去看看')
+  })
+
+  test('provides a generic empty-data state for API lists', () => {
+    const html = renderToStaticMarkup(createElement(ListEmptyState))
+    expect(html).toContain('暂无数据')
+    expect(html).toContain('这里还没有可以展示的内容')
+    expect(html).toContain('<svg')
   })
 
   test('illustration can be reused without the wrapper', () => {

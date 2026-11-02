@@ -1,4 +1,4 @@
-import { ArrowUpRight, Network } from 'lucide-react'
+import { ArrowUpRight } from 'lucide-react'
 import { useInfiniteList } from '../../shared/lib/useInfiniteList'
 import type { GraphActivity } from '../../entities/project/model/types'
 import { ProjectAvatar } from '../../entities/project/ui/ProjectAvatar'
@@ -6,23 +6,22 @@ import { formatFullPublicationTime, formatPublicationTime } from '../../shared/l
 import { HighlightedText } from '../../shared/ui/HighlightedText'
 import { getSearchExcerpt } from '../../shared/lib/search'
 import { ListEnd } from '../../shared/ui/ListEnd'
+import { ListEmptyState } from '../../shared/ui/empty-state/EmptyState'
 
 type Props = {
   items: GraphActivity[]
   onOpen: (id: string) => void
-  empty?: string
   infinite?: boolean
   active?: boolean
   dividers?: boolean
   searchQuery?: string
+  showEnd?: boolean
 }
 
 /** Compact graph identities with optional retained infinite scrolling for discovery. */
-export function GraphList({ items, onOpen, empty = '暂无行动图', infinite = false, active = true, dividers = true, searchQuery }: Props) {
+export function GraphList({ items, onOpen, infinite = false, active = true, dividers = true, searchQuery, showEnd }: Props) {
   const { visibleCount, endRef, hasMore } = useInfiniteList({ itemCount: items.length, infinite, active })
-  if (!items.length) return (
-    <div className="empty-state"><Network size={24} strokeWidth={1.5} /><p>{empty}</p></div>
-  )
+  if (!items.length) return <ListEmptyState />
   return (
     <div>
       <div className={dividers ? 'divide-y divide-line' : ''}>
@@ -36,7 +35,7 @@ export function GraphList({ items, onOpen, empty = '暂无行动图', infinite =
           <ArrowUpRight size={17} className="mt-1 shrink-0 text-muted group-hover:text-signal" />
         </button>)}
       </div>
-      {infinite && <ListEnd ref={endRef} hasMore={hasMore} className="py-8" />}
+      {(showEnd ?? infinite) && <ListEnd ref={endRef} hasMore={infinite && hasMore} className="py-8" />}
     </div>
   )
 }

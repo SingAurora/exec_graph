@@ -25,14 +25,14 @@ describe('following navigation and empty states', () => {
     expect(html).not.toContain('content-actions')
     expect(html.match(/<button[^>]*data-state="active"[^>]*>/)?.[0]).toContain('trigger-expressions')
     expect(html).not.toContain('动态分类')
-    expect(html).toContain('还没有关注的图或用户')
-    expect(html).toContain('去发现')
+    expect(html).toContain('暂无数据')
+    expect(html).toMatch(/class="empty-state[^"]*"[\s\S]*?<svg/)
   })
 
-  test('following someone without publications gives category-specific empty states', () => {
+  test('following someone without publications uses the shared empty state', () => {
     const html = render({ userIds: ['lin'], graphIds: [] })
-    expect(html).toContain('关注的用户和图暂无表达')
-    expect(html).toContain('关注的用户和图暂无约定回应')
+    expect(html).toContain('暂无数据')
+    expect(html).not.toContain('关注的用户和图暂无表达')
     expect(html).not.toContain('还没有关注的图或用户')
     expect(html).toContain('搜索关注的用户')
   })

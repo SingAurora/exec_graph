@@ -14,10 +14,10 @@ const (
 	GraphEditorContributorLimit = 3
 	// ContextGuideLimit 限制图级整理指引字符数。
 	ContextGuideLimit = 4000
-	// ProfileNameLimit 限制公开昵称字符数。
+	// ProfileNameLimit 限制公开昵称的 Unicode 码点数；users.name 为 varchar(30)。
 	ProfileNameLimit = 30
-	// BiographyLimit 限制个人简介字符数。
-	BiographyLimit = 1000
+	// BiographyLimit 限制个人简介的 Unicode 码点数；512 个码点最多约 2 KB，低于 TEXT 的 65 KB。
+	BiographyLimit = 512
 	// HighlightLimit 限制精选表达数量。
 	HighlightLimit = 5
 	// DocumentLimit 限制表达、约定等文档的 Markdown 字符数。

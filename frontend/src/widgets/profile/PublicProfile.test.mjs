@@ -24,7 +24,7 @@ describe('profile header images', () => {
     expect(html).toContain('>首页</span>')
     expect(html).toContain('>过去一年 ')
     expect(html).toContain('>时间线</h3>')
-    expect(html).toContain('还没有行动记录')
+    expect(html).toContain('暂无数据')
     expect(html).toContain('发起行动图')
     expect(html).not.toContain('总览')
     expect(html).not.toContain('最近的图')

@@ -6,7 +6,7 @@ import type { GraphSearchCriteria, GraphSearchScope } from '../../../features/se
 import { GraphSearchForm } from '../../../features/search-graph/ui/GraphSearchForm'
 import type { UserProfile } from '../../../entities/profile/model/types'
 import { Pagination } from '../../../shared/ui/Pagination'
-import { EmptyState } from '../../../shared/ui/empty-state/EmptyState'
+import { EmptyState, ListEmptyState } from '../../../shared/ui/empty-state/EmptyState'
 import { ActionPostList } from '../../action-posts/ui/ActionPostList'
 import { AgreementResponseList } from '../../agreement-responses/ui/AgreementResponseList'
 import { UserSearchResults } from './UserSearchResults'
@@ -80,10 +80,10 @@ export function GraphSearchPanel({ scope, projectId, active, actions, users, fil
       {!submitted && <EmptyState title="搜索图内内容" description="输入关键词或选择参与者后开始搜索。" />}
       {submitted && <>
         <p ref={resultsRef} tabIndex={-1} className="mt-5 text-xs leading-5 text-muted outline-none">找到 {count} {scope === 'users' ? '位参与用户' : `条${labels[scope]}`}</p>
-        {!count ? <EmptyState title={`没有找到相关${labels[scope]}`} description="换个关键词，或调整筛选条件再试。" />
-          : scope === 'agreements' ? <AgreementResponseList references={agreements.slice(startIndex, startIndex + pageSize)} users={users} infinite={false} active={active} searchQuery={submitted.keyword} onExplore={onExploreReference} />
-            : scope === 'users' ? <UserSearchResults users={participants.slice(startIndex, startIndex + pageSize)} projectId={projectId} actionCounts={actionCounts} query={submitted.keyword} />
-              : <ActionPostList nodes={documents.slice(startIndex, startIndex + pageSize)} actions={actions} users={users} mode={mode} onExplore={onExplore} searchQuery={submitted.keyword} />}
+        {!count ? <ListEmptyState />
+          : scope === 'agreements' ? <AgreementResponseList references={agreements.slice(startIndex, startIndex + pageSize)} users={users} infinite={false} active={active} searchQuery={submitted.keyword} onExplore={onExploreReference} showEnd={currentPage === pageCount} />
+            : scope === 'users' ? <UserSearchResults users={participants.slice(startIndex, startIndex + pageSize)} projectId={projectId} actionCounts={actionCounts} query={submitted.keyword} showEnd={currentPage === pageCount} />
+              : <ActionPostList nodes={documents.slice(startIndex, startIndex + pageSize)} actions={actions} users={users} mode={mode} onExplore={onExplore} searchQuery={submitted.keyword} showEnd={currentPage === pageCount} />}
         {pageCount > 1 && <Pagination currentPage={currentPage} pageCount={pageCount} onChange={changePage} />}
       </>}
     </div>

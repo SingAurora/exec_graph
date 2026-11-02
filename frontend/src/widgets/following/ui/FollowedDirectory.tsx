@@ -1,4 +1,4 @@
-import { Bookmark, Search, UsersRound } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { ActionNode } from '../../../entities/action/model/types'
 import { sortActionsNewestFirst } from '../../../entities/action/lib/expressions'
@@ -11,6 +11,8 @@ import { formatFullPublicationTime, formatPublicationTime } from '../../../share
 import { Avatar } from '../../../shared/ui/Avatar'
 import { getMarkdownSummary } from '../../../shared/lib/markdownSummary'
 import { ProfilePreview } from '../../../entities/profile/ui/ProfilePreview'
+import { ListEmptyState } from '../../../shared/ui/empty-state/EmptyState'
+import { ListEnd } from '../../../shared/ui/ListEnd'
 
 type Props = {
   kind: 'graphs' | 'users'
@@ -36,12 +38,12 @@ export function FollowedDirectory({ kind, projects, users, actions, onOpenProjec
   const people = [...users].sort((a, b) => Date.parse(recentByUser.get(b.id) ?? '1970-01-01') - Date.parse(recentByUser.get(a.id) ?? '1970-01-01') || a.name.localeCompare(b.name, 'zh-CN'))
   const items = kind === 'graphs' ? graphs.filter(({ project }) => matches(project.title)) : people.filter((user) => matches(user.name))
   const total = kind === 'graphs' ? projects.length : users.length
-  const Icon = kind === 'graphs' ? Bookmark : UsersRound
   return (
     <section className="pt-5">
       {total > 0 && <label className="mb-2 flex h-10 max-w-sm items-center gap-2 rounded-md border border-line bg-surface px-3 focus-within:border-signal"><Search size={16} className="shrink-0 text-muted" /><input className="min-w-0 flex-1 border-0 bg-transparent text-sm text-ink outline-none" type="search" title={kind === 'graphs' ? '搜索关注的图' : '搜索关注的用户'} placeholder={kind === 'graphs' ? '搜索图名称' : '搜索昵称'} value={query} onChange={(event) => setQuery(event.target.value)} /></label>}
-      {!items.length ? <div className="empty-state"><Icon size={24} strokeWidth={1.5} /><p>{total ? '没有找到匹配的结果' : kind === 'graphs' ? '还没有关注的图' : '还没有关注的用户'}</p>{!total && <a href="#home" className="quiet-button">去发现</a>}</div>
-        : <ul>
+      {!items.length ? <ListEmptyState />
+        : <>
+        <ul>
           {kind === 'graphs' ? graphs.filter(({ project }) => matches(project.title)).map(({ project, lastActionAt }) => <li key={project.id} className="flex items-start gap-4 py-5">
             <button type="button" className="group flex min-w-0 flex-1 items-start gap-3.5 rounded-md border-0 bg-transparent p-0 text-left focus-visible:outline-signal" onClick={() => onOpenProject(project.id)}>
               <ProjectAvatar project={project} />
@@ -55,7 +57,9 @@ export function FollowedDirectory({ kind, projects, users, actions, onOpenProjec
             </div>
             <FollowButton kind="user" name={user.name} following onChange={(next) => onSetUserFollow(user.id, next)} />
           </li>)}
-        </ul>}
+        </ul>
+        <ListEnd hasMore={false} className="py-6" />
+        </>}
     </section>
   )
 }
