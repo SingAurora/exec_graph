@@ -53,13 +53,9 @@ func verificationPrompt(snapshot contextSnapshot, draft Draft) ([]Message, error
 	if err != nil {
 		return nil, err
 	}
-	if utf8.RuneCount(encoded)+utf8.RuneCountInString(verificationRules) > constants.AIContextLimit {
+	rules := verificationRulesFor(snapshot.Mode)
+	if utf8.RuneCount(encoded)+utf8.RuneCountInString(rules) > constants.AIContextLimit {
 		return nil, errUnverified
-	}
-	rules := verificationRules
-	if snapshot.Mode == "agreement" {
-		rules += `
-agreement 模式输出 JSON 结构：{"action":{"valid":true,"evidence":[]},"expression":{"valid":true,"evidence":[]},"agreement":{"valid":true,"evidence":[]},"reviews":[]}。`
 	}
 	// 核验使用独立 system 消息，原始报告与草稿都只能作为数据进入 user 消息。
 	return []Message{{Role: "system", Content: rules}, {Role: "user", Content: string(encoded)}}, nil

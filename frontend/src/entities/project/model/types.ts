@@ -12,7 +12,7 @@ export type Project = {
   backgroundImage?: string
   createdAt: string
   updatedAt: string
-  /** 整理行动时提供给 AI 的图级背景指引，修改它不回写历史节点。 */
+  /** 旧版图级指引；当前不开放图级提示词编辑，也不注入生成提示词。 */
   contextGuide?: string
 }
 

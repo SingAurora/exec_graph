@@ -54,10 +54,6 @@ func (t *graphTransaction) Create(view catalogue.GraphView) error {
 func (t *graphTransaction) Update(input app.UpdateGraphInput) error {
 	columns := []string{"Title", "Description", "AvatarAssetUUID", "CoverAssetUUID", "Version", "UpdatedAt"}
 	row := model.Graph{Title: input.Title, Description: input.Description, AvatarAssetUUID: input.AvatarAssetID, CoverAssetUUID: input.BackgroundAssetID, Version: input.ExpectedVersion + 1, UpdatedAt: time.Now().UTC()}
-	if input.ContextGuide != nil {
-		columns = append(columns, "ContextGuide")
-		row.ContextGuide = *input.ContextGuide
-	}
 	return t.DB.Model(&model.Graph{}).Where("uuid = ?", input.GraphID).Select(columns).Updates(row).Error
 }
 

@@ -305,7 +305,7 @@ function AppContent({ profile, projects, actions, allUsers, sources, csrfToken, 
     if (input.graphId !== workspaceProject.id || input.parentId !== workspaceParent?.id) return false
     const action = await commands.actionCreate.mutateAsync(input)
     openNode({ ...action, projectId: action.graphId }, 'objective')
-    void generateNodeDocuments(action.id, csrfToken).catch(() => undefined)
+    if (action.expressionStatus === 'pending' || action.agreementStatus === 'pending') void generateNodeDocuments(action.id, csrfToken).catch(() => undefined)
     return true
   }
   const setUserFollow = async (id: string, following: boolean) => {

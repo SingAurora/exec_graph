@@ -32,11 +32,12 @@ describe('action workspace', () => {
     expect(html).not.toContain('添加图片')
   })
 
-  test('shows the workspace status in the tab strip instead of a footer', () => {
+  test('shows the three verification states in the tab strip, not a technical draft state', () => {
     const html = render({ hasParent: false })
-    expect(html).toContain('>尚未整理</span>')
+    expect(html).toContain('>未核验</span>')
     expect(html).not.toContain('切换到「行动」')
     expect(html).not.toContain('本轮未完成')
+    expect(html).not.toContain('草稿已生成')
   })
 
   test('renders a retained AI clarification from a saved conversation', () => {
@@ -72,6 +73,13 @@ describe('action workspace', () => {
     expect(html).toContain('<table>')
     expect(html).not.toContain('只读文档')
     expect(html.match(/id="[^"]*-content-objective"[\s\S]*?<\/section>/)?.[0]).toContain('<h2>本次行动</h2>')
+  })
+
+  test('shows the agreement summary beside the action tabs', () => {
+    const html = render({ hasParent: true, sourceNodeId: 'p', sourceNodeNumber: 8, inheritedAgreement: '记录实际用时' })
+    expect(html).toContain('约定 0/1 满足')
+    expect(html).toContain('1 未知')
+    expect(html).toContain('title="查看约定核对详情"')
   })
 
   test('offers merge selection only for a continuation', () => {

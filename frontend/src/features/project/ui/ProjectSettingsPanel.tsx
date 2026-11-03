@@ -2,6 +2,7 @@ import { ImagePlus, Trash2 } from 'lucide-react'
 import { useEffect, useId, useState, type ChangeEvent, type ReactNode } from 'react'
 import type { Project } from '../../../entities/project/model/types'
 import { readImageFile } from '../../../shared/lib/image'
+import { getPromptDefaults, type PromptDefaults } from '../api/commands'
 import { ProjectAvatar } from '../../../entities/project/ui/ProjectAvatar'
 import { defaultProjectBackground } from '../../../entities/project/lib/appearance'
 import { useToast } from '../../../shared/ui/toast/useToast'
@@ -24,6 +25,8 @@ export function ProjectSettingsPanel({ id, project, onSave, canEdit = true, dele
   const [backgroundImage, setBackgroundImage] = useState(project.backgroundImage ?? '')
   const [imageLoading, setImageLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [prompts, setPrompts] = useState<PromptDefaults>()
+  const [promptError, setPromptError] = useState('')
 
   useEffect(() => {
     setTitle(project.title)
@@ -31,6 +34,12 @@ export function ProjectSettingsPanel({ id, project, onSave, canEdit = true, dele
     setAvatar(project.avatar ?? '')
     setBackgroundImage(project.backgroundImage ?? '')
   }, [project])
+
+  useEffect(() => {
+    let cancelled = false
+    getPromptDefaults().then((next) => { if (!cancelled) setPrompts(next) }).catch(() => { if (!cancelled) setPromptError('暂时无法读取默认提示词') })
+    return () => { cancelled = true }
+  }, [])
 
   const submit = async () => {
     if (!title.trim() || saving || imageLoading) return
@@ -53,6 +62,20 @@ export function ProjectSettingsPanel({ id, project, onSave, canEdit = true, dele
         <div className="mt-3 flex justify-end"><button className="primary-button" type="submit" disabled={!title.trim()}>保存</button></div>
         </fieldset>
       </form>}
+      <div className="mt-5 grid gap-3 border-t border-line pt-4">
+        <div><p className="text-xs font-semibold text-ink">默认核验提示词</p><p className="mt-1 text-[11px] leading-5 text-muted">当前平台使用的默认提示词，暂不开放图级编辑；所有用户只读。</p></div>
+        {promptError ? <p className="rounded-md border border-line bg-paper px-3 py-2 text-[11px] leading-5 text-muted">{promptError}</p>
+          : prompts ? <>
+            <DefaultPromptField label="行动" value={prompts.action} />
+            <DefaultPromptField label="表达" value={prompts.expression} />
+            <DefaultPromptField label="约定" value={prompts.agreement} />
+            <details className="rounded-md border border-line bg-paper px-3 py-2">
+              <summary className="cursor-pointer text-[11px] font-medium leading-5 text-muted">查看平台输出契约（只读）</summary>
+              <textarea className="mt-2 min-h-28 w-full resize-y rounded-md border border-line bg-soft/50 px-3 py-2 text-[12px] font-normal leading-[1.7] text-muted outline-none" value={prompts.contract} disabled />
+            </details>
+          </>
+            : <p className="text-[11px] leading-5 text-muted">正在读取默认提示词…</p>}
+      </div>
       {deletionAction}
     </section>
   )
@@ -104,5 +127,14 @@ function ProjectImageField({ label, value, fallback, kind, onChange, onLoadingCh
       </div>
       <ImageCropDialog open={cropOpen} image={source} variant={kind === 'avatar' ? 'avatar' : 'graph-cover'} onOpenChange={setCropOpen} onConfirm={onChange} />
     </>
+  )
+}
+
+function DefaultPromptField({ label, value }: { label: string; value: string }) {
+  return (
+    <label className="grid gap-1.5 text-xs font-semibold text-ink">
+      <span>{label}核验提示词</span>
+      <textarea className="min-h-40 resize-y rounded-md border border-line bg-soft/50 px-3 py-2.5 text-[12px] font-normal leading-[1.7] text-muted outline-none" value={value} readOnly />
+    </label>
   )
 }

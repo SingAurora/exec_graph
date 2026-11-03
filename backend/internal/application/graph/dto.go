@@ -22,7 +22,6 @@ type UpdateGraphInput struct {
 	Description       string  `json:"description"`
 	AvatarAssetID     *string `json:"avatarAssetId"`
 	BackgroundAssetID *string `json:"backgroundAssetId"`
-	ContextGuide      *string `json:"contextGuide,omitempty"`
 }
 
 // DeleteGraphInput 同时确认图资料版本及用户已看到的行动数量。

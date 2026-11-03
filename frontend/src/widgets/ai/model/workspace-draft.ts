@@ -4,6 +4,9 @@ import type { AIDocumentDetails, AIDocumentResult } from '../../../features/ai-k
 import type { AIActionAgreementReview } from '../../../features/ai-key/lib/action-agreement-review'
 import type { GenerationRequest, GenerationView } from '../../../features/action-generation/api/generation'
 
+/** 用户主动确认的核验状态；草稿或引用变化后回到未核验。 */
+export type VerificationStatus = 'unverified' | 'passed' | 'failed'
+
 /** 编辑器阅读状态：当前预览栏目，以及每个面板独立的滚动位置。 */
 export type WorkspaceView = {
   tab: 'conversation' | 'objective' | 'expression' | 'agreement'
@@ -22,6 +25,7 @@ export type ActionWorkspaceDraft = {
   document: string
   details: AIDocumentDetails
   generated: boolean
+  verificationStatus?: VerificationStatus
   expression: NonNullable<AIDocumentResult['expression']>
   agreementMode: ActionDocumentUpdateMode
   agreementDraft: string
@@ -124,7 +128,9 @@ export function isActionWorkspaceDraft(value: unknown): value is ActionWorkspace
     && (value.imagePlacementPending === undefined || typeof value.imagePlacementPending === 'boolean')
     && typeof details.title === 'string' && typeof details.description === 'string' && typeof details.note === 'string'
     && Array.isArray(details.points) && details.points.every((point) => typeof point === 'string')
-    && typeof value.generated === 'boolean' && isMode(expression.mode) && typeof expression.markdown === 'string'
+    && typeof value.generated === 'boolean'
+    && (value.verificationStatus === undefined || value.verificationStatus === 'unverified' || value.verificationStatus === 'passed' || value.verificationStatus === 'failed')
+    && isMode(expression.mode) && typeof expression.markdown === 'string'
     && isMode(value.agreementMode) && typeof value.agreementDraft === 'string'
     && Array.isArray(value.agreementReviews) && value.agreementReviews.every((review) => isRecord(review)
       && typeof review.nodeNumber === 'number' && Number.isFinite(review.nodeNumber)

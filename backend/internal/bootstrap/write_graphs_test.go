@@ -36,8 +36,7 @@ func TestRealGraphProfileFollowingWrites(t *testing.T) {
 	unauth := jo
 	unauth.token = "missing"
 	unauth.call(t, "POST", "graphs/create", input, 401, id.New())
-	guide := "只根据已经发生的事实整理"
-	update := graph.UpdateGraphInput{GraphID: created.ID, ExpectedVersion: 1, Title: "更新后的空图", Description: "", ContextGuide: &guide}
+	update := graph.UpdateGraphInput{GraphID: created.ID, ExpectedVersion: 1, Title: "更新后的空图", Description: ""}
 	lin.call(t, "POST", "graphs/update", update, 403, "")
 	update.AvatarAssetID = str(id.New())
 	jo.call(t, "POST", "graphs/update", update, 403, "")
@@ -47,11 +46,8 @@ func TestRealGraphProfileFollowingWrites(t *testing.T) {
 		t.Fatal("图资料未更新")
 	}
 	jo.call(t, "POST", "graphs/update", update, 409, "")
-	update.ExpectedVersion, update.ContextGuide = 2, nil
-	preserved := decode[catalogue.GraphView](t, jo.call(t, "POST", "graphs/update", update, 200, ""))
-	if preserved.ContextGuide != guide {
-		t.Fatal("修改图资料意外清除了整理指引")
-	}
+	update.ExpectedVersion = 2
+	jo.call(t, "POST", "graphs/update", update, 200, "")
 	count := uint32(1)
 	remove := graph.DeleteGraphInput{GraphID: created.ID, ExpectedVersion: 3, ExpectedNodeCount: &count}
 	jo.call(t, "POST", "graphs/delete", remove, 409, "")

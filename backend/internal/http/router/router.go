@@ -76,6 +76,8 @@ func New(auth *identity.Handler, read *catalogue.Handler, graphs *graph.Handler,
 	group.POST("/actions/publish-document", actions.PublishDocument)
 	// 只对当前行动草稿放置图片，不改写正文。
 	group.POST("/ai/place-images", ai.PlaceImages)
+	// 读取图设置只读展示的平台默认核验提示词。
+	group.GET("/ai/prompt-defaults", ai.DefaultPrompts)
 	// 读取本人发起的生成状态、草稿和确认参数。
 	group.GET("/ai/generation", ai.Get)
 	// 创建空图，使用提交键保证重复请求只创建一次。

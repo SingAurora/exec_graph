@@ -77,6 +77,7 @@ func (s *Service) Generate(ctx context.Context, actor identity.Actor, nodeID str
 	}
 	var input promptInput
 	var version uint32
+	var existing []actionapp.NodeDocument
 	err := s.store.Within(ctx, actor, func(tx actionapp.Transaction) error {
 		graphID, err := tx.NodeGraph(nodeID)
 		if err != nil {
@@ -92,6 +93,14 @@ func (s *Service) Generate(ctx context.Context, actor identity.Actor, nodeID str
 		}
 		if !terminal(graph, nodeID) {
 			return fault.New(fault.Conflict, "节点已被接续，不能修改表达或约定")
+		}
+		documents, err := tx.NodeDocuments(nodeID)
+		if err != nil {
+			return err
+		}
+		if len(documents) == 2 && documents[0].Status == "published" && documents[1].Status == "published" {
+			existing = documents
+			return nil
 		}
 		version = node.Version
 		var parents []string
@@ -126,6 +135,9 @@ func (s *Service) Generate(ctx context.Context, actor identity.Actor, nodeID str
 	})
 	if err != nil {
 		return nil, err
+	}
+	if existing != nil {
+		return existing, nil
 	}
 	_ = version
 	encoded, err := json.Marshal(input)

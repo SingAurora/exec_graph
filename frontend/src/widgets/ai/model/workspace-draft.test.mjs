@@ -59,6 +59,13 @@ describe('local workspace drafts', () => {
     expect(restored.mergedParentIds).toEqual(['source-2'])
     expect(restored.agreementReviews[0].complies).toBe(false)
   })
+  test('persists only the three verification states', () => {
+    expect(isActionWorkspaceDraft({ ...draft(), verificationStatus: 'unverified' })).toBe(true)
+    expect(isActionWorkspaceDraft({ ...draft(), verificationStatus: 'passed' })).toBe(true)
+    expect(isActionWorkspaceDraft({ ...draft(), verificationStatus: 'failed' })).toBe(true)
+    expect(isActionWorkspaceDraft({ ...draft(), verificationStatus: 'approved' })).toBe(false)
+  })
+
   test('damaged storage cannot create a publishable action draft', () => {
     expect(isActionWorkspaceDraft({ ...draft(), messages: [{ speaker: 'system', body: 'bad' }] })).toBe(false)
     expect(isActionWorkspaceDraft({ ...draft(), agreementMode: 'approve' })).toBe(false)

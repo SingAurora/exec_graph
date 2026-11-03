@@ -51,3 +51,8 @@ func (h *Handler) Get(c *gin.Context) {
 	}
 	common.Reply(c, out)
 }
+
+// DefaultPrompts 只读返回平台当前使用的三份默认提示词。
+func (h *Handler) DefaultPrompts(c *gin.Context) {
+	common.Reply(c, app.DefaultPrompts())
+}

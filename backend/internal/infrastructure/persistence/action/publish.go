@@ -38,9 +38,25 @@ func (t *actionTransaction) Publish(p app.Publication) error {
 	return nil
 }
 
-// InitializeNodeDocuments 创建两个待发布文档状态；行动已公开，但 AI 文档尚未发布。
-func (t *actionTransaction) InitializeNodeDocuments(graphID, nodeID string) error {
+// InitializeNodeDocuments 继承主要来源的已发布文档；没有可继承内容时才创建待生成状态。
+func (t *actionTransaction) InitializeNodeDocuments(graphID, nodeID, expressionVersionID, agreementVersionID string) error {
 	now := time.Now().UTC()
+	if expressionVersionID != "" && agreementVersionID != "" {
+		for _, inherited := range []struct{ kind, versionID string }{
+			{"expression", expressionVersionID},
+			{"agreement", agreementVersionID},
+		} {
+			state := model.DocumentState{GraphUUID: graphID, NodeUUID: nodeID, Kind: inherited.kind, Mode: "inherit", EffectiveVersionUUID: &inherited.versionID, UpdatedAt: now}
+			if err := t.DB.Create(&state).Error; err != nil {
+				return err
+			}
+			row := model.NodeDocument{UUID: id.New(), GraphUUID: graphID, NodeUUID: nodeID, Kind: inherited.kind, Status: "published", PublishedVersion: &inherited.versionID, CreatedAt: now, UpdatedAt: now}
+			if err := t.DB.Create(&row).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	}
 	for _, kind := range []string{"expression", "agreement"} {
 		row := model.NodeDocument{UUID: id.New(), GraphUUID: graphID, NodeUUID: nodeID, Kind: kind, Status: "pending", CreatedAt: now, UpdatedAt: now}
 		if err := t.DB.Create(&row).Error; err != nil {

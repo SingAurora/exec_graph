@@ -11,6 +11,7 @@ import (
 	"github.com/singaurora/exec-graph/backend/internal/application/submission"
 	"github.com/singaurora/exec-graph/backend/internal/shared/constants"
 	"github.com/singaurora/exec-graph/backend/internal/shared/fault"
+	"github.com/singaurora/exec-graph/backend/internal/shared/graphguide"
 	"github.com/singaurora/exec-graph/backend/internal/shared/id"
 )
 
@@ -75,11 +76,13 @@ func publish(tx Transaction, actor identity.Actor, input CreateActionInput) (cat
 			return zero, err
 		}
 	}
-	node := Publication{ID: id.New(), ActorID: actor.UserID, GraphID: graph.ID, Number: publicationNumber(graph, sources), Level: level, HistoryCount: count, Guide: graph.Guide, Generation: generation, Sources: sources, Images: input.Images, CreatedAt: time.Now().UTC()}
+	node := Publication{ID: id.New(), ActorID: actor.UserID, GraphID: graph.ID, Number: publicationNumber(graph, sources), Level: level, HistoryCount: count, Guide: graphguide.ForMode(graph.Guide, "action"), Generation: generation, Sources: sources, Images: input.Images, CreatedAt: time.Now().UTC()}
 	if err := tx.Publish(node); err != nil {
 		return zero, err
 	}
-	if err := tx.InitializeNodeDocuments(graph.ID, node.ID); err != nil {
+	// 有主要来源时直接继承其已发布表达/约定；只有根节点或来源文档为空时才生成。
+	expressionVersionID, agreementVersionID := inheritedDocumentIDs(sources)
+	if err := tx.InitializeNodeDocuments(graph.ID, node.ID, expressionVersionID, agreementVersionID); err != nil {
 		return zero, err
 	}
 	if err := tx.Confirm(generation.ID, node.ID, true); err != nil {

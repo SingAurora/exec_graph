@@ -17,12 +17,12 @@
 | 路径 | 请求 | 成功 data |
 | --- | --- | --- |
 | `/graphs/create` | `title`、`description` | `GraphView`，空图、版本 1 |
-| `/graphs/update` | `graphId`、`expectedVersion`、`title`、`description`、`avatarAssetId`、`backgroundAssetId`，可选 `contextGuide` | 更新后的 `GraphView` |
+| `/graphs/update` | `graphId`、`expectedVersion`、`title`、`description`、`avatarAssetId`、`backgroundAssetId` | 更新后的 `GraphView` |
 | `/graphs/delete` | `graphId`、`expectedVersion`、`expectedNodeCount` | `null` |
 
 名称最多 60 个字符，简介最多 240 个字符。创建者及行动贡献数量前三位用户可修改资料；贡献相同时按最早行动时间、作者 UUID 排序。没有该权限返回 403。
 
-新换入的头像与背景使用当前用户拥有的 ready 资产 UUID，不能传 data URL、第三方 URL 或新引用他人资产；已有图图片可以由其他有权限的编辑者保留，不要求转移资产归属。`null` 或省略表示移除该图片。`contextGuide` 省略时保留，空字符串表示主动清空，最多 4000 个字符。
+新换入的头像与背景使用当前用户拥有的 ready 资产 UUID，不能传 data URL、第三方 URL 或新引用他人资产；已有图图片可以由其他有权限的编辑者保留，不要求转移资产归属。`null` 或省略表示移除该图片。图级提示词当前不开放编辑；`contextGuide` 字段仅作为历史数据保留，不再通过图设置写入或注入生成提示词。
 
 删除要求只有当前用户参与，包括图创建者和全部行动作者。重新检查资料版本和确认过的行动数量；已有他人参与返回 403，数量或版本变化返回 409。删除只将图标为不可见并清理关注、精选关系，不级联抹除行动、文档或形成过程；公开读取不返回已删除图内的内容。
 

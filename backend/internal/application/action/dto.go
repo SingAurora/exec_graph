@@ -257,7 +257,7 @@ type Transaction interface {
 	Generation(string) (Generation, error)
 	CheckAssets(...*string) error
 	Publish(Publication) error
-	InitializeNodeDocuments(graphID, nodeID string) error
+	InitializeNodeDocuments(graphID, nodeID, expressionVersionID, agreementVersionID string) error
 	NodeDocuments(nodeID string) ([]NodeDocument, error)
 	DocumentHistory(nodeID string) ([]DocumentVersionView, error)
 	SaveNodeDocuments(nodeID string, documents []NodeDocument) error

@@ -140,8 +140,8 @@ func (s *Service) process(ctx context.Context, actor identity.Actor, mode string
 	if callError == nil {
 		draft, callError = parse(completion.Content, mode, hasParent, pending.Sources)
 	}
-	needsVerification := mode != "action" || len(pending.Sources) > 0
-	if callError == nil && needsVerification {
+	// 每次生成都做独立核验；行动没有来源时也要核对行动事实，不能只依赖草稿模型自检。
+	if callError == nil {
 		var checks []Message
 		checks, callError = verificationPrompt(pending.snapshot, draft)
 		if callError == nil {

@@ -47,7 +47,7 @@ func (s *Service) Create(ctx context.Context, actor identity.Actor, key string, 
 // Update 允许创建者或贡献行动数量前三位的用户修改图资料。
 func (s *Service) Update(ctx context.Context, actor identity.Actor, input UpdateGraphInput) (catalogue.GraphView, error) {
 	var out catalogue.GraphView
-	if !id.Valid(input.GraphID) || input.ExpectedVersion == 0 || !validText(input.Title, input.Description) || (input.ContextGuide != nil && utf8.RuneCountInString(*input.ContextGuide) > constants.ContextGuideLimit) {
+	if !id.Valid(input.GraphID) || input.ExpectedVersion == 0 || !validText(input.Title, input.Description) {
 		return out, fault.New(fault.Invalid, "图资料或版本不合法")
 	}
 	input.Title, input.Description = strings.TrimSpace(input.Title), strings.TrimSpace(input.Description)

@@ -54,7 +54,7 @@ type report struct {
 }
 
 func snapshotFor(graph action.Graph, history map[string]bool, nodes []catalogue.ActionView, p Pending, hasParent bool) contextSnapshot {
-	snapshot := contextSnapshot{Mode: p.Mode, ActorID: p.ActorID, NodeID: p.NodeID, Reports: []report{}, Guide: p.Guide, HasParent: hasParent, Facts: []fact{}, Sources: []source{}, DownstreamAgreement: p.Agreement, PreviousDraft: p.Conversation.PreviousDraft, Images: []snapshotImage{}, Initial: p.Initial}
+	snapshot := contextSnapshot{Mode: p.Mode, ActorID: p.ActorID, NodeID: p.NodeID, Reports: []report{}, Guide: "", HasParent: hasParent, Facts: []fact{}, Sources: []source{}, DownstreamAgreement: p.Agreement, PreviousDraft: p.Conversation.PreviousDraft, Images: []snapshotImage{}, Initial: p.Initial}
 	for i, image := range p.Images {
 		snapshot.Images = append(snapshot.Images, snapshotImage{Ref: "image:" + strconv.Itoa(i+1), Alt: image.Alt})
 	}
@@ -109,7 +109,7 @@ func prompt(snapshot contextSnapshot, p Pending) ([]Message, error) {
 	if err != nil {
 		return nil, err
 	}
-	rules := generationRules + "\n当前服务端快照：" + string(encoded)
+	rules := generationRulesFor(p.Mode) + "\n当前服务端快照：" + string(encoded)
 	messages := append([]Message{{Role: "system", Content: rules}}, p.Conversation.Messages...)
 	for _, report := range p.InputMessages {
 		messages = append(messages, Message{Role: "user", Content: report})

@@ -79,7 +79,7 @@ func TestRealGenerationAccountLimits(t *testing.T) {
 	provider.provider.mu.Lock()
 	calls := len(provider.provider.requests)
 	provider.provider.mu.Unlock()
-	if calls != 4 { // 三次无来源行动各调用一次；一次生成失败也只调用一次。
+	if calls != 7 { // 三次无来源行动各调用一次草稿和一次独立核验；一次生成失败只调用草稿。
 		t.Fatalf("外部模型调用次数不正确: %d", calls)
 	}
 

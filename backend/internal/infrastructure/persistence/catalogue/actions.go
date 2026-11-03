@@ -70,14 +70,14 @@ func (r *Repository) actions(ctx context.Context, nodes []model.ActionNode) ([]a
 	if err := db.Where("node_uuid IN ?", ids).Find(&nodeDocuments).Error; err != nil {
 		return nil, err
 	}
-	localIDs := []string{}
-	for _, s := range states {
-		if s.LocalVersionUUID != nil {
-			localIDs = append(localIDs, *s.LocalVersionUUID)
+	docIDs := []string{}
+	for _, state := range states {
+		if state.EffectiveVersionUUID != nil {
+			docIDs = append(docIDs, *state.EffectiveVersionUUID)
 		}
 	}
-	if len(localIDs) > 0 {
-		if err := db.Where("uuid IN ?", localIDs).Find(&documents).Error; err != nil {
+	if len(docIDs) > 0 {
+		if err := db.Where("uuid IN ?", docIDs).Find(&documents).Error; err != nil {
 			return nil, err
 		}
 	}
@@ -163,17 +163,18 @@ func (r *Repository) actions(ctx context.Context, nodes []model.ActionNode) ([]a
 		}
 	}
 	for _, s := range states {
-		if s.LocalVersionUUID == nil {
+		if s.EffectiveVersionUUID == nil {
 			continue
 		}
-		document, ok := byDocument[*s.LocalVersionUUID]
+		document, ok := byDocument[*s.EffectiveVersionUUID]
 		if !ok {
 			return nil, fault.New(fault.Unavailable, "行动文档数据不完整")
 		}
 		node := byID[s.NodeUUID]
 		text := document.Markdown
 		var revision *app.Revision
-		if document.RevisionNumber > 1 || document.CreatedAt.After(byID[s.NodeUUID].CreatedAt) {
+		// 继承自父节点的版本只用于展示，不伪装成本节点的补充记录。
+		if s.LocalVersionUUID != nil && (document.RevisionNumber > 1 || document.CreatedAt.After(node.CreatedAt)) {
 			revision = &app.Revision{AuthorID: document.ActorUUID, CreatedAt: document.CreatedAt, Kind: document.ChangeKind}
 		}
 		if s.Kind == "expression" {
