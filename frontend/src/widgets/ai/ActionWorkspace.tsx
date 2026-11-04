@@ -5,7 +5,7 @@ import { getActionContinuationContext } from '../../entities/action/lib/continua
 import { useGeneration } from '../../features/action-generation/model/useGeneration'
 import { resourceId } from '../../shared/lib/resource-id'
 import { DraftImages } from '../../features/media-upload/ui/DraftImages'
-import { placeGenerationImages, type GenerateInput, type GenerationRequest } from '../../features/action-generation/api/generation'
+import { placeGenerationImages, type GenerateInput, type GenerationRequest, type GenerationView } from '../../features/action-generation/api/generation'
 import { documentUpdate, type CreateActionInput } from '../../features/action/api/commands'
 import { MergeActionSources } from '../../features/action-merge/ui/MergeActionSources'
 import type { ChatMessage, PostImage } from '../../shared/model/content'
@@ -157,6 +157,40 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
     finally { setPublishing(false) }
   }
 
+  const applyGeneration = (result: GenerationView, fallbackInput = '') => {
+    update({ generation: result })
+    if (result.status !== 'succeeded' || !result.draft || !result.createAction) {
+      const message = result.errorCode === 'content_unverified'
+        ? '这次整理中有内容无法对应到你的报告。请检查行动、结果和想法后重新整理。'
+        : result.errorCode === 'content_invalid' ? 'AI 返回的行动草稿格式不完整，请重新整理。' : 'AI 整理失败，请重新整理。'
+      local.update((current) => ({ ...current, generation: result, generated: false, verificationStatus: result.errorCode === 'content_unverified' || result.errorCode === 'content_invalid' ? 'failed' : 'unverified', input: fallbackInput, messages: appendWorkspaceNotice(current.messages, message) }))
+      return
+    }
+    const draft = result.draft
+    local.update((current) => ({ ...current, generation: result, document: draft.objective, details: { title: draft.title, description: '', points: [], note: '' }, expression: { mode: hasParent ? 'inherit' : 'clear', markdown: '' }, agreementMode: 'inherit', agreementDraft: inheritedAgreement,
+      agreementReviews: draft.reviews.map((review) => ({ nodeNumber: actions?.find((node) => node.id === review.sourceId)?.number ?? 0, complies: review.complies, reason: review.exceptionReason ?? '' })), messages: [...current.messages, { id: 'ai-' + result.generationId, speaker: 'ai', body: draft.reply, model: result.model }],
+      generated: true, verificationStatus: 'unverified', sourcesChanged: false, imagePlacementPending: images.length > 0, contextSignature: signatureFor(mergedParentIds) }))
+  }
+  const applyGenerationRef = useRef(applyGeneration)
+  applyGenerationRef.current = applyGeneration
+  const generateRef = useRef(generate)
+  const localUpdateRef = useRef(local.update)
+  generateRef.current = generate
+  localUpdateRef.current = local.update
+  const resumedRequest = useRef<string | undefined>(undefined)
+  // 离开行动工作区后服务端继续生成；回来时用同一幂等键恢复结果，不重复计费。
+  useEffect(() => {
+    if (!local.ready || generated || sending || publishing || !generationRequest || !contextValid) return
+    if (generation?.status === 'succeeded' || generation?.status === 'failed' || resumedRequest.current === generationRequest.key) return
+    resumedRequest.current = generationRequest.key
+    setSending(true)
+    void generateRef.current(generationRequest).then((result) => { applyGenerationRef.current(result, generationRequest.input.messages.at(-1) ?? '') }).catch((error) => {
+      const business = error instanceof BusinessRequestError && error.kind === 'business'
+      const prefix = business && error.code === 10001 ? '' : '暂时无法更新记录：'
+      const append = business ? appendWorkspaceNotice : appendWorkspaceError
+      localUpdateRef.current((current) => ({ ...current, generationRequest: business ? undefined : current.generationRequest, verificationStatus: 'unverified', messages: append(current.messages, prefix + (error instanceof Error ? error.message : '请求失败，请稍后重试。')) }))
+    }).finally(() => { setSending(false) })
+  }, [contextValid, generated, generation?.status, generationRequest, local.ready, publishing, sending])
   const send = async (event: FormEvent) => {
     event.preventDefault()
     const clean = input.trim()
@@ -179,19 +213,7 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
     update({ messages: next, input: '', generated: false, verificationStatus: 'unverified', agreementReviews: [], generationRequest: request })
     setSending(true); setPublishError('')
     try {
-      const result = await generate(request)
-      update({ generation: result })
-      if (result.status !== 'succeeded' || !result.draft || !result.createAction) {
-        const message = result.errorCode === 'content_unverified'
-          ? '这次整理中有内容无法对应到你的报告。请检查行动、结果和想法后重新整理。'
-          : result.errorCode === 'content_invalid' ? 'AI 返回的行动草稿格式不完整，请重新整理。' : 'AI 整理失败，请重新整理。'
-        local.update((current) => ({ ...current, generation: result, generated: false, verificationStatus: result.errorCode === 'content_unverified' || result.errorCode === 'content_invalid' ? 'failed' : 'unverified', input: clean, messages: appendWorkspaceNotice(current.messages, message) }))
-        return
-      }
-      const draft = result.draft
-      local.update((current) => ({ ...current, generation: result, document: draft.objective, details: { title: draft.title, description: '', points: [], note: '' }, expression: { mode: hasParent ? 'inherit' : 'clear', markdown: '' }, agreementMode: 'inherit', agreementDraft: inheritedAgreement,
-        agreementReviews: draft.reviews.map((review) => ({ nodeNumber: actions?.find((node) => node.id === review.sourceId)?.number ?? 0, complies: review.complies, reason: review.exceptionReason ?? '' })), messages: [...current.messages, { id: 'ai-' + result.generationId, speaker: 'ai', body: draft.reply, model: result.model }],
-        generated: true, verificationStatus: 'unverified', sourcesChanged: false, imagePlacementPending: images.length > 0, contextSignature: signatureFor(mergedParentIds) }))
+      applyGeneration(await generate(request), clean)
     } catch (error) {
       const message = error instanceof Error ? error.message : '请求失败，请稍后重试。'
       const business = error instanceof BusinessRequestError && error.kind === 'business'

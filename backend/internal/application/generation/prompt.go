@@ -156,13 +156,35 @@ func parse(content, mode string, hasParent bool, sources []action.GenerationSour
 	if len(sources) == 0 {
 		raw.Reviews = []action.SourceAssessment{}
 	}
-	if strings.TrimSpace(raw.Reply) == "" {
-		if mode == "action" && strings.TrimSpace(raw.Title) == "" && strings.TrimSpace(raw.Objective) == "" {
-			return Draft{}, fault.New(fault.Invalid, "这次还没有具体行动可整理。请说说你实际做了什么、结果如何，或有什么感受。")
-		}
-		return Draft{}, fault.New(fault.Invalid, "这次整理没有完成，请重新发送。")
+	// 当前模式不使用的字段由模型偶尔带出；不因此丢弃已经完整的必要文档。
+	if mode == "action" {
+		raw.Expression, raw.Agreement = nil, nil
+	} else if mode == "agreement" {
+		raw.Expression = nil
 	}
-	if (raw.Expression == nil && mode == "expression") || (raw.Expression != nil && (mode == "agreement" || (mode == "action" && len(sources) > 0))) || utf8.RuneCountInString(raw.Reply) > constants.AIInputLimit || raw.Reviews == nil || len(raw.Reviews) != len(sources) {
+	if strings.TrimSpace(raw.Reply) == "" {
+		switch mode {
+		case "action":
+			if strings.TrimSpace(raw.Title) == "" && strings.TrimSpace(raw.Objective) == "" {
+				return Draft{}, fault.New(fault.Invalid, "这次还没有具体行动可整理。请说说你实际做了什么、结果如何，或有什么感受。")
+			}
+			raw.Reply = "已整理本次行动，请在“行动”标签页查看草稿。"
+		case "expression":
+			if raw.Expression == nil {
+				return Draft{}, fault.New(fault.Invalid, "这次表达整理没有完成，请重新发送。")
+			}
+			raw.Reply = "已更新表达草稿，请在“表达”标签页查看。"
+		case "agreement":
+			if raw.Agreement == nil {
+				return Draft{}, fault.New(fault.Invalid, "这次约定整理没有完成，请重新发送。")
+			}
+			raw.Reply = "已更新约定草稿，请在“约定”标签页查看。"
+		}
+	}
+	if (raw.Expression == nil && mode == "expression") || utf8.RuneCountInString(raw.Reply) > constants.AIInputLimit || raw.Reviews == nil || len(raw.Reviews) != len(sources) {
+		if raw.Reviews == nil || len(raw.Reviews) != len(sources) {
+			return Draft{}, fault.New(fault.Invalid, "来源约定核对不完整，请重新整理。")
+		}
 		return Draft{}, fault.New(fault.Invalid, "这次整理没有完成，请重新发送。")
 	}
 	doc := action.DocumentUpdate{Mode: "clear"}

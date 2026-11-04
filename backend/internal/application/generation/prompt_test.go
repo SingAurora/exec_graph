@@ -21,7 +21,6 @@ func TestParsePreservesExplicitAssessmentAndDocumentIntent(t *testing.T) {
 		strings.Replace(base, `,"complies":null`, "", 1),
 		strings.Replace(base, `"one"`, `"other"`, 1),
 		strings.Replace(base, `"complies":null`, `"complies":false`, 1),
-		strings.Replace(base, `"reviews":[`, `"expression":{"mode":"clear","markdown":""},"reviews":[`, 1),
 		strings.Replace(base, `"objective":"骑了六公里"`, `"objective":""`, 1),
 		strings.Replace(base, `"reviews":[`, `"reviews":[{"sourceId":"one","complies":true},`, 1),
 		strings.Replace(base, `"reply":`, `"bypass":true,"reply":`, 1),
@@ -31,9 +30,9 @@ func TestParsePreservesExplicitAssessmentAndDocumentIntent(t *testing.T) {
 			t.Fatalf("无效模型响应被接受: %s", body)
 		}
 	}
-	legacyExpression := strings.Replace(base, `,"reviews":[`, `,"expression":{"mode":"inherit","markdown":""},"reviews":[`, 1)
-	if _, err := parse(legacyExpression, "action", false, sources); err == nil {
-		t.Fatal("行动模式仍接受表达字段")
+	legacyExpression := strings.Replace(base, `"reviews":[`, `"expression":{"mode":"inherit","markdown":""},"reviews":[`, 1)
+	if draft, err := parse(legacyExpression, "action", true, sources); err != nil || draft.Expression.Mode != "inherit" {
+		t.Fatalf("行动模式应忽略未使用的表达字段: %+v %v", draft, err)
 	}
 	insufficient := strings.Replace(base, `"title":"骑行","objective":"骑了六公里"`, `"title":"","objective":""`, 1)
 	if _, err := parse(insufficient, "action", true, sources); err == nil || !strings.Contains(err.Error(), "请补充这次实际做了什么") {
@@ -56,6 +55,14 @@ func TestParsePreservesExplicitAssessmentAndDocumentIntent(t *testing.T) {
 	unknownReason := strings.Replace(base, `"complies":null`, `"complies":null,"exceptionReason":"缺少记录用时的信息"`, 1)
 	if draft, err := parse(unknownReason, "action", true, sources); err != nil || draft.Reviews[0].Complies != nil || draft.Reviews[0].ExceptionReason != nil {
 		t.Fatalf("初稿未知状态的多余说明不能变成不符理由或阻止独立核验: %+v %v", draft, err)
+	}
+}
+
+func TestParseUsesFallbackReplyWhenActionDocumentIsComplete(t *testing.T) {
+	content := `{"title":"切萨皮克湾海战","objective":"先堵住英国海军，再配合法军登陆推进。"}`
+	draft, err := parse(content, "action", false, nil)
+	if err != nil || draft.Title == "" || draft.Reply == "" {
+		t.Fatalf("有完整行动文档但缺少 reply 时不应失败: %+v %v", draft, err)
 	}
 }
 

@@ -172,7 +172,7 @@ export function ActionDetail({ node, actions, users, author, isHighlightTip, onH
           const status = tab.key === 'objective' ? 'published' : statusFor(tab.key)
           return <button key={tab.key} className={`inline-flex min-h-8 items-center gap-1.5 border-0 bg-transparent px-0 py-1 text-sm font-medium transition-colors ${recordMode === tab.key ? 'text-signal' : 'text-muted hover:text-signal'}`} type="button" onClick={() => onModeChange(tab.key)}>{tab.label}<span className={`size-1.5 rounded-full ${tabStatusClass(status)}`} /></button>
         })}</div>
-        <HelpPopover title="行动、表达与约定"><p>三个文档属于同一个节点：行动是事实，表达是这条分支的概括，约定是未来什么行动会引起作者兴趣。</p><p>表达和约定由 AI 生成草稿，作者分别发布；两者都发布后节点才能被接续。被接续后不可再修改。</p></HelpPopover>
+        <HelpPopover title="行动、表达与约定"><p>三个文档属于同一个节点：行动是事实，表达是面向他人的兴趣和态度，约定是未来什么行动会引起作者兴趣。</p><p>表达和约定由 AI 生成草稿，作者分别发布；两者都发布后节点才能被接续。被接续后不可再修改。</p></HelpPopover>
       </div>
       <div className="action-reading-document px-6 py-5">
         {recordMode === 'objective' ? <MarkdownContent markdown={objectiveMarkdown} images={node.images} showImageCaptions={false} /> : renderDocument(recordMode)}

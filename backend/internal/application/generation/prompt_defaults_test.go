@@ -17,5 +17,8 @@ func TestDefaultPromptsSeparateOutputContractFromRequirements(t *testing.T) {
 		if strings.Contains(strings.ToLower(value), "json") {
 			t.Fatalf("%s默认要求混入了 JSON 输出说明", name)
 		}
+		if name == "表达" && (!strings.Contains(value, "兴趣") || !strings.Contains(value, "态度")) {
+			t.Fatalf("表达默认要求没有突出吸引他人的兴趣和态度: %s", value)
+		}
 	}
 }

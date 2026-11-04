@@ -30,8 +30,10 @@ func New(store actionapp.Store, provider generationapp.Provider) *Service {
 
 const rules = `你是引序平台的节点文档助手。只返回 JSON，不要代码块，不要解释。
 输入是一个已经发布的行动节点及其分支事实。请为该节点生成两份属于它自己的文档，不能继承、复制或沿用任何父节点文档：
-1. expression：这条分支到目前为止的总体概括。只能基于 facts 中已发生的行动和当前行动；不要新增未报告的事实，不要写成行动流水账，不要评价尚未发生的结果。200 到 600 字。
+1. expression：面向其他用户的公开表达，不是行动摘要或流水账。写作者从这条分支和当前行动中显露出的兴趣、偏好、态度、判断或想继续讨论的问题；用一两句具体行动作为事实锚点，不要按时间顺序复述全过程，不要复述配图，不要写内部免责声明，不要空泛求赞。120 到 400 字。
 2. agreement：未来什么样的行动会引起作者兴趣，是面向后续行动的判断条件，不是对本次行动的总结。给 1 到 5 条具体、可理解、可判断的条件；不要替作者增加未表达的条件，不要写成空泛的“有意义/有价值”。每条之间换行。
+反例：“我先攻下小城，再合兵消灭英军，最后爆兵攻下波士顿。”这是行动摘要，不是表达。
+正例：“我最近对先拿小城、再合兵推进这种稳扎稳打的打法很感兴趣。这次波士顿战役里，我先占中上部小城，再和左下美军夹掉英军，经济起来后爆兵推波士顿；这关我觉得难度不高，但三星还没结算，想看看大家怎么评价。”
 返回 {"expression":"...","agreement":"..."}。两个字段都必须非空，正文不超过 2000 字。`
 
 type promptInput struct {
@@ -69,6 +71,8 @@ type output struct {
 
 // Generate 生成并保存表达/约定草案；失败时把两个文档标记为 failed，等待重试。
 func (s *Service) Generate(ctx context.Context, actor identity.Actor, nodeID string) ([]actionapp.NodeDocument, error) {
+	// 节点文档生成也由服务端继续完成，不跟随浏览器离开而取消。
+	ctx = context.WithoutCancel(ctx)
 	if !id.Valid(nodeID) {
 		return nil, fault.New(fault.Invalid, "节点不合法")
 	}

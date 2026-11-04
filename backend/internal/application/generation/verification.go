@@ -72,13 +72,26 @@ func verify(content string, snapshot contextSnapshot, draft Draft) (Draft, error
 	if err := decoder.Decode(&extra); err != io.EOF {
 		return Draft{}, errUnverified
 	}
+	// 非行动模式的 reviews 没有业务含义；模型省略空数组时按空数组处理。
+	if snapshot.Mode != "action" && result.Reviews == nil {
+		result.Reviews = []agreementCheck{}
+	}
+	if snapshot.Mode == "action" {
+		normalizeUnusedCheck(&result.Expression)
+	} else if snapshot.Mode == "expression" {
+		normalizeUnusedCheck(&result.Action)
+		normalizeUnusedCheck(&result.Agreement)
+	} else if snapshot.Mode == "agreement" {
+		normalizeUnusedCheck(&result.Action)
+		normalizeUnusedCheck(&result.Expression)
+	}
 	if snapshot.Mode == "agreement" {
 		if !validDocumentCheck(result.Action, snapshot, false, false) || !validDocumentCheck(result.Expression, snapshot, false, false) || !validDocumentCheck(result.Agreement, snapshot, false, false) || result.Reviews == nil || len(result.Reviews) != 0 || len(draft.Reviews) != 0 {
 			return Draft{}, errUnverified
 		}
 		return draft, nil
 	}
-	if !validDocumentCheck(result.Action, snapshot, snapshot.Mode == "action", false) || !validDocumentCheck(result.Expression, snapshot, snapshot.Mode == "expression" && draft.Expression.Mode == "update", true) || result.Reviews == nil || len(result.Reviews) != len(snapshot.Sources) || len(draft.Reviews) != len(snapshot.Sources) {
+	if !validDocumentCheck(result.Action, snapshot, snapshot.Mode == "action", false) || !validExpressionDocument(result.Expression, snapshot, draft.Expression.Mode == "update") || result.Reviews == nil || len(result.Reviews) != len(snapshot.Sources) || len(draft.Reviews) != len(snapshot.Sources) {
 		return Draft{}, errUnverified
 	}
 	byID := map[string]agreementCheck{}
@@ -110,11 +123,23 @@ func verify(content string, snapshot contextSnapshot, draft Draft) (Draft, error
 	return draft, nil
 }
 
+// normalizeUnusedCheck 把当前模式不使用的字段补成成功的空检查，避免模型省略可选字段导致整轮失败。
+func normalizeUnusedCheck(check *documentCheck) {
+	if check.Valid == nil {
+		valid := true
+		check.Valid = &valid
+	}
+	if check.Evidence == nil {
+		check.Evidence = []evidence{}
+	}
+}
+
 func validDocumentCheck(check documentCheck, snapshot contextSnapshot, required, expression bool) bool {
-	if check.Valid == nil || !*check.Valid || check.Evidence == nil {
+	if check.Valid == nil || !*check.Valid {
 		return false
 	}
 	if !required {
+		// 未使用字段允许省略空 evidence；与显式 [] 等价。
 		return len(check.Evidence) == 0
 	}
 	if len(check.Evidence) == 0 {
@@ -122,6 +147,22 @@ func validDocumentCheck(check documentCheck, snapshot contextSnapshot, required,
 	}
 	for _, item := range check.Evidence {
 		if !validEvidence(item, snapshot, expression, false) {
+			return false
+		}
+	}
+	return true
+}
+
+func validExpressionDocument(check documentCheck, snapshot contextSnapshot, update bool) bool {
+	if check.Valid == nil || !*check.Valid {
+		return false
+	}
+	// 表达可以只包含主观兴趣/态度，因此 update 不强制至少一条证据；有事实锚点时仍逐条核验。
+	if !update && len(check.Evidence) != 0 {
+		return false
+	}
+	for _, item := range check.Evidence {
+		if !validEvidence(item, snapshot, true, false) {
 			return false
 		}
 	}

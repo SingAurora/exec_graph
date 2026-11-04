@@ -223,3 +223,52 @@ func TestSnapshotSeparatesCurrentUsersReportsFromOtherSpeakers(t *testing.T) {
 		t.Fatal("用户报告进入了核验系统指令")
 	}
 }
+
+func TestExpressionVerificationAllowsSubjectiveInterestWithoutFactEvidence(t *testing.T) {
+	snapshot, draft, result := verificationFixture()
+	snapshot.Mode, snapshot.Sources = "expression", []source{}
+	markdown := "我更喜欢先拿小城再合兵推进这种稳扎稳打的打法，这关难度不高。"
+	draft.Expression = action.DocumentUpdate{Mode: "update", Markdown: &markdown}
+	draft.Reviews = []action.SourceAssessment{}
+	result.Action = documentCheck{boolPointer(true), []evidence{}}
+	result.Expression = documentCheck{boolPointer(true), []evidence{}}
+	result.Reviews = []agreementCheck{}
+	body, err := json.Marshal(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := verify(string(body), snapshot, draft); err != nil {
+		t.Fatalf("纯主观表达被错误拒绝: %v", err)
+	}
+
+	result.Expression.Evidence = []evidence{{"action", "unrelated", "骑行。"}}
+	body, err = json.Marshal(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := verify(string(body), snapshot, draft); !errors.Is(err, errUnverified) {
+		t.Fatalf("无依据的行动事实没有被拒绝: %v", err)
+	}
+}
+
+func TestVerificationToleratesOmittedEmptyFieldsForNonActionModes(t *testing.T) {
+	for _, mode := range []string{"expression", "agreement"} {
+		t.Run(mode, func(t *testing.T) {
+			markdown := "我更在意这次行动里的判断。"
+			snapshot := contextSnapshot{Mode: mode}
+			draft := Draft{Expression: action.DocumentUpdate{Mode: "update", Markdown: &markdown}}
+			if mode == "agreement" {
+				draft.Agreement = &action.DocumentUpdate{Mode: "update", Markdown: &markdown}
+			}
+			draft.Reviews = []action.SourceAssessment{}
+			field := "expression"
+			if mode == "agreement" {
+				field = "agreement"
+			}
+			body := `{"` + field + `":{"valid":true}}`
+			if _, err := verify(body, snapshot, draft); err != nil {
+				t.Fatalf("%s 省略空字段时被拒绝: %v", mode, err)
+			}
+		})
+	}
+}

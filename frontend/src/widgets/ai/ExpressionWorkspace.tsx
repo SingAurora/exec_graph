@@ -1,5 +1,5 @@
 import { Check } from 'lucide-react'
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import type { ActionExpressionMessage, ActionNode } from '../../entities/action/model/types'
 import type { ChatMessage } from '../../shared/model/content'
 import type { UserProfile } from '../../entities/profile/model/types'
@@ -82,6 +82,33 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
                   : { text: '已发布', tone: 'muted' }
 
   const viewingDocument = local.value.view.tab === 'expression'
+  const applyGeneration = (result: GenerationView) => {
+    update({ generation: result })
+    if (result.status !== 'succeeded' || !result.draft || !result.updateExpression) throw new Error(result.status === 'pending' ? '仍在整理，请稍后重试读取结果' : '整理失败，请重新发送')
+    const draft = result.draft
+    if (draft.expression.mode === 'inherit') throw new Error('表达没有变化，请说明想调整的内容')
+    local.update((current) => ({ ...current, generation: result, draftDocument: draft.expression.mode === 'update' ? draft.expression.markdown : '', generated: true, contextSignature,
+      messages: [...current.messages, { id: 'expression-ai-' + result.generationId, speaker: 'ai', body: draft.reply, model: result.model }] }))
+  }
+  const applyGenerationRef = useRef(applyGeneration)
+  applyGenerationRef.current = applyGeneration
+  const generateRef = useRef(generate)
+  const updateRef = useRef(local.update)
+  generateRef.current = generate
+  updateRef.current = local.update
+  const resumedRequest = useRef<string | undefined>(undefined)
+  // 离开页面会中止浏览器请求，但服务端继续处理；回到草稿时用同一幂等键恢复结果。
+  useEffect(() => {
+    if (!local.ready || generated || sending || saving || !generationRequest || !canEdit) return
+    if (generation?.status === 'succeeded' || generation?.status === 'failed' || resumedRequest.current === generationRequest.key) return
+    resumedRequest.current = generationRequest.key
+    setSending(true)
+    void generateRef.current(generationRequest).then((result) => { applyGenerationRef.current(result) }).catch((error) => {
+      const business = error instanceof BusinessRequestError && error.kind === 'business'
+      const append = business ? appendWorkspaceNotice : appendWorkspaceError
+      updateRef.current((current) => ({ ...current, generationRequest: business ? undefined : current.generationRequest, messages: append(current.messages, '暂时无法更新表达：' + (error instanceof Error ? error.message : '请求失败，请稍后重试。')) }))
+    }).finally(() => { setSending(false) })
+  }, [canEdit, generated, generation?.status, generationRequest, local.ready, saving, sending])
   const send = async (event: FormEvent) => {
     event.preventDefault()
     const clean = input.trim()
@@ -95,13 +122,7 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
     update({ messages: next, input: '', generated: false, generationRequest: request })
     setSending(true)
     try {
-      const result = await generate(request)
-      update({ generation: result })
-      if (result.status !== 'succeeded' || !result.draft || !result.updateExpression) throw new Error(result.status === 'pending' ? '仍在整理，请稍后重试读取结果' : '整理失败，请重新发送')
-      const draft = result.draft
-      if (draft.expression.mode === 'inherit') throw new Error('表达没有变化，请说明想调整的内容')
-      local.update((current) => ({ ...current, generation: result, draftDocument: draft.expression.mode === 'update' ? draft.expression.markdown : '', generated: true, contextSignature,
-        messages: [...current.messages, { id: 'expression-ai-' + result.generationId, speaker: 'ai', body: draft.reply, model: result.model }] }))
+      applyGeneration(await generate(request))
     } catch (error) {
       const business = error instanceof BusinessRequestError && error.kind === 'business'
       const append = business ? appendWorkspaceNotice : appendWorkspaceError
@@ -112,7 +133,7 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
   }
 
   const conversation: ActionExpressionMessage[] = messages.map((message) => ({ ...message, authorId: message.authorId ?? profileId }))
-  if (!conversation.length) conversation.push({ id: 'welcome', speaker: 'ai', body: '基于这些行动，你想表达什么？' })
+  if (!conversation.length) conversation.push({ id: 'welcome', speaker: 'ai', body: '基于这些行动，你想让别人看到你对什么感兴趣、持什么态度？' })
 
   return (
     <WorkspaceFrame title="梳理表达"
@@ -121,7 +142,7 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
       draftControls={<LocalDraftControls status={local.status} hasDraft={local.hasDraft} disabled={sending || saving || !local.ready} onDiscard={local.discard} />}
       help={<HelpPopover title="表达的背景">
           <p>本次对话带入整条支链的行动事实、有效表达与来源约定。其他分支不属于已知事实，行动对话也与本对话分开保存。</p>
-          <p>只更新当前节点的表达，行动与约定保持原样。要清空表达，可在对话中说明；确认保存后生效。</p>
+          <p>只更新当前节点的表达，行动与约定保持原样。表达面向其他用户，写兴趣、态度和有依据的判断，不必按时间复述行动。要清空表达，可在对话中说明；确认保存后生效。</p>
         </HelpPopover>}
       context={{ label: `节点 #${node.number}`, title: node.title, facts: context?.facts.filter((fact) => fact.number !== node.number) ?? [] }}
       messages={conversation} profileName={profileName} profile={profile} users={users} defaultAuthorId={profileId} status={workspaceStatus}

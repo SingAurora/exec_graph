@@ -15,9 +15,8 @@ const defaultActionRequirement = `记录本人本次实际做了什么、过程�
 图片只使用正文占位符，不输出图片地址。`
 
 // defaultExpressionRequirement 是表达模式的默认内容核验要求。
-const defaultExpressionRequirement = `只修改当前表达，不改写行动、标题和约定。
-每个判断必须有本轮可达行动依据；不能把聊天中新补充的经历当作已发布事实，也不能用已有表达、草稿或图指引自证。
-没有依据的观点即使要求也不写；个人偏好和体验可以保留，但必须保持主观、有限范围。
+const defaultExpressionRequirement = `表达面向其他用户，不是行动摘要或流水账。写你从行动中显露出的兴趣、偏好、态度、判断或想继续讨论的问题，用一两句具体行动作事实锚点，让人愿意看和回应。
+涉及行动过程、结果、观察的陈述必须有本轮行动依据；兴趣、偏好、态度、感受和评价可以直接表达，但不能写成客观事实、已发生结果或普遍结论，也不要写内部免责声明或复述配图。
 首次生成必须 update；其他情况只能 update 或 clear，不能 inherit。`
 
 // defaultAgreementRequirement 是约定模式的默认内容核验要求。

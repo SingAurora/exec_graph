@@ -100,7 +100,9 @@ func (s *Service) Generate(ctx context.Context, actor identity.Actor, key string
 	if err != nil || pending == nil {
 		return out, err
 	}
-	return s.process(ctx, actor, input.Mode, input.ParentID != "", initialProvider, *pending, messages)
+	// 客户端离开会取消 HTTP 请求 context；生成已受理后必须继续完成并落库，
+	// 重新进入工作区时再由同一幂等键读取或轮询结果。
+	return s.process(context.WithoutCancel(ctx), actor, input.Mode, input.ParentID != "", initialProvider, *pending, messages)
 }
 
 // Get 只读取当前账号发起的结果，支持重试请求收到 pending 后继续查询。
@@ -196,7 +198,14 @@ func (s *Service) process(ctx context.Context, actor identity.Actor, mode string
 			return View{}, errors.Join(callError, err)
 		}
 		if errors.Is(callError, errUnverified) {
-			return View{}, errors.Join(fault.New(fault.Invalid, "这次整理中有内容无法对应到你的报告。请确认行动、结果和想法都属于本次经历后重试"), err)
+			message := "这次整理中有内容无法对应到你的报告。请确认行动、结果和想法都属于本次经历后重试"
+			switch mode {
+			case "expression":
+				message = "表达没有通过核验。事实性内容需要有行动依据，兴趣和态度保持主观后重试"
+			case "agreement":
+				message = "约定没有通过核验。请把约定写得更具体、可判断后重试"
+			}
+			return View{}, errors.Join(fault.New(fault.Invalid, message), err)
 		}
 		return View{}, errors.Join(fault.New(fault.Unavailable, "AI 整理失败，请稍后重新发送"), err)
 	}

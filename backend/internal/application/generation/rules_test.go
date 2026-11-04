@@ -15,6 +15,9 @@ func TestGenerationRulesSelectOnlyCurrentMode(t *testing.T) {
 	if strings.Contains(expression, "invalidImages") || !strings.Contains(expression, "只修改当前表达") {
 		t.Fatal("表达规则混入了行动专属内容或缺少表达任务")
 	}
+	if !strings.Contains(expression, "兴趣") || !strings.Contains(expression, "态度") {
+		t.Fatal("表达规则没有面向他人的兴趣和态度要求")
+	}
 	agreement := generationRulesFor("agreement")
 	if strings.Contains(agreement, "图片") || !strings.Contains(agreement, "向后传递的约定") {
 		t.Fatal("约定规则混入了行动专属内容或缺少约定任务")

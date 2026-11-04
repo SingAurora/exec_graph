@@ -33,7 +33,7 @@
 
 **现状**
 
-- 后端 `GenerateInput` 已改为 `messages: string[]`，每条最多 500 字、最多 50 条、合计 10000 字；每条写入 `ai_messages`，生成记录保存 `InputThroughSequence`。
+- 后端 `GenerateInput` 已改为 `messages: string[]`，每条最多 1000 字、最多 50 条、合计 10000 字；每条写入 `ai_messages`，生成记录保存 `InputThroughSequence`。
 - 前端 [ActionWorkspace.tsx:111](../frontend/src/widgets/ai/ActionWorkspace.tsx#L111) 每次点击发送仍然提交 `messages: [clean]`，没有“先在本地收集、再批量整理”的第二步。
 - [workspace-draft.ts:18](../frontend/src/widgets/ai/model/workspace-draft.ts#L18) 的 `pendingReports` 除恢复旧草稿外没有写入点；`canPublish` 却要求 `!input.trim()`（[ActionWorkspace.tsx:85](../frontend/src/widgets/ai/ActionWorkspace.tsx#L85)），说明交互按“输入框里还有未整理报告”设计。
 - 对外契约 [backend-external-contract.md:88](backend-external-contract.md#L88) 已写成“点击‘整理行动’后批量提交”。

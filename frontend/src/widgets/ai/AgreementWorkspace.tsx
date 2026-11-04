@@ -1,5 +1,5 @@
 import { Check } from 'lucide-react'
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import type { ActionExpressionMessage, ActionNode } from '../../entities/action/model/types'
 import type { ChatMessage } from '../../shared/model/content'
 import type { UserProfile } from '../../entities/profile/model/types'
@@ -68,6 +68,34 @@ export function AgreementWorkspace({ node, csrfToken, draftKey, actions, profile
   const canSave = canPublishExistingDraft || (local.ready && canEdit && generated && Boolean(generation?.updateAgreement)
     && local.value.contextSignature === signature && !sending && !saving && markdown.trim() !== agreement.markdown.trim())
   const viewingDocument = local.value.view.tab === 'agreement'
+  const applyGeneration = (result: GenerationView) => {
+    update({ generation: result })
+    if (result.status !== 'succeeded' || !result.draft || !result.updateAgreement) throw new Error(result.status === 'pending' ? '仍在整理，请稍后重试读取结果' : '整理失败，请重新发送')
+    const draft = result.draft.agreement
+    if (!draft) throw new Error('AI 没有返回约定草稿，请重新发送。')
+    if (draft.mode === 'inherit') throw new Error('约定没有变化，请说明要补充或调整的内容')
+    local.update((current) => ({ ...current, generation: result, draftDocument: draft.mode === 'update' ? draft.markdown : '', generated: true, contextSignature: signature,
+      messages: [...current.messages, { id: `agreement-ai-${result.generationId}`, speaker: 'ai', body: result.draft!.reply, model: result.model }] }))
+  }
+  const applyGenerationRef = useRef(applyGeneration)
+  applyGenerationRef.current = applyGeneration
+  const generateRef = useRef(generate)
+  const updateRef = useRef(local.update)
+  generateRef.current = generate
+  updateRef.current = local.update
+  const resumedRequest = useRef<string | undefined>(undefined)
+  // 离开页面会中止浏览器请求，但服务端继续处理；回到草稿时用同一幂等键恢复结果。
+  useEffect(() => {
+    if (!local.ready || generated || sending || saving || !generationRequest || !canEdit) return
+    if (generation?.status === 'succeeded' || generation?.status === 'failed' || resumedRequest.current === generationRequest.key) return
+    resumedRequest.current = generationRequest.key
+    setSending(true)
+    void generateRef.current(generationRequest).then((result) => { applyGenerationRef.current(result) }).catch((error) => {
+      const business = error instanceof BusinessRequestError && error.kind === 'business'
+      const append = business ? appendWorkspaceNotice : appendWorkspaceError
+      updateRef.current((current) => ({ ...current, generationRequest: business ? undefined : current.generationRequest, messages: append(current.messages, `暂时无法更新约定：${error instanceof Error ? error.message : '请求失败，请稍后重试。'}`) }))
+    }).finally(() => { setSending(false) })
+  }, [canEdit, generated, generation?.status, generationRequest, local.ready, saving, sending])
   const send = async (event: FormEvent) => {
     event.preventDefault()
     const clean = input.trim()
@@ -80,14 +108,7 @@ export function AgreementWorkspace({ node, csrfToken, draftKey, actions, profile
     update({ messages: next, input: '', generated: false, generationRequest: request })
     setSending(true)
     try {
-      const result = await generate(request)
-      update({ generation: result })
-      if (result.status !== 'succeeded' || !result.draft || !result.updateAgreement) throw new Error(result.status === 'pending' ? '仍在整理，请稍后重试读取结果' : '整理失败，请重新发送')
-      const draft = result.draft.agreement
-      if (!draft) throw new Error('AI 没有返回约定草稿，请重新发送。')
-      if (draft.mode === 'inherit') throw new Error('约定没有变化，请说明要补充或调整的内容')
-      local.update((current) => ({ ...current, generation: result, draftDocument: draft.mode === 'update' ? draft.markdown : '', generated: true, contextSignature: signature,
-        messages: [...current.messages, { id: `agreement-ai-${result.generationId}`, speaker: 'ai', body: result.draft!.reply, model: result.model }] }))
+      applyGeneration(await generate(request))
     } catch (error) {
       const business = error instanceof BusinessRequestError && error.kind === 'business'
       const append = business ? appendWorkspaceNotice : appendWorkspaceError

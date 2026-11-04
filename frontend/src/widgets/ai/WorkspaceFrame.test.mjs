@@ -26,10 +26,10 @@ describe('workspace document preview', () => {
     expect(html.match(/解放波士顿/g)).toHaveLength(1)
   })
 
-  test('limits the chat input to 500 characters and shows the counter', () => {
+  test('limits the chat input to 1000 characters and shows the counter', () => {
     const html = render({ markdown: '', empty: '' })
-    expect(html).toMatch(/maxlength="500"/i)
-    expect(html).toContain('0/500')
+    expect(html).toMatch(/maxlength="1000"/i)
+    expect(html).toContain('0/1000')
     expect(html).toContain('workspace-chat-input')
     expect(html).toContain('标题 0/30')
     expect(html).toContain('正文 0/2000')
