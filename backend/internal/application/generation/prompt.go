@@ -109,11 +109,7 @@ func prompt(snapshot contextSnapshot, p Pending) ([]Message, error) {
 	if err != nil {
 		return nil, err
 	}
-	rules := generationRulesFor(p.Mode)
-	if rewriteRequested(p.InputMessages) {
-		rules += "\n本轮是改写请求：用户确认前文报告是已经发生的经历，但表达可能像计划或预测。请基于前文报告重新整理标题和正文，把已发生的操作写成完成语气，把计划、策略和预测保留为“我计划/我判断/我认为”等主观表述；不要添加未报告的行动、细节或结果。reply 说明已按记录改写，不要只重复格式引导。"
-	}
-	rules += "\n当前服务端快照：" + string(encoded)
+	rules := generationRulesFor(p.Mode) + "\n当前服务端快照：" + string(encoded)
 	messages := append([]Message{{Role: "system", Content: rules}}, p.Conversation.Messages...)
 	for _, report := range p.InputMessages {
 		messages = append(messages, Message{Role: "user", Content: report})
@@ -262,16 +258,4 @@ func parse(content, mode string, hasParent bool, sources []action.GenerationSour
 		reviews = append(reviews, review)
 	}
 	return Draft{Reply: raw.Reply, Title: raw.Title, Objective: raw.Objective, Expression: doc, Agreement: agreement, Reviews: reviews, InvalidImages: raw.InvalidImages}, nil
-}
-
-// rewriteRequested 判断用户是否在要求把已有报告改写为更清楚的记录，而不是补充新经历。
-func rewriteRequested(messages []string) bool {
-	for _, message := range messages {
-		for _, phrase := range []string{"帮我改写", "帮我改", "改写一下", "重新写", "重写", "表达有问题", "这确实是我做过", "按完成语气"} {
-			if strings.Contains(message, phrase) {
-				return true
-			}
-		}
-	}
-	return false
 }

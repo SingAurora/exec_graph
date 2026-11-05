@@ -68,6 +68,7 @@ type View struct {
 	Status           string                        `json:"status"`
 	Model            string                        `json:"model,omitempty"`
 	ErrorCode        string                        `json:"errorCode,omitempty"`
+	Warning          string                        `json:"warning,omitempty"`
 	Draft            *Draft                        `json:"draft,omitempty"`
 	CreateAction     *action.CreateActionInput     `json:"createAction,omitempty"`
 	UpdateExpression *action.UpdateExpressionInput `json:"updateExpression,omitempty"`
