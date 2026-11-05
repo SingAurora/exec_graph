@@ -75,8 +75,8 @@ describe('HTTP mock contract through the real request client', () => {
     await expect(createGraph({ ...graphInput, title: '不同内容' }, options)).rejects.toMatchObject(failure(409, 10005))
   })
 
-  test('rejects missing CSRF, unknown fields and client-assigned identity', async () => {
-    await expect(createGraph(graphInput, { idempotencyKey: crypto.randomUUID() })).rejects.toMatchObject(failure(403, 10003))
+  test('accepts requests without a CSRF token and rejects unknown/client-assigned fields', async () => {
+    expect(await createGraph(graphInput, { idempotencyKey: crypto.randomUUID() })).toHaveProperty('id')
     await expect(postAPI('/api/commands/graphs/create', { ...graphInput, id: 'client-id' }, writeOptions())).rejects.toMatchObject(failure(400, 10001))
   })
 
@@ -193,10 +193,9 @@ describe('HTTP mock contract through the real request client', () => {
     expect(db.users[0].version).toBe(1)
   })
 
-  test('highlight writes require CSRF and reject stale versions without overwriting the confirmed selection', async () => {
+  test('highlight writes reject stale versions without overwriting the confirmed selection', async () => {
     const { node } = await createFirst()
     const input = { expressionNodeIds: [node.id], expectedVersion: 1 }
-    await expect(setProfileHighlights(input, {})).rejects.toMatchObject(failure(403, 10003))
     await setProfileHighlights(input, writeOptions())
     await expect(setProfileHighlights({ ...input, expressionNodeIds: [] }, writeOptions())).rejects.toMatchObject(failure(409, 10005))
     expect((await getAPI('/api/commands/auth/session')).user.highlights.expressionNodeIds).toEqual([node.id])

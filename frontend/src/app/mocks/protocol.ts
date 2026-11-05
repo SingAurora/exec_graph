@@ -38,13 +38,12 @@ export async function readBody(request: Request, fields: string[]): Promise<Reco
   return body as Record<string, unknown>
 }
 
-/** Returns one contract envelope after deterministic mock latency and CSRF validation. */
+/** Returns one contract envelope after deterministic mock latency. */
 export function mockResponse(db: MockDatabase, handler: (request: Request) => unknown | Promise<unknown>) {
   return async ({ request }: { request: Request }) => {
     await delay(100)
     const headers = { 'X-Request-Id': crypto.randomUUID() }
     try {
-      if (request.method === 'POST' && request.headers.get('X-CSRF-Token') !== db.csrfToken) throw new MockFailure('请求校验已失效，请刷新后重试', API_ERROR_CODES.forbidden, 403)
       const data = await handler(request)
       return HttpResponse.json({ code: 0, msg: '', data }, { headers })
     } catch (error) {

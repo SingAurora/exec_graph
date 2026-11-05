@@ -30,9 +30,6 @@ func TestRealGraphProfileFollowingWrites(t *testing.T) {
 	input.Title = "另一个提交"
 	jo.call(t, "POST", "graphs/create", input, 409, key)
 	jo.call(t, "POST", "graphs/create", input, 400, "")
-	wrongCSRF := jo
-	wrongCSRF.csrf = "wrong"
-	wrongCSRF.call(t, "POST", "graphs/create", input, 403, id.New())
 	unauth := jo
 	unauth.token = "missing"
 	unauth.call(t, "POST", "graphs/create", input, 401, id.New())

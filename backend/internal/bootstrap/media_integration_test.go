@@ -27,9 +27,6 @@ func TestRealMediaLifecycleAndCleanup(t *testing.T) {
 		t.Fatal(err)
 	}
 	jo.upload(t, []byte("<svg>not an image</svg>"), 400)
-	badCSRF := jo
-	badCSRF.csrf = "incorrect"
-	badCSRF.upload(t, body, 403)
 	anonymous := jo
 	anonymous.token = ""
 	anonymous.upload(t, body, 401)

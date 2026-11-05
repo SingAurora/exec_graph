@@ -57,10 +57,10 @@ ai:
 # 所有值必须为正整数；省略字段使用以下默认值。每日次数按 UTC 自然日统计。
 limits:
   ai:
-    daily_requests: 100
-    minute_requests: 10
-    concurrent_requests: 2
+    daily_requests: 1000000
+    minute_requests: 10000
+    concurrent_requests: 20
   media:
-    daily_requests: 100
-    minute_requests: 20
-    storage_bytes: 536870912 # 512 MiB
+    daily_requests: 1000000
+    minute_requests: 10000
+    storage_bytes: 5368709120

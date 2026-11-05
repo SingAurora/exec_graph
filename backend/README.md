@@ -54,7 +54,7 @@ EXEC_GRAPH_ENABLE_DEMO_LOGIN=false \
 ./bin/exec-graph
 ```
 
-浏览器访问 `http://服务器IP:8081/`；服务器需放行 TCP 8081。前端 API 地址留空，页面和 API 使用同一个来源。`allowed_origins` 可以配置明确的来源，也可以配置 `*` 回显任意浏览器 Origin；登录和写入请求仍检查会话、CSRF 与权限。使用 `*` 会放开跨源浏览器访问，生产部署应自行评估网络边界。
+浏览器访问 `http://服务器IP:8081/`；服务器需放行 TCP 8081。前端 API 地址留空，页面和 API 使用同一个来源。`allowed_origins` 可以配置明确的来源，也可以配置 `*` 回显任意浏览器 Origin；登录和写入请求仍检查会话与权限；当前 demo 阶段已关闭 CSRF 校验。使用 `*` 会放开跨源浏览器访问，生产部署应自行评估网络边界。
 
 上面的 IP HTTP 示例显式采用 `development` 环境，以允许 HTTP 会话 Cookie；直接 HTTPS 请求始终设置 Secure Cookie。`production` 环境无论请求协议均要求 Secure Cookie，适合只提供 HTTPS 登录的部署。演示登录仍关闭，构建后的前端也不启动 MSW；MySQL、Redis、邮件、图片和 AI 继续使用真实配置。
 
@@ -143,7 +143,7 @@ EXEC_GRAPH_DATABASE_SCHEMA=exec_graph EXEC_GRAPH_ADDR=127.0.0.1:8080 EXEC_GRAPH_
 | POST | `/auth/login` | 邮箱密码登录，JSON 为 `email`、`password` |
 | POST | `/auth/demo-login` | 显式开发模式登录固定测试号，JSON 为 `{}` |
 | GET | `/auth/session` | 当前账户及 CSRF token |
-| POST | `/auth/logout` | JSON 为 `{}`，需 `X-CSRF-Token` |
+| POST | `/auth/logout` | JSON 为 `{}`，需要会话 |
 | POST | `/auth/code-send`、`/auth/register`、`/auth/password-reset` | 邮件验证码、注册及找回密码 |
 | POST | `/auth/password-change`、`/auth/email-change` | 当前密码与验证码双重校验，成功撤销旧会话 |
 | GET | `/profiles/catalogue` | 公开用户资料，不含邮箱和测试管理字段 |
@@ -166,7 +166,7 @@ EXEC_GRAPH_DATABASE_SCHEMA=exec_graph EXEC_GRAPH_ADDR=127.0.0.1:8080 EXEC_GRAPH_
 
 读取兼容导入数据的旧短 ID，但响应资源 ID 一律为 UUID；写入只接受 UUID。行动 DTO 使用 `graphId`，前端已显式映射为 UI 的 `projectId`；关注模型已使用 `graphIds`。未确认的 AI 对话不会公开。
 
-写入的准确 DTO、权限和事务行为见 [真实后端写入契约](../doc/backend-write-contract.md)。创建带 `Idempotency-Key`，全部业务写入带 CSRF，修改带 `expectedVersion`。图和资料图片接受已上传的资产 UUID；行动及表达确认使用 `generationId`，不接受浏览器直接伪造的 AI 文稿／对话。
+写入的准确 DTO、权限和事务行为见 [真实后端写入契约](../doc/backend-write-contract.md)。创建带 `Idempotency-Key`，全部业务写入需要会话，修改带 `expectedVersion`。图和资料图片接受已上传的资产 UUID；行动及表达确认使用 `generationId`，不接受浏览器直接伪造的 AI 文稿／对话。
 
 前端默认关闭 MSW，真实认证、上传、生成和确认发布已接入。外部能力 DTO、私有草稿隔离、限时和回收边界见 [外部能力契约](../doc/backend-external-contract.md)。未知接口返回 404，不返回模拟成功。
 

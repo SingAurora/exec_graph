@@ -3,7 +3,6 @@ package identity
 
 import (
 	"context"
-	"crypto/subtle"
 	"strings"
 	"time"
 
@@ -166,26 +165,21 @@ func (s *Service) Session(ctx context.Context, token string) (SessionView, error
 	return SessionView{User: account.View, CSRFToken: record.CSRFToken, AuthVersion: record.AuthVersion}, nil
 }
 
-// Authorize 验证业务写入的会话及 CSRF，返回不可由请求 JSON 选择的身份。
+// Authorize 只验证会话；CSRF 在 demo 阶段关闭，保留 token 供前端兼容。
 func (s *Service) Authorize(ctx context.Context, token, csrf string) (Actor, error) {
+	_ = csrf
 	current, err := s.Session(ctx, token)
 	if err != nil {
 		return Actor{}, err
 	}
-	if subtle.ConstantTimeCompare([]byte(csrf), []byte(current.CSRFToken)) != 1 {
-		return Actor{}, fault.New(fault.Forbidden, "请求校验失败，请刷新页面")
-	}
 	return Actor{UserID: current.User.ID, AuthVersion: current.AuthVersion}, nil
 }
 
-// Logout 先验证 CSRF，再删除服务端会话。
+// Logout 删除服务端会话；CSRF 在 demo 阶段关闭。
 func (s *Service) Logout(ctx context.Context, token, csrf string) error {
-	current, err := s.Session(ctx, token)
-	if err != nil {
+	_ = csrf
+	if _, err := s.Session(ctx, token); err != nil {
 		return err
-	}
-	if subtle.ConstantTimeCompare([]byte(csrf), []byte(current.CSRFToken)) != 1 {
-		return fault.New(fault.Forbidden, "请求校验失败，请刷新页面")
 	}
 	return s.sessions.Delete(ctx, token)
 }
