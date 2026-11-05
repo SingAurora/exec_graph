@@ -16,9 +16,9 @@
 
 ## 2. 默认提示词展示
 
-图级提示词设置已关闭。图设置中的“默认核验提示词”只是只读展示，不写入图数据，也不影响生成：
+图级提示词设置已关闭。图设置中的“平台默认提示词”只是只读展示，不写入图数据，也不影响生成：
 
-- `GET /api/commands/ai/prompt-defaults` 返回 `contract` 以及 `action`、`expression`、`agreement` 三份默认核验要求；
+- `GET /api/commands/ai/prompt-defaults` 返回 `contract`、`action`、`expression`、`agreement` 生成目标，以及 `verificationAction`、`verificationExpression`、`verificationAgreement` 三份核验规则；
 - `contract` 是平台 JSON 输出壳，单独折叠展示；三份模式要求只描述内容标准，不包含 JSON 字样；
 - 前端用禁用文本框展示，所有用户看到同一份内容；
 - `graphs.context_guide` 仅作为历史数据保留，`graphs/update` 不再接受该字段，生成提示词也不再注入它；
@@ -26,27 +26,27 @@
 
 ## 3. 生成系统提示词
 
-生成提示词按模式拆分，由 `generationRulesFor(mode)` 选择，每次只携带当前模式需要的规则。提示词版本为 `action-evidence-v11`。
+生成提示词按模式拆分，由 `generationRulesFor(mode)` 选择，每次只携带当前模式需要的规则。提示词版本为 `action-evidence-v12`。
 
 | 常量 | 作用 | 约字符数 |
 | --- | --- | ---: |
-| `generationCommonRules` | 数据边界、来源边界、事实/主观边界、reply 约束 | 423 |
-| `actionRules` | 行动标题/正文、来源 reviews、图片、示例 | 932 |
-| `expressionRules` | 面向他人的兴趣/态度、行动依据、initial 规则 | 707 |
-| `agreementRules` | 只整理向后约定、initial 规则 | 339 |
+| `generationCommonRules` | 数据边界、来源边界、事实/主观边界、reply 约束、对话意图与目标效果 | 564 |
+| `actionRules` | 行动目标效果、标题/正文、来源 reviews、图片、示例 | 999 |
+| `expressionRules` | 表达目标效果、兴趣/态度、行动依据、initial 规则 | 727 |
+| `agreementRules` | 约定目标效果、向后约定、initial 规则 | 417 |
 
 共同规则只保留真正跨模式的不变量；行动模式不再携带表达/约定说明，表达和约定模式也不再携带行动事实、来源 reviews 或图片规则。这样每次请求的无关内容从原来的大部分降为零。
 
 ## 4. 建议性独立核验提示词
 
-核验提示词同样按模式拆分，由 `verificationRulesFor(mode)` 选择：
+核验提示词同样按模式拆分，每份规则都分为“依据核验”和“目标适配”，由 `verificationRulesFor(mode)` 选择：
 
 | 常量 | 作用 | 约字符数 |
 | --- | --- | ---: |
-| `verificationCommonRules` | 固定 JSON 结构、evidence 原文、未使用字段约定 | 686 |
-| `actionVerificationRules` | 行动事实核验 + 来源约定逐项核验 | 1158 |
-| `expressionVerificationRules` | 区分表达中的事实与主观兴趣/态度 | 563 |
-| `agreementVerificationRules` | 只核验约定文档是否清晰/清空 | 127 |
+| `verificationCommonRules` | 固定 JSON 结构、依据/目标双层、evidence 原文、未使用字段约定 | 785 |
+| `actionVerificationRules` | 行动依据核验 + 目标适配 + 来源约定逐项核验 | 1238 |
+| `expressionVerificationRules` | 表达依据核验 + 吸引关注的目标适配 | 683 |
+| `agreementVerificationRules` | 约定依据边界 + 清晰可判断的目标适配 | 253 |
 
 `verificationPrompt` 不再根据 agreement 模式追加额外 schema；公共部分已经定义固定输出结构，未使用字段按 `valid=true,evidence=[]` 返回。
 
@@ -84,7 +84,7 @@
 
 已接入的界面约定：
 
-- 图设置中的“默认核验提示词”只读展示平台当前使用的三份提示词，不可编辑。
+- 图设置中的“平台默认提示词”只读展示生成目标和三份核验规则，不可编辑。
 - 行动工作区右上角只显示“未核验 / 核验成功 / 核验失败”三态。生成成功先为未核验；用户主动核验后，约定不满足才进入核验失败。
 - 引用、来源版本或生成版本变化后，状态回到未核验；发布时服务端仍会做最终快照校验。
 - 图片放置、图要求是否满足不占用核验状态；约定核对明细放在约定栏。
