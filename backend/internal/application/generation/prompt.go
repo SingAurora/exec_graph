@@ -181,10 +181,7 @@ func parse(content, mode string, hasParent bool, sources []action.GenerationSour
 			raw.Reply = "已更新约定草稿，请在“约定”标签页查看。"
 		}
 	}
-	if (raw.Expression == nil && mode == "expression") || utf8.RuneCountInString(raw.Reply) > constants.AIInputLimit || raw.Reviews == nil || len(raw.Reviews) != len(sources) {
-		if raw.Reviews == nil || len(raw.Reviews) != len(sources) {
-			return Draft{}, fault.New(fault.Invalid, "来源约定核对不完整，请重新整理。")
-		}
+	if (raw.Expression == nil && mode == "expression") || utf8.RuneCountInString(raw.Reply) > constants.AIInputLimit {
 		return Draft{}, fault.New(fault.Invalid, "这次整理没有完成，请重新发送。")
 	}
 	doc := action.DocumentUpdate{Mode: "clear"}
@@ -235,18 +232,16 @@ func parse(content, mode string, hasParent bool, sources []action.GenerationSour
 	}
 	byID := map[string]action.SourceAssessment{}
 	for _, review := range raw.Reviews {
-		if !review.Provided {
-			return Draft{}, fault.New(fault.Invalid, "AI 未明确核对状态")
-		}
 		if _, exists := byID[review.SourceID]; exists {
-			return Draft{}, fault.New(fault.Invalid, "AI 来源核对重复")
+			// 重复项不信任任一判断，降级为未知，最终仍由独立核验重算。
+			byID[review.SourceID] = action.SourceAssessment{SourceID: review.SourceID, Provided: true}
+			continue
 		}
-		if review.Complies != nil && !*review.Complies {
-			if review.ExceptionReason == nil || strings.TrimSpace(*review.ExceptionReason) == "" || utf8.RuneCountInString(*review.ExceptionReason) > constants.ContextGuideLimit {
-				return Draft{}, fault.New(fault.Invalid, "AI 未说明不满足约定的原因")
-			}
-		} else {
-			// 初稿偶尔给未知状态附说明；不把它当作不符理由，最终由独立核验重算。
+		if !review.Provided || (review.Complies != nil && !*review.Complies && (review.ExceptionReason == nil || strings.TrimSpace(*review.ExceptionReason) == "" || utf8.RuneCountInString(*review.ExceptionReason) > constants.ContextGuideLimit)) {
+			// 缺失、未明确或没有理由的不符都降级为未知，不能让格式问题中断行动整理。
+			review.Complies, review.ExceptionReason, review.Provided = nil, nil, true
+		}
+		if review.Complies == nil {
 			review.ExceptionReason = nil
 		}
 		byID[review.SourceID] = review
@@ -255,7 +250,7 @@ func parse(content, mode string, hasParent bool, sources []action.GenerationSour
 	for _, source := range sources {
 		review, ok := byID[source.NodeID]
 		if !ok {
-			return Draft{}, fault.New(fault.Invalid, "AI 来源核对与引用不一致")
+			review = action.SourceAssessment{SourceID: source.NodeID, Provided: true}
 		}
 		if source.AgreementStatus == "unrestricted" {
 			review.Complies, review.ExceptionReason = nil, nil

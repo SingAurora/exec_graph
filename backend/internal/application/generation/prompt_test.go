@@ -18,16 +18,23 @@ func TestParsePreservesExplicitAssessmentAndDocumentIntent(t *testing.T) {
 		t.Fatalf("未知或继承语义被改变: %+v %v", draft, err)
 	}
 	for _, body := range []string{
-		strings.Replace(base, `,"complies":null`, "", 1),
-		strings.Replace(base, `"one"`, `"other"`, 1),
-		strings.Replace(base, `"complies":null`, `"complies":false`, 1),
 		strings.Replace(base, `"objective":"骑了六公里"`, `"objective":""`, 1),
-		strings.Replace(base, `"reviews":[`, `"reviews":[{"sourceId":"one","complies":true},`, 1),
 		strings.Replace(base, `"reply":`, `"bypass":true,"reply":`, 1),
 		base + `{}`,
 	} {
 		if _, err := parse(body, "action", true, sources); err == nil {
 			t.Fatalf("无效模型响应被接受: %s", body)
+		}
+	}
+	for name, body := range map[string]string{
+		"missing review":   strings.Replace(base, `,"complies":null`, "", 1),
+		"wrong source":     strings.Replace(base, `"one"`, `"other"`, 1),
+		"false no reason":  strings.Replace(base, `"complies":null`, `"complies":false`, 1),
+		"duplicate review": strings.Replace(base, `"reviews":[`, `"reviews":[{"sourceId":"one","complies":true},`, 1),
+	} {
+		draft, err := parse(body, "action", true, sources)
+		if err != nil || len(draft.Reviews) != 1 || draft.Reviews[0].Complies != nil {
+			t.Fatalf("%s 应降级为未知并交给独立核验: %+v %v", name, draft, err)
 		}
 	}
 	legacyExpression := strings.Replace(base, `"reviews":[`, `"expression":{"mode":"inherit","markdown":""},"reviews":[`, 1)
