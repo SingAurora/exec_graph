@@ -26,12 +26,12 @@
 
 ## 3. 生成系统提示词
 
-生成提示词按模式拆分，由 `generationRulesFor(mode)` 选择，每次只携带当前模式需要的规则。提示词版本为 `action-evidence-v9`。
+生成提示词按模式拆分，由 `generationRulesFor(mode)` 选择，每次只携带当前模式需要的规则。提示词版本为 `action-evidence-v10`。
 
 | 常量 | 作用 | 约字符数 |
 | --- | --- | ---: |
 | `generationCommonRules` | 数据边界、来源边界、事实/主观边界、reply 约束 | 423 |
-| `actionRules` | 行动标题/正文、来源 reviews、图片、示例 | 879 |
+| `actionRules` | 行动标题/正文、来源 reviews、图片、示例 | 932 |
 | `expressionRules` | 面向他人的兴趣/态度、行动依据、initial 规则 | 707 |
 | `agreementRules` | 只整理向后约定、initial 规则 | 339 |
 
