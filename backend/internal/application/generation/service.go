@@ -142,11 +142,10 @@ func (s *Service) process(ctx context.Context, actor identity.Actor, mode string
 	if callError == nil {
 		draft, callError = parse(completion.Content, mode, hasParent, pending.Sources)
 	}
-	// 每次生成都做独立核验；行动没有来源时也要核对行动事实，不能只依赖草稿模型自检。
+	// 独立核验是建议性质量检查：成功时采用更准确的来源核对结果；失败时保留草稿，
+	// 由用户在行动工作区主动核验/修改，不能因为第二道模型判断让整轮整理失败。
 	if callError == nil {
-		var checks []Message
-		checks, callError = verificationPrompt(pending.snapshot, draft)
-		if callError == nil {
+		if checks, promptError := verificationPrompt(pending.snapshot, draft); promptError == nil {
 			verifyCtx, cancelVerify := context.WithTimeout(ctx, constants.AITimeout)
 			verifier := s.analysisProvider
 			if mode == "action" {
@@ -156,9 +155,10 @@ func (s *Service) process(ctx context.Context, actor identity.Actor, mode string
 			cancelVerify()
 			completion.InputTokens += checked.InputTokens
 			completion.OutputTokens += checked.OutputTokens
-			callError = verifyError
-			if callError == nil {
-				draft, callError = verify(checked.Content, pending.snapshot, draft)
+			if verifyError == nil {
+				if checkedDraft, parseError := verify(checked.Content, pending.snapshot, draft); parseError == nil {
+					draft = checkedDraft
+				}
 			}
 		}
 	}
