@@ -7,12 +7,12 @@
 | 方法／路径 | 请求 JSON | 成功 data |
 | --- | --- | --- |
 | POST `/auth/code-send` | `{purpose, email}` | `{expiresIn, retryAfter}`，单位秒 |
-| POST `/auth/register` | `{email, code, password, name}` | 与登录相同的会话资料，同时设置 HttpOnly cookie |
-| POST `/auth/password-reset` | `{email, code, password}` | `null`，清除当前 cookie |
-| POST `/auth/password-change` | `{currentPassword, password, code}` | 空对象，清除当前 cookie |
-| POST `/auth/email-change` | `{currentPassword, email, code}` | 空对象，清除当前 cookie |
+| POST `/auth/register` | `{email, code, password, name}` | 与登录相同的会话资料和 token |
+| POST `/auth/password-reset` | `{email, code, password}` | `null`，撤销当前 token 的服务端会话 |
+| POST `/auth/password-change` | `{currentPassword, password, code}` | 空对象，撤销当前 token 的服务端会话 |
+| POST `/auth/email-change` | `{currentPassword, email, code}` | 空对象，撤销当前 token 的服务端会话 |
 
-`purpose` 为 `register`、`reset-password`、`change-password` 或 `change-email`。后两项发送和提交均需要会话；修改密码向当前绑定邮箱发送，修改邮箱向新邮箱发送。注册、找回密码和登录不要求先有会话。
+`purpose` 为 `register`、`reset-password`、`change-password` 或 `change-email`。后两项发送和提交均需要 token；修改密码向当前绑定邮箱发送，修改邮箱向新邮箱发送。注册、找回密码和登录不要求先有会话。
 
 资料更新的 `locationCode` 为可空的中国大陆区县行政区划代码。服务端只接受内置行政区划中的六位区县代码，返回的 `AccountView` 和公开资料会同时提供 `location` 的省、市、区县名称；`null` 表示未设置。
 
@@ -26,9 +26,9 @@
 
 ## 图片上传与未保存回收
 
-- POST `/media/upload`：会话，`multipart/form-data` 的 `file` 字段，单张 JPEG／PNG／WebP。校验实际文件内容而非仅扩展名，最大 8 MiB、两千万像素。
+- POST `/media/upload`：token，`multipart/form-data` 的 `file` 字段，单张 JPEG／PNG／WebP。校验实际文件内容而非仅扩展名，最大 8 MiB、两千万像素。
 - 返回 `{assetId, url, mimeType, byteSize, width, height, retainUntil}`。浏览器只向业务提交 `assetId`；对象键及存储凭据不公开。
-- POST `/media/retain`：会话，JSON `{assetIds: UUID[]}`，返回 `{assetIds, retainUntil}`。只续期本人已就绪图片；空数组不续期任何文件。
+- POST `/media/retain`：token，JSON `{assetIds: UUID[]}`，返回 `{assetIds, retainUntil}`。只续期本人已就绪图片；空数组不续期任何文件。
 - GET `/media/file?assetId=UUID`：未保存图片只允许上传者读取；存在公开业务引用后可匿名读取。成功返回图片二进制，失败仍返回标准 JSON 错误。
 
 上传先登记 pending，事务外上传对象，再标记 ready。新文件保留一天；草稿显式续期后保留七天，前端恢复草稿时续期，打开期间每十二小时再续期。资料图片在保存时上传；行动配图上传后将资产 UUID 保存到本机草稿，最多十二张。清除草稿或关闭页面不会立即删除远端对象。
@@ -37,7 +37,7 @@ API 启动时以及每小时扫描最多一百个过期候选，管理命令 `go
 
 ## 平台 AI 生成
 
-POST `/ai/generate`：会话和 UUID 格式的 `Idempotency-Key`。浏览器离开或断开只会中止等待，已受理的生成在服务端继续完成并落库；重新进入工作区时用同一幂等键恢复读取或轮询。当前不是持久任务队列，服务进程重启仍会丢失正在处理的 pending 任务，需要重新发起。
+POST `/ai/generate`：Bearer token 和 UUID 格式的 `Idempotency-Key`。浏览器离开或断开只会中止等待，已受理的生成在服务端继续完成并落库；重新进入工作区时用同一幂等键恢复读取或轮询。当前不是持久任务队列，服务进程重启仍会丢失正在处理的 pending 任务，需要重新发起。
 
 ```ts
 type GenerateInput = {
@@ -89,17 +89,17 @@ type GenerationView = {
 }
 ```
 
-POST `/ai/node-documents`：会话，JSON `{nodeId: UUID}`。只为作者尚未被接续的终端节点生成缺失的表达和约定草案，继承已发布文档时不调用模型；失败返回业务错误并把缺失文档标记为 `failed`，不伪造空文档。成功返回两条节点文档状态。
+POST `/ai/node-documents`：token，JSON `{nodeId: UUID}`。只为作者尚未被接续的终端节点生成缺失的表达和约定草案，继承已发布文档时不调用模型；失败返回业务错误并把缺失文档标记为 `failed`，不伪造空文档。成功返回两条节点文档状态。
 
 GET `/actions/node-documents?nodeId=UUID`：只向节点作者返回表达/约定状态和 AI 草案。
 
-POST `/actions/publish-document`：会话，JSON `{nodeId, expectedVersion, kind: 'expression' | 'agreement'}`。把当前 AI 草案发布为不可变文档版本；只有终端节点、作者版本匹配且草案非空时成功。表达和约定都发布后节点才可被接续。
+POST `/actions/publish-document`：token，JSON `{nodeId, expectedVersion, kind: 'expression' | 'agreement'}`。把当前 AI 草案发布为不可变文档版本；只有终端节点、作者版本匹配且草案非空时成功。表达和约定都发布后节点才可被接续。
 
 GET `/actions/document-history?nodeId=UUID`：返回节点自己发布过的表达/约定版本，不沿祖先继承。
 
-POST `/actions/delete`：会话，JSON `{nodeId, expectedVersion}`。只允许作者删除尚未被接续的终端节点；删除节点文档、引用和图片关系。
+POST `/actions/delete`：token，JSON `{nodeId, expectedVersion}`。只允许作者删除尚未被接续的终端节点；删除节点文档、引用和图片关系。
 
-POST `/ai/place-images`：会话，JSON `{generationId: UUID, images: {assetId, alt}[]}`。只对当前账号已成功且未确认的行动草稿做图片放置；服务端读取当前正文，AI 只返回图片位置和无效图片说明，正文文字必须保持不变。该请求不重新生成行动、不重新核验正文事实，返回更新后的 `GenerationView`。图片备注仍必填，最多 12 张、每张 30 字；`images` 为空数组时只清除正文已有图片引用，不调用图片放置模型。当前实现不要求幂等键，重复点击可能重复调用图片放置模型。
+POST `/ai/place-images`：token，JSON `{generationId: UUID, images: {assetId, alt}[]}`。只对当前账号已成功且未确认的行动草稿做图片放置；服务端读取当前正文，AI 只返回图片位置和无效图片说明，正文文字必须保持不变。该请求不重新生成行动、不重新核验正文事实，返回更新后的 `GenerationView`。图片备注仍必填，最多 12 张、每张 30 字；`images` 为空数组时只清除正文已有图片引用，不调用图片放置模型。当前实现不要求幂等键，重复点击可能重复调用图片放置模型。
 
 GET `/ai/generation?generationId=UUID` 只返回本人发起的任务。pending 时客户端轮询；响应丢失重试复用原请求键。明确失败后新一轮生成使用新键。单次生成模型调用最多六十秒；需要核对引用来源约定时，生成与核验分别最多六十秒，HTTP 用例一百秒，前端生成请求一百一十秒；进程中断遗留 pending 两分钟后释放对话占用。超时和取消不代表既有数据库写入被撤销。
 

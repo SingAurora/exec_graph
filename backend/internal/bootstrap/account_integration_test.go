@@ -72,11 +72,7 @@ func authRequest(t *testing.T, c writeClient, path string, input any, status int
 		t.Fatalf("%s HTTP %d，期望 %d: %s", path, res.StatusCode, status, output.Message)
 	}
 	if status == 200 {
-		for _, cookie := range res.Cookies() {
-			if cookie.Name == "exec_graph_session" {
-				c.token = cookie.Value
-			}
-		}
+		c.token = output.Data.Token
 		c.csrf = output.Data.CSRFToken
 	}
 	return c

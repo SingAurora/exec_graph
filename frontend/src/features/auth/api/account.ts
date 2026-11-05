@@ -6,14 +6,14 @@ export type CodePurpose = 'register' | 'reset-password' | 'change-password' | 'c
 /** 邮件服务只返回有效期与重发间隔。 */
 export type CodeView = { expiresIn: number; retryAfter: number }
 
-/** 密码登录，由服务端设置 HttpOnly 会话 cookie。 */
+/** 密码登录，服务端返回 Bearer token。 */
 export function login(email: string, password: string): Promise<SessionView> {
   return postAPI('/api/commands/auth/login', { email, password })
 }
 /** 显式测试入口，是否允许登录测试号最终由服务端配置决定。 */
 export function demoLogin(): Promise<SessionView> { return postAPI('/api/commands/auth/demo-login', {}) }
 /** 撤销服务端会话。 */
-export function logout(csrfToken: string): Promise<null> { return postAPI('/api/commands/auth/logout', {}, { csrfToken }) }
+export function logout(): Promise<null> { return postAPI('/api/commands/auth/logout', {}) }
 /** 请求真实邮件验证码。 */
 export function sendCode(purpose: CodePurpose, email: string, options: BusinessRequestOptions = {}): Promise<CodeView> {
   return postAPI('/api/commands/auth/code-send', { purpose, email }, { ...options, timeoutMs: 30_000 })

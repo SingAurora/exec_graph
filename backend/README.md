@@ -54,9 +54,9 @@ EXEC_GRAPH_ENABLE_DEMO_LOGIN=false \
 ./bin/exec-graph
 ```
 
-浏览器访问 `http://服务器IP:8081/`；服务器需放行 TCP 8081。前端 API 地址留空，页面和 API 使用同一个来源。`allowed_origins` 可以配置明确的来源，也可以配置 `*` 回显任意浏览器 Origin；登录和写入请求仍检查会话与权限；当前 demo 阶段已关闭 CSRF 校验。使用 `*` 会放开跨源浏览器访问，生产部署应自行评估网络边界。
+浏览器访问 `http://服务器IP:8081/`；服务器需放行 TCP 8081。前端 API 地址留空，页面和 API 使用同一个来源。`allowed_origins` 可以配置明确的来源，也可以配置 `*` 回显任意浏览器 Origin；登录和写入请求使用 Bearer token 与权限校验；当前 demo 阶段已关闭 CSRF 校验。使用 `*` 会放开跨源浏览器访问，生产部署应自行评估网络边界。
 
-上面的 IP HTTP 示例显式采用 `development` 环境，以允许 HTTP 会话 Cookie；直接 HTTPS 请求始终设置 Secure Cookie。`production` 环境无论请求协议均要求 Secure Cookie，适合只提供 HTTPS 登录的部署。演示登录仍关闭，构建后的前端也不启动 MSW；MySQL、Redis、邮件、图片和 AI 继续使用真实配置。
+上面的 IP HTTP 示例显式采用 `development` 环境；登录返回 Bearer token，不再依赖 Cookie；生产环境可以直接通过 HTTPS 携带 Bearer token。演示登录仍关闭，构建后的前端也不启动 MSW；MySQL、Redis、邮件、图片和 AI 继续使用真实配置。
 
 `app.frontend_dir` 与 `EXEC_GRAPH_FRONTEND_DIR` 都可以指定构建目录，环境变量优先；相对路径以 Go 进程的工作目录为准，后台托管进程时建议使用绝对路径。留空保持原有只提供 API 的开发方式；显式配置但缺少 `index.html` 时拒绝启动。仅发布构建目录，不列出目录内容，未知 API 和缺失资源返回 404，不回退成首页。
 
@@ -88,7 +88,7 @@ app:
     cache_dir: /var/lib/exec-graph/autocert
 ```
 
-保留 `development` 是为兼容 IP 的 HTTP 登录；域名 HTTPS 登录仍使用 Secure、HttpOnly、SameSite=Lax 的 Cookie。各域名和 IP 的登录状态相互独立。仅将域名加入 `allowed_origins` 不会申请证书，必须同时加入 `tls.domains`；不支持通配域名。首次 HTTPS 访问会触发申请，可能稍慢，后续从缓存读取并自动续期。开启此配置表示同意 Let's Encrypt 服务条款。
+`development` 保留为本地开发环境；登录通过 Bearer token 维持，不再使用 Cookie。各浏览器保存各自的 token。仅将域名加入 `allowed_origins` 不会申请证书，必须同时加入 `tls.domains`；不支持通配域名。首次 HTTPS 访问会触发申请，可能稍慢，后续从缓存读取并自动续期。开启此配置表示同意 Let's Encrypt 服务条款。
 
 云防火墙与主机防火墙均需放行 TCP 80/443，并保持域名解析到本机；80 用于 HTTP-01 验证，443 同时支持 TLS-ALPN-01 验证。证书缓存含私钥，不能提交到 Git、放入前端 dist 或随发布版本删除。systemd 的 `StateDirectory=exec-graph` 创建归服务账号所有的 `/var/lib/exec-graph`，更新脚本不改动此目录。
 
@@ -142,7 +142,7 @@ EXEC_GRAPH_DATABASE_SCHEMA=exec_graph EXEC_GRAPH_ADDR=127.0.0.1:8080 EXEC_GRAPH_
 | GET | `/system/health` | 检查真实 MySQL、Redis 就绪状态 |
 | POST | `/auth/login` | 邮箱密码登录，JSON 为 `email`、`password` |
 | POST | `/auth/demo-login` | 显式开发模式登录固定测试号，JSON 为 `{}` |
-| GET | `/auth/session` | 当前账户及 CSRF token |
+| GET | `/auth/session` | 当前账户（需 Authorization） |
 | POST | `/auth/logout` | JSON 为 `{}`，需要会话 |
 | POST | `/auth/code-send`、`/auth/register`、`/auth/password-reset` | 邮件验证码、注册及找回密码 |
 | POST | `/auth/password-change`、`/auth/email-change` | 当前密码与验证码双重校验，成功撤销旧会话 |
@@ -162,7 +162,7 @@ EXEC_GRAPH_DATABASE_SCHEMA=exec_graph EXEC_GRAPH_ADDR=127.0.0.1:8080 EXEC_GRAPH_
 | POST | `/profiles/update`、`/profiles/highlights-set` | 公开资料、最多五个表达精选及顺序 |
 | POST | `/following/set` | 显式设置用户／图关注状态 |
 
-使用 HttpOnly cookie 和 Redis 会话；客户端需携带 cookie。每次会话读取检查数据库停用状态及认证版本。密码采用 Argon2id，不提供明文或可逆密码读取。
+使用 Bearer token 和 Redis 会话；客户端需携带 `Authorization: Bearer <token>`。每次会话读取检查数据库停用状态及认证版本。密码采用 Argon2id，不提供明文或可逆密码读取。
 
 读取兼容导入数据的旧短 ID，但响应资源 ID 一律为 UUID；写入只接受 UUID。行动 DTO 使用 `graphId`，前端已显式映射为 UI 的 `projectId`；关注模型已使用 `graphIds`。未确认的 AI 对话不会公开。
 

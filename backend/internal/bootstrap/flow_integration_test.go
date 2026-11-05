@@ -7,7 +7,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"net/http/cookiejar"
 	"net/http/httptest"
 	"os"
 	"strings"
@@ -90,8 +89,8 @@ func TestRealDatabaseSeedAndHTTPFlow(t *testing.T) {
 	}
 	server := httptest.NewServer(HTTP(deps, slog.New(slog.NewTextHandler(io.Discard, nil))))
 	defer server.Close()
-	jar, _ := cookiejar.New(nil)
-	client := &http.Client{Jar: jar, Timeout: 10 * time.Second}
+	client := &http.Client{Timeout: 10 * time.Second}
+	token := ""
 	request := func(method, path, body, csrf string) *http.Response {
 		t.Helper()
 		req, err := http.NewRequest(method, server.URL+path, strings.NewReader(body))
@@ -100,6 +99,9 @@ func TestRealDatabaseSeedAndHTTPFlow(t *testing.T) {
 		}
 		if method == http.MethodPost {
 			req.Header.Set("Content-Type", "application/json")
+		}
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
 		}
 		if csrf != "" {
 			req.Header.Set("X-CSRF-Token", csrf)
@@ -119,13 +121,10 @@ func TestRealDatabaseSeedAndHTTPFlow(t *testing.T) {
 	response = request("POST", "/api/commands/auth/demo-login", `{}`, "")
 	expectStatus(t, response, 200)
 	demo := readWire[identity.SessionView](t, response)
-	if demo.Data.User.ID != mainID || !demo.Data.User.IsTestAccount || len(demo.Data.User.Highlights.ExpressionNodeIDs) != 5 || demo.Data.CSRFToken == "" {
+	if demo.Data.User.ID != mainID || !demo.Data.User.IsTestAccount || len(demo.Data.User.Highlights.ExpressionNodeIDs) != 5 || demo.Data.Token == "" {
 		t.Fatal("测试号会话返回不完整")
 	}
-	cookies := response.Cookies()
-	if len(cookies) != 1 || !cookies[0].HttpOnly || cookies[0].SameSite != http.SameSiteLaxMode || cookies[0].Path != "/api" {
-		t.Fatal("cookie 策略错误")
-	}
+	token = demo.Data.Token
 	response = request("GET", "/api/commands/profiles/catalogue", "", "")
 	expectStatus(t, response, 200)
 	public, err := io.ReadAll(response.Body)
@@ -195,12 +194,10 @@ func TestRealDatabaseSeedAndHTTPFlow(t *testing.T) {
 	if len(picture) < 100 || response.Header.Get("Content-Type") != "image/jpeg" {
 		t.Fatal("站内配图不可读取")
 	}
-	response = request("POST", "/api/commands/auth/logout", `{}`, "wrong")
-	expectStatus(t, response, 403)
-	response.Body.Close()
-	response = request("POST", "/api/commands/auth/logout", `{}`, demo.Data.CSRFToken)
+	response = request("POST", "/api/commands/auth/logout", `{}`, "")
 	expectStatus(t, response, 200)
 	response.Body.Close()
+	token = ""
 	response = request("GET", "/api/commands/auth/session", "", "")
 	expectStatus(t, response, 401)
 	response.Body.Close()
@@ -214,6 +211,7 @@ func TestRealDatabaseSeedAndHTTPFlow(t *testing.T) {
 	if login.Data.User.ID != mainID {
 		t.Fatal("密码登录身份不正确")
 	}
+	token = login.Data.Token
 	if err := db.Model(&model.UserCredential{}).Where("user_uuid = ?", mainID).Update("auth_version", 2).Error; err != nil {
 		t.Fatal(err)
 	}
@@ -221,7 +219,7 @@ func TestRealDatabaseSeedAndHTTPFlow(t *testing.T) {
 	expectStatus(t, response, 401)
 	response.Body.Close()
 	// 精确撤销本测试建立的剩余会话；不扫描或清空配置里的 Redis。
-	if err := redis.Delete(context.Background(), cookieValue(jar, server.URL)); err != nil {
+	if err := redis.Delete(context.Background(), token); err != nil {
 		t.Fatal(err)
 	}
 	disabled := *deps
@@ -261,13 +259,4 @@ func readWire[T any](t *testing.T, response *http.Response) wire[T] {
 		t.Fatalf("业务失败 %d: %s", value.Code, value.Message)
 	}
 	return value
-}
-func cookieValue(jar *cookiejar.Jar, rawURL string) string {
-	request, _ := http.NewRequest("GET", rawURL+"/api/commands/auth/session", nil)
-	for _, cookie := range jar.Cookies(request.URL) {
-		if cookie.Name == "exec_graph_session" {
-			return cookie.Value
-		}
-	}
-	return ""
 }

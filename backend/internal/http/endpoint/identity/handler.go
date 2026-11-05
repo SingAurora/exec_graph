@@ -10,13 +10,11 @@ import (
 // Handler 保存已注入的服务和 cookie 策略。
 type Handler struct {
 	service *app.Service
-	secure  bool
-	maxAge  int
 }
 
 // New 创建 HTTP 适配器。
-func New(service *app.Service, secure bool, maxAge int) *Handler {
-	return &Handler{service, secure, maxAge}
+func New(service *app.Service) *Handler {
+	return &Handler{service}
 }
 
 // Token 读取当前版本专用 cookie，不接管旧项目会话。
@@ -37,7 +35,7 @@ func (h *Handler) Login(c *gin.Context) {
 		common.Fail(c, err)
 		return
 	}
-	h.cookie(c, out.Token, h.maxAge)
+	out.View.Token = out.Token
 	common.Reply(c, out.View)
 }
 
@@ -53,7 +51,7 @@ func (h *Handler) DemoLogin(c *gin.Context) {
 		common.Fail(c, err)
 		return
 	}
-	h.cookie(c, out.Token, h.maxAge)
+	out.View.Token = out.Token
 	common.Reply(c, out.View)
 }
 
@@ -78,9 +76,5 @@ func (h *Handler) Logout(c *gin.Context) {
 		common.Fail(c, err)
 		return
 	}
-	h.cookie(c, "", -1)
 	common.Reply(c, nil)
-}
-func (h *Handler) cookie(c *gin.Context, value string, maxAge int) {
-	common.SetSessionCookie(c, value, maxAge, h.secure)
 }

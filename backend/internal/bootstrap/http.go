@@ -88,7 +88,7 @@ func HTTP(deps *Dependencies, logger *slog.Logger) http.Handler {
 		return deps.Sessions.Ping(ctx)
 	}
 	return router.New(
-		httpidentity.New(identityService, deps.Config.App.Environment == "production", int(deps.Config.App.SessionTTL().Seconds())),
+		httpidentity.New(identityService),
 		httpcatalogue.New(catalogueService, identityService, ready),
 		httpgraph.New(appgraph.New(graph.New(deps.DB)), identityService),
 		httpaction.New(appaction.New(actionStore), identityService, nodedoc.New(actionStore, analysisProvider)),
@@ -96,7 +96,7 @@ func HTTP(deps *Dependencies, logger *slog.Logger) http.Handler {
 		httpfollowing.New(appfollowing.New(following.New(deps.DB)), identityService),
 		httpmedia.New(appmedia.New(media.New(deps.DB), objects, mediaLimits(deps.Config)), identityService),
 		httpgeneration.New(appgeneration.New(generation.New(deps.DB), draftProvider, analysisProvider, generationLimits(deps.Config)), identityService),
-		httpaccount.New(appaccount.New(account.New(deps.DB, identityRepository), deps.Sessions, sender, security.Passwords{}, identityService, codeTTL), identityService, deps.Config.App.Environment == "production", int(deps.Config.App.SessionTTL().Seconds())),
+		httpaccount.New(appaccount.New(account.New(deps.DB, identityRepository), deps.Sessions, sender, security.Passwords{}, identityService, codeTTL), identityService),
 		deps.Config.App.AllowedOrigins, logger, deps.Frontend,
 	)
 }

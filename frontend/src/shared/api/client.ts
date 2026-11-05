@@ -1,4 +1,5 @@
 import { API_REQUEST_DEFAULTS } from './contracts'
+import { readAuthToken } from './auth-token'
 import { BusinessRequestError } from './errors'
 
 type APIErrorBody = {
@@ -24,17 +25,20 @@ export class APIRequestError extends Error {
 
 /** 下载图片等文件并保留 MIME 类型，返回 Blob 供浏览器预览或保存。 */
 export async function getBlob(url: string): Promise<Blob> {
-  const response = await fetch(url, { credentials: 'include' })
+  const token = readAuthToken()
+  const response = await fetch(url, { credentials: 'omit', headers: token ? { Authorization: `Bearer ${token}` } : undefined })
   if (!response.ok) throw new APIRequestError(`图片下载失败（${response.status}）`, response.status)
   return response.blob()
 }
 
 /** AI 代理使用的原始 JSON 请求，不强制套用业务接口的 code／msg／data 外壳。 */
 export async function postJSON<TResponse, TBody>(url: string, body: TBody, options: JSONRequestOptions = {}): Promise<TResponse> {
+  const token = readAuthToken()
   const response = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options.headers },
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },
     body: JSON.stringify(body),
+    credentials: 'omit',
     signal: options.signal,
   })
 
@@ -58,7 +62,7 @@ async function readJSON<T>(response: Response): Promise<T> {
 /** 业务接口的固定路径类型，与 AI 代理和文件下载地址分开。 */
 export type BusinessAPIPath = `/api/commands/${string}/${string}`
 
-/** 业务请求选项：支持 Query 取消、CSRF 校验、创建幂等键和单独指定超时。 */
+/** 业务请求选项：支持 Query 取消、幂等键和单独指定超时；认证 token 从浏览器存储自动附加。 */
 export type BusinessRequestOptions = {
   signal?: AbortSignal
   csrfToken?: string
@@ -100,12 +104,14 @@ async function requestBusiness<T>(path: BusinessAPIPath, query: URLSearchParams 
     const url = new URL(path, base)
     if (query) url.search = query.toString()
     const headers = new Headers({ Accept: 'application/json' })
+    const token = readAuthToken()
+    if (token) headers.set('Authorization', `Bearer ${token}`)
     if (body !== undefined) {
       if (!(body instanceof FormData)) headers.set('Content-Type', 'application/json')
       if (options.csrfToken) headers.set('X-CSRF-Token', options.csrfToken)
       if (options.idempotencyKey) headers.set('Idempotency-Key', options.idempotencyKey)
     }
-    const response = await fetch(url, { method: body === undefined ? 'GET' : 'POST', credentials: 'include', headers, signal, ...(body === undefined ? {} : { body: body instanceof FormData ? body : JSON.stringify(body) }) })
+    const response = await fetch(url, { method: body === undefined ? 'GET' : 'POST', credentials: 'omit', headers, signal, ...(body === undefined ? {} : { body: body instanceof FormData ? body : JSON.stringify(body) }) })
     const requestId = response.headers.get('X-Request-Id') ?? undefined
     let payload: unknown
     try { payload = await response.json() } catch {

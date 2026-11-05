@@ -15,13 +15,11 @@ import (
 type Handler struct {
 	service *app.Service
 	auth    *identity.Service
-	secure  bool
-	maxAge  int
 }
 
 // New 由组合根注入依赖。
-func New(service *app.Service, auth *identity.Service, secure bool, maxAge int) *Handler {
-	return &Handler{service, auth, secure, maxAge}
+func New(service *app.Service, auth *identity.Service) *Handler {
+	return &Handler{service, auth}
 }
 
 // Code 绑定发送用途；修改密码或邮箱时必须同时通过会话与 CSRF。
@@ -62,7 +60,7 @@ func (h *Handler) Register(c *gin.Context) {
 		common.Fail(c, err)
 		return
 	}
-	common.SetSessionCookie(c, out.Token, h.maxAge, h.secure)
+	out.View.Token = out.Token
 	common.Reply(c, out.View)
 }
 
@@ -77,7 +75,6 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 		common.Fail(c, err)
 		return
 	}
-	common.SetSessionCookie(c, "", -1, h.secure)
 	common.Reply(c, nil)
 }
 
@@ -85,9 +82,6 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 func (h *Handler) ChangePassword(c *gin.Context) {
 	common.Mutation(c, h.auth, func(ctx context.Context, actor identity.Actor, input app.ChangePasswordInput) (struct{}, error) {
 		out, err := h.service.ChangePassword(ctx, actor, input)
-		if err == nil {
-			common.SetSessionCookie(c, "", -1, h.secure)
-		}
 		return out, err
 	})
 }
@@ -96,9 +90,6 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 func (h *Handler) ChangeEmail(c *gin.Context) {
 	common.Mutation(c, h.auth, func(ctx context.Context, actor identity.Actor, input app.ChangeEmailInput) (struct{}, error) {
 		out, err := h.service.ChangeEmail(ctx, actor, input)
-		if err == nil {
-			common.SetSessionCookie(c, "", -1, h.secure)
-		}
 		return out, err
 	})
 }

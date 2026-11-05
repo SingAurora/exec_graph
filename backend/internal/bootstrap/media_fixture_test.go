@@ -91,7 +91,7 @@ func (c writeClient) sendUpload(body []byte) (commandResponse, error) {
 	}
 	req.Header.Set("Content-Type", w.FormDataContentType())
 	req.Header.Set("X-CSRF-Token", c.csrf)
-	req.AddCookie(&http.Cookie{Name: "exec_graph_session", Value: c.token})
+	req.Header.Set("Authorization", "Bearer "+c.token)
 	res, err := c.http.Do(req)
 	if err != nil {
 		return commandResponse{}, err
@@ -111,7 +111,7 @@ func (c writeClient) image(t *testing.T, url string, status int, expected []byte
 		t.Fatal(err)
 	}
 	if c.token != "" {
-		req.AddCookie(&http.Cookie{Name: "exec_graph_session", Value: c.token})
+		req.Header.Set("Authorization", "Bearer "+c.token)
 	}
 	res, err := c.http.Do(req)
 	if err != nil {

@@ -23,7 +23,7 @@ describe('business transport', () => {
     expect(requested.body).toBe(body)
     expect(requested.headers.has('Content-Type')).toBe(false)
     expect(requested.headers.get('X-CSRF-Token')).toBe('csrf')
-    expect(requested.credentials).toBe('include')
+    expect(requested.credentials).toBe('omit')
   })
 
   test('treats only an unauthenticated session as anonymous, retaining service failures', async () => {
@@ -42,7 +42,7 @@ describe('business transport', () => {
     expect(requested.url.searchParams.get('keyword')).toBe('番茄 & 蛋')
     expect(requested.url.searchParams.getAll('authorId')).toEqual(['a', 'b'])
     expect(requested.url.searchParams.has('absent')).toBe(false)
-    expect(requested.options.credentials).toBe('include')
+    expect(requested.options.credentials).toBe('omit')
   })
 
   test('sends explicit clearing JSON and write headers without rewriting Markdown', async () => {

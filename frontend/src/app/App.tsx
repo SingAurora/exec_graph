@@ -6,6 +6,7 @@ import { useAppearance } from './model/useAppearance'
 import { isAppView, isAuthView, useHashRoute } from '../shared/lib/navigation'
 import { profileKeys, type SessionView } from '../entities/profile/api/profiles'
 import { logout } from '../features/auth/api/account'
+import { clearAuthToken, readAuthToken, writeAuthToken } from '../shared/api/auth-token'
 import { useToast } from '../shared/ui/toast/useToast'
 import { ListSkeleton } from '../shared/ui/ListSkeleton'
 import { useImageAssets } from '../features/media-upload/model/useImageAssets'
@@ -59,20 +60,26 @@ export function App() {
   const loadingAuth = isAuthView(rawView)
   const { showToast } = useToast()
   const enter = async (session: SessionView) => {
+    if (session.token) writeAuthToken(session.token)
+    const view = { user: session.user, csrfToken: session.csrfToken }
     await client.cancelQueries()
     client.removeQueries({ predicate: (query) => query.queryKey[0] !== 'session' })
-    client.setQueryData(profileKeys.session, session)
+    client.setQueryData(profileKeys.session, view)
     if (isAuthView(window.location.hash.slice(1).split('?')[0])) window.location.hash = 'my'
   }
   const exit = async () => {
-    if (!resources.csrfToken) return
+    if (!readAuthToken()) return
     try {
-      await logout(resources.csrfToken)
+      await logout()
+    } catch (error) {
+      showToast({ kind: 'error', message: error instanceof Error ? error.message : '退出失败，请重试' })
+    } finally {
+      clearAuthToken()
       await client.cancelQueries()
       client.removeQueries({ predicate: (query) => query.queryKey[0] !== 'session' })
       client.setQueryData(profileKeys.session, null)
       window.location.hash = 'login'
-    } catch (error) { showToast({ kind: 'error', message: error instanceof Error ? error.message : '退出失败，请重试' }) }
+    }
   }
   if (resources.anonymous) return (
     <AuthScreen key={authView} view={authView} darkMode={darkMode} onToggleTheme={toggleTheme} onEnter={enter} />

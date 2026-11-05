@@ -130,7 +130,7 @@ func (c writeClient) send(method, path string, input any, key string) (commandRe
 	if key != "" {
 		req.Header.Set("Idempotency-Key", key)
 	}
-	req.AddCookie(&http.Cookie{Name: "exec_graph_session", Value: c.token})
+	req.Header.Set("Authorization", "Bearer "+c.token)
 	res, err := c.http.Do(req)
 	if err != nil {
 		return commandResponse{}, err

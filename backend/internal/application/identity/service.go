@@ -40,7 +40,8 @@ type SessionRecord struct {
 // SessionView 与前端会话协议一致。
 type SessionView struct {
 	User        AccountView `json:"user"`
-	CSRFToken   string      `json:"csrfToken"`
+	CSRFToken   string      `json:"csrfToken,omitempty"`
+	Token       string      `json:"token,omitempty"`
 	AuthVersion uint32      `json:"-"`
 }
 
@@ -50,7 +51,7 @@ type Actor struct {
 	AuthVersion uint32
 }
 
-// LoginResult 的 Token 仅供 HTTP 设置 HttpOnly cookie，不进入 JSON。
+// LoginResult 的 Token 由 HTTP 响应返回给客户端，通过 Authorization: Bearer 使用。
 type LoginResult struct {
 	View  SessionView
 	Token string

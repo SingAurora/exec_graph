@@ -5,11 +5,18 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/singaurora/exec-graph/backend/internal/application/identity"
 	"github.com/singaurora/exec-graph/backend/internal/shared/constants"
+	"strings"
 	"time"
 )
 
-// SessionToken 统一读取 HttpOnly 会话，不从业务 JSON 接受用户身份。
-func SessionToken(c *gin.Context) string { value, _ := c.Cookie("exec_graph_session"); return value }
+// SessionToken 从 Authorization: Bearer 读取会话，不从业务 JSON 接受用户身份。
+func SessionToken(c *gin.Context) string {
+	header := strings.TrimSpace(c.GetHeader("Authorization"))
+	if !strings.HasPrefix(header, "Bearer ") {
+		return ""
+	}
+	return strings.TrimSpace(strings.TrimPrefix(header, "Bearer "))
+}
 
 // Command 统一进行身份、CSRF、JSON 适配，再调用创建用例。
 func Command[I, O any](c *gin.Context, auth *identity.Service, run func(context.Context, identity.Actor, string, I) (O, error)) {
