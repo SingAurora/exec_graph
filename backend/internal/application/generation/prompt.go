@@ -203,7 +203,7 @@ func parse(content, mode string, hasParent bool, sources []action.GenerationSour
 		}
 	}
 	if mode == "action" && (strings.TrimSpace(raw.Title) == "" || strings.TrimSpace(raw.Objective) == "") {
-		return Draft{}, fault.New(fault.Invalid, "请补充这次实际做了什么、过程、结果或明确感受")
+		return Draft{}, fault.New(fault.Invalid, "请补充这次实际做了什么、过程、结果或明确感受；如果是复盘，可以按“我先……然后……”来说")
 	}
 	if mode == "action" && utf8.RuneCountInString(raw.Title) > constants.ActionTitleLimit {
 		return Draft{}, fault.New(fault.Invalid, "行动标题超过"+strconv.Itoa(constants.ActionTitleLimit)+"字，请精简后重试")

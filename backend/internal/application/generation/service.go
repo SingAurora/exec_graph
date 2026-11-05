@@ -144,6 +144,7 @@ func (s *Service) process(ctx context.Context, actor identity.Actor, mode string
 	}
 	// 独立核验是建议性质量检查：成功时采用更准确的来源核对结果；失败时保留草稿，
 	// 由用户在行动工作区主动核验/修改，不能因为第二道模型判断让整轮整理失败。
+	verificationNeedsGuidance := false
 	if callError == nil {
 		if checks, promptError := verificationPrompt(pending.snapshot, draft); promptError == nil {
 			verifyCtx, cancelVerify := context.WithTimeout(ctx, constants.AITimeout)
@@ -155,12 +156,17 @@ func (s *Service) process(ctx context.Context, actor identity.Actor, mode string
 			cancelVerify()
 			completion.InputTokens += checked.InputTokens
 			completion.OutputTokens += checked.OutputTokens
-			if verifyError == nil {
-				if checkedDraft, parseError := verify(checked.Content, pending.snapshot, draft); parseError == nil {
-					draft = checkedDraft
-				}
+			if verifyError != nil {
+				verificationNeedsGuidance = true
+			} else if checkedDraft, parseError := verify(checked.Content, pending.snapshot, draft); parseError != nil {
+				verificationNeedsGuidance = true
+			} else {
+				draft = checkedDraft
 			}
 		}
+	}
+	if callError == nil && verificationNeedsGuidance {
+		draft.Reply = verificationGuidance(mode)
 	}
 	if callError == nil && mode == "action" {
 		callError = applyImages(&draft, pending.Images)
@@ -210,6 +216,17 @@ func (s *Service) process(ctx context.Context, actor identity.Actor, mode string
 		return View{}, errors.Join(fault.New(fault.Unavailable, "AI 整理失败，请稍后重新发送"), err)
 	}
 	return out, err
+}
+
+func verificationGuidance(mode string) string {
+	switch mode {
+	case "expression":
+		return "表达草稿先保留了，但自动核验没有完全通过。请把事实写成有行动依据的陈述，把兴趣、态度和判断写成“我觉得/我认为”；修改后点“核验”再发布。"
+	case "agreement":
+		return "约定草稿先保留了，但自动核验没有完全通过。请把约定写成具体、可判断的条件，避免只写愿望；修改后点“核验”再发布。"
+	default:
+		return "草稿先保留了，但自动核验没有完全通过：这通常是因为计划、预测或评价被写成了已发生事实。请按“我做了什么／我看到什么／我判断什么／结果如何”改写，例如把“要堵住”改成“我把……用于堵住”，把“应该被耗死”改成“我判断……”。修改后点“核验”再发布。"
+	}
 }
 
 func prepare(tx Transaction, actor identity.Actor, key string, input GenerateInput, digest []byte, model string, now time.Time) (Pending, []Message, error) {

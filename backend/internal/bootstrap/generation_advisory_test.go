@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"strings"
 	"testing"
 
 	app "github.com/singaurora/exec-graph/backend/internal/application/generation"
@@ -17,5 +18,8 @@ func TestVerificationFailureKeepsDraftForUserReview(t *testing.T) {
 	}
 	if len(provider.requests) != 2 {
 		t.Fatalf("仍然应该执行一次建议性核验: %d", len(provider.requests))
+	}
+	if !strings.Contains(accepted.Draft.Reply, "计划、预测或评价") {
+		t.Fatalf("核验失败后应给出改写引导: %q", accepted.Draft.Reply)
 	}
 }
