@@ -2,7 +2,7 @@ app:
   host: 127.0.0.1
   port: 8080
   session_ttl_hours: 168
-  # 本地开发放开所有浏览器来源；生产环境禁止 *，必须改为明确的 HTTPS Origin。
+  # * 表示回显任意浏览器 Origin；鉴权仍由会话、CSRF 和权限校验负责。
   allowed_origins:
     - "*"
   environment: development

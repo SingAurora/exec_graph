@@ -54,7 +54,7 @@ EXEC_GRAPH_ENABLE_DEMO_LOGIN=false \
 ./bin/exec-graph
 ```
 
-浏览器访问 `http://服务器IP:8081/`；服务器需放行 TCP 8081。前端 API 地址留空，页面和 API 使用同一个来源。`allowed_origins` 必须与浏览器访问的协议、IP 和端口完全一致，登录和写入请求也检查此配置。
+浏览器访问 `http://服务器IP:8081/`；服务器需放行 TCP 8081。前端 API 地址留空，页面和 API 使用同一个来源。`allowed_origins` 可以配置明确的来源，也可以配置 `*` 回显任意浏览器 Origin；登录和写入请求仍检查会话、CSRF 与权限。使用 `*` 会放开跨源浏览器访问，生产部署应自行评估网络边界。
 
 上面的 IP HTTP 示例显式采用 `development` 环境，以允许 HTTP 会话 Cookie；直接 HTTPS 请求始终设置 Secure Cookie。`production` 环境无论请求协议均要求 Secure Cookie，适合只提供 HTTPS 登录的部署。演示登录仍关闭，构建后的前端也不启动 MSW；MySQL、Redis、邮件、图片和 AI 继续使用真实配置。
 

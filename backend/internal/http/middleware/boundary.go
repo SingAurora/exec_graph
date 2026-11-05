@@ -45,7 +45,7 @@ func Boundary(logger *slog.Logger) gin.HandlerFunc {
 	}
 }
 
-// CORS 只接受明确列出的 Origin，携带 cookie 时不使用通配来源。
+// CORS 按配置允许来源；配置为 * 时回显任意 Origin，鉴权仍由会话、CSRF 和权限校验负责。
 func CORS(origins []string) gin.HandlerFunc {
 	allowed := map[string]bool{}
 	allowAll := false
