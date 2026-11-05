@@ -122,7 +122,7 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
         ? `核验成功。${agreementStats.unknown} 条来源约定尚未提及，详情可在约定栏查看。`
         : '核验成功，当前草稿可以发布。'
     update({ verificationStatus: next })
-    local.update((current) => ({ ...current, verificationStatus: next, messages: appendWorkspaceNotice(current.messages, detail) }))
+    local.update((current) => ({ ...current, verificationStatus: next, messages: appendWorkspaceNotice(current.messages, detail, generation?.model) }))
   }
   const agreementIndicator = agreementSources.length > 0
     ? <button className="text-button gap-1 text-[11px] leading-4" type="button" onClick={() => update({ view: { ...local.value.view, tab: 'agreement' } })} title="查看约定核对详情">约定 {agreementStats.passed}/{agreementSources.length} 满足{agreementStats.failed > 0 ? ` · ${agreementStats.failed} 不满足` : agreementStats.unknown > 0 ? ` · ${agreementStats.unknown} 未知` : ''}</button>

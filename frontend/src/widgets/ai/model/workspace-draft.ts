@@ -57,8 +57,8 @@ export function createWorkspaceView(): WorkspaceView {
  * 追加一条业务性 AI 提示并永久保留：例如“请补充这次实际做了什么”。
  * 这类提示属于对话的一部分，不能被下一次请求当成临时错误清掉。
  */
-export function appendWorkspaceNotice(messages: ChatMessage[], body: string): ChatMessage[] {
-  return [...messages, { id: `notice-${crypto.randomUUID()}`, speaker: 'ai', body }]
+export function appendWorkspaceNotice(messages: ChatMessage[], body: string, model?: string): ChatMessage[] {
+  return [...messages, { id: `notice-${crypto.randomUUID()}`, speaker: 'ai', body, ...(model ? { model } : {}) }]
 }
 
 /** 在最新对话后追加临时失败提示；只用于网络、超时等不代表 AI 发言的错误。 */

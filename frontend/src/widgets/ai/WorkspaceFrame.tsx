@@ -118,13 +118,14 @@ export function WorkspaceFrame({ title, tabs = ['conversation', 'objective', 'ex
     if (view && onViewChange && view.positions[value] !== top) onViewChange({ ...view, positions: { ...view.positions, [value]: top } })
   }
   const statusDot = status?.tone === 'coral' ? 'bg-coral' : status?.tone === 'warning' ? 'bg-warning' : status?.tone === 'signal' ? 'bg-signal' : 'bg-muted'
+  const copiedModel = fallbackAIName?.trim() || [...messages].reverse().find((message) => message.speaker === 'ai' && message.model?.trim())?.model?.trim()
   const copyText = formatConversationForCopy(messages.filter((message) => message.id !== 'welcome'), {
     resolveUserName: (message) => {
       const authorId = message.authorId ?? defaultAuthorId ?? profile?.id
       const author = users.find((user) => user.id === authorId) ?? (authorId === profile?.id ? profile : undefined)
       return author?.name ?? authorId ?? profileName
     },
-    fallbackAIName: fallbackAIName ?? '引序 AI',
+    fallbackAIName: copiedModel || '引序 AI',
   })
 
   return (
@@ -132,7 +133,7 @@ export function WorkspaceFrame({ title, tabs = ['conversation', 'objective', 'ex
       <header className="relative flex min-h-9 shrink-0 items-center gap-3">
         <div className="absolute -left-[38px] top-0 z-10"><button className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border-0 bg-transparent p-0 text-muted transition-colors hover:bg-soft hover:text-signal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal" type="button" title="返回行动图" onClick={onBack}><ArrowLeft size={18} strokeWidth={1.8} /></button></div>
         <h2 className="text-lg font-semibold tracking-[-.02em]">{title}</h2>
-        <div className="ml-auto flex min-w-0 items-center justify-end gap-2">{help}</div>
+        <div className="ml-auto flex min-w-0 items-center justify-end gap-2">{draftControls}{help}</div>
       </header>
       <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-line bg-surface">
         <TabsRoot value={tab} onValueChange={changeTab} className="flex min-h-0 flex-1 flex-col">
@@ -216,7 +217,6 @@ export function WorkspaceFrame({ title, tabs = ['conversation', 'objective', 'ex
         <div className="mt-4 grid gap-4 text-sm">
           <div><p className="text-xs text-muted">{context?.label ?? '当前行动'}</p><p className="mt-1 font-medium leading-6">{context?.title ?? '尚未发布节点'}</p></div>
           <div><p className="mb-2 text-xs font-medium text-muted">历史节点</p>{context?.facts.length ? context.facts.map((fact) => <p className="py-1 text-xs leading-5" key={fact.number}><span className="mr-2 tabular-nums text-muted">#{fact.number}</span>{fact.title}</p>) : <p className="text-xs text-muted">暂无历史节点</p>}</div>
-          {draftControls && <div className="border-t border-line pt-3">{draftControls}</div>}
           <div className="mt-2 flex justify-end gap-3">
             <button className="quiet-button" type="button" onClick={() => { setNodeInfoOpen(false); onBack() }}>返回行动图</button>
             <button className="primary-button" type="button" onClick={() => setNodeInfoOpen(false)}>关闭</button>
