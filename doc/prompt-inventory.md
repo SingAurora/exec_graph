@@ -26,12 +26,12 @@
 
 ## 3. 生成系统提示词
 
-生成提示词按模式拆分，由 `generationRulesFor(mode)` 选择，每次只携带当前模式需要的规则。提示词版本为 `action-evidence-v12`。
+生成提示词按模式拆分，由 `generationRulesFor(mode)` 选择，每次只携带当前模式需要的规则。提示词版本为 `action-evidence-v13`。
 
 | 常量 | 作用 | 约字符数 |
 | --- | --- | ---: |
 | `generationCommonRules` | 数据边界、来源边界、事实/主观边界、reply 约束、对话意图与目标效果 | 564 |
-| `actionRules` | 行动目标效果、标题/正文、来源 reviews、图片、示例 | 999 |
+| `actionRules` | 行动目标效果、行动主线、标题/正文、来源 reviews、图片、示例 | 1030 |
 | `expressionRules` | 表达目标效果、兴趣/态度、行动依据、initial 规则 | 727 |
 | `agreementRules` | 约定目标效果、向后约定、initial 规则 | 417 |
 
@@ -44,7 +44,7 @@
 | 常量 | 作用 | 约字符数 |
 | --- | --- | ---: |
 | `verificationCommonRules` | 固定 JSON 结构、依据/目标双层、evidence 原文、未使用字段约定 | 785 |
-| `actionVerificationRules` | 行动依据核验 + 目标适配 + 来源约定逐项核验 | 1238 |
+| `actionVerificationRules` | 行动主线依据核验 + 目标适配 + 来源约定逐项核验 | 1341 |
 | `expressionVerificationRules` | 表达依据核验 + 吸引关注的目标适配 | 683 |
 | `agreementVerificationRules` | 约定依据边界 + 清晰可判断的目标适配 | 253 |
 

@@ -11,6 +11,9 @@ func TestGenerationRulesSelectOnlyCurrentMode(t *testing.T) {
 	if !strings.Contains(action, "invalidImages") || !strings.Contains(action, "title 不超过 30") {
 		t.Fatal("行动规则缺少行动字段或图片约束")
 	}
+	if !strings.Contains(action, "大部分篇幅") || !strings.Contains(action, "少量无法判断") {
+		t.Fatal("行动规则缺少行动主线与边角内容容错")
+	}
 	expression := generationRulesFor("expression")
 	if strings.Contains(expression, "invalidImages") || !strings.Contains(expression, "只修改当前表达") {
 		t.Fatal("表达规则混入了行动专属内容或缺少表达任务")
