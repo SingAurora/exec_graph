@@ -166,7 +166,11 @@ func (s *Service) process(ctx context.Context, actor identity.Actor, mode string
 		}
 	}
 	if callError == nil && verificationNeedsGuidance {
-		draft.Reply = verificationGuidance(mode)
+		if rewriteRequested(pending.InputMessages) {
+			draft.Reply = "我按完成语气重新整理了一版，已放在行动栏。自动核验仍有内容无法对应，请核对改写后的行动、结果和判断，再点“核验”。"
+		} else {
+			draft.Reply = verificationGuidance(mode)
+		}
 	}
 	if callError == nil && mode == "action" {
 		callError = applyImages(&draft, pending.Images)

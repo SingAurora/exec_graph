@@ -167,9 +167,11 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
       return
     }
     const draft = result.draft
+    const rewriteRequested = /帮我改写|帮我改|改写一下|重新写|重写|表达有问题|这确实是我做过|按完成语气/.test(fallbackInput)
     local.update((current) => ({ ...current, generation: result, document: draft.objective, details: { title: draft.title, description: '', points: [], note: '' }, expression: { mode: hasParent ? 'inherit' : 'clear', markdown: '' }, agreementMode: 'inherit', agreementDraft: inheritedAgreement,
       agreementReviews: draft.reviews.map((review) => ({ nodeNumber: actions?.find((node) => node.id === review.sourceId)?.number ?? 0, complies: review.complies, reason: review.exceptionReason ?? '' })), messages: [...current.messages, { id: 'ai-' + result.generationId, speaker: 'ai', body: draft.reply, model: result.model }],
-      generated: true, verificationStatus: 'unverified', sourcesChanged: false, imagePlacementPending: images.length > 0, contextSignature: signatureFor(mergedParentIds) }))
+      generated: true, verificationStatus: 'unverified', sourcesChanged: false, imagePlacementPending: images.length > 0, contextSignature: signatureFor(mergedParentIds),
+      ...(rewriteRequested ? { view: { ...current.view, tab: 'objective' as const } } : {}) }))
   }
   const applyGenerationRef = useRef(applyGeneration)
   applyGenerationRef.current = applyGeneration

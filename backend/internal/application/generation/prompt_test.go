@@ -181,3 +181,18 @@ func TestSnapshotUsesAuthorDraftAsCurrentDocument(t *testing.T) {
 		t.Fatalf("草案没有作为当前表达: %q", snapshot.CurrentExpression)
 	}
 }
+
+func TestRewriteRequestsAreRecognized(t *testing.T) {
+	for _, message := range []string{
+		"这确实是我做过的事情，可能表达有问题，你帮我改写一下",
+		"帮我改得清楚一点",
+		"按完成语气重新写一版",
+	} {
+		if !rewriteRequested([]string{message}) {
+			t.Fatalf("改写请求未识别: %s", message)
+		}
+	}
+	if rewriteRequested([]string{"昨天实际骑行十二公里。"}) {
+		t.Fatal("普通行动报告被误判为改写请求")
+	}
+}
