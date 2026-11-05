@@ -217,11 +217,19 @@ func Load(path string) (Config, error) {
 	if !port(c.App.Port) || c.App.SessionTTLHours < 1 || c.App.SessionTTLHours > 720 || len(c.App.AllowedOrigins) == 0 {
 		return Config{}, fmt.Errorf("app 配置不完整或不合法")
 	}
+	allowAll := false
 	for _, origin := range c.App.AllowedOrigins {
+		if origin == "*" {
+			allowAll = true
+			continue
+		}
 		parsed, err := url.Parse(origin)
 		if err != nil || parsed.Host == "" || parsed.User != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.Path != "" {
-			return Config{}, fmt.Errorf("app.allowed_origins 必须是明确的 HTTP Origin")
+			return Config{}, fmt.Errorf("app.allowed_origins 必须是明确的 HTTP Origin 或 *")
 		}
+	}
+	if allowAll && c.App.Environment == "production" {
+		return Config{}, fmt.Errorf("生产环境禁止使用通配来源，请配置明确的 HTTPS Origin")
 	}
 	if c.App.Environment != "development" && c.App.Environment != "production" && c.App.Environment != "test" {
 		return Config{}, fmt.Errorf("app.environment 不合法")

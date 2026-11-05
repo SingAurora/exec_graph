@@ -48,14 +48,18 @@ func Boundary(logger *slog.Logger) gin.HandlerFunc {
 // CORS 只接受明确列出的 Origin，携带 cookie 时不使用通配来源。
 func CORS(origins []string) gin.HandlerFunc {
 	allowed := map[string]bool{}
+	allowAll := false
 	for _, origin := range origins {
 		allowed[origin] = true
+		if origin == "*" {
+			allowAll = true
+		}
 	}
 	return func(c *gin.Context) {
 		origin := c.GetHeader("Origin")
 		if origin != "" {
 			c.Header("Vary", "Origin")
-			if !allowed[origin] {
+			if !allowAll && !allowed[origin] {
 				common.Fail(c, fault.New(fault.Forbidden, "请求来源不受信任"))
 				return
 			}

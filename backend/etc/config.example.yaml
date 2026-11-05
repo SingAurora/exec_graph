@@ -2,8 +2,9 @@ app:
   host: 127.0.0.1
   port: 8080
   session_ttl_hours: 168
+  # 本地开发放开所有浏览器来源；生产环境禁止 *，必须改为明确的 HTTPS Origin。
   allowed_origins:
-    - http://localhost:5173
+    - "*"
   environment: development
   enable_demo_login: false
   # 留空只提供 API；部署时设为前端 dist 的路径，相对路径以进程工作目录为准。
