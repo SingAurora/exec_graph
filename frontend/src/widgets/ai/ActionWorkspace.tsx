@@ -111,7 +111,7 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
     : verificationStatus === 'failed'
       ? { text: '核验失败', tone: 'coral' as const }
       : { text: '未核验', tone: 'muted' as const }
-  // 生成阶段的核验是建议性的；这里由用户主动确认，并把三态状态写入草稿。
+  // 生成阶段不自动核验；这里由用户主动确认，并把三态状态写入草稿。
   const verifyDraft = () => {
     if (!generated || !generation?.draft || sending || publishing || !contextValid || sourcesChanged) return
     const failed = agreementStats.failed > 0
