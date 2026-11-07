@@ -228,6 +228,9 @@ func prepare(tx Transaction, actor identity.Actor, key string, input GenerateInp
 		if err != nil {
 			return batch, nil, err
 		}
+		if node.AuthorID != actor.UserID {
+			return batch, nil, fault.New(fault.Forbidden, "只能修改自己的表达或约定")
+		}
 		if input.Mode == "agreement" {
 			current := action.DocumentUpdate{Mode: "clear"}
 			if strings.TrimSpace(node.Agreement.Markdown) != "" {

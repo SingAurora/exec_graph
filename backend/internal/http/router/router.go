@@ -70,8 +70,6 @@ func New(auth *identity.Handler, read *catalogue.Handler, graphs *graph.Handler,
 	group.POST("/ai/verify", ai.Verify)
 	// 为已发布的节点生成独立的表达/约定草案。
 	group.POST("/ai/node-documents", actions.NodeDocuments)
-	// 读取节点自己的已发布文档版本。
-	group.GET("/actions/document-history", actions.History)
 	// 删除作者尚未被接续的终端节点。
 	group.POST("/actions/delete", actions.Delete)
 	// 读取作者自己的节点表达/约定草案。

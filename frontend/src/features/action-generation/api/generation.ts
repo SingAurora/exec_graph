@@ -34,14 +34,6 @@ export function generateNodeDocuments(nodeId: string, csrfToken: string): Promis
   return postAPI('/api/commands/ai/node-documents', { nodeId }, { csrfToken, timeoutMs: 110_000 })
 }
 
-/** 节点已发布的表达/约定版本历史。 */
-export type NodeDocumentVersion = { kind: 'expression' | 'agreement'; revision: number; mode: string; markdown: string; actorId: string; changeKind: string; generationId?: string; createdAt: string }
-
-/** 读取节点自己的文档历史；只包含已发布版本。 */
-export function getNodeDocumentHistory(nodeId: string): Promise<NodeDocumentVersion[]> {
-  return getAPI('/api/commands/actions/document-history', { nodeId })
-}
-
 /** 读取作者自己的节点文档草案和状态。 */
 export function getNodeDocuments(nodeId: string): Promise<NodeDocument[]> {
   return getAPI('/api/commands/actions/node-documents', { nodeId })

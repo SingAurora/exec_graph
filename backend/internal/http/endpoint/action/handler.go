@@ -43,26 +43,6 @@ func (h *Handler) NodeDocuments(c *gin.Context) {
 // Create 确认一份服务端行动生成结果。
 func (h *Handler) Create(c *gin.Context) { common.Command(c, h.auth, h.service.Create) }
 
-// History 返回节点自己发布的表达/约定版本。
-func (h *Handler) History(c *gin.Context) {
-	nodeID, err := common.Query(c, "nodeId")
-	if err != nil {
-		common.Fail(c, err)
-		return
-	}
-	session, err := h.auth.Session(c.Request.Context(), common.SessionToken(c))
-	if err != nil {
-		common.Fail(c, err)
-		return
-	}
-	out, err := h.service.DocumentHistory(c.Request.Context(), identity.Actor{UserID: session.User.ID, AuthVersion: session.AuthVersion}, nodeID)
-	if err != nil {
-		common.Fail(c, err)
-		return
-	}
-	common.Reply(c, out)
-}
-
 // Delete 删除尚未被接续的终端节点。
 func (h *Handler) Delete(c *gin.Context) {
 	common.Command(c, h.auth, func(ctx context.Context, actor identity.Actor, _ string, input app.DeleteNodeInput) (struct{}, error) {

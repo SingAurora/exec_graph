@@ -1,4 +1,4 @@
-import { ArrowRight, ChevronDown, Ellipsis, History, LoaderCircle, MessageCircle, Route, Trash2 } from 'lucide-react'
+import { ArrowRight, ChevronDown, Ellipsis, LoaderCircle, MessageCircle, Route, Trash2 } from 'lucide-react'
 import { AlertDialog, DropdownMenu, Popover } from 'radix-ui'
 import { useMemo, useState } from 'react'
 import type { ActionDocumentMode, ActionNode } from '../../../entities/action/model/types'
@@ -12,7 +12,6 @@ import { MarkdownContent } from '../../../shared/ui/MarkdownContent'
 import { HelpPopover } from '../../../shared/ui/help/HelpPopover'
 import { DetailPanelControls } from '../../../shared/ui/DetailPanelControls'
 import { ActionSourceAgreements } from './ActionAgreements'
-import { NodeDocumentHistory } from '../../../features/action-generation/ui/NodeDocumentHistory'
 import type { NodeDocument } from '../../../features/action-generation/api/generation'
 
 /** 头部只显示承接和合入的直接来源；完整祖先背景留在形成过程展示。 */
@@ -89,7 +88,6 @@ export function ActionDetail({ node, actions, users, author, isHighlightTip, onH
   const levels = useMemo(() => getActionLevels(actions), [actions])
   const level = levels.get(node.id)
   const authorName = author?.name ?? node.authorId
-  const [historyOpen, setHistoryOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const nodeReady = node.nodeReady !== false
   const documentFor = (kind: 'expression' | 'agreement') => documents.find((document) => document.kind === kind)
@@ -121,7 +119,6 @@ export function ActionDetail({ node, actions, users, author, isHighlightTip, onH
     <DropdownMenu.Trigger asChild><button className="icon-button ml-auto" type="button" title="更多操作"><Ellipsis size={17} /></button></DropdownMenu.Trigger>
     <DropdownMenu.Portal><DropdownMenu.Content align="end" sideOffset={6} className="z-50 min-w-44 rounded-md border border-line bg-surface p-1 shadow-app">
       <DropdownMenu.Item className={menuItemClass} onSelect={onOpenArchive}><MessageCircle size={15} />查看形成过程</DropdownMenu.Item>
-      {(node.expressionMarkdown || node.agreementMarkdown) && <DropdownMenu.Item className={menuItemClass} onSelect={() => setHistoryOpen(true)}><History size={15} />版本历史</DropdownMenu.Item>}
       {showDelete && canDelete && onDelete && <><DropdownMenu.Separator className="my-1 h-px bg-line" /><DropdownMenu.Item className="flex w-full cursor-default select-none items-center gap-2 rounded px-2.5 py-2 text-left text-sm text-coral outline-none data-[highlighted]:bg-soft" onSelect={() => setDeleteOpen(true)}><Trash2 size={15} />删除节点</DropdownMenu.Item></>}
     </DropdownMenu.Content></DropdownMenu.Portal>
   </DropdownMenu.Root>
@@ -189,13 +186,12 @@ export function ActionDetail({ node, actions, users, author, isHighlightTip, onH
           </div>
         })}</div>
       </section>}
-      <NodeDocumentHistory nodeId={node.id} open={historyOpen} onOpenChange={setHistoryOpen} />
       <AlertDialog.Root open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialog.Portal>
           <AlertDialog.Overlay className="fixed inset-0 z-50 bg-black/35 backdrop-blur-[2px]" />
           <AlertDialog.Content className="fixed left-1/2 top-1/2 z-50 w-[420px] max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-line bg-surface p-6 text-ink shadow-app outline-none">
             <AlertDialog.Title className="text-base font-semibold">删除这个行动节点？</AlertDialog.Title>
-            <AlertDialog.Description className="mt-3 break-words text-sm leading-[1.8] text-muted">将删除「{node.title}」及其表达、约定和版本历史。该节点必须尚未被接续；删除后无法恢复。</AlertDialog.Description>
+            <AlertDialog.Description className="mt-3 break-words text-sm leading-[1.8] text-muted">将删除「{node.title}」及其表达和约定。该节点必须尚未被接续；删除后无法恢复。</AlertDialog.Description>
             <div className="mt-6 flex justify-end gap-2"><AlertDialog.Cancel asChild><button className="quiet-button" type="button">取消</button></AlertDialog.Cancel><AlertDialog.Action asChild><button className="primary-button !bg-coral !text-white" type="button" onClick={onDelete}>确认删除</button></AlertDialog.Action></div>
           </AlertDialog.Content>
         </AlertDialog.Portal>

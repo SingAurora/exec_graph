@@ -116,7 +116,7 @@ func editable(tx Transaction, uuid string, expected uint32) (Graph, Node, error)
 	return graph, node, err
 }
 
-// UpdateAgreement 任何已认证用户均可整理尚未被引用的终点，实际操作者留在新版本中。
+// UpdateAgreement 只有作者可以整理尚未被引用的终点。
 func (s *Service) UpdateAgreement(ctx context.Context, actor identity.Actor, input UpdateAgreementInput) (catalogue.ActionView, error) {
 	var out catalogue.ActionView
 	if !id.Valid(input.NodeID) || input.ExpectedVersion == 0 || (input.GenerationID != "" && !id.Valid(input.GenerationID)) {
@@ -131,6 +131,9 @@ func (s *Service) UpdateAgreement(ctx context.Context, actor identity.Actor, inp
 		graph, node, err := editable(tx, input.NodeID, input.ExpectedVersion)
 		if err != nil {
 			return err
+		}
+		if node.AuthorID != actor.UserID {
+			return fault.New(fault.Forbidden, "只能修改自己的行动文档")
 		}
 		document, generationID := input.Document, ""
 		if input.GenerationID != "" {
@@ -192,6 +195,9 @@ func (s *Service) UpdateExpression(ctx context.Context, actor identity.Actor, in
 		if err != nil {
 			return err
 		}
+		if node.AuthorID != actor.UserID {
+			return fault.New(fault.Forbidden, "只能修改自己的表达")
+		}
 		generation, err := tx.Generation(input.GenerationID)
 		if err != nil {
 			return err
@@ -251,6 +257,9 @@ func (s *Service) PublishNodeDocument(ctx context.Context, actor identity.Actor,
 		graph, node, err := editable(tx, input.NodeID, input.ExpectedVersion)
 		if err != nil {
 			return err
+		}
+		if node.AuthorID != actor.UserID {
+			return fault.New(fault.Forbidden, "只能发布自己的文档")
 		}
 		documents, err := tx.NodeDocuments(node.ID)
 		if err != nil {
