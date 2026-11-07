@@ -94,9 +94,8 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
   })
   const contextValid = !actions || !hasParent || Boolean(continuation)
   // 发布要求本轮生成完整、用户已核验且背景未变；来源约定明确不满足时核验失败，未知仍可发布并保留详情。
-  const canPublish = local.ready && Boolean(document.trim()) && generated && verificationStatus === 'passed' && Boolean(generation?.createAction) && !input.trim() && !sending && !publishing && !uploading && contextValid
-    && JSON.stringify(generationRequest?.input.agreement) === JSON.stringify(agreementIntent)
-    && local.value.contextSignature === signatureFor(mergedParentIds) && !imagePlacementPending
+  // 发布资格以服务端确认参数和显式核验为准；来源版本仍由发布接口做最终校验。
+  const canPublish = local.ready && Boolean(document.trim()) && generated && verificationStatus === 'passed' && Boolean(generation?.createAction) && !input.trim() && !sending && !publishing && !uploading && contextValid && !imagePlacementPending
   const agreementSources = directSources.filter((source) => source.authorId !== undefined && source.authorId !== profile?.id && source.markdown.trim())
   const agreementStats = agreementSources.reduce((stats, source) => {
     const review = agreementReviews.find((item) => item.nodeNumber === source.nodeNumber)
@@ -195,7 +194,9 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
         const reviews = verification.sourceReviews.map((review) => ({ nodeNumber: actions?.find((node) => node.id === review.sourceId)?.number ?? 0, complies: review.complies, reason: review.exceptionReason ?? '' }))
         const feedback = verification.status === 'failed' ? verification.message : undefined
         update({ verificationStatus: verification.status, agreementReviews: reviews, verificationFeedback: feedback })
-        local.update((current) => ({ ...current, verificationStatus: verification.status, agreementReviews: reviews, verificationFeedback: feedback, messages: appendWorkspaceNotice(current.messages, verification.message, generation?.model) }))
+        local.update((current) => ({ ...current, verificationStatus: verification.status, agreementReviews: reviews, verificationFeedback: feedback,
+          ...(verification.status === 'passed' ? { view: { ...current.view, tab: 'objective' as const } } : {}),
+          messages: appendWorkspaceNotice(current.messages, verification.message, generation?.model) }))
       } else {
         applyGeneration(result.generation, clean)
       }
