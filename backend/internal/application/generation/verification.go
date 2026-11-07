@@ -170,22 +170,10 @@ func validDocumentCheck(check documentCheck, snapshot contextSnapshot, required,
 
 func validActionField(check documentCheck, snapshot contextSnapshot) bool {
 	if snapshot.Mode == "action" {
-		return validActionDocument(check, snapshot)
+		// 行动正文由用户确认；核验器只负责来源约定，不再判断计划、完成状态或新增结果。
+		return true
 	}
 	return validDocumentCheck(check, snapshot, false, false)
-}
-
-func validActionDocument(check documentCheck, snapshot contextSnapshot) bool {
-	if check.Valid == nil || !*check.Valid {
-		return false
-	}
-	// 行动记录以报告回顾为准，evidence 只作辅助；模型省略逐句引用时不能因此拒绝整篇。
-	for _, item := range check.Evidence {
-		if !validEvidence(item, snapshot, false, false) {
-			return false
-		}
-	}
-	return true
 }
 
 func validExpressionDocument(check documentCheck, snapshot contextSnapshot, update bool) bool {

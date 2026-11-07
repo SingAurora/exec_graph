@@ -80,15 +80,7 @@ func TestVerificationRejectsMissingOrInventedEvidence(t *testing.T) {
 		name   string
 		change func(*contextSnapshot, *Draft, *verification)
 	}{
-		{"unreported action detail", func(_ *contextSnapshot, _ *Draft, v *verification) { v.Action.Valid = boolPointer(false) }},
 		{"expression unsupported", func(_ *contextSnapshot, _ *Draft, v *verification) { v.Expression.Valid = boolPointer(false) }},
-		{"missing verdict", func(_ *contextSnapshot, _ *Draft, v *verification) { v.Action.Valid = nil }},
-		{"AI draft is not evidence", func(_ *contextSnapshot, _ *Draft, v *verification) { v.Action.Evidence[0].Kind = "draft" }},
-		{"old action is not current action", func(_ *contextSnapshot, _ *Draft, v *verification) {
-			v.Action.Evidence[0] = evidence{"action", "mine", "上周骑了6公里。"}
-		}},
-		{"invented report", func(_ *contextSnapshot, _ *Draft, v *verification) { v.Action.Evidence[0].ID = "other-report" }},
-		{"invented quote", func(_ *contextSnapshot, _ *Draft, v *verification) { v.Action.Evidence[0].Quote = "坚持了十年" }},
 		{"omitted clause", func(_ *contextSnapshot, _ *Draft, v *verification) {
 			v.Reviews[0].Conditions = v.Reviews[0].Conditions[:1]
 		}},
@@ -128,31 +120,6 @@ func TestVerificationRejectsMissingOrInventedEvidence(t *testing.T) {
 				t.Fatalf("无效核验被接受: %v", err)
 			}
 		})
-	}
-}
-
-func TestActionVerificationKeepsReportedThoughtWithoutTurningPredictionIntoOutcome(t *testing.T) {
-	snapshot, draft, result := verificationFixture()
-	thought := "这关比较简单，我觉得按这条路线比较容易拿到三星。"
-	snapshot.Reports[0].Text += thought
-	draft.Objective += "\n\n## 我的想法\n\n" + thought
-	result.Action.Evidence = append(result.Action.Evidence, evidence{Kind: "report", ID: snapshot.Reports[0].ID, Quote: thought})
-	body, err := json.Marshal(result)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := verify(string(body), snapshot, draft); err != nil {
-		t.Fatalf("有具体行动依据的个人复盘不应使整篇行动记录失败: %v", err)
-	}
-
-	draft.Objective = strings.Replace(draft.Objective, "比较容易拿到三星", "拿到了三星", 1)
-	result.Action.Evidence[len(result.Action.Evidence)-1].Quote = "拿到了三星"
-	body, err = json.Marshal(result)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := verify(string(body), snapshot, draft); !errors.Is(err, errUnverified) {
-		t.Fatal("用户未报告的三星结果不能作为已发生事实")
 	}
 }
 

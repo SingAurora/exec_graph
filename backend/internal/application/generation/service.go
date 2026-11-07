@@ -396,7 +396,7 @@ func verificationFailureMessage(mode string) string {
 	case "agreement":
 		return "约定没有通过核验。请把约定写得具体、可判断，并与当前行动相关。"
 	default:
-		return "行动没有通过核验。请检查是否新增了报告未包含的关键动作或结果，以及来源约定是否满足；报告中的战术语气默认按回顾处理。"
+		return "行动没有通过核验。请检查来源约定是否满足；行动正文由你确认。"
 	}
 }
 
