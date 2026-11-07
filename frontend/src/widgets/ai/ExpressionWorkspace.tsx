@@ -34,7 +34,7 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
   onConfirm: (input: NonNullable<GenerationView['updateExpression']>) => boolean | Promise<boolean>
   onPublishDraft?: () => Promise<boolean>
 }) {
-  const generate = useGeneration(csrfToken)
+  const { generate } = useGeneration(csrfToken)
   const [initialDraft, setInitialDraft] = useState('')
   useEffect(() => {
     if (node.authorId !== profileId) return

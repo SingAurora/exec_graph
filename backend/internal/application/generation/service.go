@@ -395,3 +395,51 @@ func verificationFailureMessage(mode string) string {
 		return "行动没有通过核验。请检查行动主线、关键动作依据和目标效果后重试。"
 	}
 }
+
+// Chat 在已有草稿时让模型决定继续整理还是核验；没有草稿时直接生成。
+func (s *Service) Chat(ctx context.Context, actor identity.Actor, key string, input ChatInput) (ChatView, error) {
+	if input.GenerationID == "" || !id.Valid(input.GenerationID) || len(input.Messages) == 0 {
+		view, err := s.Generate(ctx, actor, key, input.GenerateInput)
+		if err != nil {
+			return ChatView{}, err
+		}
+		return ChatView{Kind: "generation", Generation: &view}, nil
+	}
+	if s.shouldVerify(ctx, input.Messages[len(input.Messages)-1]) {
+		verified, err := s.Verify(ctx, actor, VerifyInput{GenerationID: input.GenerationID})
+		if err != nil {
+			return ChatView{}, err
+		}
+		return ChatView{Kind: "verification", Verification: &verified}, nil
+	}
+	view, err := s.Generate(ctx, actor, key, input.GenerateInput)
+	if err != nil {
+		return ChatView{}, err
+	}
+	return ChatView{Kind: "generation", Generation: &view}, nil
+}
+
+const chatIntentRules = `你是引序平台的对话路由器。当前存在一份尚未发布的行动草稿。
+判断用户最新消息是不是要求“核验当前草稿”：例如检查、核验、核对来源、判断能不能发布、看看有没有问题。
+如果是在要求核验，只返回 {"tool":"verify_draft"}。
+否则返回 {"tool":"generate_draft"}。
+只返回这个 JSON，不要解释，不要生成行动内容。`
+
+func (s *Service) shouldVerify(ctx context.Context, message string) bool {
+	if s.draftProvider == nil || s.draftProvider.Model() == "" || strings.TrimSpace(message) == "" {
+		return false
+	}
+	intentCtx, cancel := context.WithTimeout(ctx, constants.AITimeout)
+	defer cancel()
+	completion, err := s.draftProvider.Complete(intentCtx, []Message{{Role: "system", Content: chatIntentRules}, {Role: "user", Content: message}})
+	if err != nil {
+		return false
+	}
+	var result struct {
+		Tool string `json:"tool"`
+	}
+	if json.Unmarshal([]byte(strings.TrimSpace(completion.Content)), &result) != nil {
+		return false
+	}
+	return result.Tool == "verify_draft"
+}

@@ -34,7 +34,7 @@ export function AgreementWorkspace({ node, csrfToken, draftKey, actions, profile
   onConfirm: (input: NonNullable<GenerationView['updateAgreement']>) => boolean | Promise<boolean>
   onPublishDraft?: () => Promise<boolean>
 }) {
-  const generate = useGeneration(csrfToken)
+  const { generate } = useGeneration(csrfToken)
   const [initialDraft, setInitialDraft] = useState('')
   useEffect(() => {
     if (node.authorId !== profileId) return

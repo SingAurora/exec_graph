@@ -79,7 +79,12 @@ export type VerifyResult = {
   sourceReviews: SourceAssessment[]
 }
 
-/** 用户主动核验当前草稿；一次请求对应一条核验结果。 */
-export function verifyGeneration(generationId: string): Promise<VerifyResult> {
-  return postAPI('/api/commands/ai/verify', { generationId }, { timeoutMs: 110_000 })
+/** 对话结果：模型决定继续生成，或核验当前草稿。 */
+export type ChatResult =
+  | { kind: 'generation'; generation: GenerationView }
+  | { kind: 'verification'; verification: VerifyResult }
+
+/** 让服务端模型判断本轮是继续整理还是核验，避免前端关键词猜测。 */
+export function chatDraft(request: GenerationRequest, generationId: string | undefined, csrfToken: string, signal: AbortSignal): Promise<ChatResult> {
+  return postAPI('/api/commands/ai/chat', { ...request.input, generationId }, { csrfToken, idempotencyKey: request.key, timeoutMs: 110_000, signal })
 }

@@ -179,3 +179,16 @@ type Provider interface {
 type VerifyInput struct {
 	GenerationID string `json:"generationId"`
 }
+
+// ChatInput 在同一轮对话中携带当前草稿，供服务端判断是继续生成还是核验。
+type ChatInput struct {
+	GenerateInput
+	GenerationID string `json:"generationId,omitempty"`
+}
+
+// ChatView 是对话路由结果：要么生成草稿，要么核验当前草稿。
+type ChatView struct {
+	Kind         string      `json:"kind"`
+	Generation   *View       `json:"generation,omitempty"`
+	Verification *VerifyView `json:"verification,omitempty"`
+}

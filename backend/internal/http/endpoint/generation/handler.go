@@ -52,6 +52,13 @@ func (h *Handler) Get(c *gin.Context) {
 	common.Reply(c, out)
 }
 
+// Chat 让模型决定继续整理还是核验当前草稿，并把结果作为一条对话响应返回。
+func (h *Handler) Chat(c *gin.Context) {
+	common.CommandWithTimeout(c, h.auth, constants.AIRequestTimeout, func(ctx context.Context, actor identity.Actor, key string, input app.ChatInput) (app.ChatView, error) {
+		return h.service.Chat(ctx, actor, key, input)
+	})
+}
+
 // Verify 对已生成草稿执行一次显式核验，不自动生成新草稿。
 func (h *Handler) Verify(c *gin.Context) {
 	common.CommandWithTimeout(c, h.auth, constants.AIRequestTimeout, func(ctx context.Context, actor identity.Actor, _ string, input app.VerifyInput) (app.VerifyView, error) {

@@ -5,7 +5,7 @@ import { getActionContinuationContext } from '../../entities/action/lib/continua
 import { useGeneration } from '../../features/action-generation/model/useGeneration'
 import { resourceId } from '../../shared/lib/resource-id'
 import { DraftImages } from '../../features/media-upload/ui/DraftImages'
-import { placeGenerationImages, verifyGeneration, type GenerateInput, type GenerationRequest, type GenerationView } from '../../features/action-generation/api/generation'
+import { placeGenerationImages, type GenerateInput, type GenerationRequest, type GenerationView } from '../../features/action-generation/api/generation'
 import { documentUpdate, type CreateActionInput } from '../../features/action/api/commands'
 import { MergeActionSources } from '../../features/action-merge/ui/MergeActionSources'
 import type { ChatMessage, PostImage } from '../../shared/model/content'
@@ -42,7 +42,7 @@ type ActionWorkspaceProps = {
 
 /** 行动发布工作区：同一条 AI 对话整理行动事实与表达，另行设置后续约定并核对来源。 */
 export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draftKey, hasParent, contextTitle, contextGuide, inheritedExpression = '', inheritedExpressionImages = [], inheritedAgreement = '', sourceNodeId, sourceNodeNumber, actions, historyFacts = [], initialDocument = '', initialMessages, onBack, onConfirm }: ActionWorkspaceProps) {
-  const generate = useGeneration(csrfToken)
+  const { generate, chat } = useGeneration(csrfToken)
   const welcome: ChatMessage = { id: 'welcome', speaker: 'ai', body: '先说说这次实际做了什么。' }
   // 背景签名用于判断草稿是否仍对应当前引用事实；来源变化后必须再对话核实，不能直接发布旧结果。
   const signatureFor = (mergedIds: string[]) => {
@@ -74,7 +74,6 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
   signatureForRef.current = signatureFor
   updateRef.current = update
   const [sending, setSending] = useState(false)
-  const [verifying, setVerifying] = useState(false)
   const [publishing, setPublishing] = useState(false)
   const [placing, setPlacing] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -112,23 +111,7 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
     : verificationStatus === 'failed'
       ? { text: '核验失败', tone: 'coral' as const }
       : { text: '未核验', tone: 'muted' as const }
-  // 生成阶段不自动核验；用户主动点击后才向服务端发起一次核验请求。
-  const verifyDraft = async () => {
-    if (!generated || !generation?.draft || sending || verifying || publishing || !contextValid || sourcesChanged) return
-    setVerifying(true)
-    setPublishError('')
-    try {
-      const result = await verifyGeneration(generation.generationId)
-      const next = result.status === 'passed' ? 'passed' as const : 'failed' as const
-      const reviews = result.sourceReviews.map((review) => ({ nodeNumber: actions?.find((node) => node.id === review.sourceId)?.number ?? 0, complies: review.complies, reason: review.exceptionReason ?? '' }))
-      update({ verificationStatus: next, agreementReviews: reviews })
-      local.update((current) => ({ ...current, verificationStatus: next, agreementReviews: reviews, messages: appendWorkspaceNotice(current.messages, result.message, generation?.model) }))
-    } catch (error) {
-      setPublishError(error instanceof Error ? error.message : '核验失败，请重试')
-    } finally {
-      setVerifying(false)
-    }
-  }
+
   const agreementIndicator = agreementSources.length > 0
     ? <button className="text-button gap-1 text-[11px] leading-4" type="button" onClick={() => update({ view: { ...local.value.view, tab: 'agreement' } })} title="查看约定核对详情">约定 {agreementStats.passed}/{agreementSources.length} 满足{agreementStats.failed > 0 ? ` · ${agreementStats.failed} 不满足` : agreementStats.unknown > 0 ? ` · ${agreementStats.unknown} 未知` : ''}</button>
     : null
@@ -202,7 +185,7 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
   const send = async (event: FormEvent) => {
     event.preventDefault()
     const clean = input.trim()
-    if (!local.ready || !clean || sending || verifying || publishing || uploading || !contextValid) return
+    if (!local.ready || !clean || sending || publishing || uploading || !contextValid) return
     const next = [...messages.filter((message) => !message.id.startsWith('error-')), { id: 'user-' + Date.now(), speaker: 'user' as const, body: clean }]
     const requestInput: GenerateInput = { mode: 'action', graphId, messages: [clean], conversationId: generation?.conversationId,
       parentId: sourceNodeId, mergedParentIds, sourceVersions: directSources.map(({ sourceId }) => ({ nodeId: sourceId, version: actions?.find((node) => node.id === sourceId)?.version ?? 0 })), agreement: agreementIntent }
@@ -211,7 +194,15 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
     update({ messages: next, input: '', generated: false, verificationStatus: 'unverified', agreementReviews: [], generationRequest: request })
     setSending(true); setPublishError('')
     try {
-      applyGeneration(await generate(request), clean)
+      const result = await chat(request, generation?.generationId)
+      if (result.kind === 'verification') {
+        const verification = result.verification
+        const reviews = verification.sourceReviews.map((review) => ({ nodeNumber: actions?.find((node) => node.id === review.sourceId)?.number ?? 0, complies: review.complies, reason: review.exceptionReason ?? '' }))
+        update({ verificationStatus: verification.status, agreementReviews: reviews })
+        local.update((current) => ({ ...current, verificationStatus: verification.status, agreementReviews: reviews, messages: appendWorkspaceNotice(current.messages, verification.message, generation?.model) }))
+      } else {
+        applyGeneration(result.generation, clean)
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : '请求失败，请稍后重试。'
       const business = error instanceof BusinessRequestError && error.kind === 'business'
@@ -250,7 +241,7 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
       context={hasParent ? { label: sourceNodeNumber !== undefined ? `承接 #${sourceNodeNumber}` : '承接', title: contextTitle, facts: knownFacts } : undefined}
       tabActions={<div className="flex items-center gap-2">{agreementIndicator}{hasParent && actions && sourceNodeId ? <MergeActionSources actions={actions} parentId={sourceNodeId} selectedIds={mergedParentIds} reviews={agreementReviews} disabled={sending || publishing || !local.ready} onChange={changeMergedSources} compact /> : null}</div>}
       messages={messages} profileName={profileName} profile={profile} input={input} placeholder="说说这次实际做了什么"
-      sending={sending} sendingLabel={directSources.length ? '正在整理行动并核对来源约定' : '正在整理行动'} fallbackAIName={generation?.model} disabled={verifying || publishing || uploading || !local.ready || !contextValid} onInputChange={(input) => update({ input })} onSend={send} onBack={onBack}
+      sending={sending} sendingLabel={directSources.length ? '正在整理行动并核对来源约定' : '正在整理行动'} fallbackAIName={generation?.model} disabled={publishing || uploading || !local.ready || !contextValid} onInputChange={(input) => update({ input })} onSend={send} onBack={onBack}
       composerMode={composerMode} onComposerModeChange={setComposerMode} imageModeBadge={images.length} status={workspaceStatus}
       imageComposer={<div className="grid gap-3">
         <div className="max-h-[min(38vh,320px)] overflow-y-auto overscroll-contain pr-1">
@@ -283,7 +274,7 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
       </div>}
       footer={viewingAction ? <div className="ml-auto flex items-center gap-3">{publishError && <p className="max-w-[320px] text-[11px] leading-4 text-coral">{publishError} <button className="text-button ml-1 text-[11px]" type="button" onClick={() => window.location.reload()}>刷新页面</button></p>}{verificationStatus === 'passed'
         ? <button className="primary-button" type="button" onClick={publish} disabled={!canPublish}>{publishing ? '发布中…' : <><Check size={15} />发布行动</>}</button>
-        : <button className="primary-button" type="button" onClick={() => void verifyDraft()} disabled={!generated || !generation?.draft || sending || verifying || publishing || !contextValid || sourcesChanged}>{verifying ? '核验中…' : verificationStatus === 'failed' ? '重新核验' : '核验'}</button>}</div> : undefined} />
+        : <span className="text-[11px] leading-4 text-muted">在对话中说出“核验一下”或“看看能不能发布”，AI 会核验当前草稿。</span>}</div> : undefined} />
   )
 }
 

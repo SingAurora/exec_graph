@@ -32,3 +32,19 @@ func TestExplicitVerifyUsesStoredDraftWithoutRegenerating(t *testing.T) {
 		t.Fatalf("显式核验未使用已存草稿: result=%+v calls=%d", verified, len(provider.requests))
 	}
 }
+
+func TestChatRoutesVerificationWithoutFrontendKeyword(t *testing.T) {
+	provider := &recordedProvider{}
+	s := writeFixtureDependencies(t, nil, provider)
+	jo := s.as(t, id.Demo("user", "jo"))
+	accepted := decode[app.View](t, jo.call(t, "POST", "ai/generate", generationInput(jo.graph(t).ID), 200, id.New()))
+	input := app.ChatInput{GenerateInput: generationInput(jo.graph(t).ID), GenerationID: accepted.GenerationID}
+	input.Messages = []string{"看看这版能不能发布"}
+	result := decode[app.ChatView](t, jo.call(t, "POST", "ai/chat", input, 200, id.New()))
+	if result.Kind != "verification" || result.Verification == nil || result.Verification.Status != "passed" {
+		t.Fatalf("对话没有路由到核验: %+v", result)
+	}
+	if len(provider.requests) != 3 {
+		t.Fatalf("期望生成、意图路由、核验各一次，实际 %d", len(provider.requests))
+	}
+}

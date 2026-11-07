@@ -27,6 +27,9 @@ func (p *recordedProvider) Complete(ctx context.Context, messages []app.Message)
 	if p.fail {
 		return app.Completion{}, fmt.Errorf("测试上游失败")
 	}
+	if len(messages) == 2 && strings.HasPrefix(messages[0].Content, "你是引序平台的对话路由器") {
+		return app.Completion{Content: `{"tool":"verify_draft"}`, InputTokens: 10, OutputTokens: 5}, nil
+	}
 	if len(messages) == 2 && strings.HasPrefix(messages[1].Content, `{"context":`) {
 		if p.failVerification {
 			return app.Completion{}, fmt.Errorf("测试核验上游失败")
