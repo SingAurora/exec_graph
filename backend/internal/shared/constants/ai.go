@@ -4,7 +4,7 @@ import "time"
 
 const (
 	// AIPromptVersion 是允许确认发布的当前生成与核验规则版本。
-	AIPromptVersion = "action-evidence-v16"
+	AIPromptVersion = "action-evidence-v17"
 	// AIInputLimit 限制单轮用户输入总字符数和简短回复字符数。
 	AIInputLimit = 10000
 	// AIUserMessageLimit 限制单条用户消息字符数。

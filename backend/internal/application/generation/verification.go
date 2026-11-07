@@ -106,7 +106,7 @@ func verify(content string, snapshot contextSnapshot, draft Draft) (Draft, error
 		}
 		return draft, nil
 	}
-	if !validDocumentCheck(result.Action, snapshot, snapshot.Mode == "action", false) || !validExpressionDocument(result.Expression, snapshot, draft.Expression.Mode == "update") || result.Reviews == nil || len(result.Reviews) != len(snapshot.Sources) || len(draft.Reviews) != len(snapshot.Sources) {
+	if !validActionField(result.Action, snapshot) || !validExpressionDocument(result.Expression, snapshot, draft.Expression.Mode == "update") || result.Reviews == nil || len(result.Reviews) != len(snapshot.Sources) || len(draft.Reviews) != len(snapshot.Sources) {
 		return Draft{}, verificationFailureFor(result)
 	}
 	byID := map[string]agreementCheck{}
@@ -162,6 +162,26 @@ func validDocumentCheck(check documentCheck, snapshot contextSnapshot, required,
 	}
 	for _, item := range check.Evidence {
 		if !validEvidence(item, snapshot, expression, false) {
+			return false
+		}
+	}
+	return true
+}
+
+func validActionField(check documentCheck, snapshot contextSnapshot) bool {
+	if snapshot.Mode == "action" {
+		return validActionDocument(check, snapshot)
+	}
+	return validDocumentCheck(check, snapshot, false, false)
+}
+
+func validActionDocument(check documentCheck, snapshot contextSnapshot) bool {
+	if check.Valid == nil || !*check.Valid {
+		return false
+	}
+	// 行动记录以报告回顾为准，evidence 只作辅助；模型省略逐句引用时不能因此拒绝整篇。
+	for _, item := range check.Evidence {
+		if !validEvidence(item, snapshot, false, false) {
 			return false
 		}
 	}

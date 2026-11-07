@@ -26,7 +26,7 @@
 
 ## 3. 生成系统提示词
 
-生成提示词按模式拆分，由 `generationRulesFor(mode)` 选择，每次只携带当前模式需要的规则。提示词版本为 `action-evidence-v16`。
+生成提示词按模式拆分，由 `generationRulesFor(mode)` 选择，每次只携带当前模式需要的规则。提示词版本为 `action-evidence-v17`。
 
 | 常量 | 作用 | 约字符数 |
 | --- | --- | ---: |
@@ -44,7 +44,7 @@
 | 常量 | 作用 | 约字符数 |
 | --- | --- | ---: |
 | `verificationCommonRules` | 固定 JSON 结构、依据/目标双层、失败原因、evidence 原文、未使用字段约定 | 833 |
-| `actionVerificationRules` | 行动回顾依据核验 + 目标适配 + 来源约定逐项核验 | 1275 |
+| `actionVerificationRules` | 行动回顾依据核验 + 目标适配 + 来源约定逐项核验 | 1108 |
 | `expressionVerificationRules` | 表达依据核验 + 吸引关注的目标适配 | 662 |
 | `agreementVerificationRules` | 约定依据边界 + 清晰可判断的目标适配 | 253 |
 

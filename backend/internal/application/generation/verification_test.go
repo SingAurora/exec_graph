@@ -83,7 +83,6 @@ func TestVerificationRejectsMissingOrInventedEvidence(t *testing.T) {
 		{"unreported action detail", func(_ *contextSnapshot, _ *Draft, v *verification) { v.Action.Valid = boolPointer(false) }},
 		{"expression unsupported", func(_ *contextSnapshot, _ *Draft, v *verification) { v.Expression.Valid = boolPointer(false) }},
 		{"missing verdict", func(_ *contextSnapshot, _ *Draft, v *verification) { v.Action.Valid = nil }},
-		{"no action evidence", func(_ *contextSnapshot, _ *Draft, v *verification) { v.Action.Evidence = []evidence{} }},
 		{"AI draft is not evidence", func(_ *contextSnapshot, _ *Draft, v *verification) { v.Action.Evidence[0].Kind = "draft" }},
 		{"old action is not current action", func(_ *contextSnapshot, _ *Draft, v *verification) {
 			v.Action.Evidence[0] = evidence{"action", "mine", "上周骑了6公里。"}
@@ -270,5 +269,17 @@ func TestVerificationToleratesOmittedEmptyFieldsForNonActionModes(t *testing.T) 
 				t.Fatalf("%s 省略空字段时被拒绝: %v", mode, err)
 			}
 		})
+	}
+}
+
+func TestActionVerificationAllowsOmittedEvidence(t *testing.T) {
+	snapshot, draft, result := verificationFixture()
+	result.Action.Evidence = []evidence{}
+	body, err := json.Marshal(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := verify(string(body), snapshot, draft); err != nil {
+		t.Fatalf("行动核验不应因省略逐句引用而失败: %v", err)
 	}
 }
