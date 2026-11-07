@@ -193,8 +193,8 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
         const verification = result.verification
         const reviews = verification.sourceReviews.map((review) => ({ nodeNumber: actions?.find((node) => node.id === review.sourceId)?.number ?? 0, complies: review.complies, reason: review.exceptionReason ?? '' }))
         const feedback = verification.status === 'failed' ? verification.message : undefined
-        update({ verificationStatus: verification.status, agreementReviews: reviews, verificationFeedback: feedback })
-        local.update((current) => ({ ...current, verificationStatus: verification.status, agreementReviews: reviews, verificationFeedback: feedback,
+        update({ verificationStatus: verification.status, agreementReviews: reviews, verificationFeedback: feedback, generated: true })
+        local.update((current) => ({ ...current, generated: true, verificationStatus: verification.status, agreementReviews: reviews, verificationFeedback: feedback,
           ...(verification.status === 'passed' ? { view: { ...current.view, tab: 'objective' as const } } : {}),
           messages: appendWorkspaceNotice(current.messages, verification.message, generation?.model) }))
       } else {
