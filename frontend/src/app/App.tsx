@@ -445,7 +445,7 @@ function AppContent({ profile, projects, actions, allUsers, sources, csrfToken, 
             inheritedExpression={workspaceParent ? getActionExpression(actions, workspaceParent.id).markdown : ''}
             inheritedExpressionImages={workspaceParent ? getActionExpression(actions, workspaceParent.id).sourceNode?.images : []}
             historyFacts={workspaceParent ? getActionExpressionContext(actions, workspaceParent.id)?.facts : []}
-            inheritedAgreement={workspaceParent ? getActionAgreement(actions, workspaceParent.id).markdown : ''}
+            inheritedAgreement={workspaceParent && workspaceParent.authorId !== profile.id ? getActionAgreement(actions, workspaceParent.id).markdown : ''}
             contextGuide={workspaceProject.contextGuide}
             onBack={() => openProject(workspaceProject.id)} onConfirm={confirmAction}
           />

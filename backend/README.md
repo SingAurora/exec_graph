@@ -123,7 +123,7 @@ EXEC_GRAPH_DATABASE_SCHEMA=exec_graph go run ./cmd/manage seed-demo
 EXEC_GRAPH_DATABASE_SCHEMA=exec_graph EXEC_GRAPH_ADDR=127.0.0.1:8080 EXEC_GRAPH_ENABLE_DEMO_LOGIN=true EXEC_GRAPH_ALLOWED_ORIGINS=http://localhost:5173 go run ./cmd/api
 ```
 
-导入当前前端的 7 位演示作者、9 张图、37 条行动和 7 张本地图片。每位作者都有 `users.is_test_account = true`、`test_dataset = frontend-demo-v1` 数据库标记。精选保留 5 个表达，约定沿主要来源继承。合入来源仅提供事实背景，主动清空不会变回继承。
+导入当前前端的 7 位演示作者、9 张图、37 条行动和 7 张本地图片。每位作者都有 `users.is_test_account = true`、`test_dataset = frontend-demo-v1` 数据库标记。精选保留 5 个表达，约定沿主要来源继承。行动不提供合入背景；约定只承接其他用户的终端节点，主动清空不会变回继承。
 
 导入使用稳定 UUID，保留原作者和旧链接 alias。数据集标记和全部业务记录同事务提交；重复执行不会覆盖昵称、密码、精选等后续修改，导出内容改变后也不会静默覆盖。演示形成过程明确标记为 `demo-fixture`，不冒充真实 AI 调用。
 
