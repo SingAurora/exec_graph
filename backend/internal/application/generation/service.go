@@ -336,12 +336,15 @@ func (s *Service) Verify(ctx context.Context, actor identity.Actor, input Verify
 			snapshot.CurrentExpression, snapshot.CurrentAgreement = node.Expression.Markdown, node.Agreement.Markdown
 		}
 	}
-	byNode := map[string]struct{ expression, agreement string }{}
+	byNode := map[string]struct{ expression, agreement, author string }{}
 	for _, node := range data.Graph.Nodes {
-		byNode[node.ID] = struct{ expression, agreement string }{node.Expression.Markdown, node.Agreement.Markdown}
+		byNode[node.ID] = struct{ expression, agreement, author string }{node.Expression.Markdown, node.Agreement.Markdown, node.AuthorID}
 	}
 	for _, src := range data.Sources {
 		docs := byNode[src.NodeID]
+		if data.Mode == "action" && docs.author == data.ActorID {
+			continue
+		}
 		snapshot.Sources = append(snapshot.Sources, source{NodeID: src.NodeID, Expression: docs.expression, Agreement: docs.agreement})
 	}
 	result := VerifyView{GenerationID: input.GenerationID, SourceReviews: data.Draft.Reviews}

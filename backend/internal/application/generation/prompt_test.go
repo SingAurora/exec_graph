@@ -181,3 +181,12 @@ func TestSnapshotUsesAuthorDraftAsCurrentDocument(t *testing.T) {
 		t.Fatalf("草案没有作为当前表达: %q", snapshot.CurrentExpression)
 	}
 }
+
+func TestActionSnapshotOmitsOwnSourceAgreement(t *testing.T) {
+	graph := action.Graph{Nodes: []action.Node{{ID: "mine", AuthorID: "me", Expression: action.Document{Markdown: "我的表达"}, Agreement: action.Document{Markdown: "自己的约定"}}}}
+	pending := Pending{Mode: "action", ActorID: "me", Sources: []action.GenerationSource{{NodeID: "mine"}}}
+	snapshot := snapshotFor(graph, nil, nil, pending, true)
+	if len(snapshot.Sources) != 0 {
+		t.Fatalf("自己的来源不应进入约定上下文: %+v", snapshot.Sources)
+	}
+}

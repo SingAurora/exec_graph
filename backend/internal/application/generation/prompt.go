@@ -82,6 +82,10 @@ func snapshotFor(graph action.Graph, history map[string]bool, nodes []catalogue.
 	}
 	for _, s := range p.Sources {
 		n := byNode[s.NodeID]
+		// 行动约定只存在于其他用户之间；自己的来源只承接行动，不进入约定上下文。
+		if p.Mode == "action" && n.AuthorID == p.ActorID {
+			continue
+		}
 		snapshot.Sources = append(snapshot.Sources, source{s.NodeID, n.Expression.Markdown, n.Agreement.Markdown})
 		if s.Kind == "primary" {
 			snapshot.CurrentExpression = n.Expression.Markdown
