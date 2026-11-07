@@ -26,7 +26,7 @@ describe('node agreement overview', () => {
     }
   })
   test('lists each direct source own agreement and does not add inherited ancestors', () => {
-    const actions = [node('1', { agreementMarkdown: '祖先约定' }), node('2', { parentId: '1' }), node('3', { agreementMarkdown: '直接约定' }), node('4', { projectId: 'other', agreementMarkdown: '其他图约定' }),
+    const actions = [node('1', { authorId: 'lin', agreementMarkdown: '祖先约定' }), node('2', { parentId: '1' }), node('3', { authorId: 'lin', agreementMarkdown: '直接约定' }), node('4', { projectId: 'other', agreementMarkdown: '其他图约定' }),
       node('5', { parentId: '2', mergedParentIds: ['3', '3', '4'] })]
     expect(getActionSourceAgreements(actions, '5').map((reference) => reference.source.id)).toEqual(['3'])
     expect(getActionSourceAgreements(actions, '2').map((reference) => reference.source.id)).toEqual(['1'])
@@ -40,7 +40,7 @@ describe('node agreement overview', () => {
   })
 
   test('separates compliance, unknown and noncompliance without approval for either author relationship', () => {
-    const sources = [node('1'), node('2'), node('3'), node('4', { authorId: 'lin' }), node('5', { authorId: 'lin' })].map((source) => ({ ...source, agreementMarkdown: `约定 ${source.id}` }))
+    const sources = [node('1', { authorId: 'lin' }), node('2', { authorId: 'lin' }), node('3', { authorId: 'lin' }), node('4', { authorId: 'lin' }), node('5')].map((source) => ({ ...source, agreementMarkdown: `约定 ${source.id}` }))
     const target = node('6', { parentId: '1', mergedParentIds: ['2', '3', '4', '5'], referenceAgreements: [
       { sourceId: '1', complies: true },
       { sourceId: '3', complies: false, exceptionReason: '本人换锅' },
@@ -49,18 +49,19 @@ describe('node agreement overview', () => {
     ] })
     const actions = [...sources, target]
     const references = getActionSourceAgreements(actions, '6')
-    expect(references).toHaveLength(5)
+    expect(references).toHaveLength(4)
     expect(getUnreviewedAgreementCount(references)).toBe(1)
-    expect(references.filter((reference) => reference.agreementStatus === 'exception')).toHaveLength(3)
+    expect(references.filter((reference) => reference.agreementStatus === 'exception')).toHaveLength(2)
     const html = render(actions, '6')
-    for (const text of ['待核对 1', '满足约定', '尚未核对', '本人换锅', '只尝热时', '未做静置']) expect(html).toContain(text)
+    for (const text of ['待核对 1', '满足约定', '尚未核对', '本人换锅', '只尝热时']) expect(html).toContain(text)
+    expect(html).not.toContain('未做静置')
     expect(html).not.toMatch(/授权|申请|同意|待处理/)
-    expect(html.match(/× 不满足约定/g)).toHaveLength(3)
+    expect(html.match(/× 不满足约定/g)).toHaveLength(2)
     expect(html).not.toMatch(/<details[^>]*\sopen[\s=>]/)
   })
 
   test('noncompliance needs no further approval and does not count as unreviewed', () => {
-    const source = node('1', { agreementMarkdown: '十分钟静置观察' })
+    const source = node('1', { authorId: 'lin', agreementMarkdown: '十分钟静置观察' })
     const target = node('2', { parentId: '1', referenceAgreements: [{ sourceId: '1', complies: false, exceptionReason: '只放五分钟' }] })
     const references = getActionSourceAgreements([source, target], '2')
     expect(getUnreviewedAgreementCount(references)).toBe(0)

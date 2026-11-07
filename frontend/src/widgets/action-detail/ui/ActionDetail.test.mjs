@@ -64,7 +64,7 @@ describe('node detail document tabs', () => {
   })
 
   test('agreement tab includes the source agreement review below the own document', () => {
-    const source = { ...node(1, undefined, ''), agreementMarkdown: '记录总用时' }
+    const source = { ...node(1, undefined, ''), authorId: 'lin', agreementMarkdown: '记录总用时' }
     const child = { ...node(2, '1', ''), agreementMarkdown: '记录锅具', nodeReady: true, referenceAgreements: [{ sourceId: '1', complies: true }] }
     const html = render([source, child], '2', { recordMode: 'agreement', isAuthor: true, terminal: true })
     expect(html).toContain('记录锅具')

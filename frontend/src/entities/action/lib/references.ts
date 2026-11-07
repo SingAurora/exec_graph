@@ -41,11 +41,13 @@ export function getActionSourceAgreements(actions: ActionNode[], nodeId: string)
   return actions.filter((node) => node.id === nodeId).flatMap((target) => getActionParentIds(target).flatMap((sourceId): ActionReference[] => {
     const source = byId.get(sourceId)
     if (!source || source.projectId !== target.projectId) return []
+    // 约定只存在于不同用户之间；自己的来源只承接行动，不显示约定核对。
+    if (source.authorId === target.authorId) return []
     const assessment = target.referenceAgreements?.find((item) => item.sourceId === sourceId)
     const agreement = { markdown: source.agreementMarkdown ?? '' }
     const agreementStatus = !agreement.markdown.trim() ? 'unrestricted'
       : !assessment ? 'unreviewed' : assessment.complies ? 'satisfied' : 'exception'
-    return [{ id: `${source.id}:${target.id}`, source, target, sameAuthor: source.authorId === target.authorId,
+    return [{ id: `${source.id}:${target.id}`, source, target, sameAuthor: false,
       incorporated: source.id !== target.parentId, agreement, agreementStatus, exceptionReason: assessment?.exceptionReason }]
   })).filter((reference) => reference.agreementStatus !== 'unrestricted')
 }

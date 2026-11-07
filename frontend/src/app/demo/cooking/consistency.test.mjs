@@ -11,18 +11,15 @@ describe('cooking demo provenance', () => {
     expect(getActionAgreement(cookingActions, 'cooking-8').sourceNode.number).toBe(5)
     expect(getActionAgreementOrigin(cookingActions, 'cooking-9')).toEqual({ kind: 'modified', node: byId.get('cooking-5') })
     expect(getActionAgreement(cookingActions, 'cooking-12').markdown).toBe('')
-    expect(getActionSourceAgreements(cookingActions, 'cooking-12')[0].agreementStatus).toBe('satisfied')
+    expect(getActionSourceAgreements(cookingActions, 'cooking-12')).toEqual([])
     expect(byId.get('cooking-12').conversation.some((message) => message.body.includes('清空本节点向后传递的约定'))).toBe(true)
     expect(byId.get('cooking-8').conversation.some((message) => message.body.includes('约定沿用承接节点的有效版本'))).toBe(true)
   })
   test('demonstrates independent compliance assessments without an approval workflow', () => {
-    const joAgreements = getActionSourceAgreements(cookingActions, 'cooking-13')
-    expect(joAgreements.map((reference) => [reference.source.number, reference.agreementStatus])).toEqual([
-      [10, 'exception'], [4, 'satisfied'],
-    ])
+    expect(getActionSourceAgreements(cookingActions, 'cooking-13')).toEqual([])
     const miaoAgreements = getActionSourceAgreements(cookingActions, 'cooking-14')
-    expect(miaoAgreements.map((reference) => [reference.source.number, reference.agreementStatus])).toEqual([[11, 'satisfied'], [7, 'unreviewed']])
-    expect(getUnreviewedAgreementCount(miaoAgreements)).toBe(1)
+    expect(miaoAgreements).toEqual([])
+    expect(getUnreviewedAgreementCount(miaoAgreements)).toBe(0)
     expect(getActionSourceAgreements(cookingActions, 'cooking-5')[0].agreementStatus).toBe('exception')
     expect(getActionSourceAgreements(cookingActions, 'cooking-15')[0].agreementStatus).toBe('exception')
     expect(getUnreviewedAgreementCount(getActionSourceAgreements(cookingActions, 'cooking-15'))).toBe(0)
