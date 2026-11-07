@@ -187,7 +187,7 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
     const clean = input.trim()
     if (!local.ready || !clean || sending || publishing || uploading || !contextValid) return
     const next = [...messages.filter((message) => !message.id.startsWith('error-')), { id: 'user-' + Date.now(), speaker: 'user' as const, body: clean }]
-    const requestInput: GenerateInput = { mode: 'action', graphId, messages: [clean], conversationId: generation?.conversationId,
+    const requestInput: GenerateInput = { mode: 'action', graphId, messages: [clean], conversationId: generation?.conversationId, feedback: local.value.verificationFeedback,
       parentId: sourceNodeId, mergedParentIds, sourceVersions: directSources.map(({ sourceId }) => ({ nodeId: sourceId, version: actions?.find((node) => node.id === sourceId)?.version ?? 0 })), agreement: agreementIntent }
     const request: GenerationRequest = !generated && generationRequest && generation?.status !== 'failed' && JSON.stringify(generationRequest.input) === JSON.stringify(requestInput)
       ? generationRequest : { key: crypto.randomUUID(), input: requestInput }
@@ -198,8 +198,9 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
       if (result.kind === 'verification') {
         const verification = result.verification
         const reviews = verification.sourceReviews.map((review) => ({ nodeNumber: actions?.find((node) => node.id === review.sourceId)?.number ?? 0, complies: review.complies, reason: review.exceptionReason ?? '' }))
-        update({ verificationStatus: verification.status, agreementReviews: reviews })
-        local.update((current) => ({ ...current, verificationStatus: verification.status, agreementReviews: reviews, messages: appendWorkspaceNotice(current.messages, verification.message, generation?.model) }))
+        const feedback = verification.status === 'failed' ? verification.message : undefined
+        update({ verificationStatus: verification.status, agreementReviews: reviews, verificationFeedback: feedback })
+        local.update((current) => ({ ...current, verificationStatus: verification.status, agreementReviews: reviews, verificationFeedback: feedback, messages: appendWorkspaceNotice(current.messages, verification.message, generation?.model) }))
       } else {
         applyGeneration(result.generation, clean)
       }

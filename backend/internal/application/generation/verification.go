@@ -22,7 +22,22 @@ type evidence struct {
 
 type documentCheck struct {
 	Valid    *bool      `json:"valid"`
+	Message  string     `json:"message,omitempty"`
 	Evidence []evidence `json:"evidence"`
+}
+
+type verificationFailure struct{ message string }
+
+func (e *verificationFailure) Error() string { return e.message }
+func (e *verificationFailure) Unwrap() error { return errUnverified }
+
+func verificationFailureFor(result verification) error {
+	for _, message := range []string{result.Action.Message, result.Expression.Message, result.Agreement.Message} {
+		if strings.TrimSpace(message) != "" {
+			return &verificationFailure{message: message}
+		}
+	}
+	return errUnverified
 }
 
 type conditionCheck struct {
@@ -87,12 +102,12 @@ func verify(content string, snapshot contextSnapshot, draft Draft) (Draft, error
 	}
 	if snapshot.Mode == "agreement" {
 		if !validDocumentCheck(result.Action, snapshot, false, false) || !validDocumentCheck(result.Expression, snapshot, false, false) || !validDocumentCheck(result.Agreement, snapshot, false, false) || result.Reviews == nil || len(result.Reviews) != 0 || len(draft.Reviews) != 0 {
-			return Draft{}, errUnverified
+			return Draft{}, verificationFailureFor(result)
 		}
 		return draft, nil
 	}
 	if !validDocumentCheck(result.Action, snapshot, snapshot.Mode == "action", false) || !validExpressionDocument(result.Expression, snapshot, draft.Expression.Mode == "update") || result.Reviews == nil || len(result.Reviews) != len(snapshot.Sources) || len(draft.Reviews) != len(snapshot.Sources) {
-		return Draft{}, errUnverified
+		return Draft{}, verificationFailureFor(result)
 	}
 	byID := map[string]agreementCheck{}
 	for _, check := range result.Reviews {

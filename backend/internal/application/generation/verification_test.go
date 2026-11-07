@@ -17,7 +17,7 @@ func verificationFixture() (contextSnapshot, Draft, verification) {
 	proof := evidence{"report", currentReport.ID, currentReport.Text}
 	snapshot := contextSnapshot{Mode: "action", ActorID: "me", Reports: []report{currentReport}, Sources: []source{{NodeID: "source", Agreement: "记录距离。记录用时。"}}, Facts: []fact{{NodeID: "mine", ActorID: "me", Objective: "上周骑了6公里。"}, {NodeID: "other", ActorID: "someone", Objective: "骑了30公里。"}}}
 	draft := Draft{Reply: "已满足约定", Title: "骑了30公里", Objective: currentReport.Text, Expression: action.DocumentUpdate{Mode: "clear"}, Reviews: []action.SourceAssessment{{SourceID: "source", Complies: boolPointer(true), Provided: true}}}
-	result := verification{Action: documentCheck{boolPointer(true), []evidence{proof}}, Expression: documentCheck{boolPointer(true), []evidence{}}, Reviews: []agreementCheck{{SourceID: "source", Conditions: []conditionCheck{
+	result := verification{Action: documentCheck{boolPointer(true), "", []evidence{proof}}, Expression: documentCheck{boolPointer(true), "", []evidence{}}, Reviews: []agreementCheck{{SourceID: "source", Conditions: []conditionCheck{
 		{Text: "记录距离。", Complies: json.RawMessage("true"), Evidence: []evidence{{"report", currentReport.ID, "骑了30公里"}}},
 		{Text: "记录用时。", Complies: json.RawMessage("true"), Evidence: []evidence{{"report", currentReport.ID, "用时2小时"}}},
 	}}}}
@@ -230,8 +230,8 @@ func TestExpressionVerificationAllowsSubjectiveInterestWithoutFactEvidence(t *te
 	markdown := "我更喜欢先拿小城再合兵推进这种稳扎稳打的打法，这关难度不高。"
 	draft.Expression = action.DocumentUpdate{Mode: "update", Markdown: &markdown}
 	draft.Reviews = []action.SourceAssessment{}
-	result.Action = documentCheck{boolPointer(true), []evidence{}}
-	result.Expression = documentCheck{boolPointer(true), []evidence{}}
+	result.Action = documentCheck{boolPointer(true), "", []evidence{}}
+	result.Expression = documentCheck{boolPointer(true), "", []evidence{}}
 	result.Reviews = []agreementCheck{}
 	body, err := json.Marshal(result)
 	if err != nil {

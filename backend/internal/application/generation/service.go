@@ -195,7 +195,7 @@ func (s *Service) process(ctx context.Context, actor identity.Actor, mode string
 }
 
 func prepare(tx Transaction, actor identity.Actor, key string, input GenerateInput, digest []byte, model string, now time.Time) (Pending, []Message, error) {
-	batch := Pending{ID: id.New(), RequestKey: key, ActorID: actor.UserID, Mode: input.Mode, GraphID: input.GraphID, NodeID: input.NodeID, ExpectedVersion: input.ExpectedVersion, Model: model, Digest: digest, InputMessages: trimMessages(input.Messages), Images: trimImages(input.Images), Agreement: input.Agreement, CreatedAt: now}
+	batch := Pending{ID: id.New(), RequestKey: key, ActorID: actor.UserID, Mode: input.Mode, GraphID: input.GraphID, NodeID: input.NodeID, ExpectedVersion: input.ExpectedVersion, Model: model, Digest: digest, InputMessages: trimMessages(input.Messages), Images: trimImages(input.Images), Agreement: input.Agreement, Feedback: input.Feedback, CreatedAt: now}
 	for _, image := range batch.Images {
 		if err := tx.CheckAssets(&image.AssetID); err != nil {
 			return batch, nil, err
@@ -368,6 +368,10 @@ func (s *Service) Verify(ctx context.Context, actor identity.Actor, input Verify
 	verified, verifyErr := verify(checked.Content, snapshot, data.Draft)
 	if verifyErr != nil {
 		result.Status, result.Message = "failed", verificationFailureMessage(data.Mode)
+		var failure *verificationFailure
+		if errors.As(verifyErr, &failure) && strings.TrimSpace(failure.message) != "" {
+			result.Message = failure.message
+		}
 		return result, nil
 	}
 	result.Status, result.SourceReviews = "passed", verified.Reviews

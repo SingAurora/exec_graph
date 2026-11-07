@@ -26,6 +26,7 @@ export type ActionWorkspaceDraft = {
   details: AIDocumentDetails
   generated: boolean
   verificationStatus?: VerificationStatus
+  verificationFeedback?: string
   expression: NonNullable<AIDocumentResult['expression']>
   agreementMode: ActionDocumentUpdateMode
   agreementDraft: string
@@ -130,6 +131,7 @@ export function isActionWorkspaceDraft(value: unknown): value is ActionWorkspace
     && Array.isArray(details.points) && details.points.every((point) => typeof point === 'string')
     && typeof value.generated === 'boolean'
     && (value.verificationStatus === undefined || value.verificationStatus === 'unverified' || value.verificationStatus === 'passed' || value.verificationStatus === 'failed')
+    && (value.verificationFeedback === undefined || typeof value.verificationFeedback === 'string')
     && isMode(expression.mode) && typeof expression.markdown === 'string'
     && isMode(value.agreementMode) && typeof value.agreementDraft === 'string'
     && Array.isArray(value.agreementReviews) && value.agreementReviews.every((review) => isRecord(review)

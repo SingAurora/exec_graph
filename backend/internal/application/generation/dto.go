@@ -25,6 +25,8 @@ type GenerateInput struct {
 	Images          []action.ImageInput    `json:"images"`
 	// CurrentDocument 是作者正在调整的私有表达/约定草案；仅 expression/agreement 模式使用。
 	CurrentDocument string `json:"currentDocument,omitempty"`
+	// Feedback 是上一轮显式核验的具体失败原因，仅用于引导下一轮改写。
+	Feedback string `json:"feedback,omitempty"`
 }
 
 // Draft 是平台模型输出的可确认草稿，约定核对必须区分 null 和 false。
@@ -106,6 +108,7 @@ type Pending struct {
 	InheritedExpressionID                                        string
 	Agreement                                                    action.DocumentUpdate
 	Sources                                                      []action.GenerationSource
+	Feedback                                                     string
 	CreatedAt                                                    time.Time
 	snapshot                                                     contextSnapshot
 }

@@ -39,6 +39,7 @@ type contextSnapshot struct {
 	CurrentAgreement    string                `json:"currentAgreement"`
 	DownstreamAgreement action.DocumentUpdate `json:"downstreamAgreement"`
 	PreviousDraft       *Draft                `json:"previousDraft,omitempty"`
+	Feedback            string                `json:"feedback,omitempty"`
 	Images              []snapshotImage       `json:"images,omitempty"`
 	Initial             bool                  `json:"initial,omitempty"`
 }
@@ -54,7 +55,7 @@ type report struct {
 }
 
 func snapshotFor(graph action.Graph, history map[string]bool, nodes []catalogue.ActionView, p Pending, hasParent bool) contextSnapshot {
-	snapshot := contextSnapshot{Mode: p.Mode, ActorID: p.ActorID, NodeID: p.NodeID, Reports: []report{}, Guide: "", HasParent: hasParent, Facts: []fact{}, Sources: []source{}, DownstreamAgreement: p.Agreement, PreviousDraft: p.Conversation.PreviousDraft, Images: []snapshotImage{}, Initial: p.Initial}
+	snapshot := contextSnapshot{Mode: p.Mode, ActorID: p.ActorID, NodeID: p.NodeID, Reports: []report{}, Guide: "", HasParent: hasParent, Facts: []fact{}, Sources: []source{}, DownstreamAgreement: p.Agreement, PreviousDraft: p.Conversation.PreviousDraft, Feedback: p.Feedback, Images: []snapshotImage{}, Initial: p.Initial}
 	for i, image := range p.Images {
 		snapshot.Images = append(snapshot.Images, snapshotImage{Ref: "image:" + strconv.Itoa(i+1), Alt: image.Alt})
 	}

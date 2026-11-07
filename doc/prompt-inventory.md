@@ -26,7 +26,7 @@
 
 ## 3. 生成系统提示词
 
-生成提示词按模式拆分，由 `generationRulesFor(mode)` 选择，每次只携带当前模式需要的规则。提示词版本为 `action-evidence-v14`。
+生成提示词按模式拆分，由 `generationRulesFor(mode)` 选择，每次只携带当前模式需要的规则。提示词版本为 `action-evidence-v15`。
 
 | 常量 | 作用 | 约字符数 |
 | --- | --- | ---: |
@@ -43,9 +43,9 @@
 
 | 常量 | 作用 | 约字符数 |
 | --- | --- | ---: |
-| `verificationCommonRules` | 固定 JSON 结构、依据/目标双层、evidence 原文、未使用字段约定 | 785 |
+| `verificationCommonRules` | 固定 JSON 结构、依据/目标双层、失败原因、evidence 原文、未使用字段约定 | 833 |
 | `actionVerificationRules` | 行动主线依据核验 + 目标适配 + 来源约定逐项核验 | 1341 |
-| `expressionVerificationRules` | 表达依据核验 + 吸引关注的目标适配 | 683 |
+| `expressionVerificationRules` | 表达依据核验 + 吸引关注的目标适配 | 662 |
 | `agreementVerificationRules` | 约定依据边界 + 清晰可判断的目标适配 | 253 |
 
 `verificationPrompt` 不再根据 agreement 模式追加额外 schema；公共部分已经定义固定输出结构，未使用字段按 `valid=true,evidence=[]` 返回。
@@ -70,6 +70,7 @@
 | `currentAgreement` | 当前有效约定 |
 | `downstreamAgreement` | 本轮提交的向后约定处理意图 |
 | `previousDraft` | 同一对话上一轮成功生成的草稿，供连续修改时参考 |
+| `feedback` | 上一轮显式核验的具体失败原因，供下一轮定向改写 |
 
 组装顺序：
 

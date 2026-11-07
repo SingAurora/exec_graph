@@ -12,6 +12,8 @@ export type GenerateInput = {
   mergedParentIds: string[]; sourceVersions: { nodeId: string; version: number }[]; agreement: DocumentUpdate
   /** 作者正在调整的私有表达/约定草案；仅 expression/agreement 模式。 */
   currentDocument?: string
+  /** 上一轮核验失败的具体原因，帮助模型定向改写。 */
+  feedback?: string
 }
 /** 保留提交身份以便响应丢失后重试，不重复调用平台模型。 */
 export type GenerationRequest = { key: string; input: GenerateInput }
