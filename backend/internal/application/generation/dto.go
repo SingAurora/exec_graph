@@ -128,6 +128,7 @@ type Transaction interface {
 	UpdatePlacement(string, string) (View, error)
 	Reserve(Pending) error
 	Get(string) (View, error)
+	VerifyContext(string) (VerificationContext, error)
 	Complete(string, Draft, uint32, uint32) error
 	Fail(string, string) error
 }
@@ -135,6 +136,31 @@ type Transaction interface {
 // Store 在同一事务中校验账号版本、分配消息序号和保存生成结果。
 type Store interface {
 	Within(context.Context, identity.Actor, func(Transaction) error) error
+}
+
+// Report 是显式核验时重建的用户报告。
+type Report struct{ ID, Text string }
+
+// VerificationContext 是显式核验读取的服务端上下文。
+type VerificationContext struct {
+	Mode      string
+	ActorID   string
+	NodeID    string
+	Guide     string
+	HasParent bool
+	Graph     action.Graph
+	Facts     []catalogue.ActionView
+	Sources   []action.GenerationSource
+	Reports   []Report
+	Draft     Draft
+}
+
+// VerifyView 是一次显式核验的公开结果。
+type VerifyView struct {
+	GenerationID  string                    `json:"generationId"`
+	Status        string                    `json:"status"`
+	Message       string                    `json:"message"`
+	SourceReviews []action.SourceAssessment `json:"sourceReviews"`
 }
 
 // Completion 是平台客户端返回的内容和用量。
@@ -147,4 +173,9 @@ type Completion struct {
 type Provider interface {
 	Model() string
 	Complete(context.Context, []Message) (Completion, error)
+}
+
+// VerifyInput 指定要核验的已生成草稿。
+type VerifyInput struct {
+	GenerationID string `json:"generationId"`
 }

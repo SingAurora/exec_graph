@@ -70,3 +70,16 @@ export async function generateDraft(request: GenerationRequest, csrfToken: strin
   }
   return view
 }
+
+/** 服务端显式核验结果；核验只读，不生成新草稿。 */
+export type VerifyResult = {
+  generationId: string
+  status: 'passed' | 'failed'
+  message: string
+  sourceReviews: SourceAssessment[]
+}
+
+/** 用户主动核验当前草稿；一次请求对应一条核验结果。 */
+export function verifyGeneration(generationId: string): Promise<VerifyResult> {
+  return postAPI('/api/commands/ai/verify', { generationId }, { timeoutMs: 110_000 })
+}

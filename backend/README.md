@@ -155,6 +155,7 @@ EXEC_GRAPH_DATABASE_SCHEMA=exec_graph EXEC_GRAPH_ADDR=127.0.0.1:8080 EXEC_GRAPH_
 | GET | `/media/file?assetId=...` | 已就绪图片；成功时返回二进制，不套 JSON |
 | POST | `/media/upload`、`/media/retain` | 上传登记与草稿图片续期 |
 | POST | `/ai/generate` | 平台 AI 生成私有草稿，需要提交键 |
+| POST | `/ai/verify` | 用户主动核验已生成草稿，返回一条核验结果 |
 | GET | `/ai/generation?generationId=...` | 读取本人生成结果及确认参数 |
 | POST | `/graphs/create`、`/graphs/update`、`/graphs/delete` | 图创建、版本更新和受保护删除 |
 | POST | `/actions/create` | 确认服务端 AI 结果并原子发布行动 |

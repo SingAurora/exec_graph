@@ -52,6 +52,13 @@ func (h *Handler) Get(c *gin.Context) {
 	common.Reply(c, out)
 }
 
+// Verify 对已生成草稿执行一次显式核验，不自动生成新草稿。
+func (h *Handler) Verify(c *gin.Context) {
+	common.CommandWithTimeout(c, h.auth, constants.AIRequestTimeout, func(ctx context.Context, actor identity.Actor, _ string, input app.VerifyInput) (app.VerifyView, error) {
+		return h.service.Verify(ctx, actor, input)
+	})
+}
+
 // DefaultPrompts 只读返回平台当前使用的三份默认提示词。
 func (h *Handler) DefaultPrompts(c *gin.Context) {
 	common.Reply(c, app.DefaultPrompts())

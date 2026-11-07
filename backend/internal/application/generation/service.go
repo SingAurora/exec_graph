@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -309,4 +310,88 @@ func sameDocumentUpdate(left, right action.DocumentUpdate) bool {
 		return left.Markdown == nil && right.Markdown == nil
 	}
 	return *left.Markdown == *right.Markdown
+}
+
+// Verify 对已经成功生成的草稿执行一次显式核验，只返回一条结果，不自动改写或发布。
+func (s *Service) Verify(ctx context.Context, actor identity.Actor, input VerifyInput) (VerifyView, error) {
+	if !id.Valid(input.GenerationID) {
+		return VerifyView{}, fault.New(fault.Invalid, "生成标识不合法")
+	}
+	var data VerificationContext
+	err := s.store.Within(ctx, actor, func(tx Transaction) error {
+		var loadErr error
+		data, loadErr = tx.VerifyContext(input.GenerationID)
+		return loadErr
+	})
+	if err != nil {
+		return VerifyView{}, err
+	}
+	snapshot := contextSnapshot{Mode: data.Mode, ActorID: data.ActorID, NodeID: data.NodeID, Guide: data.Guide, HasParent: data.HasParent, Reports: []report{}, Facts: []fact{}, Sources: []source{}}
+	for _, item := range data.Reports {
+		snapshot.Reports = append(snapshot.Reports, report{ID: item.ID, Text: item.Text})
+	}
+	for _, node := range data.Graph.Nodes {
+		snapshot.Facts = append(snapshot.Facts, fact{NodeID: node.ID, Number: node.Number, ActorID: node.AuthorID, Title: node.Title, Objective: node.Objective})
+		if data.Mode != "action" && node.ID == data.NodeID {
+			snapshot.CurrentExpression, snapshot.CurrentAgreement = node.Expression.Markdown, node.Agreement.Markdown
+		}
+	}
+	byNode := map[string]struct{ expression, agreement string }{}
+	for _, node := range data.Graph.Nodes {
+		byNode[node.ID] = struct{ expression, agreement string }{node.Expression.Markdown, node.Agreement.Markdown}
+	}
+	for _, src := range data.Sources {
+		docs := byNode[src.NodeID]
+		snapshot.Sources = append(snapshot.Sources, source{NodeID: src.NodeID, Expression: docs.expression, Agreement: docs.agreement})
+	}
+	result := VerifyView{GenerationID: input.GenerationID, SourceReviews: data.Draft.Reviews}
+	checks, promptErr := verificationPrompt(snapshot, data.Draft)
+	if promptErr != nil {
+		result.Status, result.Message = "failed", "当前草稿暂时无法核验，请检查来源后重试。"
+		return result, nil
+	}
+	verifier := s.analysisProvider
+	if data.Mode == "action" {
+		verifier = s.draftProvider
+	}
+	if verifier == nil || verifier.Model() == "" {
+		result.Status, result.Message = "failed", "平台核验暂未启用。"
+		return result, nil
+	}
+	verifyCtx, cancel := context.WithTimeout(ctx, constants.AITimeout)
+	checked, verifyErr := verifier.Complete(verifyCtx, checks)
+	cancel()
+	if verifyErr != nil {
+		result.Status, result.Message = "failed", "核验暂时没有完成，请稍后重试。"
+		return result, nil
+	}
+	verified, verifyErr := verify(checked.Content, snapshot, data.Draft)
+	if verifyErr != nil {
+		result.Status, result.Message = "failed", verificationFailureMessage(data.Mode)
+		return result, nil
+	}
+	result.Status, result.SourceReviews = "passed", verified.Reviews
+	unknown := 0
+	for _, review := range verified.Reviews {
+		if review.Complies == nil {
+			unknown++
+		}
+	}
+	if unknown > 0 {
+		result.Message = "核验通过。" + strconv.Itoa(unknown) + " 条来源约定尚未提及，可在约定栏查看。"
+	} else {
+		result.Message = "核验通过，当前草稿可以发布。"
+	}
+	return result, nil
+}
+
+func verificationFailureMessage(mode string) string {
+	switch mode {
+	case "expression":
+		return "表达没有通过核验。请检查事实依据、主观表达和目标效果后重试。"
+	case "agreement":
+		return "约定没有通过核验。请把约定写得具体、可判断，并与当前行动相关。"
+	default:
+		return "行动没有通过核验。请检查行动主线、关键动作依据和目标效果后重试。"
+	}
 }

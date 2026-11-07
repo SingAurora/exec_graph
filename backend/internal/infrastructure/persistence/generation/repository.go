@@ -214,3 +214,64 @@ func (t *generationTransaction) view(row model.AIGeneration) (app.View, error) {
 	}
 	return out, nil
 }
+
+// VerifyContext 读取一次已成功生成的服务端草稿、报告和来源，仅供显式核验使用。
+func (t *generationTransaction) VerifyContext(uuid string) (app.VerificationContext, error) {
+	row, err := t.lock(uuid)
+	if err != nil {
+		return app.VerificationContext{}, err
+	}
+	if row.RequestedByUUID != t.Actor.UserID {
+		return app.VerificationContext{}, fault.New(fault.Forbidden, "只能核验自己发起的草稿")
+	}
+	if row.Status != "succeeded" {
+		return app.VerificationContext{}, fault.New(fault.Conflict, "当前生成尚未完成，不能核验")
+	}
+	view, err := t.view(row)
+	if err != nil {
+		return app.VerificationContext{}, err
+	}
+	if view.Draft == nil {
+		return app.VerificationContext{}, fault.New(fault.Conflict, "当前生成没有可核验的草稿")
+	}
+	var conversation model.AIConversation
+	if err := t.DB.Where("uuid = ?", row.ConversationUUID).Take(&conversation).Error; err != nil {
+		return app.VerificationContext{}, err
+	}
+	graph, err := t.Graph(row.GraphUUID)
+	if err != nil {
+		return app.VerificationContext{}, err
+	}
+	facts, err := t.Facts(row.GraphUUID)
+	if err != nil {
+		return app.VerificationContext{}, err
+	}
+	var messages []model.AIMessage
+	if err := t.DB.Where("conversation_uuid = ? AND sequence_number <= ? AND speaker = ? AND author_uuid = ?", row.ConversationUUID, row.InputThroughSequence, "user", t.Actor.UserID).Order("sequence_number").Find(&messages).Error; err != nil {
+		return app.VerificationContext{}, err
+	}
+	reports := make([]app.Report, 0, len(messages))
+	for _, message := range messages {
+		reports = append(reports, app.Report{ID: message.UUID, Text: message.Body})
+	}
+	var sourceRows []model.GenerationSource
+	if err := t.DB.Where("generation_uuid = ?", row.UUID).Order("CASE WHEN kind = 'primary' THEN 0 ELSE 1 END, id").Find(&sourceRows).Error; err != nil {
+		return app.VerificationContext{}, err
+	}
+	sources := make([]appaction.GenerationSource, 0, len(sourceRows))
+	for _, source := range sourceRows {
+		expressionID, agreementID := "", ""
+		if source.SourceExpressionVersionUUID != nil {
+			expressionID = *source.SourceExpressionVersionUUID
+		}
+		if source.SourceAgreementVersionUUID != nil {
+			agreementID = *source.SourceAgreementVersionUUID
+		}
+		sources = append(sources, appaction.GenerationSource{GraphID: source.GraphUUID, NodeID: source.SourceNodeUUID, Kind: source.Kind, Version: source.SourceNodeVersion, ExpressionID: expressionID, AgreementID: agreementID})
+	}
+	nodeID := ""
+	if conversation.NodeUUID != nil {
+		nodeID = *conversation.NodeUUID
+	}
+	return app.VerificationContext{Mode: row.Mode, ActorID: t.Actor.UserID, NodeID: nodeID, Guide: row.ContextGuideSnapshot, HasParent: len(sources) > 0, Graph: graph, Facts: facts, Sources: sources, Reports: reports, Draft: *view.Draft}, nil
+}

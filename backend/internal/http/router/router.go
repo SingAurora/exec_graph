@@ -64,6 +64,8 @@ func New(auth *identity.Handler, read *catalogue.Handler, graphs *graph.Handler,
 	group.POST("/media/retain", images.Retain)
 	// 从真实引用背景和本人连续对话生成行动或表达草稿。
 	group.POST("/ai/generate", ai.Generate)
+	// 对已生成草稿执行一次显式核验，由用户主动触发。
+	group.POST("/ai/verify", ai.Verify)
 	// 为已发布的节点生成独立的表达/约定草案。
 	group.POST("/ai/node-documents", actions.NodeDocuments)
 	// 读取节点自己的已发布文档版本。

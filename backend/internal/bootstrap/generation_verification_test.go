@@ -21,3 +21,14 @@ func TestFirstActionGenerationDoesNotRunAutomaticVerification(t *testing.T) {
 	}
 	jo.publish(t, *accepted.CreateAction)
 }
+
+func TestExplicitVerifyUsesStoredDraftWithoutRegenerating(t *testing.T) {
+	provider := &recordedProvider{}
+	s := writeFixtureDependencies(t, nil, provider)
+	jo := s.as(t, id.Demo("user", "jo"))
+	accepted := decode[app.View](t, jo.call(t, "POST", "ai/generate", generationInput(jo.graph(t).ID), 200, id.New()))
+	verified := decode[app.VerifyView](t, jo.call(t, "POST", "ai/verify", app.VerifyInput{GenerationID: accepted.GenerationID}, 200, ""))
+	if verified.Status != "passed" || verified.Message == "" || len(provider.requests) != 2 {
+		t.Fatalf("显式核验未使用已存草稿: result=%+v calls=%d", verified, len(provider.requests))
+	}
+}
