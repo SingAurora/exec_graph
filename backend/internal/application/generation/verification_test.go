@@ -81,21 +81,9 @@ func TestVerificationRejectsMissingOrInventedEvidence(t *testing.T) {
 		change func(*contextSnapshot, *Draft, *verification)
 	}{
 		{"expression unsupported", func(_ *contextSnapshot, _ *Draft, v *verification) { v.Expression.Valid = boolPointer(false) }},
-		{"omitted clause", func(_ *contextSnapshot, _ *Draft, v *verification) {
-			v.Reviews[0].Conditions = v.Reviews[0].Conditions[:1]
-		}},
-		{"omitted complies", func(_ *contextSnapshot, _ *Draft, v *verification) { v.Reviews[0].Conditions[0].Complies = nil }},
-		{"duplicate source", func(s *contextSnapshot, d *Draft, v *verification) {
-			s.Sources = append(s.Sources, source{NodeID: "second", Agreement: "记录距离。"})
-			d.Reviews = append(d.Reviews, action.SourceAssessment{SourceID: "second"})
-			v.Reviews = append(v.Reviews, v.Reviews[0])
-		}},
-		{"unknown source", func(_ *contextSnapshot, _ *Draft, v *verification) { v.Reviews[0].SourceID = "unrelated" }},
-		{"changed agreement", func(_ *contextSnapshot, _ *Draft, v *verification) {
-			v.Reviews[0].Conditions[0].Text = "骑行即可。"
-		}},
-		{"other person cannot satisfy agreement", func(_ *contextSnapshot, _ *Draft, v *verification) {
-			v.Reviews[0].Conditions[0].Evidence[0] = evidence{"action", "other", "骑了30公里。"}
+		{"not an action record", func(_ *contextSnapshot, _ *Draft, v *verification) {
+			v.Action.Valid = boolPointer(false)
+			v.Action.Message = "整体不是行动记录"
 		}},
 		{"chat cannot extend published expression facts", func(s *contextSnapshot, d *Draft, v *verification) {
 			s.Mode, s.Sources = "expression", []source{}

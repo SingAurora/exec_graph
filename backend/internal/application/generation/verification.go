@@ -106,32 +106,34 @@ func verify(content string, snapshot contextSnapshot, draft Draft) (Draft, error
 		}
 		return draft, nil
 	}
-	if !validActionField(result.Action, snapshot) || !validExpressionDocument(result.Expression, snapshot, draft.Expression.Mode == "update") || result.Reviews == nil || len(result.Reviews) != len(snapshot.Sources) || len(draft.Reviews) != len(snapshot.Sources) {
+	if !validActionField(result.Action, snapshot) || !validExpressionDocument(result.Expression, snapshot, draft.Expression.Mode == "update") {
 		return Draft{}, verificationFailureFor(result)
 	}
 	byID := map[string]agreementCheck{}
 	for _, check := range result.Reviews {
-		if _, exists := byID[check.SourceID]; exists {
-			return Draft{}, errUnverified
+		if _, exists := byID[check.SourceID]; !exists {
+			byID[check.SourceID] = check
 		}
-		byID[check.SourceID] = check
 	}
 	reviews := make([]action.SourceAssessment, 0, len(snapshot.Sources))
 	for _, source := range snapshot.Sources {
 		check, exists := byID[source.NodeID]
 		if !exists {
-			return Draft{}, errUnverified
+			reviews = append(reviews, action.SourceAssessment{SourceID: source.NodeID, Provided: true})
+			continue
 		}
-		review, err := verifyAgreement(check, source.Agreement, snapshot)
-		if err != nil {
-			return Draft{}, err
+		review, verifyErr := verifyAgreement(check, source.Agreement, snapshot)
+		if verifyErr != nil {
+			reviews = append(reviews, action.SourceAssessment{SourceID: source.NodeID, Provided: true})
+			continue
 		}
 		reviews = append(reviews, review)
 	}
-	// 最终核对以独立逐项结果为准，不沿用生成器可能过早给出的“满足”。
+	// 来源约定是提示信息，不阻止行动核验通过；最终以独立核验结果替换草稿中的初稿判断。
 	for i, review := range reviews {
-		if !sameAssessment(review.Complies, draft.Reviews[i].Complies) {
-			draft.Reply = "已整理行动记录；约定核对已按字面依据更新，请确认文稿和核对结果。"
+		if i < len(draft.Reviews) && !sameAssessment(review.Complies, draft.Reviews[i].Complies) {
+			draft.Reply = "整体表达符合行动记录；来源约定核对已更新，仅作提示，请确认文稿。"
+			break
 		}
 	}
 	draft.Reviews = reviews
@@ -170,8 +172,7 @@ func validDocumentCheck(check documentCheck, snapshot contextSnapshot, required,
 
 func validActionField(check documentCheck, snapshot contextSnapshot) bool {
 	if snapshot.Mode == "action" {
-		// 行动正文由用户确认；核验器只负责来源约定，不再判断计划、完成状态或新增结果。
-		return true
+		return check.Valid != nil && *check.Valid
 	}
 	return validDocumentCheck(check, snapshot, false, false)
 }

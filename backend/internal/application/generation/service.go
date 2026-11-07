@@ -375,16 +375,20 @@ func (s *Service) Verify(ctx context.Context, actor identity.Actor, input Verify
 		return result, nil
 	}
 	result.Status, result.SourceReviews = "passed", verified.Reviews
-	unknown := 0
+	unknown, failed := 0, 0
 	for _, review := range verified.Reviews {
 		if review.Complies == nil {
 			unknown++
+		} else if !*review.Complies {
+			failed++
 		}
 	}
-	if unknown > 0 {
-		result.Message = "核验通过。" + strconv.Itoa(unknown) + " 条来源约定尚未提及，可在约定栏查看。"
+	if failed > 0 {
+		result.Message = "整体表达符合行动记录；来源约定有 " + strconv.Itoa(failed) + " 条不满足，仅作提示。"
+	} else if unknown > 0 {
+		result.Message = "整体表达符合行动记录；" + strconv.Itoa(unknown) + " 条来源约定尚未提及，可在约定栏查看。"
 	} else {
-		result.Message = "核验通过，当前草稿可以发布。"
+		result.Message = "整体表达符合行动记录，当前草稿可以发布。"
 	}
 	return result, nil
 }
@@ -396,7 +400,7 @@ func verificationFailureMessage(mode string) string {
 	case "agreement":
 		return "约定没有通过核验。请把约定写得具体、可判断，并与当前行动相关。"
 	default:
-		return "行动没有通过核验。请检查来源约定是否满足；行动正文由你确认。"
+		return "整体表达还不像一条行动记录。请说明你实际做了什么；计划和判断可以作为补充。"
 	}
 }
 

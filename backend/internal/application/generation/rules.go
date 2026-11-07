@@ -65,7 +65,7 @@ const verificationCommonRules = `你是引序平台的独立内容核验器，�
 message 在 valid=false 时写具体原因，valid=true 留空。evidence 的 quote 必须逐字摘录，不能改写、拼接或引用 AI 草稿。当前模式不使用的字段返回 valid=true、evidence=[]；reviews 只在 action 模式按来源返回，其他模式为 []。`
 
 const actionVerificationRules = `action 模式：
-action 字段始终 valid=true、evidence=[]；不要判断行动是否完成、是否计划、是否新增结果，行动正文由用户确认。只核验下面的来源约定。expression 和 agreement 字段返回 valid=true、evidence=[]。
+action.valid 只看整体写法：标题和正文以“我做了什么”为主，至少有一个具体动作，整体读起来是经历记录 -> true；纯计划、空泛描述或与行动无关 -> false。不要判断是否真的发生、是否完成、是否新增结果；夹带计划、预测、评价或细节缺失都不构成失败。reviews 只作来源提示，不影响 action.valid；无法核对时返回未知。expression 和 agreement 字段返回 valid=true、evidence=[]。
 objective 中的 {{image:N}} 是图片占位符，不是事实陈述；不核验图片内容，只核验正文文字。
 reviews 只对应 context.sources，每个来源恰好一次；没有约定的来源 conditions=[]。有约定时按原文顺序拆成可单独核对的全部条件；text 原样保留 Markdown、标点和文字，所有 text 依次拼接必须覆盖完整约定，不能遗漏不易满足的条件；仅空白可不同。每项必须显式输出 complies。按字面核对，不猜测意图、放宽或增加条件，保留数量、时点、范围、否定与条件逻辑。无法安全拆分的组合条件或选择条件作为一个整体核对。
 全部条件必须从原始报告获得具体完成依据；只有条款本身要求历史情况时才引用 facts 中 actorId 本人的行动。不能以他人的行动、AI 草稿、“已完成/满足了”的自我声明、计划或意愿为完成证据。true 和 false 都要摘录证据；未提及/缺信息一律 null，不推断为 false。null 的 evidence=[]。明确不符才为 false。只核对报告与文字，不调查现实真假。不要复制 draft.reviews 的判断，独立重算。
