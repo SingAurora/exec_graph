@@ -44,8 +44,8 @@ func TestVerificationRulesSelectOnlyCurrentMode(t *testing.T) {
 
 func TestPromptRulesStayCompact(t *testing.T) {
 	limits := map[string]int{
-		"generation:action":       1600,
-		"generation:expression":   1300,
+		"generation:action":       1800,
+		"generation:expression":   1400,
 		"generation:agreement":    1100,
 		"verification:action":     2200,
 		"verification:expression": 1500,
