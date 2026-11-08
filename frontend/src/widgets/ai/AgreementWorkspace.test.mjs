@@ -27,5 +27,7 @@ describe('agreement workspace', () => {
     expect(html).toContain('引用时记录观察结果')
     expect(html).not.toContain('保存约定')
     expect(html).not.toContain('发布约定')
+    expect(html).toContain('默认效果')
+    expect(html).toContain('给我一个默认效果的约定')
   })
 })

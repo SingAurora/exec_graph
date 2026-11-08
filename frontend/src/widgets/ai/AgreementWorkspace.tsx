@@ -12,6 +12,7 @@ import type { GenerateInput, GenerationRequest, GenerationView } from '../../fea
 import { HelpPopover } from '../../shared/ui/help/HelpPopover'
 import { useToast } from '../../shared/ui/toast/useToast'
 import { WorkspaceFrame } from './WorkspaceFrame'
+import { DefaultEffectGuide } from './DefaultEffectGuide'
 import { AgreementContent } from '../../entities/action/ui/AgreementContent'
 import { getActionDraftKey } from '../../entities/action/lib/draft-key'
 import { useLocalDraft } from '../../shared/lib/local-draft/useLocalDraft'
@@ -59,6 +60,7 @@ export function AgreementWorkspace({ node, csrfToken, draftKey, actions, profile
   })
   const { messages, input, draftDocument, generated, generation, generationRequest } = local.value
   const update = (patch: Partial<ExpressionWorkspaceDraft>) => local.update((current) => ({ ...current, ...patch }))
+  const fillPhrase = (phrase: string) => update({ input: phrase, view: { ...local.value.view, tab: 'conversation' } })
   const markdown = draftDocument ?? agreement.markdown
   const [sending, setSending] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -129,7 +131,7 @@ export function AgreementWorkspace({ node, csrfToken, draftKey, actions, profile
 
   return (
     <WorkspaceFrame title="拟定约定"
-      tabs={['conversation', 'agreement']}
+      tabs={['conversation', 'agreement', 'guide']}
       view={local.value.view} onViewChange={(view) => update({ view })} restoring={!local.ready}
       draftControls={<LocalDraftControls status={local.status} hasDraft={local.hasDraft} disabled={sending || saving || !local.ready} onDiscard={local.discard} />}
       help={<HelpPopover title="约定的作用"><p>约定说明后来引用这个节点时，你希望对方满足什么条件。它参考整条支链的事实与表达，但不同于本次行动是否满足来源节点的约定。</p><p>约定从当前节点向后生效；保存后不会改写已有引用的核对结果。</p><p>想要低负担默认稿时，直接说“给我一个默认效果的约定”。</p></HelpPopover>}
@@ -140,6 +142,7 @@ export function AgreementWorkspace({ node, csrfToken, draftKey, actions, profile
       action={{ title: node.title, markdown: node.objectiveMarkdown ?? node.markdown, images: node.images, status: '只读', empty: '暂无行动记录' }}
       expression={{ markdown: node.expressionMarkdown ?? '', images: [], status: '只读', empty: '暂无表达' }}
       agreement={<div className="px-6"><AgreementContent agreement={{ markdown }} onSelectSource={() => {}} /></div>}
+      guide={<DefaultEffectGuide workspace="agreement" onUse={fillPhrase} />}
       footer={viewingDocument ? <div className="ml-auto">
         <button className="primary-button" type="button" disabled={!canSave} onClick={async () => {
           if (!canSave) return

@@ -22,6 +22,8 @@ describe('action workspace', () => {
     expect(html).toContain('title="复制当前对话内容"')
     expect(html).not.toContain('>发布行动</button>')
     expect(html).not.toContain('之后发生的行动')
+    expect(html).toContain('默认效果')
+    expect(html).toContain('核验一下')
   })
 
   test('switches between the conversation composer and the image composer', () => {

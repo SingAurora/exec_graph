@@ -14,6 +14,7 @@ import { useLocalDraft } from '../../shared/lib/local-draft/useLocalDraft'
 import { LocalDraftControls } from '../../shared/ui/LocalDraftControls'
 import { BusinessRequestError } from '../../shared/api/errors'
 import { MarkdownContent } from '../../shared/ui/MarkdownContent'
+import { DefaultEffectGuide } from './DefaultEffectGuide'
 import { appendWorkspaceError, appendWorkspaceNotice, createWorkspaceView, isActionWorkspaceDraft, normalizeGenerationRequest, pendingReportsForRestore, reconcileWorkspaceDraft, type ActionWorkspaceDraft } from './model/workspace-draft'
 
 type ActionWorkspaceProps = {
@@ -66,6 +67,7 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
   })
   const { messages, input, document, images = [], imagePlacementPending = false, generated, verificationStatus = 'unverified', agreementReviews, mergedParentIds, sourcesChanged, generation, generationRequest } = local.value
   const update = (patch: Partial<ActionWorkspaceDraft>) => local.update((current) => ({ ...current, ...patch }))
+  const fillPhrase = (phrase: string) => update({ input: phrase, view: { ...local.value.view, tab: 'conversation' } })
   const signatureForRef = useRef(signatureFor)
   const updateRef = useRef(update)
   signatureForRef.current = signatureFor
@@ -229,7 +231,7 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
 
   return (
     <WorkspaceFrame title="记录行动"
-      tabs={['conversation', 'objective']}
+      tabs={['conversation', 'objective', 'guide']}
       view={local.value.view} onViewChange={(view) => update({ view })} restoring={!local.ready}
       draftControls={<LocalDraftControls status={local.status} hasDraft={local.hasDraft} disabled={sending || publishing || uploading || !local.ready} onDiscard={() => { local.discard(); setPublishError('') }} />}
       help={<HelpPopover title="行动"><p>这里仅记录本次实际行动，并核对你引用的来源节点约定。整理出草稿后说“核验一下”，确认通过才能发布。发布后，表达和约定默认继承当前节点，缺少时才自动生成，之后可独立调整。</p><p>{hasParent ? '新节点默认沿用承接节点的表达与约定。' : '首次行动暂时没有可继承的表达或约定。'}行动不需要合入背景；自己的节点不会产生来源约定核对，但约定文档仍沿承接链继承。</p></HelpPopover>}
@@ -251,6 +253,7 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
       </div>}
       action={{ title: local.value.details.title || generation?.draft?.title, markdown: document, images: actionImages, status: sourcesChanged && document ? '引用背景已更新，文档待重新整理' : undefined, empty: '在 AI 对话中描述这次行动' }}
       expression={{ markdown: effectiveExpression, images: inheritedExpressionImages, status: hasParent ? '沿用承接节点表达' : '暂无表达', empty: '暂无表达' }}
+      guide={<DefaultEffectGuide workspace="action" onUse={fillPhrase} />}
       agreement={<div className="px-6">
         {inheritedAgreement.trim() ? <MarkdownContent markdown={inheritedAgreement} /> : <p className="py-5 text-sm text-muted">{hasParent ? '承接节点没有可继承的约定' : '暂无约定'}</p>}
         <p className="mt-4 text-xs text-muted">发布后可在约定工作区单独整理向后传递的约定。</p>

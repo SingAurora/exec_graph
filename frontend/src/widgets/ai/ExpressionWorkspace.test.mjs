@@ -28,6 +28,8 @@ describe('expression revision workspace', () => {
     expect(html).not.toContain('清空表达</button>')
     expect(html).not.toContain('title="约定处理方式"')
     expect(html).not.toContain('grid-cols-')
+    expect(html).toContain('默认效果')
+    expect(html).toContain('给我一个默认效果的表达')
   })
   test('does not inherit expressions, resumes earlier expression turns, and disables referenced nodes', () => {
     const child = { ...root, id: '2', number: 2, parentId: '1', expressionMarkdown: undefined, expressionConversation: [{ id: 'expression-user', speaker: 'user', body: '之前调整表达的对话' }] }

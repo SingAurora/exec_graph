@@ -9,7 +9,7 @@ export type VerificationStatus = 'unverified' | 'passed' | 'failed'
 
 /** 编辑器阅读状态：当前预览栏目，以及每个面板独立的滚动位置。 */
 export type WorkspaceView = {
-  tab: 'conversation' | 'objective' | 'expression' | 'agreement'
+  tab: 'conversation' | 'objective' | 'expression' | 'agreement' | 'guide'
   positions: Partial<Record<WorkspaceView['tab'], number>>
 }
 

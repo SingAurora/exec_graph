@@ -12,6 +12,7 @@ import type { GenerateInput, GenerationRequest, GenerationView } from '../../fea
 import { HelpPopover } from '../../shared/ui/help/HelpPopover'
 import { useToast } from '../../shared/ui/toast/useToast'
 import { WorkspaceFrame } from './WorkspaceFrame'
+import { DefaultEffectGuide } from './DefaultEffectGuide'
 import { ExpressionAgreements } from './ExpressionAgreements'
 import { getActionDraftKey } from '../../entities/action/lib/draft-key'
 import { useLocalDraft } from '../../shared/lib/local-draft/useLocalDraft'
@@ -62,6 +63,7 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
   })
   const { messages, input, draftDocument, generated, generation, generationRequest } = local.value
   const update = (patch: Partial<ExpressionWorkspaceDraft>) => local.update((current) => ({ ...current, ...patch }))
+  const fillPhrase = (phrase: string) => update({ input: phrase, view: { ...local.value.view, tab: 'conversation' } })
   // ?? 只对 null／undefined 回退；生成空字符串是用户清空表达的有效选择，不能回退旧正文。
   const document = draftDocument ?? expression.markdown
   const [sending, setSending] = useState(false)
@@ -136,7 +138,7 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
 
   return (
     <WorkspaceFrame title="梳理表达"
-      tabs={['conversation', 'expression']}
+      tabs={['conversation', 'expression', 'guide']}
       view={local.value.view} onViewChange={(view) => update({ view })} restoring={!local.ready}
       draftControls={<LocalDraftControls status={local.status} hasDraft={local.hasDraft} disabled={sending || saving || !local.ready} onDiscard={local.discard} />}
       help={<HelpPopover title="表达的背景">
@@ -149,6 +151,7 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
       onInputChange={(input) => update({ input })} onSend={send} onBack={onBack}
       action={{ title: node.title, markdown: node.objectiveMarkdown ?? node.markdown, images: node.images, status: '只读', empty: '暂无行动记录' }}
       expression={{ markdown: document, images: [], status: expressionStatus, empty: '暂无表达' }}
+      guide={<DefaultEffectGuide workspace="expression" onUse={fillPhrase} />}
       agreement={<ExpressionAgreements node={node} actions={actions} />}
       footer={viewingDocument ? <div className="ml-auto">
         <button className="primary-button" type="button" disabled={!canSave} onClick={async () => {

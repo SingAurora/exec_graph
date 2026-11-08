@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronDown, Footprints, LoaderCircle, MessageCircle, ScrollText, SendHorizontal, Sparkles } from 'lucide-react'
+import { ArrowLeft, BookOpen, ChevronDown, Footprints, LoaderCircle, MessageCircle, ScrollText, SendHorizontal, Sparkles } from 'lucide-react'
 import { useLayoutEffect, useRef, useState, type FormEvent, type ReactNode, type UIEvent } from 'react'
 import type { ActionExpressionContext, ActionExpressionMessage } from '../../entities/action/model/types'
 import { ACTION_CONTENT_LIMIT, ACTION_TITLE_LIMIT } from '../../entities/action/model/limits'
@@ -13,7 +13,7 @@ import { formatConversationForCopy } from '../../shared/lib/format-conversation'
 import type { WorkspaceView } from './model/workspace-draft'
 import { CHAT_INPUT_LIMIT, resizeChatInput, shouldSendChatOnEnter } from './model/chat-input'
 
-type WorkspaceTab = 'conversation' | 'objective' | 'expression' | 'agreement'
+type WorkspaceTab = 'conversation' | 'objective' | 'expression' | 'agreement' | 'guide'
 type DocumentPreview = { title?: string; markdown: string; images?: PostImage[]; status?: string; empty: string }
 
 /** 正文已经用同名标题开头时，不再重复显示文档标题。 */
@@ -65,11 +65,12 @@ type WorkspaceFrameProps = {
   actionControls?: ReactNode
   expression: DocumentPreview
   agreement: ReactNode
+  guide?: ReactNode
   footer?: ReactNode
 }
 
 /** 三类工作区共用界面框架；各工作区只显示当前业务需要的文档栏目。 */
-export function WorkspaceFrame({ title, tabs = ['conversation', 'objective', 'expression', 'agreement'], help, draftControls, view, onViewChange, restoring = false, context, tabActions, composerMode = 'conversation', onComposerModeChange, imageComposer, imageModeBadge, status, messages, starterHint, profileName, profile, users = [], defaultAuthorId, input, inputLabel = '对话内容', placeholder, sending, sendingLabel = '正在整理', fallbackAIName, disabled = false, onInputChange, onSend, onBack, action, actionControls, expression, agreement, footer }: WorkspaceFrameProps) {
+export function WorkspaceFrame({ title, tabs = ['conversation', 'objective', 'expression', 'agreement'], help, draftControls, view, onViewChange, restoring = false, context, tabActions, composerMode = 'conversation', onComposerModeChange, imageComposer, imageModeBadge, status, messages, starterHint, profileName, profile, users = [], defaultAuthorId, input, inputLabel = '对话内容', placeholder, sending, sendingLabel = '正在整理', fallbackAIName, disabled = false, onInputChange, onSend, onBack, action, actionControls, expression, agreement, guide, footer }: WorkspaceFrameProps) {
   const [localTab, setTab] = useState<WorkspaceTab>('conversation')
   const [nodeInfoOpen, setNodeInfoOpen] = useState(false)
   const requestedTab = view?.tab ?? localTab
@@ -144,7 +145,8 @@ export function WorkspaceFrame({ title, tabs = ['conversation', 'objective', 'ex
                 {value === 'conversation' ? <><Sparkles size={16} />AI 对话</>
                   : value === 'objective' ? <><Footprints size={16} />行动</>
                     : value === 'expression' ? <><MessageCircle size={16} />表达</>
-                      : <><ScrollText size={16} />约定</>}
+                      : value === 'agreement' ? <><ScrollText size={16} />约定</>
+                        : <><BookOpen size={16} />默认效果</>}
               </span></TabsTrigger>)}
             </TabsList>
             <div className="flex min-w-0 items-center justify-end gap-2">
@@ -216,6 +218,9 @@ export function WorkspaceFrame({ title, tabs = ['conversation', 'objective', 'ex
           })}
           {tabs.includes('agreement') && <TabsContent value="agreement" keepMounted className="min-h-0 flex-1">
             <div ref={(element) => { panels.current.agreement = element }} onScroll={(event) => rememberScroll('agreement', event)} className="h-full overflow-y-auto overscroll-contain bg-paper py-5">{agreement}</div>
+          </TabsContent>}
+          {tabs.includes('guide') && <TabsContent value="guide" keepMounted className="min-h-0 flex-1">
+            <div ref={(element) => { panels.current.guide = element }} onScroll={(event) => rememberScroll('guide', event)} className="h-full overflow-y-auto overscroll-contain bg-paper px-6 py-6">{guide}</div>
           </TabsContent>}
         </TabsRoot>
         {footer && <div className="flex shrink-0 items-center justify-between gap-3 border-t border-line bg-surface px-6 py-3">{footer}</div>}
