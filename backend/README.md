@@ -1,6 +1,6 @@
 # 引序后端
 
-Go + Gin + GORM + MySQL + Redis。阶段安排和验收见 [实施计划](../doc/backend-implementation-plan.md)。
+Go + Gin + GORM + MySQL + Redis。当前接口、写入和 AI 契约见 [文档索引](../doc/README.md)。
 
 ## 配置与管理
 

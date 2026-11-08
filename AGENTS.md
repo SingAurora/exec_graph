@@ -4,7 +4,7 @@
 
 项目目前处于全新版本开发阶段，不需要兼容不存在的旧版本。修改接口、请求字段、数据模型、Cookie、路由或交互行为时，直接同步实现、测试和文档，不增加旧字段别名、双写、旧路由、旧 Cookie 或兼容分支。只有本文件或具体领域规范明确要求保留的历史链接、演示数据 alias、数据库迁移和本地草稿键兼容规则才例外。
 
-`frontend` 由原 `frontend-v2` 重命名而来；旧版前后端已移除，当前按 `doc/backend-implementation-plan.md` 分阶段实现新后端。未完成的端点不能视作已经接入；前端模拟服务仍由显式开关控制。
+`frontend` 由原 `frontend-v2` 重命名而来；旧版前后端已移除，当前以代码、测试和 `doc/api-request-contract.md`、`doc/backend-write-contract.md`、`doc/backend-external-contract.md` 为准。未完成的端点不能视作已经接入；前端模拟服务仍由显式开关控制。
 
 ## 结构与职责
 
