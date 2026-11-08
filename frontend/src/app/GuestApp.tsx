@@ -73,11 +73,6 @@ export function GuestApp({ graphs, actions, users }: GuestAppProps) {
         </main>
       ) : (
         <main className="pb-20">
-          <section className="pt-8">
-            <p className="text-xs font-semibold tracking-[0.18em] text-signal">公开内容</p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight">先看看大家在做什么</h1>
-            <p className="mt-3 max-w-[620px] text-sm leading-7 text-copy">公开表达和约定回应无需登录即可浏览。记录行动、回应约定或参与讨论时，再登录即可。</p>
-          </section>
           <Discovery
             actions={actions}
             graphs={graphs}
