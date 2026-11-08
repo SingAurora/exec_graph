@@ -83,10 +83,9 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
   const parentNode = actions?.find((node) => node.id === sourceNodeId)
   const directSources = continuation?.sources.map(({ node, agreement }) => ({ sourceId: node.id, nodeNumber: node.number, authorId: node.authorId, markdown: agreement.markdown }))
     ?? (hasParent && sourceNodeId && sourceNodeNumber !== undefined ? [{ sourceId: sourceNodeId, nodeNumber: sourceNodeNumber, authorId: parentNode?.authorId, markdown: inheritedAgreement }] : [])
-  // 约定只属于其他用户；自己的节点只承接行动，不产生自己的约定。
-  const parentIsOther = Boolean(parentNode && parentNode.authorId !== profile?.id)
-  const agreementIntent = documentUpdate(hasParent && parentIsOther ? undefined : '')
-  const selectedAgreement = parentIsOther ? inheritedAgreement : ''
+  // 约定核对只属于其他用户；约定文档本身默认沿用上一个节点，避免重复整理。
+  const agreementIntent = documentUpdate(hasParent ? undefined : '')
+  const selectedAgreement = hasParent ? inheritedAgreement : ''
   const effectiveExpression = inheritedExpression
   const actionImages: PostImage[] = (generation?.draft?.images ?? []).flatMap(({ assetId, alt }) => {
     const image = images.find((item) => item.assetId === assetId)
@@ -151,7 +150,7 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
     const draft = result.draft
     local.update((current) => {
       const messages = [...current.messages, { id: 'ai-' + result.generationId, speaker: 'ai' as const, body: draft.reply, model: result.model }]
-      return { ...current, generation: result, document: draft.objective, details: { title: draft.title, description: '', points: [], note: '' }, expression: { mode: hasParent ? 'inherit' : 'clear', markdown: '' }, agreementMode: hasParent && parentIsOther ? 'inherit' : 'clear', agreementDraft: selectedAgreement,
+      return { ...current, generation: result, document: draft.objective, details: { title: draft.title, description: '', points: [], note: '' }, expression: { mode: hasParent ? 'inherit' : 'clear', markdown: '' }, agreementMode: hasParent ? 'inherit' : 'clear', agreementDraft: selectedAgreement,
         agreementReviews: draft.reviews.map((review) => ({ nodeNumber: actions?.find((node) => node.id === review.sourceId)?.number ?? 0, complies: review.complies, reason: review.exceptionReason ?? '' })), messages,
         generated: true, verificationStatus: 'unverified', sourcesChanged: false, imagePlacementPending: images.length > 0, contextSignature: signatureFor(mergedParentIds) }
     })
@@ -234,7 +233,7 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
       tabs={['conversation', 'objective']}
       view={local.value.view} onViewChange={(view) => update({ view })} restoring={!local.ready}
       draftControls={<LocalDraftControls status={local.status} hasDraft={local.hasDraft} disabled={sending || publishing || uploading || !local.ready} onDiscard={() => { local.discard(); setPublishError('') }} />}
-      help={<HelpPopover title="行动"><p>这里仅记录本次实际行动，并核对你引用的来源节点约定。整理出草稿后说“核验一下”，确认通过才能发布。发布后，表达和约定默认继承当前节点，缺少时才自动生成，之后可独立调整。</p><p>{hasParent ? '新节点默认沿用承接节点的表达与约定。' : '首次行动暂时没有可继承的表达或约定。'}行动不需要合入背景；自己的节点只承接行动，约定只来自其他用户。</p></HelpPopover>}
+      help={<HelpPopover title="行动"><p>这里仅记录本次实际行动，并核对你引用的来源节点约定。整理出草稿后说“核验一下”，确认通过才能发布。发布后，表达和约定默认继承当前节点，缺少时才自动生成，之后可独立调整。</p><p>{hasParent ? '新节点默认沿用承接节点的表达与约定。' : '首次行动暂时没有可继承的表达或约定。'}行动不需要合入背景；自己的节点不会产生来源约定核对，但约定文档仍沿承接链继承。</p></HelpPopover>}
       context={hasParent ? { label: sourceNodeNumber !== undefined ? `承接 #${sourceNodeNumber}` : '承接', title: contextTitle, facts: knownFacts } : undefined}
       tabActions={agreementIndicator ? <div className="flex items-center gap-2">{agreementIndicator}</div> : undefined}
       messages={messages} profileName={profileName} profile={profile} input={input} placeholder="说说这次实际做了什么"

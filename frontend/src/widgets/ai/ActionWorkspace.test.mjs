@@ -83,7 +83,7 @@ describe('action workspace', () => {
     expect(html).toContain('title="查看约定核对详情"')
   })
 
-  test('does not offer merge background and ignores an own inherited agreement', () => {
+  test('does not offer merge background or treat own source as a review', () => {
     const parent = { id: 'p', projectId: 'graph', number: 2, title: '先盛蛋', markdown: '实际行动', authorId: 'jo', agreementMarkdown: '记录锅温' }
     const props = { profile: { id: 'jo', name: '乔' }, actions: [parent], sourceNodeId: 'p', sourceNodeNumber: 2, inheritedAgreement: '记录锅温' }
     const html = render({ ...props, hasParent: true })

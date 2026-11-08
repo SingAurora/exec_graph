@@ -80,11 +80,9 @@ func publish(tx Transaction, actor identity.Actor, input CreateActionInput) (cat
 	if err := tx.Publish(node); err != nil {
 		return zero, err
 	}
-	// 有主要来源时直接继承其已发布表达/约定；自己的来源只承接行动，不继承自己的约定。
+	// 有主要来源时直接继承其已发布表达/约定；自己的来源不参与来源核对，
+	// 但已认真调整过的约定仍可继续沿用，避免每个新节点重新生成。
 	expressionVersionID, agreementVersionID := inheritedDocumentIDs(sources)
-	if len(sources) > 0 && primarySourceAuthor(graph, sources[0].NodeID) == actor.UserID {
-		agreementVersionID = ""
-	}
 	if err := tx.InitializeNodeDocuments(graph.ID, node.ID, expressionVersionID, agreementVersionID); err != nil {
 		return zero, err
 	}
@@ -357,13 +355,4 @@ func (s *Service) DocumentHistory(ctx context.Context, actor identity.Actor, nod
 		return err
 	})
 	return out, err
-}
-
-func primarySourceAuthor(graph Graph, nodeID string) string {
-	for _, node := range graph.Nodes {
-		if node.ID == nodeID {
-			return node.AuthorID
-		}
-	}
-	return ""
 }
