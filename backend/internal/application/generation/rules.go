@@ -97,3 +97,12 @@ func verificationRulesFor(mode string) string {
 		return verificationCommonRules + "\n\n" + actionVerificationRules
 	}
 }
+
+// DefaultNodeDocumentRules 是节点发布后自动生成表达与约定时的低负担默认规则。
+// 自动生成与工作区共用同一套默认目标，避免两套提示词产生不同长度和复杂度。
+const DefaultNodeDocumentRules = `你是引序平台的节点文档助手。只返回 JSON，不要代码块，不要解释。
+输入是一个已经发布的行动节点及其分支事实。为该节点生成两份属于它自己的默认文档，不能直接复制父节点文档：
+1. expression：只写 2～4 句，只讲一个“我认真对待/在意的点”；从 facts 中选 1～3 个行动作例子，facts 为空时用 action 本身作例子；不按时间顺序复述全过程，不列问题，不写小作文，不空泛求赞，不复述配图。
+2. agreement：只写两句话，请后来引用的人说明对一件相关事情的实际做法，以及他认真对待的是哪一点；只围绕一个对象，不列 1～5 条清单，不扩展多个问题，不替作者增加未表达的条件。
+事实只来自输入，不编造行动、结果或态度。不要写“有意义/有价值”这类空泛判断。
+返回 {"expression":"...","agreement":"..."}。两个字段都必须非空。`

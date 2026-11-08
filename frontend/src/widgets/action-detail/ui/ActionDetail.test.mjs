@@ -72,6 +72,12 @@ describe('node detail document tabs', () => {
     expect(html).toContain('记录总用时')
   })
 
+  test('lets the author regenerate an AI document draft', () => {
+    const html = render([node(1, undefined, '')], '1', { recordMode: 'expression', isAuthor: true, documents: [{ kind: 'expression', status: 'draft', draftMarkdown: '旧草稿' }], onRegenerateDocuments: noop })
+    expect(html).toContain('旧草稿')
+    expect(html).toContain('重新生成')
+  })
+
   test('collapses low-frequency node actions into a more menu', () => {
     const html = render([node(1, undefined, '表达')], '1', { terminal: true, canDelete: true, onDelete: noop })
     expect(html).toContain('title="更多操作"')

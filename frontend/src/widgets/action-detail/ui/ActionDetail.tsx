@@ -59,7 +59,7 @@ function ActionSources({ node, actions, users, onSelect }: { node: ActionNode; a
 }
 
 /** 当前节点阅读区：行动、表达、约定三个平行文档 tab；草稿通过 AI 对话编辑。 */
-export function ActionDetail({ node, actions, users, author, isHighlightTip, onHighlight, onHide, onLocate, recordMode, onModeChange, onOpenArchive, onContinue, onSelect, onEditExpression, onEditAgreement, terminal = false, canDelete = false, onDelete, documents = [], documentsLoading = false, documentsError = '', isAuthor = false }: {
+export function ActionDetail({ node, actions, users, author, isHighlightTip, onHighlight, onHide, onLocate, recordMode, onModeChange, onOpenArchive, onContinue, onSelect, onEditExpression, onEditAgreement, terminal = false, canDelete = false, onDelete, documents = [], documentsLoading = false, documentsError = '', onRegenerateDocuments, regenerating = false, isAuthor = false }: {
   node: ActionNode
   actions: ActionNode[]
   users: UserProfile[]
@@ -81,6 +81,8 @@ export function ActionDetail({ node, actions, users, author, isHighlightTip, onH
   documents?: NodeDocument[]
   documentsLoading?: boolean
   documentsError?: string
+  onRegenerateDocuments?: () => void
+  regenerating?: boolean
   isAuthor?: boolean
 }) {
   const objectiveMarkdown = node.objectiveMarkdown ?? node.markdown
@@ -108,8 +110,8 @@ export function ActionDetail({ node, actions, users, author, isHighlightTip, onH
     if (!isAuthor) return <div className="flex min-h-40 items-center justify-center text-sm text-muted">作者正在完成{kind === 'expression' ? '表达' : '约定'}，尚未发布。</div>
     if (documentsError) return <p className="py-5 text-sm text-coral">{documentsError}</p>
     if (documentsLoading && !document) return <div className="flex min-h-40 items-center justify-center gap-2 text-sm text-muted"><LoaderCircle size={16} className="animate-spin" />正在读取{kind === 'expression' ? '表达' : '约定'}状态…</div>
-    if (status === 'failed' || document?.status === 'failed') return <div className="min-h-40 py-5"><p className="text-sm font-medium text-coral">AI 生成失败</p><p className="mt-2 text-sm leading-6 text-muted">{document?.errorMessage ?? '请稍后重试生成。'}</p></div>
-    if (draft) return <div><div className="mb-4 inline-flex items-center gap-2 rounded-md bg-signal-soft px-2.5 py-1 text-xs font-medium text-signal">AI 草案 · 尚未发布</div><MarkdownContent markdown={draft} showImageCaptions={false} /></div>
+    if (status === 'failed' || document?.status === 'failed') return <div className="min-h-40 py-5"><p className="text-sm font-medium text-coral">AI 生成失败</p><p className="mt-2 text-sm leading-6 text-muted">{document?.errorMessage ?? '请稍后重试生成。'}</p>{isAuthor && onRegenerateDocuments && <button className="quiet-button mt-4" type="button" disabled={regenerating} onClick={onRegenerateDocuments}>{regenerating ? '重新生成中…' : '重新生成表达和约定'}</button>}</div>
+    if (draft) return <div><div className="mb-4 flex flex-wrap items-center gap-2"><span className="inline-flex items-center gap-2 rounded-md bg-signal-soft px-2.5 py-1 text-xs font-medium text-signal">AI 草案 · 尚未发布</span>{isAuthor && onRegenerateDocuments && <button className="text-button text-xs" type="button" disabled={regenerating} onClick={onRegenerateDocuments}>{regenerating ? '重新生成中…' : '重新生成'}</button>}</div><MarkdownContent markdown={draft} showImageCaptions={false} /></div>
     if (status === 'pending' || status === 'generating') return <div className="flex min-h-40 items-center justify-center gap-2 text-sm text-muted"><LoaderCircle size={16} className="animate-spin" />AI 正在生成{kind === 'expression' ? '表达' : '约定'}草稿…</div>
     return <p className="py-5 text-sm text-muted">还没有{kind === 'expression' ? '表达' : '约定'}。</p>
   }
