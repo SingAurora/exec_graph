@@ -48,5 +48,5 @@ export type SearchPage<T> = {
 export const API_REQUEST_DEFAULTS = {
   pageSize: 6,
   maxPageSize: 50,
-  timeoutMs: 15_000,
+  timeoutMs: 5_000,
 } as const
