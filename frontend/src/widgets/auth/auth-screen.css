@@ -99,8 +99,7 @@
   .auth-submit:hover { background: var(--signal-dark); }
   .auth-switcher { margin-top: 20px; text-align: center; color: var(--muted); font-size: 13px; }
   .auth-switcher a { margin-left: 7px; color: var(--signal); font-weight: 500; }
-  .auth-demo { display: block; margin: 18px auto 0; padding: 0; border: 0; background: transparent; color: var(--muted); font-size: 12px; }
-  .auth-demo:hover, .auth-switcher a:hover { text-decoration: underline; text-underline-offset: 4px; }
+  .auth-switcher a:hover { text-decoration: underline; text-underline-offset: 4px; }
   @media (min-width: 1500px) {
     .auth-form-shell { max-width: 380px; }
   }

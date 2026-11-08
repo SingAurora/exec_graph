@@ -10,7 +10,7 @@
 - 路径固定为 `/api/commands/<领域>/<动作>`，领域和动作用英文小写，多词用 `kebab-case`。资源 UUID 放在 query 或 JSON，不放路径。
 - 仅使用 `GET` 和 `POST`。GET 读取，POST 创建、修改、删除或执行有副作用的操作。图片上传使用 POST multipart。
 - 普通 POST 使用 `Content-Type: application/json`。JSON 字段和 query 参数用 camelCase；枚举值使用稳定英文标识。
-- 统一客户端基于 `VITE_API_BASE_URL` 解析服务根地址，默认值为空；该变量不包含 `/api/commands`，不能包含凭据。
+- 前后端固定同源部署；统一客户端始终使用当前站点 origin，不读取可配置 API 基址。
 - 资源自身标识字段统一为 `uuid`，值是 UUID；图的关联字段统一为 `graphUuid`。公开端点不再接受或返回 `id`、`projectId` 作为资源标识。
 
 ## 2. 参数与资源身份

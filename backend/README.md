@@ -31,7 +31,7 @@ EXEC_GRAPH_DATABASE_SCHEMA=exec_graph go run ./cmd/manage verify
 ```sh
 cd frontend
 bun install --frozen-lockfile
-VITE_API_BASE_URL= VITE_ENABLE_DEMO_LOGIN=false bun run build
+bun run build
 cd ../backend
 go build -o bin/exec-graph ./cmd/api
 go build -o bin/exec-graph-manage ./cmd/manage

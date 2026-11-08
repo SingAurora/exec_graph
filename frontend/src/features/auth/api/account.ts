@@ -11,7 +11,6 @@ export function login(email: string, password: string): Promise<SessionView> {
   return postAPI('/api/commands/auth/login', { email, password })
 }
 /** 显式测试入口，是否允许登录测试号最终由服务端配置决定。 */
-export function demoLogin(): Promise<SessionView> { return postAPI('/api/commands/auth/demo-login', {}) }
 /** 撤销服务端会话。 */
 export function logout(): Promise<null> { return postAPI('/api/commands/auth/logout', {}) }
 /** 请求真实邮件验证码。 */

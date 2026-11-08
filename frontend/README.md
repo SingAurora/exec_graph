@@ -5,7 +5,7 @@ bun install
 bun run dev
 ```
 
-从仓库根目录运行 `./dev.sh` 可以同时启动 Go API 和 Vite；也可以分别启动。默认后端监听 `127.0.0.1:8080`，前端在 `http://localhost:5173`，Vite 会把浏览器发出的 `/api/...` 请求代理到后端 8080。后端使用其他端口时，通过 `API_PROXY_TARGET` 指定代理目标。部署时运行 `bun run build`，让 Go 通过 `EXEC_GRAPH_FRONTEND_DIR` 提供生成的 `dist`，页面与 API 共用一个端口，`VITE_API_BASE_URL` 留空，不再运行 Vite。完整命令见 [Go 同时提供前端与 API](../backend/README.md#go-同时提供前端与-api)。平台密钥只配置在后端。开发测试号入口需同时开启前端 `VITE_ENABLE_DEMO_LOGIN=true` 和后端 `EXEC_GRAPH_ENABLE_DEMO_LOGIN=true`。
+从仓库根目录运行 `./dev.sh` 可以同时启动 Go API 和 Vite；也可以分别启动。默认后端监听 `127.0.0.1:8080`，前端在 `http://localhost:5173`，Vite 会把浏览器发出的 `/api/...` 请求代理到后端 8080。后端使用其他端口时，通过 `API_PROXY_TARGET` 指定代理目标。部署时运行 `bun run build`，让 Go 通过 `EXEC_GRAPH_FRONTEND_DIR` 提供生成的 `dist`，页面与 API 共用一个端口，不再运行 Vite。完整命令见 [Go 同时提供前端与 API](../backend/README.md#go-同时提供前端与-api)。平台密钥只配置在后端；不再提供前端测试号入口。
 
 ## 请求与缓存
 
@@ -19,7 +19,7 @@ bun run dev
 
 ## 联调
 
-前端只连接真实后端，不提供模拟接口或模拟数据回退。不同源部署可配置 `VITE_API_BASE_URL`，并正确配置后端 CORS。`VITE_` 环境变量会暴露给浏览器，不要填写账户或 API 密钥。接口不可用时显示错误，保留输入和草稿。
+前端只连接真实后端，不提供模拟接口或模拟数据回退。前后端固定同源部署，请求始终使用当前站点 origin。接口不可用时显示错误，保留输入和草稿。
 
 支持邮箱登录、验证码注册／重置、注销和账户安全。401 统一切换为匿名并清除旧账号查询，其他错误保留重试。登录使用 Bearer token，前端保存在浏览器本地存储；不使用 Cookie。注销不删除按账号隔离的本地草稿。
 

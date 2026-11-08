@@ -98,7 +98,8 @@ async function requestBusiness<T>(path: BusinessAPIPath, query: URLSearchParams 
   const timer = setTimeout(() => timeout.abort(), options.timeoutMs ?? API_REQUEST_DEFAULTS.timeoutMs)
   // 外部取消与超时共用请求 signal，但在 catch 中分别分类；取消请求不等于撤销服务端写入。
   const signal = options.signal ? AbortSignal.any([options.signal, timeout.signal]) : timeout.signal
-  const base = import.meta.env?.VITE_API_BASE_URL || globalThis.location?.origin
+  // 前后端固定同源部署，始终使用当前站点 origin，不读取可配置 API 基址。
+  const base = globalThis.location?.origin
   try {
     if (!/^\/api\/commands\/[a-z][a-z-]*\/[a-z][a-z-]*$/.test(path)) throw new BusinessRequestError('接口路径不合法', 'protocol')
     const url = new URL(path, base)

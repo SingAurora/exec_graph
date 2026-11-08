@@ -8,7 +8,7 @@ import {type AuthFieldErrors, type AuthFieldName, validateAuthField, validateAut
 import {Brand} from '../../shared/ui/Brand'
 import {useToast} from '../../shared/ui/toast/useToast'
 import './auth-screen.css'
-import {demoLogin, login, register, resetPassword, sendCode as requestCode} from '../../features/auth/api/account'
+import {login, register, resetPassword, sendCode as requestCode} from '../../features/auth/api/account'
 import type {SessionView} from '../../entities/profile/api/profiles'
 
 type AuthScreenProps = {
@@ -176,17 +176,6 @@ export function AuthScreen({view, darkMode, onToggleTheme, onEnter}: AuthScreenP
                         {isLogin ? '还没有账号？' : isRegister ? '已经有账号？' : '想起密码了？'}
                         <a href={isLogin ? '#register' : '#login'}>{isLogin ? '注册账号' : '返回登录'}</a>
                     </p>
-                    {import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_LOGIN === 'true' &&
-                        <button className="auth-demo" type="button" disabled={pending} onClick={async () => {
-                            setPending(true)
-                            try {
-                                await onEnter(await demoLogin())
-                            } catch (error) {
-                                showToast({kind: 'error', message: error instanceof Error ? error.message : '演示登录失败'})
-                            } finally {
-                                setPending(false)
-                            }
-                        }}>体验演示</button>}
                 </div>
             </section>
         </main>
