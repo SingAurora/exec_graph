@@ -133,7 +133,6 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
   }
 
   const conversation: ActionExpressionMessage[] = messages.map((message) => ({ ...message, authorId: message.authorId ?? profileId }))
-  if (!conversation.length) conversation.push({ id: 'welcome', speaker: 'ai', body: '基于这些行动，你想让别人看到你对什么感兴趣、持什么态度？' })
 
   return (
     <WorkspaceFrame title="梳理表达"
@@ -145,7 +144,7 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
           <p>只更新当前节点的表达，行动与约定保持原样。表达面向其他用户，写兴趣、态度和有依据的判断，不必按时间复述行动。要清空表达，可在对话中说明；确认保存后生效。</p>
         </HelpPopover>}
       context={{ label: `节点 #${node.number}`, title: node.title, facts: context?.facts.filter((fact) => fact.number !== node.number) ?? [] }}
-      messages={conversation} profileName={profileName} profile={profile} users={users} defaultAuthorId={profileId} status={workspaceStatus}
+      starterHint="基于这些行动，你想让别人看到你对什么感兴趣、持什么态度？" messages={conversation.filter((message) => message.id !== 'welcome')} profileName={profileName} profile={profile} users={users} defaultAuthorId={profileId} status={workspaceStatus}
       input={input} inputLabel="表达对话内容" placeholder="说说想保留或调整的看法" sending={sending} fallbackAIName={generation?.model} disabled={saving || !local.ready || !canEdit}
       onInputChange={(input) => update({ input })} onSend={send} onBack={onBack}
       action={{ title: node.title, markdown: node.objectiveMarkdown ?? node.markdown, images: node.images, status: '只读', empty: '暂无行动记录' }}

@@ -116,7 +116,6 @@ export function AgreementWorkspace({ node, csrfToken, draftKey, actions, profile
     } finally { setSending(false) }
   }
   const conversation: ActionExpressionMessage[] = messages.map((message) => ({ ...message, authorId: message.authorId ?? profileId }))
-  if (!conversation.length) conversation.push({ id: 'welcome', speaker: 'ai', body: '你希望后来引用这个节点的人满足什么条件？可以说得具体一些，也可以先讨论再决定。' })
   const context = expressionContext
   const workspaceStatus: { text: string; tone: 'muted' | 'signal' | 'warning' | 'coral' } = !canEdit ? { text: '不可修改', tone: 'coral' }
     : sending ? { text: '正在整理…', tone: 'muted' }
@@ -135,7 +134,7 @@ export function AgreementWorkspace({ node, csrfToken, draftKey, actions, profile
       draftControls={<LocalDraftControls status={local.status} hasDraft={local.hasDraft} disabled={sending || saving || !local.ready} onDiscard={local.discard} />}
       help={<HelpPopover title="约定的作用"><p>约定说明后来引用这个节点时，你希望对方满足什么条件。它参考整条支链的事实与表达，但不同于本次行动是否满足来源节点的约定。</p><p>约定从当前节点向后生效；保存后不会改写已有引用的核对结果。</p></HelpPopover>}
       context={{ label: `节点 #${node.number}`, title: node.title, facts: context?.facts.filter((fact) => fact.number !== node.number) ?? [] }}
-      messages={conversation} profileName={profileName} profile={profile} users={users} defaultAuthorId={profileId} status={workspaceStatus}
+      starterHint="你希望后来引用这个节点的人满足什么条件？可以说得具体一些，也可以先讨论再决定。" messages={conversation.filter((message) => message.id !== 'welcome')} profileName={profileName} profile={profile} users={users} defaultAuthorId={profileId} status={workspaceStatus}
       input={input} inputLabel="约定对话内容" placeholder="说说你希望对方满足什么条件" sending={sending} fallbackAIName={generation?.model} disabled={saving || !local.ready || !canEdit}
       onInputChange={(input) => update({ input })} onSend={send} onBack={onBack}
       action={{ title: node.title, markdown: node.objectiveMarkdown ?? node.markdown, images: node.images, status: '只读', empty: '暂无行动记录' }}

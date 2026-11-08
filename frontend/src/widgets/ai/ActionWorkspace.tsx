@@ -41,7 +41,6 @@ type ActionWorkspaceProps = {
 /** 行动发布工作区：同一条 AI 对话整理行动事实与表达，另行设置后续约定并核对来源。 */
 export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draftKey, hasParent, contextTitle, contextGuide, inheritedExpression = '', inheritedExpressionImages = [], inheritedAgreement = '', sourceNodeId, sourceNodeNumber, actions, historyFacts = [], initialDocument = '', initialMessages, onBack, onConfirm }: ActionWorkspaceProps) {
   const { generate, chat } = useGeneration(csrfToken)
-  const welcome: ChatMessage = { id: 'welcome', speaker: 'ai', body: '先说说这次实际做了什么。' }
   // 背景签名用于判断草稿是否仍对应当前引用事实；来源变化后必须再对话核实，不能直接发布旧结果。
   const signatureFor = (mergedIds: string[]) => {
     const context = actions && sourceNodeId ? getActionContinuationContext(actions, sourceNodeId, mergedIds) : undefined
@@ -51,7 +50,7 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
   // 对话、文档和预览位置作为一份本地草稿保存；恢复完成前禁止编辑，避免初始空值覆盖旧草稿。
   const local = useLocalDraft<ActionWorkspaceDraft>({
     draftKey,
-    initialValue: { messages: initialMessages?.length ? initialMessages : [welcome], pendingReports: [], input: '', document: initialDocument,
+    initialValue: { messages: initialMessages ?? [], pendingReports: [], input: '', document: initialDocument,
       details: { title: '', description: '', points: [], note: '' }, generated: Boolean(initialDocument),
       expression: { mode: hasParent ? 'inherit' : 'clear', markdown: '' }, agreementMode: 'inherit', agreementDraft: inheritedAgreement,
       agreementReviews: [], mergedParentIds: [], sourcesChanged: false, imagePlacementPending: false, contextSignature: signatureFor([]), view: createWorkspaceView() },
@@ -236,7 +235,7 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
       help={<HelpPopover title="行动"><p>这里仅记录本次实际行动，并核对你引用的来源节点约定。整理出草稿后说“核验一下”，确认通过才能发布。发布后，表达和约定默认继承当前节点，缺少时才自动生成，之后可独立调整。</p><p>{hasParent ? '新节点默认沿用承接节点的表达与约定。' : '首次行动暂时没有可继承的表达或约定。'}行动不需要合入背景；自己的节点不会产生来源约定核对，但约定文档仍沿承接链继承。</p></HelpPopover>}
       context={hasParent ? { label: sourceNodeNumber !== undefined ? `承接 #${sourceNodeNumber}` : '承接', title: contextTitle, facts: knownFacts } : undefined}
       tabActions={agreementIndicator ? <div className="flex items-center gap-2">{agreementIndicator}</div> : undefined}
-      messages={messages} profileName={profileName} profile={profile} input={input} placeholder="说说这次实际做了什么"
+      starterHint="先说说这次实际做了什么。" messages={messages.filter((message) => message.id !== 'welcome')} profileName={profileName} profile={profile} input={input} placeholder="说说这次实际做了什么"
       sending={sending} sendingLabel={directSources.length ? '正在整理行动并核对来源约定' : '正在整理行动'} fallbackAIName={generation?.model} disabled={publishing || uploading || !local.ready || !contextValid} onInputChange={(input) => update({ input })} onSend={send} onBack={onBack}
       composerMode={composerMode} onComposerModeChange={setComposerMode} imageModeBadge={images.length} status={workspaceStatus}
       imageComposer={<div className="grid gap-3">

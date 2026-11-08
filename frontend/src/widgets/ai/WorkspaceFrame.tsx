@@ -46,6 +46,7 @@ type WorkspaceFrameProps = {
   imageModeBadge?: string | number
   status?: { text: string; tone: 'muted' | 'signal' | 'warning' | 'coral' }
   messages: ActionExpressionMessage[]
+  starterHint?: ReactNode
   profileName: string
   profile?: UserProfile
   users?: UserProfile[]
@@ -68,7 +69,7 @@ type WorkspaceFrameProps = {
 }
 
 /** 三类工作区共用界面框架；各工作区只显示当前业务需要的文档栏目。 */
-export function WorkspaceFrame({ title, tabs = ['conversation', 'objective', 'expression', 'agreement'], help, draftControls, view, onViewChange, restoring = false, context, tabActions, composerMode = 'conversation', onComposerModeChange, imageComposer, imageModeBadge, status, messages, profileName, profile, users = [], defaultAuthorId, input, inputLabel = '对话内容', placeholder, sending, sendingLabel = '正在整理', fallbackAIName, disabled = false, onInputChange, onSend, onBack, action, actionControls, expression, agreement, footer }: WorkspaceFrameProps) {
+export function WorkspaceFrame({ title, tabs = ['conversation', 'objective', 'expression', 'agreement'], help, draftControls, view, onViewChange, restoring = false, context, tabActions, composerMode = 'conversation', onComposerModeChange, imageComposer, imageModeBadge, status, messages, starterHint, profileName, profile, users = [], defaultAuthorId, input, inputLabel = '对话内容', placeholder, sending, sendingLabel = '正在整理', fallbackAIName, disabled = false, onInputChange, onSend, onBack, action, actionControls, expression, agreement, footer }: WorkspaceFrameProps) {
   const [localTab, setTab] = useState<WorkspaceTab>('conversation')
   const [nodeInfoOpen, setNodeInfoOpen] = useState(false)
   const requestedTab = view?.tab ?? localTab
@@ -156,6 +157,7 @@ export function WorkspaceFrame({ title, tabs = ['conversation', 'objective', 'ex
           </div>
           <TabsContent value="conversation" keepMounted className="flex min-h-0 flex-1 flex-col bg-paper">
             <div ref={(element) => { panels.current.conversation = element }} onScroll={(event) => rememberScroll('conversation', event)} className="grid min-h-0 flex-1 content-start gap-4 overflow-y-auto overscroll-contain px-6 py-6">
+              {messages.length === 0 && starterHint && <div className="max-w-[85%] py-2 text-sm leading-7 text-muted">{starterHint}</div>}
               {messages.map((message) => (
                 <div className={'w-fit max-w-[78%] max-[700px]:max-w-[88%] ' + (message.speaker === 'user' ? 'ml-auto' : '')} key={message.id}>
                   <div className={'min-w-0 rounded-xl px-4 py-3 shadow-[0_1px_2px_rgba(0,0,0,.025)] ' + (message.id.startsWith('error-') ? 'border border-coral/30 bg-surface' : message.speaker === 'user' ? 'bg-soft' : 'border border-line bg-surface')}>
