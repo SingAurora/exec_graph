@@ -140,7 +140,7 @@ export function AgreementWorkspace({ node, csrfToken, draftKey, actions, profile
       onInputChange={(input) => update({ input })} onSend={send} onBack={onBack}
       action={{ title: node.title, markdown: node.objectiveMarkdown ?? node.markdown, images: node.images, status: '只读', empty: '暂无行动记录' }}
       expression={{ markdown: node.expressionMarkdown ?? '', images: [], status: '只读', empty: '暂无表达' }}
-      agreement={<AgreementContent agreement={{ markdown: agreement.markdown }} onSelectSource={() => {}} />}
+      agreement={<AgreementContent agreement={{ markdown }} onSelectSource={() => {}} />}
       footer={viewingDocument ? <div className="ml-auto">
         <button className="primary-button" type="button" disabled={!canSave} onClick={async () => {
           if (!canSave) return
