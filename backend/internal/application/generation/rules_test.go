@@ -72,3 +72,18 @@ func TestPromptRulesStayCompact(t *testing.T) {
 		}
 	}
 }
+
+func TestDefaultEffectRulesAreLowBurden(t *testing.T) {
+	expression := generationRulesFor("expression")
+	if !strings.Contains(expression, "给我一个默认效果的表达") || !strings.Contains(expression, "2～4 句") || !strings.Contains(expression, "1～3 个支链行动") {
+		t.Fatal("表达缺少默认效果触发或简短约束")
+	}
+	agreement := generationRulesFor("agreement")
+	if !strings.Contains(agreement, "给我一个默认效果的约定") || !strings.Contains(agreement, "两句话") {
+		t.Fatal("约定缺少默认效果触发或两句话约束")
+	}
+	action := generationRulesFor("action")
+	if !strings.Contains(action, "对来源约定的回应") {
+		t.Fatal("行动缺少来源约定逐条回应规则")
+	}
+}

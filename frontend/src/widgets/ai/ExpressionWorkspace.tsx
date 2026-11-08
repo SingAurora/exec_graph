@@ -141,11 +141,11 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
       draftControls={<LocalDraftControls status={local.status} hasDraft={local.hasDraft} disabled={sending || saving || !local.ready} onDiscard={local.discard} />}
       help={<HelpPopover title="表达的背景">
           <p>本次对话带入整条支链的行动事实、有效表达与来源约定。其他分支不属于已知事实，行动对话也与本对话分开保存。</p>
-          <p>只更新当前节点的表达，行动与约定保持原样。表达面向其他用户，写兴趣、态度和有依据的判断，不必按时间复述行动。要清空表达，可在对话中说明；确认保存后生效。</p>
+          <p>只更新当前节点的表达，行动与约定保持原样。表达面向其他用户，写兴趣、态度和有依据的判断，不必按时间复述行动。要清空表达，可在对话中说明；确认保存后生效。</p><p>想要低负担默认稿时，直接说“给我一个默认效果的表达”。</p>
         </HelpPopover>}
       context={{ label: `节点 #${node.number}`, title: node.title, facts: context?.facts.filter((fact) => fact.number !== node.number) ?? [] }}
       starterHint="基于这些行动，你想让别人看到你对什么感兴趣、持什么态度？" messages={conversation.filter((message) => message.id !== 'welcome')} profileName={profileName} profile={profile} users={users} defaultAuthorId={profileId} status={workspaceStatus}
-      input={input} inputLabel="表达对话内容" placeholder="说说想保留或调整的看法" sending={sending} fallbackAIName={generation?.model} disabled={saving || !local.ready || !canEdit}
+      input={input} inputLabel="表达对话内容" placeholder="说说想保留或调整的看法，或“给我一个默认效果的表达”" sending={sending} fallbackAIName={generation?.model} disabled={saving || !local.ready || !canEdit}
       onInputChange={(input) => update({ input })} onSend={send} onBack={onBack}
       action={{ title: node.title, markdown: node.objectiveMarkdown ?? node.markdown, images: node.images, status: '只读', empty: '暂无行动记录' }}
       expression={{ markdown: document, images: [], status: expressionStatus, empty: '暂无表达' }}
