@@ -33,7 +33,7 @@ export function ChooseProfileHighlights({ userUuid, highlights, candidates, grap
   const save = useMutation({
     mutationFn: async () => {
       if (!session.data || session.data.user.uuid !== userUuid) throw new Error('当前账户已变化，请重新打开主页')
-      return setProfileHighlights({ expressionNodeUuids: draft, expectedVersion: session.data.user.version }, { csrfToken: session.data.csrfToken })
+      return setProfileHighlights({ expressionNodeUuids: draft, expectedVersion: session.data.user.version }, {})
     },
     onSuccess(user) {
       client.setQueryData<SessionView>(profileKeys.session, (current) => current?.user.uuid === user.uuid ? { ...current, user } : current)

@@ -65,7 +65,6 @@ export type BusinessAPIPath = `/api/commands/${string}/${string}`
 /** 业务请求选项：支持 Query 取消、幂等键和单独指定超时；认证 token 从浏览器存储自动附加。 */
 export type BusinessRequestOptions = {
   signal?: AbortSignal
-  csrfToken?: string
   idempotencyKey?: string
   timeoutMs?: number
 }
@@ -109,7 +108,6 @@ async function requestBusiness<T>(path: BusinessAPIPath, query: URLSearchParams 
     if (token) headers.set('Authorization', `Bearer ${token}`)
     if (body !== undefined) {
       if (!(body instanceof FormData)) headers.set('Content-Type', 'application/json')
-      if (options.csrfToken) headers.set('X-CSRF-Token', options.csrfToken)
       if (options.idempotencyKey) headers.set('Idempotency-Key', options.idempotencyKey)
     }
     const response = await fetch(url, { method: body === undefined ? 'GET' : 'POST', credentials: 'omit', headers, signal, ...(body === undefined ? {} : { body: body instanceof FormData ? body : JSON.stringify(body) }) })

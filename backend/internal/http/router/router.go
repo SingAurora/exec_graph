@@ -30,9 +30,9 @@ func New(auth *identity.Handler, read *catalogue.Handler, graphs *graph.Handler,
 	group.POST("/auth/login", auth.Login)
 	// 显式开发模式下体验固定测试账号。
 	group.POST("/auth/demo-login", auth.DemoLogin)
-	// 读取当前会话资料及 CSRF token。
+	// 读取当前会话资料。
 	group.GET("/auth/session", auth.Session)
-	// 校验 CSRF 并撤销当前会话。
+	// 撤销当前会话。
 	group.POST("/auth/logout", auth.Logout)
 	// 按注册、找回密码或已认证账户安全操作发送一次性验证码。
 	group.POST("/auth/code-send", accounts.Code)

@@ -2,7 +2,7 @@ app:
   host: 127.0.0.1
   port: 8080
   session_ttl_hours: 168
-  # * 表示回显任意浏览器 Origin；鉴权仍由会话、CSRF 和权限校验负责。
+  # * 表示回显任意浏览器 Origin；鉴权仍由会话和权限校验负责。
   allowed_origins:
     - "*"
   environment: development

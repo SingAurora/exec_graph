@@ -5,9 +5,8 @@ import { generateNodeDocuments, getNodeDocuments, publishNodeDocument, type Node
 type Kind = 'expression' | 'agreement'
 
 /** 作者自己的节点文档状态；只在节点未完成时轮询 AI 草稿。 */
-export function useNodeDocuments({ node, csrfToken, enabled, onPublished }: {
+export function useNodeDocuments({ node, enabled, onPublished }: {
   node?: ActionNode
-  csrfToken: string
   enabled: boolean
   onPublished?: (nodeUuid: string, expectedVersion: number, kind: Kind) => Promise<void>
 }) {
@@ -50,7 +49,7 @@ export function useNodeDocuments({ node, csrfToken, enabled, onPublished }: {
   const retry = async () => {
     if (!node) return
     setWorking('generate'); setError('')
-    try { setDocuments(await generateNodeDocuments(node.uuid, csrfToken)) }
+    try { setDocuments(await generateNodeDocuments(node.uuid)) }
     catch (cause) { setError(cause instanceof Error ? cause.message : '生成失败，请重试') }
     finally { setWorking('') }
   }
@@ -59,7 +58,7 @@ export function useNodeDocuments({ node, csrfToken, enabled, onPublished }: {
     setWorking(kind); setError('')
     try {
       if (onPublished) await onPublished(node.uuid, node.version ?? 0, kind)
-      else await publishNodeDocument(node.uuid, node.version ?? 0, kind, csrfToken)
+      else await publishNodeDocument(node.uuid, node.version ?? 0, kind)
       await load()
     } catch (cause) { setError(cause instanceof Error ? cause.message : '发布失败，请重试') }
     finally { setWorking('') }

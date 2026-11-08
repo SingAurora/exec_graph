@@ -21,9 +21,8 @@ import { appendWorkspaceError, appendWorkspaceNotice, createWorkspaceView, isExp
 import { BusinessRequestError } from '../../shared/api/errors'
 
 /** 使用独立对话修改表达；行动事实和约定在此只读，不创建新行动。 */
-export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profileName, profileUuid, profile, users = [], contextGuide, onBack, onConfirm, onPublishDraft }: {
+export function ExpressionWorkspace({ node, draftKey, actions, profileName, profileUuid, profile, users = [], contextGuide, onBack, onConfirm, onPublishDraft }: {
   node: ActionNode & { version: number }
-  csrfToken: string
   draftKey?: string
   actions: ActionNode[]
   profileName: string
@@ -35,7 +34,7 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
   onConfirm: (input: NonNullable<GenerationView['updateExpression']>) => boolean | Promise<boolean>
   onPublishDraft?: () => Promise<boolean>
 }) {
-  const { generate } = useGeneration(csrfToken)
+  const { generate } = useGeneration()
   const [initialDraft, setInitialDraft] = useState('')
   useEffect(() => {
     if (node.authorUuid !== profileUuid) return

@@ -19,7 +19,6 @@ import { AppearanceSettings } from './AppearanceSettings'
 import type { GraphBackgroundPreferences } from '../../shared/ui/graph-background/model'
 
 type SettingsPanelProps = {
-  csrfToken: string
   profile: UserProfile
   darkMode: boolean
   showActionGraphLegend: boolean
@@ -39,7 +38,7 @@ const categories = [
 ] as const
 
 /** Global preferences with consistent forms and retained tab drafts. */
-export function SettingsPanel({ profile, csrfToken, darkMode, showActionGraphLegend, graphBackground, onGraphBackgroundChange, onSave, onToggleTheme, onShowActionGraphLegendChange }: SettingsPanelProps) {
+export function SettingsPanel({ profile, darkMode, showActionGraphLegend, graphBackground, onGraphBackgroundChange, onSave, onToggleTheme, onShowActionGraphLegendChange }: SettingsPanelProps) {
   const [draft, setDraft] = useState(profile)
   const [backgroundLoading, setBackgroundLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -92,7 +91,7 @@ export function SettingsPanel({ profile, csrfToken, darkMode, showActionGraphLeg
           </div>
         </TabsContent>
         <TabsContent value="account" keepMounted>
-          <AccountSecurity email={profile.email} csrfToken={csrfToken} />
+          <AccountSecurity email={profile.email} />
         </TabsContent>
         <TabsContent value="preferences" keepMounted>
           <AppearanceSettings darkMode={darkMode} onToggleTheme={onToggleTheme} graphBackground={graphBackground} onGraphBackgroundChange={onGraphBackgroundChange} showActionGraphLegend={showActionGraphLegend} onShowActionGraphLegendChange={onShowActionGraphLegendChange} />

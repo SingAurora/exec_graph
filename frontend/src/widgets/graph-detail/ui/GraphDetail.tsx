@@ -41,7 +41,6 @@ export type GraphDetailProps = {
   onUpdateGraph: (graphUuid: string, patch: Pick<Graph, 'title' | 'description' | 'avatar' | 'backgroundImage'>) => void | Promise<void>
   onEditExpression: (node: ActionNode) => void
   onEditAgreement: (node: ActionNode) => void
-  csrfToken: string
   onPublishNodeDocument: (nodeUuid: string, expectedVersion: number, kind: 'expression' | 'agreement') => Promise<void>
   onDeleteNode: (node: ActionNode) => Promise<void>
   onDeleteGraph: (graphUuid: string, expectedNodeCount: number) => boolean | Promise<boolean>
@@ -53,7 +52,7 @@ type GraphSelection = { kind: 'node' | 'reference'; id: string }
 type GraphTab = 'expressions' | 'agreements' | 'facts' | 'explore' | 'search' | 'settings'
 
 /** 图详情协调中心：装配表达、约定、行动和探索，管理选择、定位及各栏目阅读状态。 */
-export function GraphDetail({ graph, active = true, externalFocus, currentUserUuid, users, actions, showActionGraphLegend, graphBackground, onCreateAction, onContinueAction, onOpenActionArchive, onUpdateGraph, onEditExpression, onEditAgreement, csrfToken, onPublishNodeDocument, onDeleteNode, onDeleteGraph, following, onSetGraphFollow }: GraphDetailProps) {
+export function GraphDetail({ graph, active = true, externalFocus, currentUserUuid, users, actions, showActionGraphLegend, graphBackground, onCreateAction, onContinueAction, onOpenActionArchive, onUpdateGraph, onEditExpression, onEditAgreement, onPublishNodeDocument, onDeleteNode, onDeleteGraph, following, onSetGraphFollow }: GraphDetailProps) {
   const handledExternalFocus = useRef<string | undefined>(undefined)
   const workspaceRef = useRef<HTMLDivElement>(null)
   const tabScroll = useRef<Partial<Record<GraphTab, number>>>({})
@@ -90,7 +89,7 @@ export function GraphDetail({ graph, active = true, externalFocus, currentUserUu
   const selectedReference = selection?.kind === 'reference' ? references.find((reference) => reference.uuid === selection.id) : undefined
   const selected = selectedReference ? undefined : actions.find((node) => selection?.kind === 'node' && node.uuid === selection.id) ?? defaultNode
   const nodeDocuments = useNodeDocuments({
-    node: selected, csrfToken,
+    node: selected,
     enabled: Boolean(selected && selected.authorUuid === currentUserUuid && selected.nodeReady === false),
     onPublished: onPublishNodeDocument,
   })

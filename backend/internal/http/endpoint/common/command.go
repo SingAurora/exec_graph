@@ -18,7 +18,7 @@ func SessionToken(c *gin.Context) string {
 	return strings.TrimSpace(strings.TrimPrefix(header, "Bearer "))
 }
 
-// Command 统一进行身份、CSRF、JSON 适配，再调用创建用例。
+// Command 统一进行身份、JSON 适配，再调用创建用例。
 func Command[I, O any](c *gin.Context, auth *identity.Service, run func(context.Context, identity.Actor, string, I) (O, error)) {
 	CommandWithTimeout(c, auth, constants.HTTPRequestTimeout, run)
 }
@@ -27,7 +27,7 @@ func Command[I, O any](c *gin.Context, auth *identity.Service, run func(context.
 func CommandWithTimeout[I, O any](c *gin.Context, auth *identity.Service, timeout time.Duration, run func(context.Context, identity.Actor, string, I) (O, error)) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), timeout)
 	defer cancel()
-	actor, err := auth.Authorize(ctx, SessionToken(c), c.GetHeader("X-CSRF-Token"))
+	actor, err := auth.Authorize(ctx, SessionToken(c))
 	if err != nil {
 		Fail(c, err)
 		return

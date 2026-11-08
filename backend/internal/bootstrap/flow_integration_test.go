@@ -91,7 +91,7 @@ func TestRealDatabaseSeedAndHTTPFlow(t *testing.T) {
 	defer server.Close()
 	client := &http.Client{Timeout: 10 * time.Second}
 	token := ""
-	request := func(method, path, body, csrf string) *http.Response {
+	request := func(method, path, body, _ string) *http.Response {
 		t.Helper()
 		req, err := http.NewRequest(method, server.URL+path, strings.NewReader(body))
 		if err != nil {
@@ -102,9 +102,6 @@ func TestRealDatabaseSeedAndHTTPFlow(t *testing.T) {
 		}
 		if token != "" {
 			req.Header.Set("Authorization", "Bearer "+token)
-		}
-		if csrf != "" {
-			req.Header.Set("X-CSRF-Token", csrf)
 		}
 		response, err := client.Do(req)
 		if err != nil {

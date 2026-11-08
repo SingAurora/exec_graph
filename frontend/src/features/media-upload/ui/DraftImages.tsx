@@ -8,8 +8,8 @@ import { ImagePreview } from '../../../shared/ui/ImagePreview'
 import { retainImages, uploadImage } from '../api/media'
 
 /** 草稿图片先裁剪压缩再上传；只保存站内图片身份，恢复时续期。 */
-export function DraftImages({ images, csrfToken, ready, disabled, onChange, onBusyChange }: {
-  images: PostImage[]; csrfToken: string; ready: boolean; disabled: boolean
+export function DraftImages({ images, ready, disabled, onChange, onBusyChange }: {
+  images: PostImage[]; ready: boolean; disabled: boolean
   onChange: (images: PostImage[]) => void; onBusyChange: (busy: boolean) => void
 }) {
   const [error, setError] = useState('')
@@ -21,14 +21,14 @@ export function DraftImages({ images, csrfToken, ready, disabled, onChange, onBu
     if (!ready || !signature) return
     let active = true
     const renew = () => {
-      void retainImages(signature.split(','), csrfToken).catch((error: unknown) => {
+      void retainImages(signature.split(',')).catch((error: unknown) => {
         if (active) setError(error instanceof Error ? error.message : '草稿图片续期失败，请重试')
       })
     }
     renew()
     const timer = window.setInterval(renew, 12 * 60 * 60 * 1000)
     return () => { active = false; window.clearInterval(timer) }
-  }, [signature, csrfToken, ready])
+  }, [signature, ready])
 
   const selectImage = async (file: File) => {
     setError('')
@@ -39,8 +39,8 @@ export function DraftImages({ images, csrfToken, ready, disabled, onChange, onBu
       const source = await readImageFile(file)
       const image = await loadImage(source)
       const compressed = renderScaledImage(image, { maxWidth: 1600, maxHeight: 1600, quality: file.size > imageCompressionThreshold ? .78 : .88 })
-      const asset = await uploadImage(dataUrlToFile(compressed, 'action-image.jpg'), csrfToken)
-      await retainImages([asset.assetUuid], csrfToken)
+      const asset = await uploadImage(dataUrlToFile(compressed, 'action-image.jpg'))
+      await retainImages([asset.assetUuid])
       onChange([...images, { assetUuid: asset.assetUuid, url: asset.url, alt: '' }])
     } catch (error) { setError(error instanceof Error ? error.message : '图片处理失败，请选择其他图片') }
     finally { setUploading(false); onBusyChange(false) }

@@ -7,7 +7,7 @@ import type { SecurityFormKind } from '../lib/validation'
 const resendDelaySeconds = 60
 
 /** Keeps account changes inline, with a single focused editing flow. */
-export function AccountSecurity({ email, csrfToken }: { email: string; csrfToken: string }) {
+export function AccountSecurity({ email }: { email: string }) {
   const [editing, setEditing] = useState<SecurityFormKind | null>(null)
   const [emailCountdown, setEmailCountdown] = useState(0)
   const [passwordCountdown, setPasswordCountdown] = useState(0)
@@ -30,13 +30,13 @@ export function AccountSecurity({ email, csrfToken }: { email: string; csrfToken
           <p className="mt-2 break-all text-sm text-muted">{email}</p>
         </div>
         {editing === 'email'
-          ? <SecurityForm key="email" kind="email" email={email} csrfToken={csrfToken} countdown={emailCountdown} onRequestCode={() => setEmailCountdown(resendDelaySeconds)} onCancel={() => setEditing(null)} />
+          ? <SecurityForm key="email" kind="email" email={email} countdown={emailCountdown} onRequestCode={() => setEmailCountdown(resendDelaySeconds)} onCancel={() => setEditing(null)} />
           : <div className="flex justify-end"><button className="quiet-button" type="button" onClick={() => setEditing('email')}>修改邮箱</button></div>}
       </section>
       <section className="grid grid-cols-[minmax(130px,1fr)_minmax(0,460px)] items-start gap-8 border-t border-line pt-7">
         <div><div className="flex items-center gap-2"><LockKeyhole size={17} className="text-muted" /><h2 id="change-password-title" className="text-base font-semibold">登录密码</h2></div><p className="mt-2 text-sm text-muted">通过绑定邮箱验证身份</p></div>
         {editing === 'password'
-          ? <SecurityForm key="password" kind="password" email={email} csrfToken={csrfToken} countdown={passwordCountdown} onRequestCode={() => setPasswordCountdown(resendDelaySeconds)} onCancel={() => setEditing(null)} />
+          ? <SecurityForm key="password" kind="password" email={email} countdown={passwordCountdown} onRequestCode={() => setPasswordCountdown(resendDelaySeconds)} onCancel={() => setEditing(null)} />
           : <div className="flex justify-end"><button className="quiet-button" type="button" onClick={() => setEditing('password')}>修改密码</button></div>}
       </section>
     </div>

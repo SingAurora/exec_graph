@@ -4,12 +4,12 @@ import { postAPI, postFormAPI } from '../../../shared/api/client'
 export type UploadedImage = { assetUuid: string; url: string; mimeType: string; byteSize: number; width: number; height: number; retainUntil: string }
 
 /** 上传真实图片文件，服务端独立校验内容和归属。 */
-export function uploadImage(file: File, csrfToken: string): Promise<UploadedImage> {
+export function uploadImage(file: File): Promise<UploadedImage> {
   const body = new FormData()
   body.append('file', file)
-  return postFormAPI('/api/commands/media/upload', body, { csrfToken, timeoutMs: 60_000 })
+  return postFormAPI('/api/commands/media/upload', body, { timeoutMs: 60_000 })
 }
 /** 恢复或继续编辑草稿时延长本人图片的保留期。 */
-export function retainImages(assetUuids: string[], csrfToken: string): Promise<{ assetUuids: string[]; retainUntil: string }> {
-  return postAPI('/api/commands/media/retain', { assetUuids }, { csrfToken })
+export function retainImages(assetUuids: string[]): Promise<{ assetUuids: string[]; retainUntil: string }> {
+  return postAPI('/api/commands/media/retain', { assetUuids })
 }

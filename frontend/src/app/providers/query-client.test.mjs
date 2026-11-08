@@ -8,7 +8,7 @@ describe('application Query cache and retry policy', () => {
   test('an expired write cancels account reads and removes private caches without retrying', async () => {
     const client = createQueryClient()
     try {
-      client.setQueryData(['session'], { user: { uuid: 'jo', id: 'jo' }, csrfToken: 'csrf' })
+      client.setQueryData(['session'], { user: { uuid: 'jo', id: 'jo' } })
       client.setQueryData(graphKeys.catalogue('jo'), ['private-graph'])
       const mutation = client.getMutationCache().build(client, { mutationFn: async () => { throw new BusinessRequestError('请重新登录', 'business', 401, 10002) } })
       await expect(mutation.execute({})).rejects.toMatchObject({ code: 10002 })

@@ -37,8 +37,8 @@ type writeSystem struct {
 }
 
 type writeClient struct {
-	url, token, csrf string
-	http             *http.Client
+	url, token string
+	http       *http.Client
 }
 
 type commandResponse struct {
@@ -104,8 +104,8 @@ func writeFixtureDependencies(t *testing.T, objects appmedia.Objects, provider a
 
 func (s *writeSystem) as(t *testing.T, uuid string) writeClient {
 	t.Helper()
-	token, csrf := security.Passwords{}.Token(), security.Passwords{}.Token()
-	if err := s.deps.Sessions.Put(context.Background(), token, identity.SessionRecord{UserUUID: uuid, AuthVersion: 1, CSRFToken: csrf, ExpiresAt: time.Now().Add(time.Hour)}, time.Hour); err != nil {
+	token := security.Passwords{}.Token()
+	if err := s.deps.Sessions.Put(context.Background(), token, identity.SessionRecord{UserUUID: uuid, AuthVersion: 1, ExpiresAt: time.Now().Add(time.Hour)}, time.Hour); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
@@ -113,7 +113,7 @@ func (s *writeSystem) as(t *testing.T, uuid string) writeClient {
 			t.Error(err)
 		}
 	})
-	return writeClient{url: s.server.URL, token: token, csrf: csrf, http: &http.Client{Timeout: 110 * time.Second}}
+	return writeClient{url: s.server.URL, token: token, http: &http.Client{Timeout: 110 * time.Second}}
 }
 
 func (c writeClient) send(method, path string, input any, key string) (commandResponse, error) {
@@ -126,7 +126,6 @@ func (c writeClient) send(method, path string, input any, key string) (commandRe
 		return commandResponse{}, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-CSRF-Token", c.csrf)
 	if key != "" {
 		req.Header.Set("Idempotency-Key", key)
 	}

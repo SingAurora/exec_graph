@@ -54,7 +54,7 @@ EXEC_GRAPH_ENABLE_DEMO_LOGIN=false \
 ./bin/exec-graph
 ```
 
-浏览器访问 `http://服务器IP:8081/`；服务器需放行 TCP 8081。前端 API 地址留空，页面和 API 使用同一个来源。`allowed_origins` 可以配置明确的来源，也可以配置 `*` 回显任意浏览器 Origin；登录和写入请求使用 Bearer token 与权限校验；当前 demo 阶段已关闭 CSRF 校验。使用 `*` 会放开跨源浏览器访问，生产部署应自行评估网络边界。
+浏览器访问 `http://服务器IP:8081/`；服务器需放行 TCP 8081。前端 API 地址留空，页面和 API 使用同一个来源。`allowed_origins` 可以配置明确的来源，也可以配置 `*` 回显任意浏览器 Origin；登录和写入请求使用 Bearer token 与权限校验，不使用 CSRF token。使用 `*` 会放开跨源浏览器访问，生产部署应自行评估网络边界。
 
 上面的 IP HTTP 示例显式采用 `development` 环境；登录返回 Bearer token，不再依赖 Cookie；生产环境可以直接通过 HTTPS 携带 Bearer token。演示登录仍关闭，构建后的前端只连接真实 API；MySQL、Redis、邮件、图片和 AI 继续使用真实配置。
 

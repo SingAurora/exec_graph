@@ -23,11 +23,11 @@ type Handler struct {
 // New 创建图片端点。
 func New(service *app.Service, auth *identity.Service) *Handler { return &Handler{service, auth} }
 
-// Upload 在读取文件前校验会话、CSRF，并限制完整 multipart 请求容量。
+// Upload 在读取文件前校验会话，并限制完整 multipart 请求容量。
 func (h *Handler) Upload(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), constants.HTTPRequestTimeout)
 	defer cancel()
-	actor, err := h.auth.Authorize(ctx, common.SessionToken(c), c.GetHeader("X-CSRF-Token"))
+	actor, err := h.auth.Authorize(ctx, common.SessionToken(c))
 	if err != nil {
 		common.Fail(c, err)
 		return

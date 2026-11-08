@@ -90,7 +90,6 @@ func (c writeClient) sendUpload(body []byte) (commandResponse, error) {
 		return commandResponse{}, err
 	}
 	req.Header.Set("Content-Type", w.FormDataContentType())
-	req.Header.Set("X-CSRF-Token", c.csrf)
 	req.Header.Set("Authorization", "Bearer "+c.token)
 	res, err := c.http.Do(req)
 	if err != nil {

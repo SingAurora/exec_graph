@@ -33,14 +33,12 @@ type Account struct {
 type SessionRecord struct {
 	UserUUID    string    `json:"userUuid"`
 	AuthVersion uint32    `json:"authVersion"`
-	CSRFToken   string    `json:"csrfToken"`
 	ExpiresAt   time.Time `json:"expiresAt"`
 }
 
 // SessionView 与前端会话协议一致。
 type SessionView struct {
 	User        AccountView `json:"user"`
-	CSRFToken   string      `json:"csrfToken,omitempty"`
 	Token       string      `json:"token,omitempty"`
 	AuthVersion uint32      `json:"-"`
 }
@@ -139,12 +137,12 @@ func (s *Service) DemoLogin(ctx context.Context, source string) (LoginResult, er
 }
 
 func (s *Service) login(ctx context.Context, account Account) (LoginResult, error) {
-	token, csrf := s.passwords.Token(), s.passwords.Token()
-	record := SessionRecord{UserUUID: account.View.ID, AuthVersion: account.AuthVersion, CSRFToken: csrf, ExpiresAt: time.Now().UTC().Add(s.ttl)}
+	token := s.passwords.Token()
+	record := SessionRecord{UserUUID: account.View.ID, AuthVersion: account.AuthVersion, ExpiresAt: time.Now().UTC().Add(s.ttl)}
 	if err := s.sessions.Put(ctx, token, record, s.ttl); err != nil {
 		return LoginResult{}, err
 	}
-	return LoginResult{View: SessionView{User: account.View, CSRFToken: csrf}, Token: token}, nil
+	return LoginResult{View: SessionView{User: account.View}, Token: token}, nil
 }
 
 // Session 每次校验数据库认证版本和停用状态。
@@ -163,12 +161,11 @@ func (s *Service) Session(ctx context.Context, token string) (SessionView, error
 	if account.View.ID == "" || account.Disabled || account.AuthVersion != record.AuthVersion {
 		return SessionView{}, fault.New(fault.Unauthenticated, "会话已失效，请重新登录")
 	}
-	return SessionView{User: account.View, CSRFToken: record.CSRFToken, AuthVersion: record.AuthVersion}, nil
+	return SessionView{User: account.View, AuthVersion: record.AuthVersion}, nil
 }
 
-// Authorize 只验证会话；CSRF 在 demo 阶段关闭，保留 token 供前端兼容。
-func (s *Service) Authorize(ctx context.Context, token, csrf string) (Actor, error) {
-	_ = csrf
+// Authorize 只验证 Bearer 会话。
+func (s *Service) Authorize(ctx context.Context, token string) (Actor, error) {
 	current, err := s.Session(ctx, token)
 	if err != nil {
 		return Actor{}, err
@@ -176,9 +173,8 @@ func (s *Service) Authorize(ctx context.Context, token, csrf string) (Actor, err
 	return Actor{UserID: current.User.ID, AuthVersion: current.AuthVersion}, nil
 }
 
-// Logout 删除服务端会话；CSRF 在 demo 阶段关闭。
-func (s *Service) Logout(ctx context.Context, token, csrf string) error {
-	_ = csrf
+// Logout 删除服务端会话。
+func (s *Service) Logout(ctx context.Context, token string) error {
 	if _, err := s.Session(ctx, token); err != nil {
 		return err
 	}

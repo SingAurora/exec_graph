@@ -30,8 +30,8 @@ export type GenerationView = {
 export type NodeDocument = { kind: 'expression' | 'agreement'; status: 'pending' | 'generating' | 'draft' | 'published' | 'failed'; draftMarkdown?: string; errorCode?: string; errorMessage?: string }
 
 /** 行动发布后为节点生成表达和约定草案；失败时服务端保留 failed 状态。 */
-export function generateNodeDocuments(nodeUuid: string, csrfToken: string): Promise<NodeDocument[]> {
-  return postAPI('/api/commands/ai/node-documents', { nodeUuid }, { csrfToken, timeoutMs: 110_000 })
+export function generateNodeDocuments(nodeUuid: string): Promise<NodeDocument[]> {
+  return postAPI('/api/commands/ai/node-documents', { nodeUuid }, { timeoutMs: 110_000 })
 }
 
 /** 读取作者自己的节点文档草案和状态。 */
@@ -40,18 +40,18 @@ export function getNodeDocuments(nodeUuid: string): Promise<NodeDocument[]> {
 }
 
 /** 将节点当前草案发布为版本；返回更新后的行动节点。 */
-export function publishNodeDocument(nodeUuid: string, expectedVersion: number, kind: 'expression' | 'agreement', csrfToken: string): Promise<ActionContextNode> {
-  return postAPI('/api/commands/actions/publish-document', { nodeUuid, expectedVersion, kind }, { csrfToken })
+export function publishNodeDocument(nodeUuid: string, expectedVersion: number, kind: 'expression' | 'agreement'): Promise<ActionContextNode> {
+  return postAPI('/api/commands/actions/publish-document', { nodeUuid, expectedVersion, kind })
 }
 
 /** 只对已有行动草稿放置图片；服务端保证正文文字不变。 */
-export function placeGenerationImages(generationUuid: string, images: GeneratedImage[], csrfToken: string): Promise<GenerationView> {
-  return postAPI('/api/commands/ai/place-images', { generationUuid, images }, { csrfToken, timeoutMs: 110_000 })
+export function placeGenerationImages(generationUuid: string, images: GeneratedImage[]): Promise<GenerationView> {
+  return postAPI('/api/commands/ai/place-images', { generationUuid, images }, { timeoutMs: 110_000 })
 }
 
 /** 同键重试只读取已有任务；pending 时轮询私有结果，不再次生成。 */
-export async function generateDraft(request: GenerationRequest, csrfToken: string, signal: AbortSignal): Promise<GenerationView> {
-  let view = await postAPI<GenerationView, GenerateInput>('/api/commands/ai/generate', request.input, { csrfToken, idempotencyKey: request.key, timeoutMs: 110_000, signal })
+export async function generateDraft(request: GenerationRequest, signal: AbortSignal): Promise<GenerationView> {
+  let view = await postAPI<GenerationView, GenerateInput>('/api/commands/ai/generate', request.input, { idempotencyKey: request.key, timeoutMs: 110_000, signal })
   const deadline = Date.now() + 125_000
   while (view.status === 'pending' && Date.now() < deadline) {
     await new Promise<void>((resolve, reject) => {
@@ -79,6 +79,6 @@ export type ChatResult =
   | { kind: 'verification'; verification: VerifyResult }
 
 /** 让服务端模型判断本轮是继续整理还是核验，避免前端关键词猜测。 */
-export function chatDraft(request: GenerationRequest, generationUuid: string | undefined, csrfToken: string, signal: AbortSignal): Promise<ChatResult> {
-  return postAPI('/api/commands/ai/chat', { ...request.input, generationUuid }, { csrfToken, idempotencyKey: request.key, timeoutMs: 110_000, signal })
+export function chatDraft(request: GenerationRequest, generationUuid: string | undefined, signal: AbortSignal): Promise<ChatResult> {
+  return postAPI('/api/commands/ai/chat', { ...request.input, generationUuid }, { idempotencyKey: request.key, timeoutMs: 110_000, signal })
 }

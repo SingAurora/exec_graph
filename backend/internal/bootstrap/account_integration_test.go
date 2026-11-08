@@ -73,7 +73,6 @@ func authRequest(t *testing.T, c writeClient, path string, input any, status int
 	}
 	if status == 200 {
 		c.token = output.Data.Token
-		c.csrf = output.Data.CSRFToken
 	}
 	return c
 }

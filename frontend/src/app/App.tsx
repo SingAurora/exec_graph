@@ -60,7 +60,7 @@ export function App() {
   const { showToast } = useToast()
   const enter = async (session: SessionView) => {
     if (session.token) writeAuthToken(session.token)
-    const view = { user: session.user, csrfToken: session.csrfToken }
+    const view = { user: session.user }
     await client.cancelQueries()
     client.removeQueries({ predicate: (query) => query.queryKey[0] !== 'session' })
     client.setQueryData(profileKeys.session, view)
@@ -88,8 +88,7 @@ export function App() {
     !resources.profile ||
     !resources.graphs ||
     !resources.actions ||
-    !resources.sources ||
-    !resources.csrfToken
+    !resources.sources
   ) {
     if (resources.error) {
       return (
@@ -125,7 +124,6 @@ export function App() {
         actions={resources.actions}
         allUsers={resources.allUsers}
         sources={resources.sources}
-        csrfToken={resources.csrfToken}
       />
       {resources.error && (
         <div
@@ -142,12 +140,12 @@ export function App() {
 }
 
 /** 应用装配层：把 Query 中的业务数据、路由和写入回调连接到页面及工作区。 */
-function AppContent({ profile, graphs, actions, allUsers, sources, csrfToken, darkMode, toggleTheme, onLogout }: {
-  profile: AccountProfile; graphs: GraphView[]; actions: VersionedAction[]; allUsers: UserProfile[]; sources: FollowedSources; csrfToken: string
+function AppContent({ profile, graphs, actions, allUsers, sources, darkMode, toggleTheme, onLogout }: {
+  profile: AccountProfile; graphs: GraphView[]; actions: VersionedAction[]; allUsers: UserProfile[]; sources: FollowedSources
   darkMode: boolean; toggleTheme: () => void; onLogout: () => Promise<void>
 }) {
-  const commands = useAppCommands(profile.uuid, csrfToken)
-  const imageAsset = useImageAssets(csrfToken)
+  const commands = useAppCommands(profile.uuid)
+  const imageAsset = useImageAssets()
   const { hash, revision, route, graphBackHash, profileBackHash, navigate } = useAppNavigation(profile.uuid)
   // useMemo 缓存从现有数据计算出的结果；这里仅在 hash 改变时重新解析路由参数。
   const query = useMemo(() => new URLSearchParams(hash.split('?')[1]), [hash])
@@ -299,7 +297,7 @@ function AppContent({ profile, graphs, actions, allUsers, sources, csrfToken, da
     if (input.graphUuid !== workspaceGraph.uuid || input.parentUuid !== workspaceParent?.uuid) return false
     const action = await commands.actionCreate.mutateAsync(input)
     openNode({ ...action, graphUuid: action.graphUuid }, 'objective')
-    if (action.expressionStatus === 'pending' || action.agreementStatus === 'pending') void generateNodeDocuments(action.uuid, csrfToken).catch(() => undefined)
+    if (action.expressionStatus === 'pending' || action.agreementStatus === 'pending') void generateNodeDocuments(action.uuid).catch(() => undefined)
     return true
   }
   const setUserFollow = async (id: string, following: boolean) => {
@@ -382,7 +380,6 @@ function AppContent({ profile, graphs, actions, allUsers, sources, csrfToken, da
             actions={selectedGraphActions} showActionGraphLegend={showActionGraphLegend}
             graphBackground={graphBackground}
             onCreateAction={startAction}
-            csrfToken={csrfToken}
             onPublishNodeDocument={async (nodeUuid, expectedVersion, kind) => { await commands.nodeDocumentPublish.mutateAsync({ nodeUuid, expectedVersion, kind }) }}
             onDeleteNode={async (node) => { await commands.actionDelete.mutateAsync({ nodeUuid: node.uuid, expectedVersion: node.version ?? 0 }) }}
             onContinueAction={(node) => startAction(selectedGraph.uuid, node)}
@@ -400,7 +397,6 @@ function AppContent({ profile, graphs, actions, allUsers, sources, csrfToken, da
       {route === 'publish' && (
         workspaceMode === 'agreement' && expressionAction ? (
           <AgreementWorkspace
-            csrfToken={csrfToken}
             draftKey={getActionDraftKey(profile.uuid, expressionAction.graphUuid, 'agreement', expressionAction.uuid)}
             key={profile.uuid + ':agreement-' + expressionAction.uuid}
             node={expressionAction}
@@ -411,7 +407,6 @@ function AppContent({ profile, graphs, actions, allUsers, sources, csrfToken, da
           />
         ) : workspaceMode === 'expression' && expressionAction ? (
           <ExpressionWorkspace
-            csrfToken={csrfToken}
             draftKey={getActionDraftKey(profile.uuid, expressionAction.graphUuid, 'expression', expressionAction.uuid)}
             key={profile.uuid + ':expression-' + expressionAction.uuid}
             node={expressionAction}
@@ -422,7 +417,7 @@ function AppContent({ profile, graphs, actions, allUsers, sources, csrfToken, da
           />
         ) : workspaceMode === 'action' && workspaceGraph && (!workspaceParentUuid || workspaceParent) && (workspaceParent || !actions.some((node) => node.graphUuid === workspaceGraph.uuid)) ? (
           <ActionWorkspace
-            graphUuid={workspaceGraph.uuid} csrfToken={csrfToken}
+            graphUuid={workspaceGraph.uuid}
             key={getActionDraftKey(profile.uuid, workspaceGraph.uuid, 'action', workspaceParentUuid)}
             draftKey={getActionDraftKey(profile.uuid, workspaceGraph.uuid, 'action', workspaceParentUuid)}
             profileName={profile.name} profile={profile} hasParent={Boolean(workspaceParent)}
@@ -470,7 +465,7 @@ function AppContent({ profile, graphs, actions, allUsers, sources, csrfToken, da
         <SettingsPanel
           profile={profile} darkMode={darkMode} showActionGraphLegend={showActionGraphLegend}
           graphBackground={graphBackground} onGraphBackgroundChange={setGraphBackground}
-          onSave={saveProfile} onToggleTheme={toggleTheme} csrfToken={csrfToken}
+          onSave={saveProfile} onToggleTheme={toggleTheme}
           onShowActionGraphLegendChange={setShowActionGraphLegend}
         />
       </div>

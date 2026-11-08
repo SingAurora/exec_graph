@@ -19,7 +19,6 @@ import { appendWorkspaceError, appendWorkspaceNotice, createWorkspaceView, isAct
 
 type ActionWorkspaceProps = {
   graphUuid: string
-  csrfToken: string
   profileName: string
   profile?: UserProfile
   draftKey?: string
@@ -40,8 +39,8 @@ type ActionWorkspaceProps = {
 }
 
 /** 行动发布工作区：同一条 AI 对话整理行动事实与表达，另行设置后续约定并核对来源。 */
-export function ActionWorkspace({ graphUuid, csrfToken, profileName, profile, draftKey, hasParent, contextTitle, contextGuide, inheritedExpression = '', inheritedExpressionImages = [], inheritedAgreement = '', sourceNodeUuid, sourceNodeNumber, actions, historyFacts = [], initialDocument = '', initialMessages, onBack, onConfirm }: ActionWorkspaceProps) {
-  const { generate, chat } = useGeneration(csrfToken)
+export function ActionWorkspace({ graphUuid, profileName, profile, draftKey, hasParent, contextTitle, contextGuide, inheritedExpression = '', inheritedExpressionImages = [], inheritedAgreement = '', sourceNodeUuid, sourceNodeNumber, actions, historyFacts = [], initialDocument = '', initialMessages, onBack, onConfirm }: ActionWorkspaceProps) {
+  const { generate, chat } = useGeneration()
   // 背景签名用于判断草稿是否仍对应当前引用事实；来源变化后必须再对话核实，不能直接发布旧结果。
   const signatureFor = (mergedIds: string[]) => {
     const context = actions && sourceNodeUuid ? getActionContinuationContext(actions, sourceNodeUuid, mergedIds) : undefined
@@ -214,7 +213,7 @@ export function ActionWorkspace({ graphUuid, csrfToken, profileName, profile, dr
     if (!local.ready || !generation || generation.status !== 'succeeded' || !generation.createAction || (images.length > 0 && images.some((image) => !image.alt.trim())) || placing || sending || publishing || uploading) return
     setPlacing(true)
     try {
-      const result = await placeGenerationImages(generation.generationUuid, images.map((image) => ({ assetUuid: image.assetUuid!, alt: image.alt.trim() })), csrfToken)
+      const result = await placeGenerationImages(generation.generationUuid, images.map((image) => ({ assetUuid: image.assetUuid!, alt: image.alt.trim() })))
       if (result.status !== 'succeeded' || !result.draft) throw new Error('图片放置没有完成，请重试')
       local.update((current) => ({
         ...current, generation: result, document: result.draft!.objective,
@@ -242,7 +241,7 @@ export function ActionWorkspace({ graphUuid, csrfToken, profileName, profile, dr
       composerMode={composerMode} onComposerModeChange={setComposerMode} imageModeBadge={images.length} status={workspaceStatus}
       imageComposer={<div className="grid gap-3">
         <div className="max-h-[min(38vh,320px)] overflow-y-auto overscroll-contain pr-1">
-          <DraftImages images={images} csrfToken={csrfToken} ready={local.ready} disabled={sending || publishing || placing} onChange={changeImages} onBusyChange={setUploading} />
+          <DraftImages images={images} ready={local.ready} disabled={sending || publishing || placing} onChange={changeImages} onBusyChange={setUploading} />
         </div>
         <div className="flex items-center justify-between gap-3 border-t border-line pt-3">
           <span className="text-[11px] leading-4 text-muted">{imageStatus}。图片只用于放置，不会改写正文。</span>

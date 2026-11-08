@@ -22,7 +22,7 @@ func New(service *app.Service, auth *identity.Service) *Handler {
 	return &Handler{service, auth}
 }
 
-// Code 绑定发送用途；修改密码或邮箱时必须同时通过会话与 CSRF。
+// Code 绑定发送用途；修改密码或邮箱时必须同时通过会话。
 func (h *Handler) Code(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), constants.HTTPRequestTimeout)
 	defer cancel()
@@ -34,7 +34,7 @@ func (h *Handler) Code(c *gin.Context) {
 	var actor identity.Actor
 	if input.Purpose == "change-password" || input.Purpose == "change-email" {
 		var err error
-		actor, err = h.auth.Authorize(ctx, common.SessionToken(c), c.GetHeader("X-CSRF-Token"))
+		actor, err = h.auth.Authorize(ctx, common.SessionToken(c))
 		if err != nil {
 			common.Fail(c, err)
 			return

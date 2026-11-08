@@ -21,9 +21,8 @@ import { appendWorkspaceError, appendWorkspaceNotice, createWorkspaceView, isExp
 import { BusinessRequestError } from '../../shared/api/errors'
 
 /** 独立整理本节点向后传递的约定，不改写行动、表达或已有来源核对。 */
-export function AgreementWorkspace({ node, csrfToken, draftKey, actions, profileName, profileUuid, profile, users = [], contextGuide, onBack, onConfirm, onPublishDraft }: {
+export function AgreementWorkspace({ node, draftKey, actions, profileName, profileUuid, profile, users = [], contextGuide, onBack, onConfirm, onPublishDraft }: {
   node: ActionNode & { version: number }
-  csrfToken: string
   draftKey?: string
   actions: ActionNode[]
   profileName: string
@@ -35,7 +34,7 @@ export function AgreementWorkspace({ node, csrfToken, draftKey, actions, profile
   onConfirm: (input: NonNullable<GenerationView['updateAgreement']>) => boolean | Promise<boolean>
   onPublishDraft?: () => Promise<boolean>
 }) {
-  const { generate } = useGeneration(csrfToken)
+  const { generate } = useGeneration()
   const [initialDraft, setInitialDraft] = useState('')
   useEffect(() => {
     if (node.authorUuid !== profileUuid) return

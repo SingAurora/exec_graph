@@ -12,13 +12,12 @@ type SecurityFormProps = {
   kind: SecurityFormKind
   email: string
   countdown: number
-  csrfToken: string
   onRequestCode: () => void
   onCancel: () => void
 }
 
 /** Validates a single account change while retaining its draft across settings tabs. */
-export function SecurityForm({ kind, email, countdown, csrfToken, onRequestCode, onCancel }: SecurityFormProps) {
+export function SecurityForm({ kind, email, countdown, onRequestCode, onCancel }: SecurityFormProps) {
   const formRef = useRef<HTMLFormElement>(null)
   const [errors, setErrors] = useState<SecurityFieldErrors>({})
   const [codeTarget, setCodeTarget] = useState('')
@@ -43,7 +42,7 @@ export function SecurityForm({ kind, email, countdown, csrfToken, onRequestCode,
     setPending(true)
     try {
       await changeCredentials(kind, { currentPassword: String(fields.get('currentPassword')), code: String(fields.get('code')).trim(),
-        ...(isEmail ? { email: String(fields.get('email')).trim().toLowerCase() } : { password: String(fields.get('password')) }) }, csrfToken)
+        ...(isEmail ? { email: String(fields.get('email')).trim().toLowerCase() } : { password: String(fields.get('password')) }) })
       await client.cancelQueries()
       client.removeQueries({ predicate: (query) => query.queryKey[0] !== 'session' })
       client.setQueryData(profileKeys.session, null)
@@ -61,7 +60,7 @@ export function SecurityForm({ kind, email, countdown, csrfToken, onRequestCode,
     if (error) { focusField('email'); return }
     setCodeSending(true)
     try {
-      await requestCode(isEmail ? 'change-email' : 'change-password', destination, { csrfToken })
+      await requestCode(isEmail ? 'change-email' : 'change-password', destination)
       setCodeTarget(destination)
       setErrors((current) => ({ ...current, code: undefined }))
       onRequestCode()

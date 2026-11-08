@@ -55,7 +55,7 @@ func (h *Handler) DemoLogin(c *gin.Context) {
 	common.Reply(c, out.View)
 }
 
-// Session 返回当前身份及 CSRF token。
+// Session 返回当前身份。
 func (h *Handler) Session(c *gin.Context) {
 	out, err := h.service.Session(c.Request.Context(), Token(c))
 	if err != nil {
@@ -72,7 +72,7 @@ func (h *Handler) Logout(c *gin.Context) {
 		common.Fail(c, err)
 		return
 	}
-	if err := h.service.Logout(c.Request.Context(), Token(c), c.GetHeader("X-CSRF-Token")); err != nil {
+	if err := h.service.Logout(c.Request.Context(), Token(c)); err != nil {
 		common.Fail(c, err)
 		return
 	}

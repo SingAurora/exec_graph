@@ -45,7 +45,7 @@ func Boundary(logger *slog.Logger) gin.HandlerFunc {
 	}
 }
 
-// CORS 按配置允许来源；配置为 * 时回显任意 Origin，鉴权仍由会话、CSRF 和权限校验负责。
+// CORS 按配置允许来源；配置为 * 时回显任意 Origin，鉴权仍由会话和权限校验负责。
 func CORS(origins []string) gin.HandlerFunc {
 	allowed := map[string]bool{}
 	allowAll := false
@@ -69,7 +69,7 @@ func CORS(origins []string) gin.HandlerFunc {
 		}
 		if c.Request.Method == http.MethodOptions {
 			c.Header("Access-Control-Allow-Methods", "GET, POST")
-			c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-CSRF-Token, Idempotency-Key")
+			c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type, Idempotency-Key")
 			c.AbortWithStatus(http.StatusNoContent)
 			return
 		}

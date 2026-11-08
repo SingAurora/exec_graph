@@ -19,10 +19,10 @@ describe('business transport', () => {
     globalThis.fetch = async (_url, options) => { requested = options; return Response.json({ code: 0, msg: '', data: { assetUuid: 'asset' } }) }
     const body = new FormData()
     body.append('file', new File(['image bytes'], 'image.jpg', { type: 'image/jpeg' }))
-    expect(await postFormAPI('/api/commands/media/upload', body, { csrfToken: 'csrf' })).toEqual({ assetUuid: 'asset' })
+    expect(await postFormAPI('/api/commands/media/upload', body)).toEqual({ assetUuid: 'asset' })
     expect(requested.body).toBe(body)
     expect(requested.headers.has('Content-Type')).toBe(false)
-    expect(requested.headers.get('X-CSRF-Token')).toBe('csrf')
+    expect(requested.headers.has('X-CSRF-Token')).toBe(false)
     expect(requested.credentials).toBe('omit')
   })
 
@@ -49,10 +49,10 @@ describe('business transport', () => {
     let requested
     globalThis.fetch = async (_url, options) => { requested = options; return Response.json({ code: 0, msg: '', data: null }) }
     const input = { document: { mode: 'clear' }, markdown: '  # 文档\n' }
-    expect(await postAPI('/api/commands/agreements/update', input, { csrfToken: 'csrf', idempotencyKey: 'key' })).toBeNull()
+    expect(await postAPI('/api/commands/agreements/update', input, { idempotencyKey: 'key' })).toBeNull()
     expect(JSON.parse(requested.body)).toEqual(input)
     expect(requested.method).toBe('POST')
-    expect(requested.headers.get('X-CSRF-Token')).toBe('csrf')
+    expect(requested.headers.has('X-CSRF-Token')).toBe(false)
     expect(requested.headers.get('Idempotency-Key')).toBe('key')
   })
 

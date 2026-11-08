@@ -20,9 +20,9 @@ describe('platform generation transport', () => {
       if (calls.length === 1) throw new TypeError('response lost')
       return Response.json({ code: 0, msg: '', data: { generationUuid: 'generation', conversationUuid: 'conversation', status: 'succeeded' } })
     }
-    await expect(generateDraft(request, 'csrf', new AbortController().signal)).rejects.toMatchObject({ kind: 'network' })
+    await expect(generateDraft(request, new AbortController().signal)).rejects.toMatchObject({ kind: 'network' })
     expect(calls).toHaveLength(1)
-    expect(await generateDraft(request, 'csrf', new AbortController().signal)).toMatchObject({ status: 'succeeded' })
+    expect(await generateDraft(request, new AbortController().signal)).toMatchObject({ status: 'succeeded' })
     expect(calls.map((call) => call.headers.get('Idempotency-Key'))).toEqual([request.key, request.key])
     expect(calls.map((call) => JSON.parse(call.body))).toEqual([request.input, request.input])
     expect(calls[0].headers.has('Authorization')).toBe(false)
