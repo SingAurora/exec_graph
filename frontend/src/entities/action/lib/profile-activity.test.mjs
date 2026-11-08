@@ -38,10 +38,11 @@ describe('profile action activity', () => {
     expect(actions.map((item) => item.id)).toEqual(['1', '2', '3', '4', '5'])
   })
 
-  test('calendar keys follow the local date instead of the UTC date', () => {
-    const localMidnight = new Date(2026, 9, 21, 0, 5)
-    expect(getActivityDate(localMidnight)).toBe('2026-10-21')
-    expect(getActivityDate(localMidnight.toISOString())).toBe('2026-10-21')
+  test('calendar keys always follow China time', () => {
+    const chinaMidnight = new Date('2026-10-21T00:05:00+08:00')
+    expect(getActivityDate(chinaMidnight)).toBe('2026-10-21')
+    expect(getActivityDate(chinaMidnight.toISOString())).toBe('2026-10-21')
+    expect(getActivityDate('2026-10-20T16:30:00Z')).toBe('2026-10-21')
   })
 
   test('a rolling year has 365 unique local days across a leap day, excluding older and future dates', () => {

@@ -1,4 +1,5 @@
 import type { ActionNode } from '../model/types'
+import { getChinaDateKey } from '../../../shared/lib/date'
 import { sortActionsNewestFirst } from './expressions'
 
 /** A person's published action grouped by its original local publication day. */
@@ -10,10 +11,9 @@ export type ProfileActivity = {
 /** One local calendar day in the rolling action heatmap. */
 export type ProfileActivityDay = { date: string; count: number }
 
-/** Stable local calendar key; timestamps near midnight must not be grouped by UTC. */
+/** 中国固定时区的日历键；跨日边界不能被浏览器或 UTC 时区改写。 */
 export function getActivityDate(value: string | Date): string {
-  const date = new Date(value)
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+  return getChinaDateKey(value) ?? ''
 }
 
 /** One row per action, regardless of later expression or agreement edits. */
@@ -22,16 +22,15 @@ export function getProfileActivity(actions: ActionNode[], userId: string): Profi
     .map((node) => ({ node, date: getActivityDate(node.createdAt) }))
 }
 
-/** Exactly 365 local days ending today; edits and other people's actions never add activity. */
+/** Exactly 365 China calendar days ending today; edits and other people's actions never add activity. */
 export function getProfileActivityDays(activity: ProfileActivity[], today = new Date()): ProfileActivityDay[] {
   const counts = new Map<string, number>()
   for (const item of activity) counts.set(item.date, (counts.get(item.date) ?? 0) + 1)
-  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate())
-  start.setDate(start.getDate() - 364)
+  const todayKey = getChinaDateKey(today)
+  if (!todayKey) return []
+  const start = Date.UTC(Number(todayKey.slice(0, 4)), Number(todayKey.slice(5, 7)) - 1, Number(todayKey.slice(8, 10))) - 364 * 86_400_000
   return Array.from({ length: 365 }, (_, index) => {
-    const day = new Date(start)
-    day.setDate(day.getDate() + index)
-    const date = getActivityDate(day)
+    const date = new Date(start + index * 86_400_000).toISOString().slice(0, 10)
     return { date, count: counts.get(date) ?? 0 }
   })
 }

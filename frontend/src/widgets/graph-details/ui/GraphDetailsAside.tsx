@@ -12,7 +12,7 @@ type GraphDetailsAsideProps = {
   users: UserProfile[]
 }
 
-const creationDateFormatter = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'numeric', day: 'numeric' })
+const creationDateFormatter = new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', year: 'numeric', month: 'numeric', day: 'numeric' })
 const participantPreviewLimit = 5
 
 /** Graph introduction, recent activity and participant profile links beside the lists. */
