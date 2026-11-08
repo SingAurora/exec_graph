@@ -4,6 +4,7 @@ import accessImage from '../../../assets/auth-mountain-walk.jpg'
 import registerImage from '../../../assets/auth-valley-hike.jpg'
 import type {AuthView} from '../../shared/lib/navigation'
 import {passwordMaxCharacters} from '../../entities/account/lib/validation'
+import {stripUnsafeTextCharacters} from '../../shared/lib/text-input'
 import {type AuthFieldErrors, type AuthFieldName, validateAuthField, validateAuthForm} from '../../features/auth/lib/validation'
 import {Brand} from '../../shared/ui/Brand'
 import {useToast} from '../../shared/ui/toast/useToast'
@@ -125,7 +126,7 @@ export function AuthScreen({view, onEnter}: AuthScreenProps) {
                         {isRegister && <div className="auth-field">
                             <label htmlFor="auth-name">昵称</label>
                             <input id="auth-name" name="nickname" required autoComplete="nickname"
-                                   placeholder="怎么称呼你" {...feedbackProps('nickname')} />
+                                   placeholder="怎么称呼你" onChange={(event) => { event.currentTarget.value = stripUnsafeTextCharacters(event.currentTarget.value) }} {...feedbackProps('nickname')} />
                             <FieldFeedback name="nickname" error={errors.nickname}/>
                         </div>}
                         <div className="auth-field">

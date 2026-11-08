@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { validateAuthField, validateAuthForm } from './validation.ts'
+import { stripUnsafeTextCharacters } from '../../../shared/lib/text-input.ts'
 
 const form = (values) => {
   const data = new globalThis.FormData()
@@ -34,13 +35,14 @@ describe('account form validation', () => {
     expect(validateAuthField('forgot', 'password', '1234567')).toBe('密码至少需要 8 位')
   })
 
-  test('nicknames count Unicode code points and reject hidden controls without rejecting joined emoji', () => {
-    expect(validateAuthField('register', 'nickname', ` ${'😀'.repeat(30)} `)).toBeUndefined()
-    expect(validateAuthField('register', 'nickname', '😀'.repeat(31))).toContain('30')
+  test('nicknames count Unicode code points and filter hidden controls without rejecting joined emoji', () => {
+    expect(validateAuthField('register', 'nickname', ` ${'😀'.repeat(32)} `)).toBeUndefined()
+    expect(validateAuthField('register', 'nickname', '😀'.repeat(33))).toContain('32')
     expect(validateAuthField('register', 'nickname', '开发者👩‍💻')).toBeUndefined()
     for (const character of ['\n', '\t', '\u0000', '\u0085', '\u2028', '\u200b', '\u202e', '\u2066', '\ufeff']) {
-      expect(validateAuthField('register', 'nickname', `小${character}明`)).toContain('字符')
+      expect(stripUnsafeTextCharacters(`小${character}明`)).toBe('小明')
     }
+    expect(stripUnsafeTextCharacters('开发者\u200d👩‍💻')).toBe('开发者\u200d👩‍💻')
   })
 
   test('email limits apply to the normalized UTF-8 bytes', () => {

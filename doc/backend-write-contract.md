@@ -90,7 +90,7 @@ type DocumentUpdate =
 | `/profiles/highlights-set` | `expectedVersion`、`expressionNodeUuids` | 当前 `AccountView` |
 | `/following/set` | `kind`、`targetUuid`、`following` | `FollowingView` |
 
-- 资料只能修改当前账户。昵称最多 30 个 Unicode 码点；简介最多 512 个 Unicode 码点；性别为 `unknown`／`male`／`female`。
+- 资料只能修改当前账户。昵称最多 32 个 Unicode 码点；简介最多 512 个 Unicode 码点；性别为 `unknown`／`male`／`female`。
 - 图片资产规则与图资料相同；资料和精选分开保存，互不覆盖。
 - 精选最多 5 个，顺序按数组。只允许本人分支上的非空本人表达；不能精选他人表达、重复节点、已删除图或已清空表达。
 - 精选只存节点 UUID，不保存独立约定副本；约定沿主要链读取，并保留实际约定作者。

@@ -9,7 +9,7 @@ type User struct {
 	UUID              string     `gorm:"column:uuid;type:char(36) CHARACTER SET ascii COLLATE ascii_bin;not null;uniqueIndex:uq_users_uuid,priority:1;comment:服务端分配的公开 UUID"`
 	AvatarAssetUUID   *string    `gorm:"column:avatar_asset_uuid;type:char(36) CHARACTER SET ascii COLLATE ascii_bin;index:ix_users_avatar,priority:1;comment:关联 media_assets.uuid；NULL 使用文字头像"`
 	CoverAssetUUID    *string    `gorm:"column:cover_asset_uuid;type:char(36) CHARACTER SET ascii COLLATE ascii_bin;index:ix_users_cover,priority:1;comment:关联 media_assets.uuid；NULL 使用默认背景"`
-	Name              string     `gorm:"column:name;type:varchar(30);not null;index:ix_users_name,priority:1;comment:公开昵称，不要求唯一"`
+	Name              string     `gorm:"column:name;type:varchar(32);not null;index:ix_users_name,priority:1;comment:公开昵称，不要求唯一"`
 	Gender            string     `gorm:"column:gender;type:varchar(8) CHARACTER SET ascii COLLATE ascii_bin;not null;default:'unknown'"`
 	BiographyMarkdown string     `gorm:"column:biography_markdown;type:text;not null;comment:个人简介 Markdown，接口仍映射为 bio"`
 	LocationCode      *string    `gorm:"column:location_code;type:char(6) CHARACTER SET ascii COLLATE ascii_bin;index:ix_users_location,priority:1;comment:中国大陆区县行政区划代码"`

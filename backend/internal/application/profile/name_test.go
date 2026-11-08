@@ -6,12 +6,12 @@ import (
 )
 
 func TestNicknameNormalization(t *testing.T) {
-	for _, name := range []string{"小 明", "开发者👩‍💻", strings.Repeat("😀", 30)} {
+	for _, name := range []string{"小 明", "开发者👩‍💻", strings.Repeat("😀", 32)} {
 		if actual, err := NormalizeName(" " + name + " "); err != nil || actual != name {
 			t.Errorf("昵称码点计数或首尾空白处理错误: %v", err)
 		}
 	}
-	for _, name := range []string{"", "   ", strings.Repeat("😀", 31), string([]byte{0xff})} {
+	for _, name := range []string{"", "   ", strings.Repeat("😀", 33), string([]byte{0xff})} {
 		if _, err := NormalizeName(name); err == nil {
 			t.Error("非法昵称被接受")
 		}

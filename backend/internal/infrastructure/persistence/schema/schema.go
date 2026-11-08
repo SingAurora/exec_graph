@@ -139,6 +139,14 @@ func Migrate(ctx context.Context, db *gorm.DB) error {
 				return fmt.Errorf("记录短 ID 清理迁移版本: %w", err)
 			}
 		}
+		if applied < 8 {
+			if err := conn.Session(&gorm.Session{NewDB: true}).Set("gorm:table_options", "ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_cs").AutoMigrate(&model.User{}); err != nil {
+				return fmt.Errorf("扩展昵称长度: %w", err)
+			}
+			if err := conn.Create(&model.SchemaVersion{Version: 8, AppliedAt: time.Now().UTC()}).Error; err != nil {
+				return fmt.Errorf("记录昵称长度迁移版本: %w", err)
+			}
+		}
 		return Check(ctx, conn)
 	})
 }
