@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { appendWorkspaceError, appendWorkspaceNotice, createWorkspaceView, isActionWorkspaceDraft, isExpressionWorkspaceDraft, normalizeGenerationRequest, pendingReportsForRestore, reconcileWorkspaceDraft } from './workspace-draft.ts'
 import { getActionDraftKey } from '../../../entities/action/lib/draft-key.ts'
-import { isAgreementDraft } from '../../../features/action-agreement/model/draft.ts'
 
 const draft = () => ({
   messages: [{ id: 'user-1', speaker: 'user', body: '今天换了锅', authorUuid: 'jo' }, { id: 'ai-1', speaker: 'ai', body: '已整理' }],
@@ -76,8 +75,6 @@ describe('local workspace drafts', () => {
     const expression = { messages: [], input: '', generated: true, draftDocument: '', contextSignature: 'original', view: createWorkspaceView() }
     expect(isExpressionWorkspaceDraft(expression)).toBe(true)
     expect(Object.hasOwn(JSON.parse(JSON.stringify(expression)), 'draftDocument')).toBe(true)
-    expect(isAgreementDraft({ markdown: '', clearing: true, baseMarkdown: '保留总用时' })).toBe(true)
-    expect(isAgreementDraft({ markdown: '', clearing: 'true' })).toBe(false)
   })
   test('changed published context retains writing but invalidates AI generation', () => {
     const saved = draft()

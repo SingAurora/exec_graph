@@ -1,8 +1,12 @@
 import type { ActionDocumentUpdateMode, ActionExpressionMessage } from '../../../entities/action/model/types'
 import type { ChatMessage, PostImage } from '../../../shared/model/content'
-import type { AIDocumentDetails, AIDocumentResult } from '../../../features/ai-key/api/chat'
-import type { AIActionAgreementReview } from '../../../features/ai-key/lib/action-agreement-review'
 import type { GenerationRequest, GenerationView } from '../../../features/action-generation/api/generation'
+
+/** 行动草稿的标题、说明、要点和备注。 */
+export type AIDocumentDetails = { title: string; description: string; points: string[]; note: string }
+
+/** 来源约定核对：null 表示尚未核对。 */
+export type AIActionAgreementReview = { nodeNumber: number; complies: boolean | null; reason: string }
 
 /** 用户主动确认的核验状态；草稿或引用变化后回到未核验。 */
 export type VerificationStatus = 'unverified' | 'passed' | 'failed'
@@ -27,7 +31,7 @@ export type ActionWorkspaceDraft = {
   generated: boolean
   verificationStatus?: VerificationStatus
   verificationFeedback?: string
-  expression: NonNullable<AIDocumentResult['expression']>
+  expression: { mode: ActionDocumentUpdateMode; markdown: string }
   agreementMode: ActionDocumentUpdateMode
   agreementDraft: string
   agreementReviews: AIActionAgreementReview[]

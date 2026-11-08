@@ -10,9 +10,8 @@
 | 独立核验规则 | 公共核验约束 + 按模式选择的核验规则 | `verificationRulesFor(mode)`：`verificationCommonRules`、`actionVerificationRules` 等，[rules.go](../backend/internal/application/generation/rules.go) | 否，代码内固定 |
 | 默认提示词展示 | 平台当前使用的行动、表达、约定提示词 | `GET /ai/prompt-defaults`，图设置面板只读展示 | 否；所有用户只读，不开放图级编辑 |
 | 对话与来源背景 | 历史消息、可达事实、直接来源、有效表达／约定等 | `contextSnapshot`，[prompt.go:28](../backend/internal/application/generation/prompt.go#L28) | 否，由服务端读取 |
-| 前端旧提示词 | 旧工作区的 `buildSystemPrompt`，含图指引拼接 | [chat.ts:66](../frontend/src/features/ai-key/api/chat.ts#L66) | 否；`AIWorkspace` 无运行时入口，不是当前真实链路 |
 
-真实生成走 `POST /api/commands/ai/generate`，由后端读取服务端事实和固定提示词；浏览器不提交 system prompt、模型密钥或任意上游地址。前端 `features/ai-key` 是旧原型遗留，不应作为当前行为依据。
+真实生成走 `POST /api/commands/ai/generate`，由后端读取服务端事实和固定提示词；浏览器不提交 system prompt、模型密钥或任意上游地址。
 
 ## 2. 默认提示词展示
 
