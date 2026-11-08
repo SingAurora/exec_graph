@@ -39,6 +39,7 @@ import { ProfilePage } from '../pages/ProfilePage'
 import { GraphPage } from '../pages/GraphPage'
 import { GraphsPage } from '../pages/GraphsPage'
 import { AuthScreen } from '../widgets/auth/AuthScreen'
+import { GuestApp } from './GuestApp'
 import { AppShell } from '../widgets/layout/AppShell'
 import { SettingsPanel } from '../widgets/settings/SettingsPanel'
 import { ActionWorkspace } from '../widgets/ai/ActionWorkspace'
@@ -53,10 +54,10 @@ export function App() {
   const resources = useAppResources()
   const client = useQueryClient()
   const [darkMode, toggleTheme] = useAppearance()
-  const [authView] = useHashRoute('login', isAuthView)
   const rawView = window.location.hash.slice(1).split('?')[0]
   const loadingView = isAppView(rawView) && rawView !== 'topic' ? rawView : 'home'
   const loadingAuth = isAuthView(rawView)
+  const [authView] = useHashRoute('login', isAuthView)
   const { showToast } = useToast()
   const enter = async (session: SessionView) => {
     if (session.token) writeAuthToken(session.token)
@@ -80,9 +81,31 @@ export function App() {
       window.location.hash = 'login'
     }
   }
-  if (resources.anonymous) return (
-    <AuthScreen key={authView} view={authView} darkMode={darkMode} onToggleTheme={toggleTheme} onEnter={enter} />
-  )
+  if (resources.anonymous) {
+    if (isAuthView(rawView)) return (
+      <AuthScreen key={authView} view={authView} darkMode={darkMode} onToggleTheme={toggleTheme} onEnter={enter} />
+    )
+    if (resources.error) return (
+      <main className="grid min-h-dvh place-content-center gap-4 bg-paper p-8 text-center text-sm text-copy">
+        <p>{resources.error.message}</p>
+        <button className="quiet-button" type="button" onClick={resources.retry}>重试</button>
+      </main>
+    )
+    if (!resources.ready) return (
+      <main className="mx-auto w-[min(1200px,calc(100%-72px))] pt-[30px] max-[1000px]:w-[min(920px,calc(100%-48px))]">
+        <div className="pt-6"><ListSkeleton rows={5} /></div>
+      </main>
+    )
+    return (
+      <GuestApp
+        graphs={resources.graphs ?? []}
+        actions={resources.actions ?? []}
+        users={resources.allUsers}
+        darkMode={darkMode}
+        onToggleTheme={toggleTheme}
+      />
+    )
+  }
   if (
     !resources.ready ||
     !resources.profile ||

@@ -175,6 +175,8 @@ export function AuthScreen({view, darkMode, onToggleTheme, onEnter}: AuthScreenP
                     <p className="auth-switcher">
                         {isLogin ? '还没有账号？' : isRegister ? '已经有账号？' : '想起密码了？'}
                         <a href={isLogin ? '#register' : '#login'}>{isLogin ? '注册账号' : '返回登录'}</a>
+                        <span aria-hidden="true"> · </span>
+                        <a href="#graphs">先浏览公开行动</a>
                     </p>
                 </div>
             </section>
