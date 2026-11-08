@@ -9,8 +9,8 @@ import (
 // User 是演示源用户，邮箱只用于建立测试凭据。
 type User struct {
 	catalogue.ProfileView
-	Email        string `json:"email"`
-	PasswordHash string `json:"-"`
+	Email    string `json:"email"`
+	Password string `json:"-"`
 }
 
 // Asset 是被导出脚本收集的本地配图。
@@ -74,9 +74,9 @@ type Prepared struct {
 	Assets     []Asset
 }
 
-// Passwords 抽象随机密码及哈希，不在业务 DTO 中存储明文。
+// Passwords 生成并保存演示密码。
 type Passwords interface {
-	Hash(string) (string, error)
+	Encode(string) (string, error)
 	Token() string
 }
 

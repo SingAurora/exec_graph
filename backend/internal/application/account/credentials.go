@@ -43,11 +43,11 @@ func (s *Service) Register(ctx context.Context, input RegisterInput, source stri
 	if err := s.verify(ctx, "register", "", email, input.Code); err != nil {
 		return identity.LoginResult{}, err
 	}
-	hash, err := s.passwords.Hash(input.Password)
+	passwordValue, err := s.passwords.Encode(input.Password)
 	if err != nil {
 		return identity.LoginResult{}, err
 	}
-	if err := s.repo.Register(ctx, Registration{UUID: id.New(), Email: email, PasswordHash: hash, Name: input.Name, VerifiedAt: time.Now().UTC()}); err != nil {
+	if err := s.repo.Register(ctx, Registration{UUID: id.New(), Email: email, Password: passwordValue, Name: input.Name, VerifiedAt: time.Now().UTC()}); err != nil {
 		return identity.LoginResult{}, err
 	}
 	return s.auth.Login(ctx, email, input.Password, source)
@@ -72,14 +72,14 @@ func (s *Service) ResetPassword(ctx context.Context, input ResetInput) error {
 	if account.View.ID == "" || account.Disabled {
 		return fault.New(fault.Invalid, "当前邮箱无法重置密码")
 	}
-	if s.passwords.Verify(account.PasswordHash, input.Password) {
+	if s.passwords.Verify(account.Password, input.Password) {
 		return fault.New(fault.Invalid, "新密码不能与当前密码相同")
 	}
-	hash, err := s.passwords.Hash(input.Password)
+	passwordValue, err := s.passwords.Encode(input.Password)
 	if err != nil {
 		return err
 	}
-	return s.repo.ReplacePassword(ctx, identity.Actor{UserID: account.View.ID, AuthVersion: account.AuthVersion}, account.PasswordHash, hash)
+	return s.repo.ReplacePassword(ctx, identity.Actor{UserID: account.View.ID, AuthVersion: account.AuthVersion}, account.Password, passwordValue)
 }
 
 func (s *Service) current(ctx context.Context, actor identity.Actor, password string) (identity.Account, error) {
@@ -90,7 +90,7 @@ func (s *Service) current(ctx context.Context, actor identity.Actor, password st
 	if account.View.ID == "" || account.Disabled || account.AuthVersion != actor.AuthVersion {
 		return account, fault.New(fault.Unauthenticated, "会话已失效，请重新登录")
 	}
-	if len(password) > constants.LegacyPasswordMaxBytes || !s.passwords.Verify(account.PasswordHash, password) {
+	if len(password) > constants.LegacyPasswordMaxBytes || !s.passwords.Verify(account.Password, password) {
 		return account, fault.New(fault.Invalid, "当前密码不正确")
 	}
 	return account, nil
@@ -105,17 +105,17 @@ func (s *Service) ChangePassword(ctx context.Context, actor identity.Actor, inpu
 	if err := validateNewPassword(input.Password); err != nil {
 		return struct{}{}, err
 	}
-	if s.passwords.Verify(account.PasswordHash, input.Password) {
+	if s.passwords.Verify(account.Password, input.Password) {
 		return struct{}{}, fault.New(fault.Invalid, "新密码不能与当前密码相同")
 	}
 	if err := s.verify(ctx, "change-password", actor.UserID, account.View.Email, input.Code); err != nil {
 		return struct{}{}, err
 	}
-	hash, err := s.passwords.Hash(input.Password)
+	passwordValue, err := s.passwords.Encode(input.Password)
 	if err != nil {
 		return struct{}{}, err
 	}
-	return struct{}{}, s.repo.ReplacePassword(ctx, actor, account.PasswordHash, hash)
+	return struct{}{}, s.repo.ReplacePassword(ctx, actor, account.Password, passwordValue)
 }
 
 // ChangeEmail 同时验证密码和新邮箱，递增认证版本后要求重新登录。
@@ -134,5 +134,5 @@ func (s *Service) ChangeEmail(ctx context.Context, actor identity.Actor, input C
 	if err := s.verify(ctx, "change-email", actor.UserID, email, input.Code); err != nil {
 		return struct{}{}, err
 	}
-	return struct{}{}, s.repo.ReplaceEmail(ctx, actor, account.PasswordHash, email)
+	return struct{}{}, s.repo.ReplaceEmail(ctx, actor, account.Password, email)
 }

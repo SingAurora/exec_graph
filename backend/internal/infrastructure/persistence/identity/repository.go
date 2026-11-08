@@ -60,5 +60,5 @@ func (r *Repository) ByUUID(ctx context.Context, uuid string) (app.Account, erro
 	if user.TestDataset != nil {
 		dataset = *user.TestDataset
 	}
-	return app.Account{View: app.AccountView{ProfileView: profile, Email: credential.Email, IsTestAccount: user.IsTestAccount, Version: user.Version}, PasswordHash: credential.PasswordHash, AuthVersion: credential.AuthVersion, Disabled: user.DisabledAt != nil, TestDataset: dataset}, nil
+	return app.Account{View: app.AccountView{ProfileView: profile, Email: credential.Email, IsTestAccount: user.IsTestAccount, Version: user.Version}, Password: credential.Password, AuthVersion: credential.AuthVersion, Disabled: user.DisabledAt != nil, TestDataset: dataset}, nil
 }

@@ -43,10 +43,10 @@ type ChangeEmailInput struct {
 	Code            string `json:"code"`
 }
 
-// Registration 是已完成验证码校验和密码哈希的建号请求。
+// Registration 是已完成验证码校验的建号请求。
 type Registration struct {
-	UUID, Email, PasswordHash, Name string
-	VerifiedAt                      time.Time
+	UUID, Email, Password, Name string
+	VerifiedAt                  time.Time
 }
 
 // Repository 持有账户读取与认证版本事务写入能力。

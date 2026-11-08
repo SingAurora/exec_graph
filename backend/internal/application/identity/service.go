@@ -22,11 +22,11 @@ type AccountView struct {
 
 // Account 是鉴权所需的私有账户状态。
 type Account struct {
-	View         AccountView
-	PasswordHash string
-	AuthVersion  uint32
-	Disabled     bool
-	TestDataset  string
+	View        AccountView
+	Password    string
+	AuthVersion uint32
+	Disabled    bool
+	TestDataset string
 }
 
 // SessionRecord 只在会话存储内部传输。
@@ -69,9 +69,9 @@ type Sessions interface {
 	Allow(context.Context, string, int, time.Duration) (bool, error)
 }
 
-// Passwords 统一密码哈希和恒定时间比较。
+// Passwords 负责保存和比较密码；当前 demo 实现为明文。
 type Passwords interface {
-	Hash(string) (string, error)
+	Encode(string) (string, error)
 	Verify(string, string) bool
 	Token() string
 }
@@ -107,7 +107,7 @@ func (s *Service) Login(ctx context.Context, email, password, source string) (Lo
 	if err != nil {
 		return LoginResult{}, err
 	}
-	valid := s.passwords.Verify(account.PasswordHash, password)
+	valid := s.passwords.Verify(account.Password, password)
 	if account.View.ID == "" || account.Disabled || !valid {
 		return LoginResult{}, fault.New(fault.Unauthenticated, "邮箱或密码不正确")
 	}

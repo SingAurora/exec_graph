@@ -9,9 +9,9 @@ import (
 
 type testPasswords struct{}
 
-func (testPasswords) Hash(string) (string, error) { return "test-only-hash", nil }
-func (testPasswords) Token() string               { return "test-only-password" }
-func text(value string) *string                   { return &value }
+func (testPasswords) Encode(string) (string, error) { return "test-only-password", nil }
+func (testPasswords) Token() string                 { return "test-only-password" }
+func text(value string) *string                     { return &value }
 
 func example() Dataset {
 	conversation := []catalogue.Message{{ID: "user", Speaker: "user", Body: "真实行动"}, {ID: "ai", Speaker: "ai", Body: "整理结果"}}

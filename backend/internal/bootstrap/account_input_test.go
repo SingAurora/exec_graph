@@ -56,11 +56,11 @@ func TestRealAccountInputRules(t *testing.T) {
 
 	// 仅在隔离库构造旧密码，验证登录和当前密码校验不追溯新规则。
 	legacy := " old\u200bsecret "
-	hash, err := (security.Passwords{}).Hash(legacy)
+	passwordValue, err := (security.Passwords{}).Encode(legacy)
 	if err != nil {
 		t.Fatal(err)
 	}
-	mustDB(t, s.deps.DB.Model(&model.UserCredential{}).Where("user_uuid = ?", session.User.ID).Update("password_hash", hash))
+	mustDB(t, s.deps.DB.Model(&model.UserCredential{}).Where("user_uuid = ?", session.User.ID).Update("password", passwordValue))
 	client = authRequest(t, anon, "auth/login", map[string]string{"email": email, "password": legacy}, 200)
 	client.call(t, "POST", "auth/code-send", account.CodeInput{Purpose: "change-password", Email: email}, 200, "")
 	change := account.ChangePasswordInput{CurrentPassword: legacy, Code: sender.code(email), Password: "Ab!'\"\\;9"}

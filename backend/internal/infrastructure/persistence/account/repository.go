@@ -39,37 +39,37 @@ func (r *Repository) Register(ctx context.Context, input app.Registration) error
 		if err := tx.Create(&user).Error; err != nil {
 			return err
 		}
-		return tx.Create(&model.UserCredential{UserUUID: input.UUID, Email: input.Email, PasswordHash: input.PasswordHash, EmailVerifiedAt: input.VerifiedAt, AuthVersion: 1, PasswordChangedAt: input.VerifiedAt, CreatedAt: input.VerifiedAt, UpdatedAt: input.VerifiedAt}).Error
+		return tx.Create(&model.UserCredential{UserUUID: input.UUID, Email: input.Email, Password: input.Password, EmailVerifiedAt: input.VerifiedAt, AuthVersion: 1, PasswordChangedAt: input.VerifiedAt, CreatedAt: input.VerifiedAt, UpdatedAt: input.VerifiedAt}).Error
 	})
 	return duplicateEmail(err)
 }
 
-func checkCurrent(tx *transaction.Scope, hash string) (model.UserCredential, error) {
+func checkCurrent(tx *transaction.Scope, password string) (model.UserCredential, error) {
 	var credential model.UserCredential
 	if err := tx.DB.Where("user_uuid = ?", tx.Actor.UserID).Take(&credential).Error; err != nil {
 		return credential, err
 	}
-	if credential.PasswordHash != hash {
+	if credential.Password != password {
 		return credential, fault.New(fault.Conflict, "账户凭据已变化，请重新登录")
 	}
 	return credential, nil
 }
 
 // ReplacePassword 锁用户及凭据并递增认证版本，旧会话无需逐条扫描 Redis 即可失效。
-func (r *Repository) ReplacePassword(ctx context.Context, actor identity.Actor, oldHash, newHash string) error {
+func (r *Repository) ReplacePassword(ctx context.Context, actor identity.Actor, oldPassword, newPassword string) error {
 	return transaction.Within(ctx, r.db, actor, func(tx *transaction.Scope) error {
-		if _, err := checkCurrent(tx, oldHash); err != nil {
+		if _, err := checkCurrent(tx, oldPassword); err != nil {
 			return err
 		}
 		now := time.Now().UTC()
-		return tx.DB.Model(&model.UserCredential{}).Where("user_uuid = ?", actor.UserID).Select("PasswordHash", "PasswordChangedAt", "AuthVersion", "UpdatedAt").Updates(model.UserCredential{PasswordHash: newHash, PasswordChangedAt: now, AuthVersion: actor.AuthVersion + 1, UpdatedAt: now}).Error
+		return tx.DB.Model(&model.UserCredential{}).Where("user_uuid = ?", actor.UserID).Select("Password", "PasswordChangedAt", "AuthVersion", "UpdatedAt").Updates(model.UserCredential{Password: newPassword, PasswordChangedAt: now, AuthVersion: actor.AuthVersion + 1, UpdatedAt: now}).Error
 	})
 }
 
 // ReplaceEmail 新邮箱唯一约束与认证版本变更同事务提交。
-func (r *Repository) ReplaceEmail(ctx context.Context, actor identity.Actor, oldHash, email string) error {
+func (r *Repository) ReplaceEmail(ctx context.Context, actor identity.Actor, oldPassword, email string) error {
 	err := transaction.Within(ctx, r.db, actor, func(tx *transaction.Scope) error {
-		if _, err := checkCurrent(tx, oldHash); err != nil {
+		if _, err := checkCurrent(tx, oldPassword); err != nil {
 			return err
 		}
 		now := time.Now().UTC()

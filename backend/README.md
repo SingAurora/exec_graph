@@ -164,7 +164,7 @@ EXEC_GRAPH_DATABASE_SCHEMA=exec_graph EXEC_GRAPH_ADDR=127.0.0.1:8080 EXEC_GRAPH_
 | POST | `/profiles/update`、`/profiles/highlights-set` | 公开资料、最多五个表达精选及顺序 |
 | POST | `/following/set` | 显式设置用户／图关注状态 |
 
-使用 Bearer token 和 Redis 会话；客户端需携带 `Authorization: Bearer <token>`。每次会话读取检查数据库停用状态及认证版本。密码采用 Argon2id，不提供明文或可逆密码读取。
+使用 Bearer token 和 Redis 会话；客户端需携带 `Authorization: Bearer <token>`。每次会话读取检查数据库停用状态及认证版本。当前 demo 阶段密码以明文保存在 `user_credentials.password`，禁止用于生产环境。
 
 响应资源 ID 一律为 UUID；不再接受或返回旧短 ID。写入只接受 UUID。行动 DTO 和前端都使用 `graphUuid`，资源标识字段为 `uuid`；关注模型使用 `graphUuids`。未确认的 AI 对话不会公开。
 

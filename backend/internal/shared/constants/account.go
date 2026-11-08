@@ -3,6 +3,8 @@ package constants
 import "time"
 
 const (
+	// DemoPassword 是 demo 明文模式下现有账号的统一密码；禁止用于生产。
+	DemoPassword = "demo123456"
 	// EmailMaxBytes 限制规范化后的邮箱 UTF-8 字节数；常见邮箱均为 ASCII，因此等同于常见字符数上限。
 	EmailMaxBytes = 64
 	// PasswordMinCharacters 限制新密码的最少字符数，不追溯限制旧密码登录。

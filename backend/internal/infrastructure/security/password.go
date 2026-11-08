@@ -1,45 +1,21 @@
-// Package security 实现平台密码与随机令牌，不存储明文密码。
+// Package security 实现 demo 密码存储与随机令牌。当前版本直接保存明文，仅用于未上线演示。
 package security
 
 import (
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
-	"fmt"
-	"strings"
-
-	"github.com/singaurora/exec-graph/backend/internal/shared/constants"
-	"golang.org/x/crypto/argon2"
 )
 
-// Passwords 是 Argon2id 密码哈希和随机令牌适配器。
+// Passwords 是 demo 明文密码和随机令牌适配器。
 type Passwords struct{}
 
-// Hash 为每个密码生成独立随机盐。
-func (Passwords) Hash(password string) (string, error) {
-	salt := make([]byte, 16)
-	if _, err := rand.Read(salt); err != nil {
-		return "", err
-	}
-	hash := argon2.IDKey([]byte(password), salt, constants.PasswordIterations, constants.PasswordMemoryKiB, constants.PasswordParallelism, 32)
-	return fmt.Sprintf("$argon2id$v=19$m=%d,t=%d,p=%d$%s$%s", constants.PasswordMemoryKiB, constants.PasswordIterations, constants.PasswordParallelism, base64.RawStdEncoding.EncodeToString(salt), base64.RawStdEncoding.EncodeToString(hash)), nil
-}
+// Encode 保存明文密码；仅限未上线演示使用。
+func (Passwords) Encode(password string) (string, error) { return password, nil }
 
-// Verify 只接受本版本受控成本参数；不存在的账户也执行一次哈希计算。
-func (p Passwords) Verify(encoded, password string) bool {
-	prefix := fmt.Sprintf("$argon2id$v=19$m=%d,t=%d,p=%d$", constants.PasswordMemoryKiB, constants.PasswordIterations, constants.PasswordParallelism)
-	parts := strings.Split(strings.TrimPrefix(encoded, prefix), "$")
-	salt, hash := []byte("invalid-salt-0000"), make([]byte, 32)
-	valid := strings.HasPrefix(encoded, prefix) && len(parts) == 2
-	if valid {
-		var err error
-		salt, err = base64.RawStdEncoding.DecodeString(parts[0])
-		valid = err == nil && len(salt) == 16
-		hash, err = base64.RawStdEncoding.DecodeString(parts[1])
-		valid = valid && err == nil && len(hash) == 32
-	}
-	candidate := argon2.IDKey([]byte(password), salt, constants.PasswordIterations, constants.PasswordMemoryKiB, constants.PasswordParallelism, 32)
-	return subtle.ConstantTimeCompare(candidate, hash) == 1 && valid
+// Verify 使用恒定时间比较明文密码。
+func (Passwords) Verify(stored, password string) bool {
+	return subtle.ConstantTimeCompare([]byte(stored), []byte(password)) == 1
 }
 
 // Token 生成 256 位不可预测令牌。

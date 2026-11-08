@@ -143,7 +143,7 @@ func (r *Repository) users(tx *gorm.DB, data app.Prepared) error {
 		if err := tx.Create(&row).Error; err != nil {
 			return err
 		}
-		credential := model.UserCredential{UserUUID: u.ID, Email: u.Email, PasswordHash: u.PasswordHash, EmailVerifiedAt: now, AuthVersion: 1, PasswordChangedAt: now, CreatedAt: now, UpdatedAt: now}
+		credential := model.UserCredential{UserUUID: u.ID, Email: u.Email, Password: u.Password, EmailVerifiedAt: now, AuthVersion: 1, PasswordChangedAt: now, CreatedAt: now, UpdatedAt: now}
 		if err := tx.Create(&credential).Error; err != nil {
 			return err
 		}

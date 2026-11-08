@@ -155,6 +155,33 @@ func Migrate(ctx context.Context, db *gorm.DB) error {
 				return fmt.Errorf("记录邮箱长度迁移版本: %w", err)
 			}
 		}
+		if applied < 10 {
+			if conn.Migrator().HasColumn(&model.UserCredential{}, "password_hash") {
+				if conn.Migrator().HasConstraint(&model.UserCredential{}, "ck_user_credentials") {
+					if err := conn.Migrator().DropConstraint(&model.UserCredential{}, "ck_user_credentials"); err != nil {
+						return fmt.Errorf("移除旧密码检查约束: %w", err)
+					}
+				}
+				// 旧值是 Argon2id，无法还原明文；demo 阶段统一覆盖为已知密码。
+				if err := conn.Exec("UPDATE `user_credentials` SET `password_hash` = ?", constants.DemoPassword).Error; err != nil {
+					return fmt.Errorf("重置 demo 密码: %w", err)
+				}
+				if err := conn.Migrator().RenameColumn(&model.UserCredential{}, "password_hash", "password"); err != nil {
+					return fmt.Errorf("重命名密码列: %w", err)
+				}
+			}
+			if err := conn.Session(&gorm.Session{NewDB: true}).Set("gorm:table_options", "ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_cs").AutoMigrate(&model.UserCredential{}); err != nil {
+				return fmt.Errorf("切换 demo 密码列: %w", err)
+			}
+			if !conn.Migrator().HasConstraint(&model.UserCredential{}, "ck_user_credentials") {
+				if err := conn.Exec("ALTER TABLE `user_credentials` ADD CONSTRAINT `ck_user_credentials` CHECK (CHAR_LENGTH(`password`) > 0 AND `auth_version` > 0)").Error; err != nil {
+					return fmt.Errorf("添加 demo 密码检查约束: %w", err)
+				}
+			}
+			if err := conn.Create(&model.SchemaVersion{Version: 10, AppliedAt: time.Now().UTC()}).Error; err != nil {
+				return fmt.Errorf("记录 demo 明文密码迁移版本: %w", err)
+			}
+		}
 		return Check(ctx, conn)
 	})
 }

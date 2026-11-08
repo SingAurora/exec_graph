@@ -97,8 +97,8 @@ func accountFlow(t *testing.T, s *writeSystem, sender *capturedMail, email strin
 	anon.call(t, "POST", "auth/register", registration, 400, "")
 	var credential model.UserCredential
 	mustDB(t, s.deps.DB.Where("user_uuid = ?", session.User.ID).Take(&credential))
-	if credential.PasswordHash == password || credential.AuthVersion != 1 {
-		t.Fatal("密码未哈希或认证版本错误")
+	if credential.Password != password || credential.AuthVersion != 1 {
+		t.Fatal("密码未按 demo 明文保存或认证版本错误")
 	}
 	anon.call(t, "POST", "auth/code-send", app.CodeInput{Purpose: "reset-password", Email: email}, 200, "")
 	reset := app.ResetInput{Email: email, Code: sender.code(email), Password: "integration-reset-password-725"}

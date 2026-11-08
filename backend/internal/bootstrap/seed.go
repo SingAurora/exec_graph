@@ -9,7 +9,7 @@ import (
 	"github.com/singaurora/exec-graph/backend/internal/infrastructure/security"
 )
 
-// SeedDemo 仅由管理命令显式调用，密码只用于计算哈希，不写入日志或文件。
+// SeedDemo 仅由管理命令显式调用，密码只用于写入演示凭据，不写入日志或文件。
 func SeedDemo(ctx context.Context, deps *Dependencies, password string) (string, error) {
 	if deps.Config.App.Environment == "production" {
 		return "", fmt.Errorf("生产环境禁止导入演示账号")

@@ -76,11 +76,11 @@ func Prepare(source Dataset, digest, mainPassword string, passwords Passwords) (
 		if alias == "jo" && mainPassword != "" {
 			password = mainPassword
 		}
-		hash, err := passwords.Hash(password)
+		encoded, err := passwords.Encode(password)
 		if err != nil {
 			return out, err
 		}
-		u.PasswordHash = hash
+		u.Password = encoded
 		u.Avatar, err = media(u.Avatar)
 		if err != nil {
 			return out, err

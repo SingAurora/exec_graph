@@ -26,10 +26,10 @@ func (User) TableName() string { return "users" }
 
 // UserCredential 对应 user_credentials，业务规则由 application 用例校验。
 type UserCredential struct {
-	ID                uint64    `gorm:"column:id;type:bigint unsigned;primaryKey;autoIncrement;not null;check:ck_user_credentials,(CHAR_LENGTH(password_hash) > 0) AND (auth_version > 0)"`
+	ID                uint64    `gorm:"column:id;type:bigint unsigned;primaryKey;autoIncrement;not null;check:ck_user_credentials,(CHAR_LENGTH(password) > 0) AND (auth_version > 0)"`
 	UserUUID          string    `gorm:"column:user_uuid;type:char(36) CHARACTER SET ascii COLLATE ascii_bin;not null;uniqueIndex:uq_user_credentials_user,priority:1"`
 	Email             string    `gorm:"column:email;type:varchar(64) CHARACTER SET ascii COLLATE ascii_bin;not null;uniqueIndex:uq_user_credentials_email,priority:1;comment:首版邮箱按去首尾空白、转小写规范化"`
-	PasswordHash      string    `gorm:"column:password_hash;type:varchar(255) CHARACTER SET ascii COLLATE ascii_bin;not null;comment:Argon2id 编码串，含参数和随机盐；绝不存明文"`
+	Password          string    `gorm:"column:password;type:varchar(32) CHARACTER SET ascii COLLATE ascii_bin;not null;comment:demo 明文密码，禁止用于生产"`
 	EmailVerifiedAt   time.Time `gorm:"column:email_verified_at;type:datetime(6);not null;comment:完成邮箱验证后才创建账户"`
 	AuthVersion       uint32    `gorm:"column:auth_version;type:int unsigned;not null;default:1;comment:密码重置等操作递增，Redis 会话携带该版本"`
 	PasswordChangedAt time.Time `gorm:"column:password_changed_at;type:datetime(6);not null"`
