@@ -12,3 +12,31 @@
 | [test-accounts.local.md](test-accounts.local.md) | 演示账号信息 | 仅受控演示环境使用 |
 
 阅读顺序：先看当前契约，再看对应代码和测试；旧设计文档不再作为实现依据。
+
+## 本地开发
+
+```sh
+# 同时启动 Go API 和 Vite
+./dev.sh
+
+# 或分别启动
+cd backend && go run ./cmd/api
+cd frontend && bun install && bun run dev
+```
+
+默认后端 `127.0.0.1:8080`，前端 `127.0.0.1:5173`；Vite 将 `/api` 代理到后端。前后端固定同源部署，生产由 Go 直接提供 `frontend/dist`，不需要 Nginx 或 Vite。
+
+## 验证
+
+```sh
+cd frontend
+bun run lint
+bun run test
+bun run build
+
+cd ../backend
+go test ./...
+go vet ./...
+```
+
+提交前运行 `git diff --check`。

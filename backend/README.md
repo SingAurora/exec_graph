@@ -182,7 +182,7 @@ EXEC_GRAPH_DATABASE_SCHEMA=exec_graph EXEC_GRAPH_ADDR=127.0.0.1:8080 EXEC_GRAPH_
 EXEC_GRAPH_DATABASE_SCHEMA=exec_graph go run ./cmd/manage prune-media
 ```
 
-浏览器启动命令见 [前端说明](../frontend/README.md)。开发测试号入口需要前后端分别显式开启，不能在生产环境开启。
+浏览器启动和验证命令见 [本地开发说明](../doc/README.md#本地开发)。前端不再提供测试号入口。
 
 ## 账号资源限额
 
