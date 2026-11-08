@@ -190,3 +190,24 @@ func TestActionSnapshotOmitsOwnSourceAgreement(t *testing.T) {
 		t.Fatalf("自己的来源不应进入约定上下文: %+v", snapshot.Sources)
 	}
 }
+
+func TestExpressionSnapshotIncludesCompleteBranch(t *testing.T) {
+	graph := action.Graph{
+		Nodes: []action.Node{
+			{ID: "root", Number: 1, AuthorID: "me", Title: "第一次行动", Objective: "完成了第一步", Expression: action.Document{Markdown: "我先试试稳一点的路线"}, Agreement: action.Document{Markdown: "引用时说明路线"}},
+			{ID: "current", Number: 2, AuthorID: "me", Title: "第二次行动", Objective: "完成了第二步"},
+		},
+		Edges: []action.Edge{{SourceID: "root", TargetID: "current", Kind: "primary"}},
+	}
+	pending := Pending{Mode: "expression", NodeID: "current"}
+	snapshot := snapshotFor(graph, map[string]bool{"root": true, "current": true}, nil, pending, false)
+	if len(snapshot.Branch) != 2 {
+		t.Fatalf("支链应包含从根到当前的节点: %+v", snapshot.Branch)
+	}
+	if snapshot.Branch[0].NodeID != "root" || snapshot.Branch[0].Expression != "我先试试稳一点的路线" || snapshot.Branch[0].Agreement != "引用时说明路线" {
+		t.Fatalf("支链来源内容丢失: %+v", snapshot.Branch)
+	}
+	if !snapshot.Branch[1].Current || snapshot.Branch[1].Objective != "完成了第二步" {
+		t.Fatalf("当前节点标记或正文错误: %+v", snapshot.Branch)
+	}
+}

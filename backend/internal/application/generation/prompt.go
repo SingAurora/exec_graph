@@ -3,6 +3,7 @@ package generation
 import (
 	"encoding/json"
 	"io"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -25,6 +26,16 @@ type source struct {
 	Expression string `json:"expression"`
 	Agreement  string `json:"agreement"`
 }
+type branchNode struct {
+	NodeID     string `json:"nodeId"`
+	Number     uint32 `json:"number"`
+	AuthorID   string `json:"authorId"`
+	Title      string `json:"title"`
+	Objective  string `json:"objective"`
+	Expression string `json:"expression"`
+	Agreement  string `json:"agreement"`
+	Current    bool   `json:"current,omitempty"`
+}
 type contextSnapshot struct {
 	Mode                string                `json:"mode"`
 	ActorID             string                `json:"actorId"`
@@ -33,6 +44,7 @@ type contextSnapshot struct {
 	Guide               string                `json:"guide"`
 	HasParent           bool                  `json:"hasParent"`
 	Facts               []fact                `json:"facts"`
+	Branch              []branchNode          `json:"branch,omitempty"`
 	Sources             []source              `json:"sources"`
 	OriginalSources     []source              `json:"originalSources,omitempty"`
 	CurrentExpression   string                `json:"currentExpression"`
@@ -105,6 +117,13 @@ func snapshotFor(graph action.Graph, history map[string]bool, nodes []catalogue.
 				snapshot.OriginalSources = append(snapshot.OriginalSources, source{n.ID, n.Expression.Markdown, n.Agreement.Markdown})
 			}
 		}
+		for _, node := range graph.Nodes {
+			if !history[node.ID] && node.ID != p.NodeID {
+				continue
+			}
+			snapshot.Branch = append(snapshot.Branch, branchNode{NodeID: node.ID, Number: node.Number, AuthorID: node.AuthorID, Title: node.Title, Objective: node.Objective, Expression: node.Expression.Markdown, Agreement: node.Agreement.Markdown, Current: node.ID == p.NodeID})
+		}
+		sort.Slice(snapshot.Branch, func(i, j int) bool { return snapshot.Branch[i].Number < snapshot.Branch[j].Number })
 	}
 	return snapshot
 }

@@ -26,7 +26,7 @@
 
 ## 3. 生成系统提示词
 
-生成提示词按模式拆分，由 `generationRulesFor(mode)` 选择，每次只携带当前模式需要的规则。提示词版本为 `action-evidence-v19`。
+生成提示词按模式拆分，由 `generationRulesFor(mode)` 选择，每次只携带当前模式需要的规则。提示词版本为 `action-evidence-v20`。
 
 | 常量 | 作用 | 约字符数 |
 | --- | --- | ---: |
