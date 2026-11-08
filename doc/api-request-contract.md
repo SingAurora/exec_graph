@@ -65,7 +65,7 @@
 
 ## 5. 认证、会话与安全
 
-- 业务接口使用 `Authorization: Bearer <token>`，token 可保存在浏览器 localStorage，不写入 Zustand 或 Query 缓存。
+- 业务接口使用 `Authorization: Bearer <token>`，token 可保存在浏览器 localStorage，不写入额外的全局 store 或 Query 缓存。
 - `GET /api/commands/auth/session` 返回已认证账户；无有效 token 返回 401／10002。只有该错误视为匿名，网络错误和服务端错误不能转成退出状态。
 - 当前使用 Bearer token，不使用 Cookie，也不使用 CSRF token；业务写入只校验会话、权限和资源版本。
 - 登录、注册、找回密码、修改密码和邮箱变更会在成功后撤销旧会话；客户端需要清理旧账号缓存并重新登录。
@@ -87,7 +87,7 @@
 
 ## 8. 前端状态与 Query
 
-- TanStack Query 只管理当前请求状态和同一时刻的请求去重，不保留长期缓存；每次挂载重新读取。不把图、节点、用户资料再复制到 Zustand 或组件 state。
+- TanStack Query 只管理当前请求状态和同一时刻的请求去重，不保留长期缓存；每次挂载重新读取。不把图、节点、用户资料再复制到额外的全局 store 或组件 state。
 - query key 用于区分当前请求和账号作用域；不把 token、AbortSignal 或整个表单放进 key。
 - 写入成功后按领域失效关联查询；发布和删除不做默认乐观更新。失败保留输入，成功后清除对应草稿。
 - IndexedDB 草稿与已发布事实分开管理；恢复草稿前校验账号、图、操作和目标节点。
