@@ -214,12 +214,5 @@ func (r *Repository) actions(ctx context.Context, nodes []model.ActionNode) ([]a
 			node.Conversation = append(node.Conversation, view)
 		}
 	}
-	aliases, err := r.aliases(ctx, "action", ids)
-	if err != nil {
-		return nil, err
-	}
-	for i := range result {
-		result[i].LegacyID = aliases[result[i].ID]
-	}
 	return result, nil
 }

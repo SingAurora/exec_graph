@@ -34,7 +34,6 @@ type CleanupReport struct {
 	MediaRetention    int64
 	MediaAssets       int64
 	SeedImports       int64
-	LegacyAliases     int64
 }
 
 // Total 返回删除的业务记录总数，不包含保留的测试账号和凭据。
@@ -42,7 +41,7 @@ func (r CleanupReport) Total() int64 {
 	return r.Graphs + r.Actions + r.DocumentVersions + r.DocumentStates + r.References +
 		r.Conversations + r.Messages + r.Generations + r.GenerationLinks + r.GenerationSources +
 		r.Highlights + r.UserFollows + r.GraphFollows + r.Idempotency + r.ActionImages +
-		r.DocumentImages + r.BiographyImages + r.MediaRetention + r.MediaAssets + r.SeedImports + r.LegacyAliases
+		r.DocumentImages + r.BiographyImages + r.MediaRetention + r.MediaAssets + r.SeedImports
 }
 
 // Cleanup 清空指定演示账号名下的业务数据（含后续手动创建的内容），保留账号及其登录凭据。
@@ -212,9 +211,6 @@ func (r *Repository) Cleanup(ctx context.Context, dataset string) (CleanupReport
 			return err
 		}
 		if report.MediaAssets, err = deleteCount(tx, &model.MediaAsset{}, "uuid IN ?", assetIDs); err != nil {
-			return err
-		}
-		if report.LegacyAliases, err = deleteCount(tx, &model.LegacyAlias{}, "dataset = ?", dataset); err != nil {
 			return err
 		}
 		if report.SeedImports, err = deleteCount(tx, &model.SeedImport{}, "dataset = ?", dataset); err != nil {

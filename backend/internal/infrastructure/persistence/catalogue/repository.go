@@ -23,18 +23,12 @@ type Repository struct{ db *gorm.DB }
 func New(db *gorm.DB) *Repository { return &Repository{db: db} }
 
 func (r *Repository) resolve(ctx context.Context, kind, value string) (string, error) {
-	if id.Valid(value) {
-		return value, nil
+	_ = ctx
+	_ = kind
+	if !id.Valid(value) {
+		return "", fault.New(fault.Invalid, "资源标识必须是 UUID")
 	}
-	if value == "" || len(value) > 100 {
-		return "", fault.New(fault.Invalid, "资源标识不合法")
-	}
-	var alias model.LegacyAlias
-	err := r.db.WithContext(ctx).Where("kind = ? AND alias = ?", kind, value).Take(&alias).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return "", fault.New(fault.NotFound, "资源不存在")
-	}
-	return alias.ResourceUUID, err
+	return value, nil
 }
 
 // MediaURL 生成稳定站内地址，不保存临时签名 URL。
@@ -117,13 +111,6 @@ func (r *Repository) profiles(ctx context.Context, users []model.User) ([]app.Pr
 		}
 		views = append(views, app.ProfileView{ID: u.UUID, Name: u.Name, Gender: u.Gender, Bio: u.BiographyMarkdown, Location: profileLocation, Avatar: avatar, BackgroundImage: MediaURL(u.CoverAssetUUID), AvatarAssetID: u.AvatarAssetUUID, BackgroundAssetID: u.CoverAssetUUID, ActiveDays: len(days[u.UUID]), Highlights: app.Highlights{ExpressionNodeIDs: list}})
 	}
-	aliases, err := r.aliases(ctx, "user", ids)
-	if err != nil {
-		return nil, err
-	}
-	for i := range views {
-		views[i].LegacyID = aliases[views[i].ID]
-	}
 	return views, nil
 }
 
@@ -180,13 +167,6 @@ func (r *Repository) graphs(ctx context.Context, graphs []model.Graph) ([]app.Gr
 			people = []string{}
 		}
 		result = append(result, app.GraphView{ID: g.UUID, OwnerID: g.OwnerUUID, ParticipantIDs: people, Title: g.Title, Description: g.Description, Avatar: MediaURL(g.AvatarAssetUUID), BackgroundImage: MediaURL(g.CoverAssetUUID), AvatarAssetID: g.AvatarAssetUUID, BackgroundAssetID: g.CoverAssetUUID, ContextGuide: g.ContextGuide, Version: g.Version, CreatedAt: timezone.InChina(g.CreatedAt), UpdatedAt: timezone.InChina(g.UpdatedAt)})
-	}
-	aliases, err := r.aliases(ctx, "graph", ids)
-	if err != nil {
-		return nil, err
-	}
-	for i := range result {
-		result[i].LegacyID = aliases[result[i].ID]
 	}
 	return result, nil
 }

@@ -6,7 +6,7 @@
 
 - 路径以 `/api/commands` 开头，使用 POST 和 JSON，响应沿用 `{code, msg, data}`；未知字段拒绝。
 - 所有业务写入携带 `Authorization: Bearer <token>`。不使用 Cookie，业务写入不依赖 CSRF token；请求不能指定操作者，事务内重新检查账户状态和认证版本。
-- 图、节点、资产和生成任务使用小写 UUID；旧短 ID 只能读取演示链接，不能作为写入目标。
+- 图、节点、资产和生成任务使用小写 UUID；不接受短 ID、别名或非 UUID 资源标识。
 - `graphs/create`、`actions/create` 和 `ai/generate` 携带 UUID 格式的 `Idempotency-Key`。服务端按账号 + 操作 + key 隔离；同键同内容重放第一次结果，同键不同内容返回 409／10005。结果至少保留 24 小时。
 - 更新必须携带 `expectedVersion`；版本不符返回 409／10005。资料和精选共用账户版本，图资料独立版本，表达和约定共用节点版本；发布行动不增加图资料版本。
 - 写入使用 GORM 事务和 READ COMMITTED 隔离，按账号、凭据、图、对话顺序加锁。图内发布、文档修改、图资料修改和删除共用图行锁。

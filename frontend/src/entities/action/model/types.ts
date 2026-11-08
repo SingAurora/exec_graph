@@ -26,7 +26,6 @@ export type ActionReferenceAgreement = {
  * 节点记录已发生的事，不包含待办目标或完成状态。
  */
 export type ActionNode = {
-  legacyId?: string
   /** 资源身份，用于查找、引用和更新；不能用展示编号代替。 */
   uuid: string
   /** 所属行动图；旧 UI 沿用 graphUuid，请求 DTO 使用 graphUuid 并在 API 层显式映射。 */

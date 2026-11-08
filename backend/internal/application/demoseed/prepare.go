@@ -24,21 +24,18 @@ func Prepare(source Dataset, digest, mainPassword string, passwords Passwords) (
 			return out, fmt.Errorf("演示用户标识重复或为空")
 		}
 		users[u.ID] = id.Demo("user", u.ID)
-		out.Aliases = append(out.Aliases, Alias{"user", u.ID, users[u.ID]})
 	}
 	for _, g := range source.Graphs {
 		if g.ID == "" || graphs[g.ID] != "" {
 			return out, fmt.Errorf("演示图标识重复或为空")
 		}
 		graphs[g.ID] = id.Demo("graph", g.ID)
-		out.Aliases = append(out.Aliases, Alias{"graph", g.ID, graphs[g.ID]})
 	}
 	for _, n := range source.Actions {
 		if n.ID == "" || nodes[n.ID] != "" {
 			return out, fmt.Errorf("演示行动标识重复或为空")
 		}
 		nodes[n.ID] = id.Demo("action", n.ID)
-		out.Aliases = append(out.Aliases, Alias{"action", n.ID, nodes[n.ID]})
 	}
 	assetNames := map[string]bool{}
 	for _, a := range source.Assets {

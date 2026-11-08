@@ -1,6 +1,5 @@
 /** 类似贴吧的公共社区空间，承载多人的表达与约定回应；创建图不自动生成第一次行动。 */
 export type Graph = {
-  legacyId?: string
   uuid: string
   ownerUuid: string
   participantUuids: string[]

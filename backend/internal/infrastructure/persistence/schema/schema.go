@@ -17,7 +17,7 @@ func Models() []any {
 }
 
 func initialModels() []any {
-	return []any{&model.User{}, &model.UserCredential{}, &model.MediaAsset{}, &model.Graph{}, &model.ActionNode{}, &model.DocumentVersion{}, &model.DocumentState{}, &model.ActionReference{}, &model.AIConversation{}, &model.AIMessage{}, &model.AIGeneration{}, &model.GenerationMessage{}, &model.GenerationSource{}, &model.UserFollow{}, &model.GraphFollow{}, &model.ProfileHighlight{}, &model.IdempotencyRecord{}, &model.ActionImage{}, &model.DocumentImage{}, &model.BiographyImage{}, &model.SeedImport{}, &model.LegacyAlias{}}
+	return []any{&model.User{}, &model.UserCredential{}, &model.MediaAsset{}, &model.Graph{}, &model.ActionNode{}, &model.DocumentVersion{}, &model.DocumentState{}, &model.ActionReference{}, &model.AIConversation{}, &model.AIMessage{}, &model.AIGeneration{}, &model.GenerationMessage{}, &model.GenerationSource{}, &model.UserFollow{}, &model.GraphFollow{}, &model.ProfileHighlight{}, &model.IdempotencyRecord{}, &model.ActionImage{}, &model.DocumentImage{}, &model.BiographyImage{}, &model.SeedImport{}}
 }
 
 // Migrate 仅由管理命令调用，拒绝接管无迁移记录的旧业务表。
@@ -127,6 +127,16 @@ func Migrate(ctx context.Context, db *gorm.DB) error {
 			}
 			if err := conn.Create(&model.SchemaVersion{Version: 6, AppliedAt: time.Now().UTC()}).Error; err != nil {
 				return fmt.Errorf("记录东八区迁移版本: %w", err)
+			}
+		}
+		if applied < 7 {
+			if conn.Migrator().HasTable("legacy_aliases") {
+				if err := conn.Exec("DROP TABLE IF EXISTS `legacy_aliases`").Error; err != nil {
+					return fmt.Errorf("删除旧短 ID 别名表: %w", err)
+				}
+			}
+			if err := conn.Create(&model.SchemaVersion{Version: 7, AppliedAt: time.Now().UTC()}).Error; err != nil {
+				return fmt.Errorf("记录短 ID 清理迁移版本: %w", err)
 			}
 		}
 		return Check(ctx, conn)

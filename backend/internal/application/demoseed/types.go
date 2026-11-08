@@ -28,13 +28,6 @@ type Dataset struct {
 	Assets    []Asset                 `json:"assets"`
 }
 
-// Alias 是旧演示短 ID 到 UUID 的显式映射。
-type Alias struct {
-	Kind  string
-	Alias string
-	UUID  string
-}
-
 // Document 是本节点明确写入或清空的初始版本。
 type Document struct {
 	UUID         string
@@ -77,7 +70,6 @@ type Prepared struct {
 	Graphs     []catalogue.GraphView
 	Nodes      []Node
 	References []Reference
-	Aliases    []Alias
 	Following  catalogue.FollowingView
 	Assets     []Asset
 }

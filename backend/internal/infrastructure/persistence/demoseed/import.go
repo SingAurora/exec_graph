@@ -109,11 +109,6 @@ func (r *Repository) Import(ctx context.Context, data app.Prepared) (bool, error
 				}
 			}
 		}
-		for _, alias := range data.Aliases {
-			if err := tx.Create(&model.LegacyAlias{Kind: alias.Kind, Alias: alias.Alias, ResourceUUID: alias.UUID, Dataset: data.Dataset}).Error; err != nil {
-				return err
-			}
-		}
 		for _, u := range data.Users {
 			for i, uuid := range u.Highlights.ExpressionNodeIDs {
 				if err := tx.Create(&model.ProfileHighlight{UserUUID: u.ID, NodeUUID: uuid, Position: uint8(i + 1), CreatedAt: time.Now().UTC()}).Error; err != nil {

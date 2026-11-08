@@ -1,6 +1,5 @@
 import { useLayoutEffect, useRef, useState, type ComponentProps } from 'react'
 import { PublicProfile } from '../widgets/profile/PublicProfile'
-import { resourceUuid } from '../shared/lib/resource-id'
 
 // “我的”和用户主页共用界面；URL 可指定用户及直接打开的栏目。
 function readProfileRoute(currentUserUuid: string) {
@@ -41,12 +40,12 @@ export function ProfilePage({ followingIds, ...props }: ProfilePageProps) {
   return (
     <>
       {[...visited].map(([userUuid, request]) => {
-        const profile = props.users.find((user) => user.uuid === resourceUuid(props.users, userUuid))
+        const profile = props.users.find((user) => user.uuid === userUuid)
         return (
           profile && <div hidden={userUuid !== profileRoute.userUuid} key={userUuid}><PublicProfile {...props} profile={profile} active={Boolean(props.active && userUuid === profileRoute.userUuid)} activityTabRequest={request} following={followingIds.includes(profile.uuid)} /></div>
         )
       })}
-      {!props.users.some((user) => user.uuid === resourceUuid(props.users, profileRoute.userUuid)) && <p className="empty-state">用户不存在</p>}
+      {!props.users.some((user) => user.uuid === profileRoute.userUuid) && <p className="empty-state">用户不存在</p>}
     </>
   )
 }

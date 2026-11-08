@@ -10,7 +10,6 @@ import { clearAuthToken, readAuthToken, writeAuthToken } from '../shared/api/aut
 import { useToast } from '../shared/ui/toast/useToast'
 import { ListSkeleton } from '../shared/ui/ListSkeleton'
 import { useImageAssets } from '../features/media-upload/model/useImageAssets'
-import { resourceUuid } from '../shared/lib/resource-id'
 import { useAppNavigation } from './model/useAppNavigation'
 import { actionWorkspaceHash, readActionWorkspaceRoute } from './model/action-workspace-route'
 import { generateNodeDocuments } from '../features/action-generation/api/generation'
@@ -151,19 +150,7 @@ function AppContent({ profile, graphs, actions, allUsers, sources, csrfToken, da
   const imageAsset = useImageAssets(csrfToken)
   const { hash, revision, route, graphBackHash, profileBackHash, navigate } = useAppNavigation(profile.uuid)
   // useMemo 缓存从现有数据计算出的结果；这里仅在 hash 改变时重新解析路由参数。
-  const query = useMemo(() => {
-    const params = new URLSearchParams(hash.split('?')[1])
-    for (const name of ['graphUuid', 'fromGraph']) {
-      const id = resourceUuid(graphs, params.get(name)); if (id) params.set(name, id)
-    }
-    for (const name of ['nodeUuid', 'parentUuid']) {
-      const id = resourceUuid(actions, params.get(name)); if (id) params.set(name, id)
-    }
-    const userUuid = resourceUuid(allUsers, params.get('userUuid')); if (userUuid) params.set('userUuid', userUuid)
-    const reference = params.get('referenceUuid')?.split(':')
-    if (reference?.length === 2) params.set('referenceUuid', reference.map((id) => resourceUuid(actions, id)).join(':'))
-    return params
-  }, [hash, graphs, actions, allUsers])
+  const query = useMemo(() => new URLSearchParams(hash.split('?')[1]), [hash])
   // useState 保存客户端交互状态；业务资料由传入的 Query 数据提供。
   const followingIds = sources.userUuids, followingGraphUuids = sources.graphUuids
   const [graphBackground, setGraphBackground] = useGraphBackground()
@@ -171,7 +158,7 @@ function AppContent({ profile, graphs, actions, allUsers, sources, csrfToken, da
     try { return window.localStorage.getItem(legendPreferenceKey) === 'true' } catch { return false }
   })
   // 离开图进入编辑器或形成过程时，仍保留最近一张图，供返回后恢复阅读。
-  const [lastGraphUuid, setLastGraphUuid] = useState(query.get('graphUuid') ?? resourceUuid(graphs, 'cooking') ?? graphs[0]?.uuid ?? '')
+  const [lastGraphUuid, setLastGraphUuid] = useState(query.get('graphUuid') ?? graphs[0]?.uuid ?? '')
   const workspaceRoute = route === 'publish' ? readActionWorkspaceRoute(query) : undefined
   const workspaceMode = workspaceRoute?.mode ?? 'action'
   const workspaceGraphUuid = workspaceRoute?.graphUuid
@@ -414,7 +401,7 @@ function AppContent({ profile, graphs, actions, allUsers, sources, csrfToken, da
         workspaceMode === 'agreement' && expressionAction ? (
           <AgreementWorkspace
             csrfToken={csrfToken}
-            draftKey={getActionDraftKey(profile.legacyId ?? profile.uuid, workspaceGraph?.legacyId ?? expressionAction.graphUuid, 'agreement', expressionAction.legacyId ?? expressionAction.uuid)}
+            draftKey={getActionDraftKey(profile.uuid, expressionAction.graphUuid, 'agreement', expressionAction.uuid)}
             key={profile.uuid + ':agreement-' + expressionAction.uuid}
             node={expressionAction}
             actions={actions.filter((node) => node.graphUuid === expressionAction.graphUuid)}
@@ -425,7 +412,7 @@ function AppContent({ profile, graphs, actions, allUsers, sources, csrfToken, da
         ) : workspaceMode === 'expression' && expressionAction ? (
           <ExpressionWorkspace
             csrfToken={csrfToken}
-            draftKey={getActionDraftKey(profile.legacyId ?? profile.uuid, workspaceGraph?.legacyId ?? expressionAction.graphUuid, 'expression', expressionAction.legacyId ?? expressionAction.uuid)}
+            draftKey={getActionDraftKey(profile.uuid, expressionAction.graphUuid, 'expression', expressionAction.uuid)}
             key={profile.uuid + ':expression-' + expressionAction.uuid}
             node={expressionAction}
             actions={actions.filter((node) => node.graphUuid === expressionAction.graphUuid)}
@@ -437,7 +424,7 @@ function AppContent({ profile, graphs, actions, allUsers, sources, csrfToken, da
           <ActionWorkspace
             graphUuid={workspaceGraph.uuid} csrfToken={csrfToken}
             key={getActionDraftKey(profile.uuid, workspaceGraph.uuid, 'action', workspaceParentUuid)}
-            draftKey={getActionDraftKey(profile.legacyId ?? profile.uuid, workspaceGraph.legacyId ?? workspaceGraph.uuid, 'action', workspaceParent?.legacyId ?? workspaceParentUuid)}
+            draftKey={getActionDraftKey(profile.uuid, workspaceGraph.uuid, 'action', workspaceParentUuid)}
             profileName={profile.name} profile={profile} hasParent={Boolean(workspaceParent)}
             contextTitle={workspaceParent?.title} sourceNodeUuid={workspaceParent?.uuid}
             sourceNodeNumber={workspaceParent?.number}
