@@ -83,7 +83,7 @@ export function App() {
   }
   if (resources.anonymous) {
     if (isAuthView(rawView)) return (
-      <AuthScreen key={authView} view={authView} darkMode={darkMode} onToggleTheme={toggleTheme} onEnter={enter} />
+      <AuthScreen key={authView} view={authView} onEnter={enter} />
     )
     if (resources.error) return (
       <main className="grid min-h-dvh place-content-center gap-4 bg-paper p-8 text-center text-sm text-copy">
@@ -101,8 +101,6 @@ export function App() {
         graphs={resources.graphs ?? []}
         actions={resources.actions ?? []}
         users={resources.allUsers}
-        darkMode={darkMode}
-        onToggleTheme={toggleTheme}
       />
     )
   }

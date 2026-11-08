@@ -1,5 +1,5 @@
 import {type FocusEvent, type FormEvent, useEffect, useRef, useState} from 'react'
-import {CircleAlert, Eye, EyeOff, Moon, Sun} from 'lucide-react'
+import {CircleAlert, Eye, EyeOff} from 'lucide-react'
 import accessImage from '../../../assets/auth-mountain-walk.jpg'
 import registerImage from '../../../assets/auth-valley-hike.jpg'
 import type {AuthView} from '../../shared/lib/navigation'
@@ -13,8 +13,6 @@ import type {SessionView} from '../../entities/profile/api/profiles'
 
 type AuthScreenProps = {
     view: AuthView
-    darkMode: boolean
-    onToggleTheme: () => void
     onEnter: (session: SessionView) => void | Promise<void>
 }
 
@@ -25,7 +23,7 @@ const copy = {
 } satisfies Record<AuthView, { title: string; intro: string; submit: string }>
 
 /** Account entry with a photographic scene and the shared application theme. */
-export function AuthScreen({view, darkMode, onToggleTheme, onEnter}: AuthScreenProps) {
+export function AuthScreen({view, onEnter}: AuthScreenProps) {
     const [showPassword, setShowPassword] = useState(false)
     const [errors, setErrors] = useState<AuthFieldErrors>({})
     const formRef = useRef<HTMLFormElement>(null)
@@ -41,7 +39,6 @@ export function AuthScreen({view, darkMode, onToggleTheme, onEnter}: AuthScreenP
     const isRegister = view === 'register'
     const isLogin = view === 'login'
     const content = copy[view]
-    const themeLabel = darkMode ? '切换浅色模式' : '切换深色模式'
     const submit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault()
         if (pending) return
@@ -121,9 +118,6 @@ export function AuthScreen({view, darkMode, onToggleTheme, onEnter}: AuthScreenP
                 </a>
             </section>
             <section className="auth-account">
-                <button className="auth-appearance" type="button" onClick={onToggleTheme} title={themeLabel}>
-                    {darkMode ? <Sun size={19}/> : <Moon size={19}/>}
-                </button>
                 <div className="auth-form-shell">
                     <h1 id="auth-title" className="auth-title">{content.title}</h1>
                     <p className="auth-intro">{content.intro}</p>
@@ -175,8 +169,6 @@ export function AuthScreen({view, darkMode, onToggleTheme, onEnter}: AuthScreenP
                     <p className="auth-switcher">
                         {isLogin ? '还没有账号？' : isRegister ? '已经有账号？' : '想起密码了？'}
                         <a href={isLogin ? '#register' : '#login'}>{isLogin ? '注册账号' : '返回登录'}</a>
-                        <span aria-hidden="true"> · </span>
-                        <a href="#graphs">先浏览公开行动</a>
                     </p>
                 </div>
             </section>

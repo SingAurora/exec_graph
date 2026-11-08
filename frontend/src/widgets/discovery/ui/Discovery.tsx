@@ -26,10 +26,11 @@ type Props = {
   onOpenReference: (reference: ActionReference) => void
   onOpenGraph: (id: string) => void
   onSearchGraphs: (keyword: string) => void
+  showRecentGraphs?: boolean
 }
 
 /** 跨图发现表达与约定回应，两个栏目分别保留搜索内容、加载数量和阅读位置。 */
-export function Discovery({ actions, graphs, users, active, onOpenNode, onOpenReference, onOpenGraph, onSearchGraphs }: Props) {
+export function Discovery({ actions, graphs, users, active, onOpenNode, onOpenReference, onOpenGraph, onSearchGraphs, showRecentGraphs = true }: Props) {
   const [tab, setTab] = useState<DiscoveryTab>('expressions')
   const [queries, setQueries] = useState<Record<DiscoveryTab, string>>({ expressions: '', agreements: '' })
   const query = queries[tab].trim()
@@ -77,12 +78,12 @@ export function Discovery({ actions, graphs, users, active, onOpenNode, onOpenRe
           <DiscoverySearch label={tabLabels[tab]} value={queries[tab]} onChange={changeQuery} />
         </div>
         {query && <p className="mt-3 px-1 text-xs leading-5 text-muted">找到 {resultCounts[tab]} 条{tabLabels[tab]}</p>}
-        <div className="mt-1 grid grid-cols-[minmax(0,1fr)_220px] items-start gap-7 max-[800px]:grid-cols-1">
+        <div className={showRecentGraphs ? "mt-1 grid grid-cols-[minmax(0,1fr)_220px] items-start gap-7 max-[800px]:grid-cols-1" : "mt-1 grid grid-cols-1"}>
           <div className="min-w-0">
             <TabsContent value="expressions" keepMounted><ActionPostList key={queries.expressions.trim()} nodes={visibleExpressions} actions={publicActions} users={users} mode="expression" presentation="feed" searchQuery={queries.expressions.trim()} infinite active={active && tab === 'expressions'} onExplore={onOpenNode} renderContext={context} /></TabsContent>
             <TabsContent value="agreements" keepMounted><AgreementResponseList key={queries.agreements.trim()} references={visibleAgreements} users={users} presentation="feed" searchQuery={queries.agreements.trim()} active={active && tab === 'agreements'} onExplore={onOpenReference} renderContext={(reference) => context(reference.target)} /></TabsContent>
           </div>
-          <RecentGraphsAside items={graphActivities} graphs={graphs} actions={publicActions} onOpen={onOpenGraph} onSearchAll={onSearchGraphs} />
+          {showRecentGraphs && <RecentGraphsAside items={graphActivities} graphs={graphs} actions={publicActions} onOpen={onOpenGraph} onSearchAll={onSearchGraphs} />}
         </div>
       </TabsRoot>
     </section>
