@@ -16,10 +16,10 @@ afterEach(() => {
 describe('business transport', () => {
   test('preserves multipart files and lets the browser assign the boundary', async () => {
     let requested
-    globalThis.fetch = async (_url, options) => { requested = options; return Response.json({ code: 0, msg: '', data: { assetId: 'asset' } }) }
+    globalThis.fetch = async (_url, options) => { requested = options; return Response.json({ code: 0, msg: '', data: { assetUuid: 'asset' } }) }
     const body = new FormData()
     body.append('file', new File(['image bytes'], 'image.jpg', { type: 'image/jpeg' }))
-    expect(await postFormAPI('/api/commands/media/upload', body, { csrfToken: 'csrf' })).toEqual({ assetId: 'asset' })
+    expect(await postFormAPI('/api/commands/media/upload', body, { csrfToken: 'csrf' })).toEqual({ assetUuid: 'asset' })
     expect(requested.body).toBe(body)
     expect(requested.headers.has('Content-Type')).toBe(false)
     expect(requested.headers.get('X-CSRF-Token')).toBe('csrf')
@@ -38,9 +38,9 @@ describe('business transport', () => {
       requested = { url: new URL(url), options }
       return Response.json({ code: 0, msg: '', data: [] })
     }
-    expect(await getAPI('/api/commands/actions/search', { keyword: '番茄 & 蛋', absent: undefined, missing: null, authorId: ['a', 'b'], page: 2 })).toEqual([])
+    expect(await getAPI('/api/commands/actions/search', { keyword: '番茄 & 蛋', absent: undefined, missing: null, authorUuid: ['a', 'b'], page: 2 })).toEqual([])
     expect(requested.url.searchParams.get('keyword')).toBe('番茄 & 蛋')
-    expect(requested.url.searchParams.getAll('authorId')).toEqual(['a', 'b'])
+    expect(requested.url.searchParams.getAll('authorUuid')).toEqual(['a', 'b'])
     expect(requested.url.searchParams.has('absent')).toBe(false)
     expect(requested.options.credentials).toBe('omit')
   })

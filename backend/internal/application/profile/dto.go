@@ -38,14 +38,14 @@ type UpdateProfileInput struct {
 	Gender            string               `json:"gender"`
 	Bio               string               `json:"bio"`
 	LocationCode      NullableLocationCode `json:"locationCode"`
-	AvatarAssetID     *string              `json:"avatarAssetId"`
-	BackgroundAssetID *string              `json:"backgroundAssetId"`
+	AvatarAssetID     *string              `json:"avatarAssetUuid"`
+	BackgroundAssetID *string              `json:"backgroundAssetUuid"`
 }
 
 // SetHighlightsInput 的数组顺序就是主页展示顺序，允许清空。
 type SetHighlightsInput struct {
 	ExpectedVersion   uint32   `json:"expectedVersion"`
-	ExpressionNodeIDs []string `json:"expressionNodeIds"`
+	ExpressionNodeIDs []string `json:"expressionNodeUuids"`
 }
 
 // Candidate 是表达归属判断所需的最小事实。

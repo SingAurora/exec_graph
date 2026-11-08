@@ -36,7 +36,7 @@ func TestRealActionPublicationAndDocuments(t *testing.T) {
 	}
 	jo.call(t, "POST", "actions/create", draft, 409, id.New())
 	jo.call(t, "POST", "actions/create", struct {
-		GraphID string `json:"graphId"`
+		GraphID string `json:"graphUuid"`
 		Title   string `json:"title"`
 	}{g.ID, "伪造客户端文稿"}, 400, id.New())
 	otherRoot := s.draft(t, joID, g.ID, "", nil, clear, clear)
@@ -90,7 +90,7 @@ func TestRealActionPublicationAndDocuments(t *testing.T) {
 	assertUnpublished(t, s, stale.GenerationID, g.ID, 5)
 	count := uint32(4)
 	jo.call(t, "POST", "graphs/delete", graph.DeleteGraphInput{GraphID: g.ID, ExpectedVersion: 1, ExpectedNodeCount: &count}, 200, "")
-	jo.call(t, "GET", "actions/detail?nodeId="+a.ID, nil, 404, "")
+	jo.call(t, "GET", "actions/detail?nodeUuid="+a.ID, nil, 404, "")
 }
 
 func TestRealExpressionHighlightsAndAtomicRollback(t *testing.T) {

@@ -115,7 +115,7 @@ func TestRealDatabaseSeedAndHTTPFlow(t *testing.T) {
 	response := request("GET", "/api/commands/auth/session", "", "")
 	expectStatus(t, response, 401)
 	response.Body.Close()
-	response = request("POST", "/api/commands/auth/demo-login", `{"userId":"someone-else"}`, "")
+	response = request("POST", "/api/commands/auth/demo-login", `{"userUuid":"someone-else"}`, "")
 	expectStatus(t, response, 400)
 	response.Body.Close()
 	response = request("POST", "/api/commands/auth/demo-login", `{}`, "")
@@ -135,12 +135,12 @@ func TestRealDatabaseSeedAndHTTPFlow(t *testing.T) {
 	if bytes.Contains(public, []byte(`"email"`)) || bytes.Contains(public, []byte(`"isTestAccount"`)) || bytes.Contains(public, []byte(`"passwordHash"`)) {
 		t.Fatal("公开目录泄露私有字段")
 	}
-	response = request("GET", "/api/commands/graphs/detail?graphId=cooking", "", "")
+	response = request("GET", "/api/commands/graphs/detail?graphUuid=cooking", "", "")
 	graph := readWire[app.GraphView](t, response)
 	if graph.Data.ID != id.Demo("graph", "cooking") {
 		t.Fatal("旧链接映射失败")
 	}
-	response = request("GET", "/api/commands/actions/context?graphId=cooking", "", "")
+	response = request("GET", "/api/commands/actions/context?graphUuid=cooking", "", "")
 	expectStatus(t, response, 200)
 	actions := readWire[[]app.ActionView](t, response)
 	if len(actions.Data) != 18 {
@@ -165,7 +165,7 @@ func TestRealDatabaseSeedAndHTTPFlow(t *testing.T) {
 	if len(authors) < 2 {
 		t.Fatal("导入错误地把所有行动归给同一作者")
 	}
-	response = request("GET", "/api/commands/actions/context?graphId=cooking&graphId=daily", "", "")
+	response = request("GET", "/api/commands/actions/context?graphUuid=cooking&graphUuid=daily", "", "")
 	expectStatus(t, response, 400)
 	response.Body.Close()
 	var conversation model.AIConversation
@@ -176,13 +176,13 @@ func TestRealDatabaseSeedAndHTTPFlow(t *testing.T) {
 	if err := db.Create(&model.AIMessage{UUID: id.New(), ConversationUUID: conversation.UUID, SequenceNumber: conversation.NextMessageSequence, Speaker: "user", AuthorUUID: &mainID, Body: secret, CreatedAt: time.Now().UTC()}).Error; err != nil {
 		t.Fatal(err)
 	}
-	response = request("GET", "/api/commands/actions/detail?nodeId=cooking-12", "", "")
+	response = request("GET", "/api/commands/actions/detail?nodeUuid=cooking-12", "", "")
 	body, _ := io.ReadAll(response.Body)
 	response.Body.Close()
 	if bytes.Contains(body, []byte(secret)) {
 		t.Fatal("未确认对话被公开")
 	}
-	response = request("GET", "/api/commands/graphs/detail?graphId=cycling", "", "")
+	response = request("GET", "/api/commands/graphs/detail?graphUuid=cycling", "", "")
 	imageGraph := readWire[app.GraphView](t, response)
 	if imageGraph.Data.Avatar == nil {
 		t.Fatal("演示配图地址丢失")

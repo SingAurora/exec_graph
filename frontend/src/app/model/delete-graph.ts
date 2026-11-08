@@ -14,16 +14,16 @@ export type GraphContentState = {
 }
 
 /** Removes one authorized graph and its content only when the confirmed node count still matches. */
-export function deleteGraphContent(state: GraphContentState, graphId: string, userId: string, expectedNodeCount: number): GraphContentState | undefined {
-  const graph = state.graphs.find((item) => item.uuid === graphId)
-  if (!graph || !canDeleteGraph(graph, userId, state.actions)) return undefined
-  if (state.actions.filter((node) => node.graphId === graphId).length !== expectedNodeCount) return undefined
-  const topicIds = new Set(state.topics.filter((topic) => topic.graphId === graphId).map((topic) => topic.id))
+export function deleteGraphContent(state: GraphContentState, graphUuid: string, userUuid: string, expectedNodeCount: number): GraphContentState | undefined {
+  const graph = state.graphs.find((item) => item.uuid === graphUuid)
+  if (!graph || !canDeleteGraph(graph, userUuid, state.actions)) return undefined
+  if (state.actions.filter((node) => node.graphUuid === graphUuid).length !== expectedNodeCount) return undefined
+  const topicIds = new Set(state.topics.filter((topic) => topic.graphUuid === graphUuid).map((topic) => topic.id))
   const planIds = new Set(state.plans.filter((plan) => topicIds.has(plan.topicId)).map((plan) => plan.id))
-  const completionIds = new Set(state.completions.filter((item) => topicIds.has(item.topicId) || planIds.has(item.planNodeId)).map((item) => item.id))
+  const completionIds = new Set(state.completions.filter((item) => topicIds.has(item.topicId) || planIds.has(item.planNodeUuid)).map((item) => item.id))
   return {
-    graphs: state.graphs.filter((item) => item.uuid !== graphId),
-    actions: state.actions.filter((node) => node.graphId !== graphId),
+    graphs: state.graphs.filter((item) => item.uuid !== graphUuid),
+    actions: state.actions.filter((node) => node.graphUuid !== graphUuid),
     topics: state.topics.filter((topic) => !topicIds.has(topic.id)),
     plans: state.plans.filter((plan) => !planIds.has(plan.id)),
     completions: state.completions.filter((item) => !completionIds.has(item.id)),

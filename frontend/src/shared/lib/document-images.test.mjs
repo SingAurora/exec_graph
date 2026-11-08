@@ -22,10 +22,10 @@ describe('Markdown preview image extraction', () => {
   })
 
   test('resolves stored asset references without changing the note', () => {
-    const assetId = '11111111-1111-4111-8111-111111111111'
-    const images = [{ assetId, url: '/api/commands/media/file?assetId=' + assetId, alt: '成品装盘' }]
-    expect(resolveAssetImageUrls(`![成品装盘](asset:${assetId})`, images)).toBe(`![成品装盘](/api/commands/media/file?assetId=${assetId})`)
-    expect(resolveAssetImageUrls(`![成品装盘](asset:${assetId})`, [])).toBe(`![成品装盘](asset:${assetId})`)
+    const assetUuid = '11111111-1111-4111-8111-111111111111'
+    const images = [{ assetUuid, url: '/api/commands/media/file?assetUuid=' + assetUuid, alt: '成品装盘' }]
+    expect(resolveAssetImageUrls(`![成品装盘](asset:${assetUuid})`, images)).toBe(`![成品装盘](/api/commands/media/file?assetUuid=${assetUuid})`)
+    expect(resolveAssetImageUrls(`![成品装盘](asset:${assetUuid})`, [])).toBe(`![成品装盘](asset:${assetUuid})`)
   })
 
   test('handles image-only and empty documents and follows the reader URL transformation', () => {

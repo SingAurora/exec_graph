@@ -14,7 +14,7 @@ export type SidebarProfileStats = {
 
 /** Identifies the signed-in account and links to its public content categories. */
 export function SidebarProfileCard({ profile, stats }: { profile: UserProfile; stats: SidebarProfileStats }) {
-  const profileHref = '#profile?userId=' + encodeURIComponent(profile.uuid)
+  const profileHref = '#profile?userUuid=' + encodeURIComponent(profile.uuid)
   const categories = [
     { tab: 'expressions', label: '表达', count: stats.expressions },
     { tab: 'agreements', label: '约定', count: stats.agreements },

@@ -1,7 +1,7 @@
 import { ArrowUpDown, Footprints, MessageCircle, Plus, ScrollText, Search, Settings2, Sparkles } from 'lucide-react'
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ActionDocumentMode, ActionNode, BranchMode } from '../../../entities/action/model/types'
-import { getActionParentIds, getAncestors } from '../../../entities/action/lib/graph'
+import { getActionParentUuids, getAncestors } from '../../../entities/action/lib/graph'
 import { getActionExpressionNodes, sortActionsNewestFirst } from '../../../entities/action/lib/expressions'
 import { getPublishedExpressions } from '../../../entities/action/lib/published'
 import { getActionReferences, type ActionReference } from '../../../entities/action/lib/references'
@@ -29,31 +29,31 @@ import { ListEmptyState } from '../../../shared/ui/empty-state/EmptyState'
 export type GraphDetailProps = {
   graph: Graph
   active?: boolean
-  externalFocus?: { requestId: string } & ({ nodeId: string; mode: ActionDocumentMode } | { referenceId: string })
-  currentUserId: string
+  externalFocus?: { requestId: string } & ({ nodeUuid: string; mode: ActionDocumentMode } | { referenceUuid: string })
+  currentUserUuid: string
   users: UserProfile[]
   actions: ActionNode[]
   showActionGraphLegend: boolean
   graphBackground: GraphBackgroundPreferences
-  onCreateAction: (graphId: string) => void
+  onCreateAction: (graphUuid: string) => void
   onContinueAction: (node: ActionNode, mode: BranchMode) => void
   onOpenActionArchive: (node: ActionNode) => void
-  onUpdateGraph: (graphId: string, patch: Pick<Graph, 'title' | 'description' | 'avatar' | 'backgroundImage'>) => void | Promise<void>
+  onUpdateGraph: (graphUuid: string, patch: Pick<Graph, 'title' | 'description' | 'avatar' | 'backgroundImage'>) => void | Promise<void>
   onEditExpression: (node: ActionNode) => void
   onEditAgreement: (node: ActionNode) => void
   csrfToken: string
-  onPublishNodeDocument: (nodeId: string, expectedVersion: number, kind: 'expression' | 'agreement') => Promise<void>
+  onPublishNodeDocument: (nodeUuid: string, expectedVersion: number, kind: 'expression' | 'agreement') => Promise<void>
   onDeleteNode: (node: ActionNode) => Promise<void>
-  onDeleteGraph: (graphId: string, expectedNodeCount: number) => boolean | Promise<boolean>
+  onDeleteGraph: (graphUuid: string, expectedNodeCount: number) => boolean | Promise<boolean>
   following: boolean
-  onSetGraphFollow: (graphId: string, following: boolean) => boolean | Promise<boolean>
+  onSetGraphFollow: (graphUuid: string, following: boolean) => boolean | Promise<boolean>
 }
 
 type GraphSelection = { kind: 'node' | 'reference'; id: string }
 type GraphTab = 'expressions' | 'agreements' | 'facts' | 'explore' | 'search' | 'settings'
 
 /** 图详情协调中心：装配表达、约定、行动和探索，管理选择、定位及各栏目阅读状态。 */
-export function GraphDetail({ graph, active = true, externalFocus, currentUserId, users, actions, showActionGraphLegend, graphBackground, onCreateAction, onContinueAction, onOpenActionArchive, onUpdateGraph, onEditExpression, onEditAgreement, csrfToken, onPublishNodeDocument, onDeleteNode, onDeleteGraph, following, onSetGraphFollow }: GraphDetailProps) {
+export function GraphDetail({ graph, active = true, externalFocus, currentUserUuid, users, actions, showActionGraphLegend, graphBackground, onCreateAction, onContinueAction, onOpenActionArchive, onUpdateGraph, onEditExpression, onEditAgreement, csrfToken, onPublishNodeDocument, onDeleteNode, onDeleteGraph, following, onSetGraphFollow }: GraphDetailProps) {
   const handledExternalFocus = useRef<string | undefined>(undefined)
   const workspaceRef = useRef<HTMLDivElement>(null)
   const tabScroll = useRef<Partial<Record<GraphTab, number>>>({})
@@ -75,15 +75,15 @@ export function GraphDetail({ graph, active = true, externalFocus, currentUserId
   const defaultNode = endpoints[0] ?? facts[0]
   const highlightedPath = useMemo(() => highlightTipId ? getAncestors(actions, highlightTipId) : [], [actions, highlightTipId])
   const references = useMemo(() => getActionReferences(actions), [actions])
-  const participantIds = [...new Set(actions.map((action) => action.authorId))]
+  const participantUuids = [...new Set(actions.map((action) => action.authorUuid))]
   const contributorIds = useMemo(() => {
     const counts = new Map<string, number>()
-    for (const action of actions) counts.set(action.authorId, (counts.get(action.authorId) ?? 0) + 1)
+    for (const action of actions) counts.set(action.authorUuid, (counts.get(action.authorUuid) ?? 0) + 1)
     return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([id]) => id)
   }, [actions])
-  const canEditGraph = graph.ownerId === currentUserId || contributorIds.includes(currentUserId)
-  const isParticipant = isGraphParticipant(graph, currentUserId, actions)
-  const deletionDisabledReason = getGraphDeletionDisabledReason(graph, currentUserId, actions)
+  const canEditGraph = graph.ownerUuid === currentUserUuid || contributorIds.includes(currentUserUuid)
+  const isParticipant = isGraphParticipant(graph, currentUserUuid, actions)
+  const deletionDisabledReason = getGraphDeletionDisabledReason(graph, currentUserUuid, actions)
   const canAccessSettings = canEditGraph || isParticipant
   // 当前选择可以是节点或箭头；它和高亮路线终点分离，浏览其他节点不会改变高亮主链。
   const [selection, setSelection] = useState<GraphSelection>()
@@ -91,7 +91,7 @@ export function GraphDetail({ graph, active = true, externalFocus, currentUserId
   const selected = selectedReference ? undefined : actions.find((node) => selection?.kind === 'node' && node.uuid === selection.id) ?? defaultNode
   const nodeDocuments = useNodeDocuments({
     node: selected, csrfToken,
-    enabled: Boolean(selected && selected.authorId === currentUserId && selected.nodeReady === false),
+    enabled: Boolean(selected && selected.authorUuid === currentUserUuid && selected.nodeReady === false),
     onPublished: onPublishNodeDocument,
   })
   const selectNode = (id: string) => {
@@ -160,8 +160,8 @@ export function GraphDetail({ graph, active = true, externalFocus, currentUserId
   useLayoutEffect(() => {
     // 消费 URL 深链接传来的单次定位请求；普通重新渲染不能反复打断用户当前阅读。
     if (!active || !externalFocus || externalFocus.requestId === handledExternalFocus.current) return
-    const reference = 'referenceId' in externalFocus ? references.find((item) => item.uuid === externalFocus.referenceId) : undefined
-    const node = 'nodeId' in externalFocus ? actions.find((item) => item.uuid === externalFocus.nodeId) : undefined
+    const reference = 'referenceUuid' in externalFocus ? references.find((item) => item.uuid === externalFocus.referenceUuid) : undefined
+    const node = 'nodeUuid' in externalFocus ? actions.find((item) => item.uuid === externalFocus.nodeUuid) : undefined
     if (!reference && !node) return
     handledExternalFocus.current = externalFocus.requestId
     setDetailsVisible(true)
@@ -201,7 +201,7 @@ export function GraphDetail({ graph, active = true, externalFocus, currentUserId
         rememberPagePosition()
       }
     }}>
-      <GraphHeader graph={graph} participantCount={participantIds.length} expressionCount={expressionNodes.length} actions={<div className="flex items-center gap-2">
+      <GraphHeader graph={graph} participantCount={participantUuids.length} expressionCount={expressionNodes.length} actions={<div className="flex items-center gap-2">
         <FollowButton kind="graph" name={graph.title} following={following} variant="header" disabledReason={!actions.length ? '发布第一次行动后才能关注此图' : undefined} onChange={(next) => onSetGraphFollow(graph.uuid, next)} />
         {!actions.length && <button className="header-action font-semibold" type="button" onClick={createAction}><Plus size={16} />记录第一次行动</button>}
       </div>} />
@@ -217,28 +217,28 @@ export function GraphDetail({ graph, active = true, externalFocus, currentUserId
         {(['expressions', 'facts'] as const).map((tab) => <TabsContent key={tab} value={tab} keepMounted>
           <div className="mt-5 grid grid-cols-[minmax(0,1fr)_220px] items-start gap-7 max-[800px]:grid-cols-1">
             <ActionPostList nodes={tab === 'expressions' ? expressionNodes : facts} actions={actions} users={users} mode={tab === 'expressions' ? 'expression' : 'objective'} infinite active={active && activeTab === tab} onExplore={openInExplore} />
-            <GraphDetailsAside description={graph.description} createdAt={graph.createdAt} actionCount={actions.length} lastActionAt={facts[0]?.createdAt} participantIds={participantIds} users={users} />
+            <GraphDetailsAside description={graph.description} createdAt={graph.createdAt} actionCount={actions.length} lastActionAt={facts[0]?.createdAt} participantUuids={participantUuids} users={users} />
           </div>
         </TabsContent>)}
         <TabsContent value="agreements" keepMounted>
           <div className="mt-5 grid grid-cols-[minmax(0,1fr)_220px] items-start gap-7 max-[800px]:grid-cols-1">
             <AgreementResponseList references={references} users={users} active={active && activeTab === 'agreements'} onExplore={openReferenceInExplore} />
-            <GraphDetailsAside description={graph.description} createdAt={graph.createdAt} actionCount={actions.length} lastActionAt={facts[0]?.createdAt} participantIds={participantIds} users={users} />
+            <GraphDetailsAside description={graph.description} createdAt={graph.createdAt} actionCount={actions.length} lastActionAt={facts[0]?.createdAt} participantUuids={participantUuids} users={users} />
           </div>
         </TabsContent>
         <TabsContent value="search" keepMounted>
           <div className="mt-5 grid grid-cols-[minmax(0,1fr)_220px] items-start gap-7 max-[800px]:grid-cols-1">
-            <GraphSearch graphId={graph.uuid} actions={actions} users={users} active={active && activeTab === 'search'} onExplore={openInExplore} onExploreReference={openReferenceInExplore} />
-            <GraphDetailsAside description={graph.description} createdAt={graph.createdAt} actionCount={actions.length} lastActionAt={facts[0]?.createdAt} participantIds={participantIds} users={users} />
+            <GraphSearch graphUuid={graph.uuid} actions={actions} users={users} active={active && activeTab === 'search'} onExplore={openInExplore} onExploreReference={openReferenceInExplore} />
+            <GraphDetailsAside description={graph.description} createdAt={graph.createdAt} actionCount={actions.length} lastActionAt={facts[0]?.createdAt} participantUuids={participantUuids} users={users} />
           </div>
         </TabsContent>
         <TabsContent value="explore" keepMounted={visitedExplore}>
           {!actions.length ? <ListEmptyState /> : <div className="relative mt-5">
           <div ref={workspaceRef} className={`grid h-[calc(100dvh-44px)] scroll-mt-11 overflow-hidden rounded-lg border border-line bg-surface outline-none ${detailsVisible ? 'grid-cols-[342px_minmax(0,1fr)]' : 'grid-cols-1'}`} tabIndex={-1}>
-            <ActionGraph actions={actions} highlightedPath={highlightedPath} users={users} selectedId={selected?.uuid} selectedReferenceId={selectedReference?.uuid} showLegend={showActionGraphLegend} background={graphBackground} active={active && activeTab === 'explore'} focusRequest={focusRequest} locateRequest={nodeLocateRequest} detailsVisible={detailsVisible} onClearHighlight={() => setHighlightTipId(undefined)} onSelect={selectNode} onSelectReference={(id) => { setSelection({ kind: 'reference', id }); setDetailsVisible(true) }} onFitViewport={() => workspaceRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' })} />
+            <ActionGraph actions={actions} highlightedPath={highlightedPath} users={users} selectedId={selected?.uuid} selectedReferenceUuid={selectedReference?.uuid} showLegend={showActionGraphLegend} background={graphBackground} active={active && activeTab === 'explore'} focusRequest={focusRequest} locateRequest={nodeLocateRequest} detailsVisible={detailsVisible} onClearHighlight={() => setHighlightTipId(undefined)} onSelect={selectNode} onSelectReference={(id) => { setSelection({ kind: 'reference', id }); setDetailsVisible(true) }} onFitViewport={() => workspaceRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' })} />
             <ActionReadingPane readingKey={selectedReference ? `reference:${selectedReference.uuid}` : `node:${selected?.uuid}:${documentMode}`} focusRequest={focusRequest} hidden={!detailsVisible} active={active && activeTab === 'explore' && detailsVisible}>
               {selectedReference ? <ActionReferenceDetail reference={selectedReference} actions={actions} users={users} onHide={hideDetails} onSelectNode={selectNode} />
-                : selected ? <ActionDetail node={selected} actions={actions} users={users} author={users.find((user) => user.uuid === selected.authorId)} isHighlightTip={highlightTipId === selected.uuid} onHighlight={() => setHighlightTipId(selected.uuid)} onHide={hideDetails} onLocate={() => setNodeLocateRequest((value) => value + 1)} recordMode={documentMode} onModeChange={setDocumentMode} onOpenArchive={() => openArchive(selected)} onContinue={() => continueAction(selected)} onSelect={selectNode} onEditExpression={editExpression} onEditAgreement={onEditAgreement} terminal={!actions.some((node) => getActionParentIds(node).includes(selected.uuid))} canDelete={selected.authorId === currentUserId && !actions.some((node) => getActionParentIds(node).includes(selected.uuid))} onDelete={() => { void onDeleteNode(selected) }} documents={nodeDocuments.documents} documentsLoading={nodeDocuments.loading} documentsError={nodeDocuments.error} onRegenerateDocuments={() => { void nodeDocuments.retry() }} regenerating={nodeDocuments.working === 'generate'} isAuthor={selected.authorId === currentUserId} />
+                : selected ? <ActionDetail node={selected} actions={actions} users={users} author={users.find((user) => user.uuid === selected.authorUuid)} isHighlightTip={highlightTipId === selected.uuid} onHighlight={() => setHighlightTipId(selected.uuid)} onHide={hideDetails} onLocate={() => setNodeLocateRequest((value) => value + 1)} recordMode={documentMode} onModeChange={setDocumentMode} onOpenArchive={() => openArchive(selected)} onContinue={() => continueAction(selected)} onSelect={selectNode} onEditExpression={editExpression} onEditAgreement={onEditAgreement} terminal={!actions.some((node) => getActionParentUuids(node).includes(selected.uuid))} canDelete={selected.authorUuid === currentUserUuid && !actions.some((node) => getActionParentUuids(node).includes(selected.uuid))} onDelete={() => { void onDeleteNode(selected) }} documents={nodeDocuments.documents} documentsLoading={nodeDocuments.loading} documentsError={nodeDocuments.error} onRegenerateDocuments={() => { void nodeDocuments.retry() }} regenerating={nodeDocuments.working === 'generate'} isAuthor={selected.authorUuid === currentUserUuid} />
                   : <p className="p-6 text-sm text-muted">暂无行动</p>}
             </ActionReadingPane>
           </div>

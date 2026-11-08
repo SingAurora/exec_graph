@@ -17,8 +17,8 @@ export function useAppResources() {
   const following = useQuery({ queryKey: followingKeys.sources(scope), queryFn: ({ signal }) => readFollowing(signal), enabled })
   // 原型暂时拉取全部图的完整行动上下文，再由前端计算内容流、搜索和图布局。
   // 未来远端分页应替换这一读取边界，不能把本地切片当成服务端分页。
-  const graphIds = graphs.data?.map((graph) => graph.uuid) ?? []
-  const contexts = useQuery({ queryKey: actionKeys.contexts(scope, graphIds), queryFn: ({ signal }) => readActionContexts(graphIds, signal),
+  const graphUuids = graphs.data?.map((graph) => graph.uuid) ?? []
+  const contexts = useQuery({ queryKey: actionKeys.contexts(scope, graphUuids), queryFn: ({ signal }) => readActionContexts(graphUuids, signal),
     enabled: enabled && Boolean(graphs.data), placeholderData: (previous, query) => query?.queryKey[1] === scope ? previous : undefined })
   const profile = session.data?.user
   // 公开目录不含邮箱；为兼容现有展示类型补空值，本人资料以会话接口返回的版本为准。

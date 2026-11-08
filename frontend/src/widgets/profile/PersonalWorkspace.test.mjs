@@ -4,12 +4,12 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { PersonalWorkspace } from './PersonalWorkspace.tsx'
 
 const profile = { uuid: 'jo', id: 'jo', name: '乔', avatar: '' }
-const graphs = Array.from({ length: 5 }, (_, index) => ({ uuid: `graph-${index}`, id: `graph-${index}`, ownerId: 'jo', title: `厨艺 ${index}`, description: '图简介', createdAt: '2026-10-01T12:00:00+08:00' }))
+const graphs = Array.from({ length: 5 }, (_, index) => ({ uuid: `graph-${index}`, id: `graph-${index}`, ownerUuid: 'jo', title: `厨艺 ${index}`, description: '图简介', createdAt: '2026-10-01T12:00:00+08:00' }))
 const actions = graphs.flatMap((graph, index) => {
-  const base = { graphId: graph.uuid, images: [], conversation: [], createdAt: `2026-10-${String(index + 1).padStart(2, '0')}T12:00:00+08:00` }
+  const base = { graphUuid: graph.uuid, images: [], conversation: [], createdAt: `2026-10-${String(index + 1).padStart(2, '0')}T12:00:00+08:00` }
   return [
-    { ...base, uuid: `source-${index}`, id: `source-${index}`, number: 1, authorId: 'lin', title: '来源行动', markdown: '来源事实', agreementMarkdown: '记录实际用时' },
-    { ...base, uuid: `response-${index}`, id: `response-${index}`, number: 2, authorId: 'jo', title: `行动 ${index}`, markdown: '本次行动事实', parentId: `source-${index}`, expressionMarkdown: '做过再表达', referenceAgreements: [{ sourceId: `source-${index}`, complies: true }] },
+    { ...base, uuid: `source-${index}`, id: `source-${index}`, number: 1, authorUuid: 'lin', title: '来源行动', markdown: '来源事实', agreementMarkdown: '记录实际用时' },
+    { ...base, uuid: `response-${index}`, id: `response-${index}`, number: 2, authorUuid: 'jo', title: `行动 ${index}`, markdown: '本次行动事实', parentUuid: `source-${index}`, expressionMarkdown: '做过再表达', referenceAgreements: [{ sourceUuid: `source-${index}`, complies: true }] },
   ]
 })
 const render = (overrides = {}) => renderToStaticMarkup(createElement(PersonalWorkspace, {
@@ -24,14 +24,14 @@ describe('personal overview', () => {
     expect(html.match(/data-reference-id="source-/g)).toHaveLength(3)
     expect(html.match(/查看全部(?:行动|表达|约定)，共 5 条/g)).toHaveLength(3)
     expect(html).toContain('查看全部图，共 5 个')
-    expect(html.match(/href="#profile\?userId=jo&amp;tab=agreements"/g)).toHaveLength(2)
+    expect(html.match(/href="#profile\?userUuid=jo&amp;tab=agreements"/g)).toHaveLength(2)
     expect(html).not.toContain('response-0')
     expect(html).not.toContain('图简介')
     expect(html.indexOf('最近行动')).toBeLessThan(html.indexOf('最近表达'))
   })
 
   test('counts and previews agreements where others satisfy the profile author too', () => {
-    const reversed = actions.map((node) => ({ ...node, authorId: node.authorId === 'jo' ? 'lin' : 'jo' }))
+    const reversed = actions.map((node) => ({ ...node, authorUuid: node.authorUuid === 'jo' ? 'lin' : 'jo' }))
     const html = render({ actions: reversed })
     expect(html).toContain('查看全部约定，共 5 条')
     expect(html).toContain('查看林岚的资料')

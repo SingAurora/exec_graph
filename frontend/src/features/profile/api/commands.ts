@@ -3,7 +3,7 @@ import type { AccountProfile } from '../../../entities/profile/api/profiles'
 import type { UserProfile } from '../../../entities/profile/model/types'
 
 /** Public profile changes exclude account identity and email. */
-export type UpdateProfileInput = Pick<UserProfile, 'name' | 'gender' | 'bio'> & { expectedVersion: number; locationCode: string | null; avatarAssetId: string | null; backgroundAssetId: string | null }
+export type UpdateProfileInput = Pick<UserProfile, 'name' | 'gender' | 'bio'> & { expectedVersion: number; locationCode: string | null; avatarAssetUuid: string | null; backgroundAssetUuid: string | null }
 
 /** Saves the current account's public profile. */
 export function updateProfile(input: UpdateProfileInput, options: BusinessRequestOptions): Promise<AccountProfile> {

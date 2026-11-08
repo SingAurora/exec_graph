@@ -10,7 +10,7 @@ import { clearAuthToken, readAuthToken, writeAuthToken } from '../shared/api/aut
 import { useToast } from '../shared/ui/toast/useToast'
 import { ListSkeleton } from '../shared/ui/ListSkeleton'
 import { useImageAssets } from '../features/media-upload/model/useImageAssets'
-import { resourceId } from '../shared/lib/resource-id'
+import { resourceUuid } from '../shared/lib/resource-id'
 import { useAppNavigation } from './model/useAppNavigation'
 import { actionWorkspaceHash, readActionWorkspaceRoute } from './model/action-workspace-route'
 import { generateNodeDocuments } from '../features/action-generation/api/generation'
@@ -153,41 +153,41 @@ function AppContent({ profile, graphs, actions, allUsers, sources, csrfToken, da
   // useMemo 缓存从现有数据计算出的结果；这里仅在 hash 改变时重新解析路由参数。
   const query = useMemo(() => {
     const params = new URLSearchParams(hash.split('?')[1])
-    for (const name of ['graphId', 'fromGraph']) {
-      const id = resourceId(graphs, params.get(name)); if (id) params.set(name, id)
+    for (const name of ['graphUuid', 'fromGraph']) {
+      const id = resourceUuid(graphs, params.get(name)); if (id) params.set(name, id)
     }
-    for (const name of ['nodeId', 'parentId']) {
-      const id = resourceId(actions, params.get(name)); if (id) params.set(name, id)
+    for (const name of ['nodeUuid', 'parentUuid']) {
+      const id = resourceUuid(actions, params.get(name)); if (id) params.set(name, id)
     }
-    const userId = resourceId(allUsers, params.get('userId')); if (userId) params.set('userId', userId)
-    const reference = params.get('referenceId')?.split(':')
-    if (reference?.length === 2) params.set('referenceId', reference.map((id) => resourceId(actions, id)).join(':'))
+    const userUuid = resourceUuid(allUsers, params.get('userUuid')); if (userUuid) params.set('userUuid', userUuid)
+    const reference = params.get('referenceUuid')?.split(':')
+    if (reference?.length === 2) params.set('referenceUuid', reference.map((id) => resourceUuid(actions, id)).join(':'))
     return params
   }, [hash, graphs, actions, allUsers])
   // useState 保存客户端交互状态；业务资料由传入的 Query 数据提供。
-  const followingIds = sources.userIds, followingGraphIds = sources.graphIds
+  const followingIds = sources.userUuids, followingGraphUuids = sources.graphUuids
   const [graphBackground, setGraphBackground] = useGraphBackground()
   const [showActionGraphLegend, setShowActionGraphLegend] = useState(() => {
     try { return window.localStorage.getItem(legendPreferenceKey) === 'true' } catch { return false }
   })
   // 离开图进入编辑器或形成过程时，仍保留最近一张图，供返回后恢复阅读。
-  const [lastGraphId, setLastGraphId] = useState(query.get('graphId') ?? resourceId(graphs, 'cooking') ?? graphs[0]?.uuid ?? '')
+  const [lastGraphUuid, setLastGraphUuid] = useState(query.get('graphUuid') ?? resourceUuid(graphs, 'cooking') ?? graphs[0]?.uuid ?? '')
   const workspaceRoute = route === 'publish' ? readActionWorkspaceRoute(query) : undefined
   const workspaceMode = workspaceRoute?.mode ?? 'action'
-  const workspaceGraphId = workspaceRoute?.graphId
-  const workspaceParentId = workspaceRoute?.mode === 'action' ? workspaceRoute.parentId : undefined
-  const workspaceActionId = workspaceRoute?.mode === 'expression' || workspaceRoute?.mode === 'agreement' ? workspaceRoute.nodeId : undefined
+  const workspaceGraphUuid = workspaceRoute?.graphUuid
+  const workspaceParentUuid = workspaceRoute?.mode === 'action' ? workspaceRoute.parentUuid : undefined
+  const workspaceActionUuid = workspaceRoute?.mode === 'expression' || workspaceRoute?.mode === 'agreement' ? workspaceRoute.nodeUuid : undefined
   const [archiveActionId, setArchiveActionId] = useState<string>()
-  const selectedGraphId = route === 'graph' ? query.get('graphId') ?? lastGraphId : lastGraphId
-  const selectedGraph = graphs.find((graph) => graph.uuid === selectedGraphId)
-  const selectedGraphActions = useMemo(() => actions.filter((action) => action.graphId === selectedGraphId), [actions, selectedGraphId])
-  const workspaceParent = actions.find((node) => node.uuid === workspaceParentId && node.graphId === workspaceGraphId)
-  const expressionAction = actions.find((node) => node.uuid === workspaceActionId && node.graphId === workspaceGraphId)
-  const workspaceGraph = graphs.find((graph) => graph.uuid === workspaceGraphId)
+  const selectedGraphUuid = route === 'graph' ? query.get('graphUuid') ?? lastGraphUuid : lastGraphUuid
+  const selectedGraph = graphs.find((graph) => graph.uuid === selectedGraphUuid)
+  const selectedGraphActions = useMemo(() => actions.filter((action) => action.graphUuid === selectedGraphUuid), [actions, selectedGraphUuid])
+  const workspaceParent = actions.find((node) => node.uuid === workspaceParentUuid && node.graphUuid === workspaceGraphUuid)
+  const expressionAction = actions.find((node) => node.uuid === workspaceActionUuid && node.graphUuid === workspaceGraphUuid)
+  const workspaceGraph = graphs.find((graph) => graph.uuid === workspaceGraphUuid)
   const archiveAction = actions.find((action) => action.uuid === archiveActionId)
   // 表达数按路线终点计算；约定数按已满足的跨用户引用计算，都不是简单数 Markdown 字段。
   const profileStats = useMemo(() => ({
-    actions: actions.filter((node) => node.authorId === profile.uuid).length,
+    actions: actions.filter((node) => node.authorUuid === profile.uuid).length,
     expressions: getPublishedExpressions(actions, [profile.uuid]).length,
     agreements: getProfileAgreementResponses(getActionReferences(actions), profile.uuid).length,
   }), [actions, profile.uuid])
@@ -197,44 +197,44 @@ function AppContent({ profile, graphs, actions, allUsers, sources, csrfToken, da
       return undefined
     }
     const requestId = hash + ':' + revision
-    const referenceId = query.get('referenceId')
-    if (referenceId) {
-      return { requestId, referenceId }
+    const referenceUuid = query.get('referenceUuid')
+    if (referenceUuid) {
+      return { requestId, referenceUuid }
     }
-    const nodeId = query.get('nodeId')
-    return nodeId ? { requestId, nodeId, mode: query.get('document') === 'expression' ? 'expression' as const : 'objective' as const } : undefined
+    const nodeUuid = query.get('nodeUuid')
+    return nodeUuid ? { requestId, nodeUuid, mode: query.get('document') === 'expression' ? 'expression' as const : 'objective' as const } : undefined
   }, [hash, query, route, revision])
 
   useEffect(() => {
     try { window.localStorage.setItem(legendPreferenceKey, String(showActionGraphLegend)) } catch { /* 存储失败不阻止本次显示图例。 */ }
   }, [showActionGraphLegend])
   useEffect(() => {
-    if (route === 'graph' && query.get('graphId')) {
-      setLastGraphId(query.get('graphId')!)
+    if (route === 'graph' && query.get('graphUuid')) {
+      setLastGraphUuid(query.get('graphUuid')!)
     }
   }, [route, query])
 
   // 这些导航函数只描述目标地址；节点、文档和引用的实际选中状态由图详情组件接手。
-  const openGraph = (graphId: string) => {
-    setLastGraphId(graphId)
-    navigate('graph?graphId=' + encodeURIComponent(graphId))
+  const openGraph = (graphUuid: string) => {
+    setLastGraphUuid(graphUuid)
+    navigate('graph?graphUuid=' + encodeURIComponent(graphUuid))
   }
   const openGraphSearch = (keyword: string, page = 1) => navigate('graph-search?' + new URLSearchParams({ query: keyword.trim(), page: String(page) }).toString())
   const openNode = (node: ActionNode, mode: ActionDocumentMode) => {
-    setLastGraphId(node.graphId)
-    navigate('graph?graphId=' + encodeURIComponent(node.graphId) + '&nodeId=' + encodeURIComponent(node.uuid) + '&document=' + mode)
+    setLastGraphUuid(node.graphUuid)
+    navigate('graph?graphUuid=' + encodeURIComponent(node.graphUuid) + '&nodeUuid=' + encodeURIComponent(node.uuid) + '&document=' + mode)
   }
   const openReference = (reference: ActionReference) => {
-    setLastGraphId(reference.target.graphId)
-    navigate('graph?graphId=' + encodeURIComponent(reference.target.graphId) + '&referenceId=' + encodeURIComponent(reference.uuid))
+    setLastGraphUuid(reference.target.graphUuid)
+    navigate('graph?graphUuid=' + encodeURIComponent(reference.target.graphUuid) + '&referenceUuid=' + encodeURIComponent(reference.uuid))
   }
-  const startAction = (graphId: string, parent?: ActionNode) => {
-    const nodes = actions.filter((node) => node.graphId === graphId)
-    if (!graphs.some((graph) => graph.uuid === graphId) || (parent ? !nodes.some((node) => node.uuid === parent.uuid) : nodes.length > 0)) {
+  const startAction = (graphUuid: string, parent?: ActionNode) => {
+    const nodes = actions.filter((node) => node.graphUuid === graphUuid)
+    if (!graphs.some((graph) => graph.uuid === graphUuid) || (parent ? !nodes.some((node) => node.uuid === parent.uuid) : nodes.length > 0)) {
       return
     }
-    setLastGraphId(graphId)
-    navigate(actionWorkspaceHash({ mode: 'action', graphId, parentId: parent?.uuid }))
+    setLastGraphUuid(graphUuid)
+    navigate(actionWorkspaceHash({ mode: 'action', graphUuid, parentUuid: parent?.uuid }))
   }
   const createGraph = async (input: CreateGraphInput) => {
     const graph = await commands.graphCreate.mutateAsync(input)
@@ -244,93 +244,93 @@ function AppContent({ profile, graphs, actions, allUsers, sources, csrfToken, da
     if (!canEditActionExpression(actions, node.uuid)) {
       return
     }
-    navigate(actionWorkspaceHash({ mode: 'expression', graphId: node.graphId, nodeId: node.uuid }))
+    navigate(actionWorkspaceHash({ mode: 'expression', graphUuid: node.graphUuid, nodeUuid: node.uuid }))
   }
   const startAgreement = (node: ActionNode) => {
     if (!canEditActionAgreement(actions, node.uuid)) return
-    navigate(actionWorkspaceHash({ mode: 'agreement', graphId: node.graphId, nodeId: node.uuid }))
+    navigate(actionWorkspaceHash({ mode: 'agreement', graphUuid: node.graphUuid, nodeUuid: node.uuid }))
   }
   // mutateAsync 等待服务确认后才返回成功；expectedVersion 防止覆盖已被别人修改的版本。
   const confirmExpression = async (input: NonNullable<GenerationView['updateExpression']>) => {
-    if (!workspaceActionId || !workspaceGraphId) {
+    if (!workspaceActionUuid || !workspaceGraphUuid) {
       return false
     }
-    const node = actions.find((item) => item.uuid === workspaceActionId)
+    const node = actions.find((item) => item.uuid === workspaceActionUuid)
     if (!node) {
       return false
     }
-    if (input.nodeId !== node.uuid) return false
+    if (input.nodeUuid !== node.uuid) return false
     await commands.expressionUpdate.mutateAsync(input)
-    openGraph(workspaceGraphId)
+    openGraph(workspaceGraphUuid)
     return true
   }
   const confirmAgreement = async (input: NonNullable<GenerationView['updateAgreement']>) => {
-    if (workspaceMode !== 'agreement' || !workspaceActionId || !workspaceGraphId || input.nodeId !== workspaceActionId) {
+    if (workspaceMode !== 'agreement' || !workspaceActionUuid || !workspaceGraphUuid || input.nodeUuid !== workspaceActionUuid) {
       return false
     }
     await commands.agreementUpdate.mutateAsync({ ...input, document: { mode: 'clear' } })
-    openGraph(workspaceGraphId)
+    openGraph(workspaceGraphUuid)
     return true
   }
   // 节点详情里的 AI 草案可以直接发布，不必强迫作者再对话一轮。
   const publishExpressionDraft = async () => {
-    if (!expressionAction || !workspaceGraphId) return false
-    await commands.nodeDocumentPublish.mutateAsync({ nodeId: expressionAction.uuid, expectedVersion: expressionAction.version ?? 0, kind: 'expression' })
-    openGraph(workspaceGraphId)
+    if (!expressionAction || !workspaceGraphUuid) return false
+    await commands.nodeDocumentPublish.mutateAsync({ nodeUuid: expressionAction.uuid, expectedVersion: expressionAction.version ?? 0, kind: 'expression' })
+    openGraph(workspaceGraphUuid)
     return true
   }
   const publishAgreementDraft = async () => {
-    if (!expressionAction || !workspaceGraphId) return false
-    await commands.nodeDocumentPublish.mutateAsync({ nodeId: expressionAction.uuid, expectedVersion: expressionAction.version ?? 0, kind: 'agreement' })
-    openGraph(workspaceGraphId)
+    if (!expressionAction || !workspaceGraphUuid) return false
+    await commands.nodeDocumentPublish.mutateAsync({ nodeUuid: expressionAction.uuid, expectedVersion: expressionAction.version ?? 0, kind: 'agreement' })
+    openGraph(workspaceGraphUuid)
     return true
   }
-  const updateGraph = async (graphId: string, patch: Pick<Graph, 'title' | 'description' | 'avatar' | 'backgroundImage'>) => {
-    const graph = graphs.find((item) => item.uuid === graphId)
+  const updateGraph = async (graphUuid: string, patch: Pick<Graph, 'title' | 'description' | 'avatar' | 'backgroundImage'>) => {
+    const graph = graphs.find((item) => item.uuid === graphUuid)
     if (!graph) {
       throw new Error('行动图不存在')
     }
-    const avatarAssetId = await imageAsset(patch.avatar, graph.avatar, graph.avatarAssetId)
-    const backgroundAssetId = await imageAsset(patch.backgroundImage, graph.backgroundImage, graph.backgroundAssetId)
-    await commands.graphUpdate.mutateAsync({ graphId: graphId, expectedVersion: graph.version, title: patch.title, description: patch.description, avatarAssetId, backgroundAssetId })
+    const avatarAssetUuid = await imageAsset(patch.avatar, graph.avatar, graph.avatarAssetUuid)
+    const backgroundAssetUuid = await imageAsset(patch.backgroundImage, graph.backgroundImage, graph.backgroundAssetUuid)
+    await commands.graphUpdate.mutateAsync({ graphUuid: graphUuid, expectedVersion: graph.version, title: patch.title, description: patch.description, avatarAssetUuid, backgroundAssetUuid })
   }
-  const deleteGraph = async (graphId: string, expectedNodeCount: number) => {
-    const graph = graphs.find((item) => item.uuid === graphId)
+  const deleteGraph = async (graphUuid: string, expectedNodeCount: number) => {
+    const graph = graphs.find((item) => item.uuid === graphUuid)
     if (!graph) {
       return false
     }
-    await commands.graphDelete.mutateAsync({ graphId: graphId, expectedVersion: graph.version, expectedNodeCount })
-    setLastGraphId('')
+    await commands.graphDelete.mutateAsync({ graphUuid: graphUuid, expectedVersion: graph.version, expectedNodeCount })
+    setLastGraphUuid('')
     setArchiveActionId(undefined)
     navigate('graphs')
     return true
   }
   const confirmAction = async (input: CreateActionInput) => {
-    if (!workspaceGraph || (workspaceParentId && !workspaceParent)) {
+    if (!workspaceGraph || (workspaceParentUuid && !workspaceParent)) {
       return false
     }
-    if (input.graphId !== workspaceGraph.uuid || input.parentId !== workspaceParent?.uuid) return false
+    if (input.graphUuid !== workspaceGraph.uuid || input.parentUuid !== workspaceParent?.uuid) return false
     const action = await commands.actionCreate.mutateAsync(input)
-    openNode({ ...action, graphId: action.graphId }, 'objective')
+    openNode({ ...action, graphUuid: action.graphUuid }, 'objective')
     if (action.expressionStatus === 'pending' || action.agreementStatus === 'pending') void generateNodeDocuments(action.uuid, csrfToken).catch(() => undefined)
     return true
   }
   const setUserFollow = async (id: string, following: boolean) => {
-    await commands.followUpdate.mutateAsync({ kind: 'user', targetId: id, following })
+    await commands.followUpdate.mutateAsync({ kind: 'user', targetUuid: id, following })
     return true
   }
   const setGraphFollow = async (id: string, following: boolean) => {
-    await commands.followUpdate.mutateAsync({ kind: 'graph', targetId: id, following })
+    await commands.followUpdate.mutateAsync({ kind: 'graph', targetUuid: id, following })
     return true
   }
   const saveProfile = async (value: UserProfile) => {
-    const avatarAssetId = await imageAsset(value.avatar, profile.avatar, profile.avatarAssetId)
-    const backgroundAssetId = await imageAsset(value.backgroundImage, profile.backgroundImage, profile.backgroundAssetId)
-    await commands.profileUpdate.mutateAsync({ name: value.name, bio: value.bio, gender: value.gender, locationCode: value.location?.code ?? null, avatarAssetId, backgroundAssetId, expectedVersion: profile.version })
+    const avatarAssetUuid = await imageAsset(value.avatar, profile.avatar, profile.avatarAssetUuid)
+    const backgroundAssetUuid = await imageAsset(value.backgroundImage, profile.backgroundImage, profile.backgroundAssetUuid)
+    await commands.profileUpdate.mutateAsync({ name: value.name, bio: value.bio, gender: value.gender, locationCode: value.location?.code ?? null, avatarAssetUuid, backgroundAssetUuid, expectedVersion: profile.version })
   }
   const profileReturnGraph = route === 'profile' ? query.get('fromGraph') : null
   const profileReturn = profileReturnGraph ? () => openGraph(profileReturnGraph) : () => navigate(profileBackHash)
-  const viewingOwnProfile = route === 'profile' && query.get('userId') === profile.uuid
+  const viewingOwnProfile = route === 'profile' && query.get('userUuid') === profile.uuid
   const personalAreaActive = route === 'my' || route === 'profile'
 
   return (
@@ -354,7 +354,7 @@ function AppContent({ profile, graphs, actions, allUsers, sources, csrfToken, da
       <div hidden={!personalAreaActive}>
         <ProfilePage
           users={allUsers} graphs={graphs} actions={actions}
-          currentUserId={profile.uuid} followingIds={followingIds} active={personalAreaActive}
+          currentUserUuid={profile.uuid} followingIds={followingIds} active={personalAreaActive}
           onCreateGraph={createGraph} onSetUserFollow={setUserFollow}
           onOpenGraph={openGraph} onOpenNode={openNode} onOpenReference={openReference}
         />
@@ -376,14 +376,14 @@ function AppContent({ profile, graphs, actions, allUsers, sources, csrfToken, da
       <div hidden={route !== 'following'}>
         <FollowingPage
           actions={actions} graphs={graphs} users={allUsers}
-          sources={{ userIds: followingIds, graphIds: followingGraphIds }} active={route === 'following'}
+          sources={{ userUuids: followingIds, graphUuids: followingGraphUuids }} active={route === 'following'}
           onOpenGraph={openGraph} onOpenNode={openNode} onOpenReference={openReference}
           onSetGraphFollow={setGraphFollow} onSetUserFollow={setUserFollow}
         />
       </div>
       <div hidden={route !== 'graphs'}>
         <GraphsPage
-          currentUserId={profile.uuid} graphs={graphs} actions={actions}
+          currentUserUuid={profile.uuid} graphs={graphs} actions={actions}
           onCreateGraph={createGraph} onOpenGraph={openGraph}
         />
       </div>
@@ -391,22 +391,22 @@ function AppContent({ profile, graphs, actions, allUsers, sources, csrfToken, da
         <div hidden={route !== 'graph'}>
           <GraphPage
             key={selectedGraph.uuid} active={route === 'graph'} graph={selectedGraph}
-            externalFocus={externalFocus} currentUserId={profile.uuid} users={allUsers}
+            externalFocus={externalFocus} currentUserUuid={profile.uuid} users={allUsers}
             actions={selectedGraphActions} showActionGraphLegend={showActionGraphLegend}
             graphBackground={graphBackground}
             onCreateAction={startAction}
             csrfToken={csrfToken}
-            onPublishNodeDocument={async (nodeId, expectedVersion, kind) => { await commands.nodeDocumentPublish.mutateAsync({ nodeId, expectedVersion, kind }) }}
-            onDeleteNode={async (node) => { await commands.actionDelete.mutateAsync({ nodeId: node.uuid, expectedVersion: node.version ?? 0 }) }}
+            onPublishNodeDocument={async (nodeUuid, expectedVersion, kind) => { await commands.nodeDocumentPublish.mutateAsync({ nodeUuid, expectedVersion, kind }) }}
+            onDeleteNode={async (node) => { await commands.actionDelete.mutateAsync({ nodeUuid: node.uuid, expectedVersion: node.version ?? 0 }) }}
             onContinueAction={(node) => startAction(selectedGraph.uuid, node)}
             onOpenActionArchive={(node) => {
-              setLastGraphId(node.graphId)
+              setLastGraphUuid(node.graphUuid)
               setArchiveActionId(node.uuid)
               navigate('action-archive')
             }}
             onUpdateGraph={updateGraph} onEditExpression={startExpression}
             onEditAgreement={startAgreement} onDeleteGraph={deleteGraph}
-            following={followingGraphIds.includes(selectedGraph.uuid)} onSetGraphFollow={setGraphFollow}
+            following={followingGraphUuids.includes(selectedGraph.uuid)} onSetGraphFollow={setGraphFollow}
           />
         </div>
       )}
@@ -414,38 +414,38 @@ function AppContent({ profile, graphs, actions, allUsers, sources, csrfToken, da
         workspaceMode === 'agreement' && expressionAction ? (
           <AgreementWorkspace
             csrfToken={csrfToken}
-            draftKey={getActionDraftKey(profile.legacyId ?? profile.uuid, workspaceGraph?.legacyId ?? expressionAction.graphId, 'agreement', expressionAction.legacyId ?? expressionAction.uuid)}
+            draftKey={getActionDraftKey(profile.legacyId ?? profile.uuid, workspaceGraph?.legacyId ?? expressionAction.graphUuid, 'agreement', expressionAction.legacyId ?? expressionAction.uuid)}
             key={profile.uuid + ':agreement-' + expressionAction.uuid}
             node={expressionAction}
-            actions={actions.filter((node) => node.graphId === expressionAction.graphId)}
-            profileName={profile.name} profileId={profile.uuid} profile={profile} users={allUsers}
+            actions={actions.filter((node) => node.graphUuid === expressionAction.graphUuid)}
+            profileName={profile.name} profileUuid={profile.uuid} profile={profile} users={allUsers}
             contextGuide={workspaceGraph?.contextGuide}
-            onBack={() => openGraph(expressionAction.graphId)} onConfirm={confirmAgreement} onPublishDraft={publishAgreementDraft}
+            onBack={() => openGraph(expressionAction.graphUuid)} onConfirm={confirmAgreement} onPublishDraft={publishAgreementDraft}
           />
         ) : workspaceMode === 'expression' && expressionAction ? (
           <ExpressionWorkspace
             csrfToken={csrfToken}
-            draftKey={getActionDraftKey(profile.legacyId ?? profile.uuid, workspaceGraph?.legacyId ?? expressionAction.graphId, 'expression', expressionAction.legacyId ?? expressionAction.uuid)}
+            draftKey={getActionDraftKey(profile.legacyId ?? profile.uuid, workspaceGraph?.legacyId ?? expressionAction.graphUuid, 'expression', expressionAction.legacyId ?? expressionAction.uuid)}
             key={profile.uuid + ':expression-' + expressionAction.uuid}
             node={expressionAction}
-            actions={actions.filter((node) => node.graphId === expressionAction.graphId)}
-            profileName={profile.name} profileId={profile.uuid} profile={profile} users={allUsers}
+            actions={actions.filter((node) => node.graphUuid === expressionAction.graphUuid)}
+            profileName={profile.name} profileUuid={profile.uuid} profile={profile} users={allUsers}
             contextGuide={workspaceGraph?.contextGuide}
-            onBack={() => openGraph(expressionAction.graphId)} onConfirm={confirmExpression} onPublishDraft={publishExpressionDraft}
+            onBack={() => openGraph(expressionAction.graphUuid)} onConfirm={confirmExpression} onPublishDraft={publishExpressionDraft}
           />
-        ) : workspaceMode === 'action' && workspaceGraph && (!workspaceParentId || workspaceParent) && (workspaceParent || !actions.some((node) => node.graphId === workspaceGraph.uuid)) ? (
+        ) : workspaceMode === 'action' && workspaceGraph && (!workspaceParentUuid || workspaceParent) && (workspaceParent || !actions.some((node) => node.graphUuid === workspaceGraph.uuid)) ? (
           <ActionWorkspace
-            graphId={workspaceGraph.uuid} csrfToken={csrfToken}
-            key={getActionDraftKey(profile.uuid, workspaceGraph.uuid, 'action', workspaceParentId)}
-            draftKey={getActionDraftKey(profile.legacyId ?? profile.uuid, workspaceGraph.legacyId ?? workspaceGraph.uuid, 'action', workspaceParent?.legacyId ?? workspaceParentId)}
+            graphUuid={workspaceGraph.uuid} csrfToken={csrfToken}
+            key={getActionDraftKey(profile.uuid, workspaceGraph.uuid, 'action', workspaceParentUuid)}
+            draftKey={getActionDraftKey(profile.legacyId ?? profile.uuid, workspaceGraph.legacyId ?? workspaceGraph.uuid, 'action', workspaceParent?.legacyId ?? workspaceParentUuid)}
             profileName={profile.name} profile={profile} hasParent={Boolean(workspaceParent)}
-            contextTitle={workspaceParent?.title} sourceNodeId={workspaceParent?.uuid}
+            contextTitle={workspaceParent?.title} sourceNodeUuid={workspaceParent?.uuid}
             sourceNodeNumber={workspaceParent?.number}
-            actions={actions.filter((node) => node.graphId === workspaceGraph.uuid)}
+            actions={actions.filter((node) => node.graphUuid === workspaceGraph.uuid)}
             inheritedExpression={workspaceParent ? getActionExpression(actions, workspaceParent.uuid).markdown : ''}
             inheritedExpressionImages={workspaceParent ? getActionExpression(actions, workspaceParent.uuid).sourceNode?.images : []}
             historyFacts={workspaceParent ? getActionExpressionContext(actions, workspaceParent.uuid)?.facts : []}
-            inheritedAgreement={workspaceParent && workspaceParent.authorId !== profile.uuid ? getActionAgreement(actions, workspaceParent.uuid).markdown : ''}
+            inheritedAgreement={workspaceParent && workspaceParent.authorUuid !== profile.uuid ? getActionAgreement(actions, workspaceParent.uuid).markdown : ''}
             contextGuide={workspaceGraph.contextGuide}
             onBack={() => openGraph(workspaceGraph.uuid)} onConfirm={confirmAction}
           />

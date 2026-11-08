@@ -36,7 +36,7 @@ export function Discovery({ actions, graphs, users, active, onOpenNode, onOpenRe
   const scrollPositions = useRef<Partial<Record<DiscoveryTab, number>>>({})
   const pendingScroll = useRef<number | undefined>(undefined)
   const graphsById = useMemo(() => new Map(graphs.map((graph) => [graph.uuid, graph])), [graphs])
-  const publicActions = useMemo(() => actions.filter((node) => graphsById.has(node.graphId)), [actions, graphsById])
+  const publicActions = useMemo(() => actions.filter((node) => graphsById.has(node.graphUuid)), [actions, graphsById])
   const expressions = useMemo(() => getPublishedExpressions(publicActions), [publicActions])
   const agreements = useMemo(() => getSatisfiedAgreementResponses(getActionReferences(publicActions)), [publicActions])
   const graphActivities = useMemo(() => getActiveGraphActivities(graphs, publicActions), [graphs, publicActions])
@@ -64,7 +64,7 @@ export function Discovery({ actions, graphs, users, active, onOpenNode, onOpenRe
     }
     setQueries((previous) => ({ ...previous, [tab]: value }))
   }
-  const context = (node: ActionNode) => <GraphContextLink id={node.graphId} title={graphsById.get(node.graphId)?.title} onOpen={onOpenGraph} />
+  const context = (node: ActionNode) => <GraphContextLink id={node.graphUuid} title={graphsById.get(node.graphUuid)?.title} onOpen={onOpenGraph} />
 
   return (
     <section>

@@ -45,7 +45,7 @@ func (h *Handler) Graphs(c *gin.Context) {
 
 // Graph 返回单图资料。
 func (h *Handler) Graph(c *gin.Context) {
-	uuid, err := common.Query(c, "graphId")
+	uuid, err := common.Query(c, "graphUuid")
 	if err != nil {
 		common.Fail(c, err)
 		return
@@ -60,7 +60,7 @@ func (h *Handler) Graph(c *gin.Context) {
 
 // Actions 返回单图确认上下文。
 func (h *Handler) Actions(c *gin.Context) {
-	uuid, err := common.Query(c, "graphId")
+	uuid, err := common.Query(c, "graphUuid")
 	if err != nil {
 		common.Fail(c, err)
 		return
@@ -75,7 +75,7 @@ func (h *Handler) Actions(c *gin.Context) {
 
 // Action 返回单个行动详情。
 func (h *Handler) Action(c *gin.Context) {
-	uuid, err := common.Query(c, "nodeId")
+	uuid, err := common.Query(c, "nodeUuid")
 	if err != nil {
 		common.Fail(c, err)
 		return

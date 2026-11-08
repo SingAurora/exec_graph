@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'bun:test'
 import { demoActions } from '../../../app/demo/actions.ts'
-import { getActionContextIds, getActionParentIds, getAncestors, getPreferredPath } from '../../../entities/action/lib/graph.ts'
+import { getActionContextIds, getActionParentUuids, getAncestors, getPreferredPath } from '../../../entities/action/lib/graph.ts'
 import { getActionReferences } from '../../../entities/action/lib/references.ts'
 import { getActionLevels } from '../../../entities/action/lib/levels.ts'
 import { createActionLayout, GRAPH_WIDTH } from './layout.ts'
 
-const actions = demoActions.filter((node) => node.graphId === 'cooking')
+const actions = demoActions.filter((node) => node.graphUuid === 'cooking')
 const mainPath = getPreferredPath(actions)
 
 describe('action graph reference semantics', () => {
@@ -42,7 +42,7 @@ describe('action graph reference semantics', () => {
     const source = actions.find((node) => node.uuid === 'cooking-3')
     const target = actions.find((node) => node.uuid === 'cooking-6')
     expect(getActionReferences([source, { ...target, referenceAgreements: [] }])[0].agreementStatus).toBe('unreviewed')
-    const referenceAgreements = [{ sourceId: source.uuid, complies: false, exceptionReason: '改变份量' }]
+    const referenceAgreements = [{ sourceUuid: source.uuid, complies: false, exceptionReason: '改变份量' }]
     expect(getActionReferences([source, { ...target, referenceAgreements }])[0]).toMatchObject({ agreementStatus: 'exception', exceptionReason: '改变份量' })
   })
 
@@ -52,10 +52,10 @@ describe('action graph reference semantics', () => {
     ])
     expect(actions.find((node) => node.uuid === 'cooking-13').contextSnapshot.historyNodeCount).toBe(7)
     expect(actions.find((node) => node.uuid === 'cooking-14').contextSnapshot.historyNodeCount).toBe(8)
-    const partial = [{ ...actions[0], parentId: 'missing', mergedParentIds: ['cooking-2'] }, actions[1]]
+    const partial = [{ ...actions[0], parentUuid: 'missing', mergedParentUuids: ['cooking-2'] }, actions[1]]
     expect([...getActionContextIds(partial, 'cooking-2')].sort()).toEqual(['cooking-1', 'cooking-2'])
-    expect(getActionParentIds({ ...actions[1], mergedParentIds: ['cooking-1', 'cooking-2'] })).toEqual(['cooking-1'])
-    expect(getActionReferences([{ ...actions[0], graphId: 'other' }, actions[1]])).toHaveLength(0)
+    expect(getActionParentUuids({ ...actions[1], mergedParentUuids: ['cooking-1', 'cooking-2'] })).toEqual(['cooking-1'])
+    expect(getActionReferences([{ ...actions[0], graphUuid: 'other' }, actions[1]])).toHaveLength(0)
   })
 })
 
@@ -94,9 +94,9 @@ describe('fixed-width vertical layout', () => {
 
   test('uses the deepest source even when it is an additional reference and input is unordered', () => {
     const root = { ...actions[0], uuid: 'root', id: 'root', number: 800 }
-    const first = { ...root, uuid: 'first', id: 'first', number: 400, parentId: root.uuid }
-    const second = { ...root, uuid: 'second', id: 'second', number: 200, parentId: first.uuid }
-    const merge = { ...root, uuid: 'merge', id: 'merge', number: 100, parentId: root.uuid, mergedParentIds: [second.uuid, second.uuid] }
+    const first = { ...root, uuid: 'first', id: 'first', number: 400, parentUuid: root.uuid }
+    const second = { ...root, uuid: 'second', id: 'second', number: 200, parentUuid: first.uuid }
+    const merge = { ...root, uuid: 'merge', id: 'merge', number: 100, parentUuid: root.uuid, mergedParentUuids: [second.uuid, second.uuid] }
     const levels = getActionLevels([merge, second, first, root])
     expect(levels.get(root.uuid)).toBe(1)
     expect(levels.get(first.uuid)).toBe(2)
@@ -105,8 +105,8 @@ describe('fixed-width vertical layout', () => {
   })
 
   test('rejects cyclic references instead of giving them misleading layers', () => {
-    const a = { ...actions[0], uuid: 'a', id: 'a', parentId: 'b' }
-    const b = { ...actions[0], uuid: 'b', id: 'b', parentId: 'a' }
+    const a = { ...actions[0], uuid: 'a', id: 'a', parentUuid: 'b' }
+    const b = { ...actions[0], uuid: 'b', id: 'b', parentUuid: 'a' }
     expect(() => getActionLevels([a, b])).toThrow('行动引用关系存在循环')
   })
 
@@ -128,7 +128,7 @@ describe('fixed-width vertical layout', () => {
 
   test('long chains grow vertically and empty or single-node graphs remain usable', () => {
     const chain = Array.from({ length: 100 }, (_, i) => ({ ...actions[0], uuid: `node-${i}`, id: `node-${i}`, number: i + 1,
-      parentId: i ? `node-${i - 1}` : undefined, mergedParentIds: [] }))
+      parentUuid: i ? `node-${i - 1}` : undefined, mergedParentUuids: [] }))
     const layout = createActionLayout(chain, chain)
     expect(layout.height).toBeGreaterThan(8000)
     expect(layout.positions.get('node-99').x).toBe(GRAPH_WIDTH / 2)

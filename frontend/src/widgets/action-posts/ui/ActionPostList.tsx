@@ -34,7 +34,7 @@ type ActionPostListProps = {
 export function ActionPostList({ nodes, actions, users, mode, searchQuery, infinite = false, active = true, presentation = 'default', showEnd, onExplore, renderContext }: ActionPostListProps) {
   const levels = useMemo(() => getActionLevels(actions), [actions])
   const contextCounts = useMemo(() => presentation === 'feed' && mode === 'expression'
-    ? new Map(nodes.map((node) => [node.uuid, getActionContextIds(actions.filter((action) => action.graphId === node.graphId), node.uuid).size]))
+    ? new Map(nodes.map((node) => [node.uuid, getActionContextIds(actions.filter((action) => action.graphUuid === node.graphUuid), node.uuid).size]))
     : new Map<string, number>(), [actions, nodes, mode, presentation])
   const { visibleCount, endRef, hasMore } = useInfiniteList({ itemCount: nodes.length, infinite, active })
 
@@ -51,10 +51,10 @@ export function ActionPostList({ nodes, actions, users, mode, searchQuery, infin
 
 function ActionPostItem({ node, level, contextCount, actions, users, mode, searchQuery, presentation, onExplore, renderContext }: Omit<ActionPostListProps, 'nodes' | 'infinite' | 'active'> & { node: ActionNode; level: number | undefined; contextCount?: number }) {
   const feed = presentation === 'feed'
-  const author = users.find((user) => user.uuid === node.authorId)
+  const author = users.find((user) => user.uuid === node.authorUuid)
   const expression = mode === 'expression' ? getActionExpression(actions, node.uuid) : undefined
-  const sourceAuthorId = expression?.sourceNode?.expressionSupplement?.authorId ?? expression?.sourceNode?.authorId
-  const sourceAuthor = users.find((user) => user.uuid === sourceAuthorId)
+  const sourceAuthorUuid = expression?.sourceNode?.expressionSupplement?.authorUuid ?? expression?.sourceNode?.authorUuid
+  const sourceAuthor = users.find((user) => user.uuid === sourceAuthorUuid)
   const previewImages = expression ? (expression.markdown.trim() ? expression.sourceNode?.images ?? [] : []) : node.images
   const markdown = expression?.markdown ?? node.objectiveMarkdown ?? node.markdown
   const summary = getMarkdownSummary(markdown, node.title)
@@ -68,8 +68,8 @@ function ActionPostItem({ node, level, contextCount, actions, users, mode, searc
         {!feed && renderContext && <div className="pointer-events-auto relative z-10 mb-2 w-fit">{renderContext(node)}</div>}
         {!feed && <h3 className="truncate text-base font-semibold leading-[1.6] tracking-[-.02em] group-hover:text-signal" title={node.title}><HighlightedText text={node.title} query={searchQuery} /></h3>}
         <div className={`${feed ? '' : 'mt-2'} flex flex-wrap items-center gap-x-3 gap-y-2 text-xs leading-5 text-muted`}>
-          <ProfilePreview profile={author} userId={node.authorId} className="pointer-events-auto relative z-10 inline-flex items-center gap-2 rounded-sm text-ink hover:text-signal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal">
-            <Avatar profile={author} label={(author?.name ?? node.authorId).slice(0, 1)} size="compact" /><strong className="text-sm font-medium">{author?.name ?? node.authorId}</strong>
+          <ProfilePreview profile={author} userUuid={node.authorUuid} className="pointer-events-auto relative z-10 inline-flex items-center gap-2 rounded-sm text-ink hover:text-signal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal">
+            <Avatar profile={author} label={(author?.name ?? node.authorUuid).slice(0, 1)} size="compact" /><strong className="text-sm font-medium">{author?.name ?? node.authorUuid}</strong>
           </ProfilePreview>
           <time className="pointer-events-auto relative z-10 cursor-text" dateTime={node.createdAt} title={formatFullPublicationTime(node.createdAt)}>{formatPublicationTime(node.createdAt)}</time>{!feed && level !== undefined && <span className="pointer-events-auto relative z-10 cursor-text">第{level}层</span>}
         </div>
@@ -81,7 +81,7 @@ function ActionPostItem({ node, level, contextCount, actions, users, mode, searc
         </div>
         {feed && <>
           {expression && <p className="mt-2.5 truncate text-xs leading-5 text-muted" title={node.title}>最近行动：<HighlightedText text={node.title} query={searchQuery} /></p>}
-          {expression && sourceAuthorId && sourceAuthorId !== node.authorId && <p className="text-xs leading-5 text-muted">沿用{sourceAuthor?.name ?? sourceAuthorId}的表达</p>}
+          {expression && sourceAuthorUuid && sourceAuthorUuid !== node.authorUuid && <p className="text-xs leading-5 text-muted">沿用{sourceAuthor?.name ?? sourceAuthorUuid}的表达</p>}
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs leading-5 text-muted">
             {renderContext && <div className="pointer-events-auto relative z-10 min-w-0 max-w-full">{renderContext(node)}</div>}
             {contextCount !== undefined && <span>{contextCount} 次行动支撑</span>}

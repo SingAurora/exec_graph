@@ -11,10 +11,10 @@ export function useGeneration(csrfToken: string) {
       controller.current = new AbortController()
       return generateDraft(request, csrfToken, controller.current.signal)
     },
-    chat: (request: GenerationRequest, generationId?: string): Promise<ChatResult> => {
+    chat: (request: GenerationRequest, generationUuid?: string): Promise<ChatResult> => {
       controller.current?.abort()
       controller.current = new AbortController()
-      return chatDraft(request, generationId, csrfToken, controller.current.signal)
+      return chatDraft(request, generationUuid, csrfToken, controller.current.signal)
     },
   }
 }

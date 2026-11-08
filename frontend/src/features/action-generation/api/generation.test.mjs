@@ -13,12 +13,12 @@ afterEach(() => {
 describe('platform generation transport', () => {
   test('submits only this turn and reuses the saved submission identity after response loss', async () => {
     Object.defineProperty(globalThis, 'location', { configurable: true, value: new URL('http://localhost') })
-    const request = { key: crypto.randomUUID(), input: { mode: 'action', graphId: 'graph', messages: ['骑了六公里', '途中下雨，最后还是完成了'], mergedParentIds: [], sourceVersions: [], agreement: { mode: 'clear' } } }
+    const request = { key: crypto.randomUUID(), input: { mode: 'action', graphUuid: 'graph', messages: ['骑了六公里', '途中下雨，最后还是完成了'], mergedParentUuids: [], sourceVersions: [], agreement: { mode: 'clear' } } }
     const calls = []
     globalThis.fetch = async (_url, options) => {
       calls.push(options)
       if (calls.length === 1) throw new TypeError('response lost')
-      return Response.json({ code: 0, msg: '', data: { generationId: 'generation', conversationId: 'conversation', status: 'succeeded' } })
+      return Response.json({ code: 0, msg: '', data: { generationUuid: 'generation', conversationUuid: 'conversation', status: 'succeeded' } })
     }
     await expect(generateDraft(request, 'csrf', new AbortController().signal)).rejects.toMatchObject({ kind: 'network' })
     expect(calls).toHaveLength(1)

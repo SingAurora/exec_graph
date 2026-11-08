@@ -53,9 +53,9 @@ export function ActionReferenceDetail({ reference, actions, users, onSelectNode,
       </header>
 
       <section className="px-6 py-4">
-        <ReferenceNode label="来源" node={source} author={userById.get(source.authorId)} level={levels.get(source.uuid)} onSelect={onSelectNode} />
+        <ReferenceNode label="来源" node={source} author={userById.get(source.authorUuid)} level={levels.get(source.uuid)} onSelect={onSelectNode} />
         <div className="my-2 ml-4 h-5 border-l border-line" />
-        <ReferenceNode label="引用行动" node={target} author={userById.get(target.authorId)} level={levels.get(target.uuid)} onSelect={onSelectNode} />
+        <ReferenceNode label="引用行动" node={target} author={userById.get(target.authorUuid)} level={levels.get(target.uuid)} onSelect={onSelectNode} />
       </section>
 
       <section className="action-reading-document px-6 py-4">
@@ -97,9 +97,9 @@ function ReferenceNode({ label, node, author, level, onSelect }: {
         <span>{label}</span><span>第 {level} 层 · 节点 #{node.number}</span>
       </div>
       <div className="flex w-full items-center gap-3 rounded-md bg-soft p-3">
-        <ProfilePreview profile={author} userId={node.authorId} className="inline-flex shrink-0 rounded-lg focus-visible:outline-2 focus-visible:outline-signal"><Avatar profile={author} label={author?.name ?? node.authorId} size="small" /></ProfilePreview>
+        <ProfilePreview profile={author} userUuid={node.authorUuid} className="inline-flex shrink-0 rounded-lg focus-visible:outline-2 focus-visible:outline-signal"><Avatar profile={author} label={author?.name ?? node.authorUuid} size="small" /></ProfilePreview>
         <button className="group flex min-w-0 flex-1 items-center gap-3 rounded-sm border-0 bg-transparent p-0 text-left hover:text-signal" type="button" onClick={() => onSelect(node.uuid)}>
-          <span className="min-w-0 flex-1"><strong className="block text-sm font-medium leading-[1.7] group-hover:text-signal">{node.title}</strong><span className="mt-1 block text-sm text-muted">{author?.name ?? node.authorId}</span></span>
+          <span className="min-w-0 flex-1"><strong className="block text-sm font-medium leading-[1.7] group-hover:text-signal">{node.title}</strong><span className="mt-1 block text-sm text-muted">{author?.name ?? node.authorUuid}</span></span>
           <ArrowUpRight size={15} className="shrink-0 text-muted group-hover:text-signal" />
         </button>
       </div>

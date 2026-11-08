@@ -4,7 +4,7 @@ import { interestActions } from './interests'
 
 const everydayActions: ActionNode[] = [
   {
-    uuid: 'daily-1', graphId: 'daily', number: 1, authorId: 'jo',
+    uuid: 'daily-1', graphUuid: 'daily', number: 1, authorUuid: 'jo',
     title: '书桌只留下明天会用到的东西',
     markdown: '把桌上的包装盒、旧纸张和杯子移开，只留下电脑、笔记本和明天要读的书。\n\n最费时间的是给散落的充电线找位置。抽屉还没整理，但已经能坐下来直接开始工作。',
     expressionMarkdown: '先让空间重新能用起来，比一次整理完所有东西更重要。这次桌面可以直接开始工作，抽屉还可以以后处理。',
@@ -16,7 +16,7 @@ const everydayActions: ActionNode[] = [
     createdAt: '2026-10-11T08:30:00+08:00',
   },
   {
-    uuid: 'daily-2', graphId: 'daily', number: 2, parentId: 'daily-1', authorId: 'lin',
+    uuid: 'daily-2', graphUuid: 'daily', number: 2, parentUuid: 'daily-1', authorUuid: 'lin',
     title: '阳台终于有一块可以坐下来的地方',
     markdown: '没有一口气收完所有旧物，只把挡住椅子和门的箱子移到了墙边，擦了椅子。\n\n晚上真的在这里坐了十分钟。东西还在，但是空间已经重新用起来了。',
     images: [],
@@ -27,7 +27,7 @@ const everydayActions: ActionNode[] = [
     createdAt: '2026-10-11T18:20:00+08:00',
   },
   {
-    uuid: 'daily-3', graphId: 'daily', number: 3, parentId: 'daily-1', authorId: 'miao',
+    uuid: 'daily-3', graphUuid: 'daily', number: 3, parentUuid: 'daily-1', authorUuid: 'miao',
     title: '先清出走到椅子的通道',
     markdown: '从门口开始，只挪动挡路的物品。最后留出了一条通往椅子的路，其他东西暂时原样放着。\n\n这次只花了十五分钟，进出时已经不用侧身。',
     expressionMarkdown: '从书桌到通道，我借用的是先恢复使用的思路。这次我更愿意保留一个具体标准：每天走的那条路，不需要再侧身。整理不一定先从收纳开始。',
@@ -39,7 +39,7 @@ const everydayActions: ActionNode[] = [
     createdAt: '2026-10-11T20:05:00+08:00',
   },
   {
-    uuid: 'practice-1', graphId: 'practice', number: 1, authorId: 'lin',
+    uuid: 'practice-1', graphUuid: 'practice', number: 1, authorUuid: 'lin',
     title: '第一次烤酸面包，里面有些湿黏',
     markdown: '从喂养酵头、发酵到烤完出炉，记下了这两天的过程。\n\n表皮比想象中脆，切开后里面有些湿黏。我太心急，出炉不到二十分钟就切了，现在还不能确定是不是没烤透。',
     expressionMarkdown: '完整做过一遍，才看见自己在哪些地方太心急。湿黏的原因还不确定，先把这一次留下来，比急着给自己贴上失败的标签更有用。',

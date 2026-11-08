@@ -20,13 +20,13 @@ type DocumentUpdate struct {
 
 // SourceVersion 固定用户确认时看到的直接来源版本。
 type SourceVersion struct {
-	NodeID  string `json:"nodeId"`
+	NodeID  string `json:"nodeUuid"`
 	Version uint32 `json:"version"`
 }
 
 // SourceAssessment 要求明确提供 complies，null 表示未核对。
 type SourceAssessment struct {
-	SourceID        string  `json:"sourceId"`
+	SourceID        string  `json:"sourceUuid"`
 	Complies        *bool   `json:"complies"`
 	ExceptionReason *string `json:"exceptionReason,omitempty"`
 	Provided        bool    `json:"-"`
@@ -39,7 +39,7 @@ func (s *SourceAssessment) UnmarshalJSON(body []byte) error {
 		return err
 	}
 	for key := range fields {
-		if key != "sourceId" && key != "complies" && key != "exceptionReason" {
+		if key != "sourceUuid" && key != "complies" && key != "exceptionReason" {
 			return fmt.Errorf("未知约定核对字段")
 		}
 	}
@@ -55,16 +55,16 @@ func (s *SourceAssessment) UnmarshalJSON(body []byte) error {
 
 // ImageInput 只引用当前用户的站内已就绪图片。
 type ImageInput struct {
-	AssetID string `json:"assetId"`
+	AssetID string `json:"assetUuid"`
 	Alt     string `json:"alt"`
 }
 
 // CreateActionInput 只确认服务器生成结果，不接收浏览器伪造的事实或对话。
 type CreateActionInput struct {
-	GraphID             string             `json:"graphId"`
-	GenerationID        string             `json:"generationId"`
-	ParentID            string             `json:"parentId,omitempty"`
-	MergedParentIDs     []string           `json:"mergedParentIds"`
+	GraphID             string             `json:"graphUuid"`
+	GenerationID        string             `json:"generationUuid"`
+	ParentID            string             `json:"parentUuid,omitempty"`
+	MergedParentIDs     []string           `json:"mergedParentUuids"`
 	SourceVersions      []SourceVersion    `json:"sourceVersions"`
 	ReferenceAgreements []SourceAssessment `json:"referenceAgreements"`
 	Images              []ImageInput       `json:"images"`
@@ -72,16 +72,16 @@ type CreateActionInput struct {
 
 // UpdateExpressionInput 确认当前节点连续对话中形成的新表达。
 type UpdateExpressionInput struct {
-	NodeID          string `json:"nodeId"`
+	NodeID          string `json:"nodeUuid"`
 	ExpectedVersion uint32 `json:"expectedVersion"`
-	GenerationID    string `json:"generationId"`
+	GenerationID    string `json:"generationUuid"`
 }
 
 // UpdateAgreementInput 修改向后传递的约定，不改变原有引用核对。
 type UpdateAgreementInput struct {
-	NodeID          string         `json:"nodeId"`
+	NodeID          string         `json:"nodeUuid"`
 	ExpectedVersion uint32         `json:"expectedVersion"`
-	GenerationID    string         `json:"generationId,omitempty"`
+	GenerationID    string         `json:"generationUuid,omitempty"`
 	Document        DocumentUpdate `json:"document"`
 }
 
@@ -101,21 +101,21 @@ type DocumentVersionView struct {
 	Revision     uint32    `json:"revision"`
 	Mode         string    `json:"mode"`
 	Markdown     string    `json:"markdown"`
-	ActorID      string    `json:"actorId"`
+	ActorID      string    `json:"actorUuid"`
 	ChangeKind   string    `json:"changeKind"`
-	GenerationID string    `json:"generationId,omitempty"`
+	GenerationID string    `json:"generationUuid,omitempty"`
 	CreatedAt    time.Time `json:"createdAt"`
 }
 
 // DeleteNodeInput 删除终端行动节点。
 type DeleteNodeInput struct {
-	NodeID          string `json:"nodeId"`
+	NodeID          string `json:"nodeUuid"`
 	ExpectedVersion uint32 `json:"expectedVersion"`
 }
 
 // PublishNodeDocumentInput 将节点当前 AI 草案发布为不可变文档版本。
 type PublishNodeDocumentInput struct {
-	NodeID          string `json:"nodeId"`
+	NodeID          string `json:"nodeUuid"`
 	ExpectedVersion uint32 `json:"expectedVersion"`
 	Kind            string `json:"kind"`
 }

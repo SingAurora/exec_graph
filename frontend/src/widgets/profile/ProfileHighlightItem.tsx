@@ -19,23 +19,23 @@ export function ProfileHighlightItem({ entry: { node, agreement }, actions, grap
   onOpenNode: (node: ActionNode, mode: ActionDocumentMode) => void
 }) {
   const source = agreement.sourceNode
-  const authorId = source?.agreementSupplement?.authorId ?? source?.authorId
-  const author = users.find((user) => user.uuid === authorId)
+  const authorUuid = source?.agreementSupplement?.authorUuid ?? source?.authorUuid
+  const author = users.find((user) => user.uuid === authorUuid)
   const publishedAt = source?.agreementSupplement?.createdAt ?? source?.createdAt
   return (
     <>
       <ActionPostList nodes={[node]} actions={actions} users={users} mode="expression" presentation="feed" onExplore={onOpenNode}
         renderContext={() => <button type="button" className="max-w-full truncate border-0 bg-transparent p-0 text-left text-xs text-muted hover:text-signal" onClick={() => onOpenNode(node, 'expression')} title={`查看表达的行动背景：${node.title}`}>
-          {graphs.find((graph) => graph.uuid === node.graphId)?.title ?? node.title} · #{node.number}
+          {graphs.find((graph) => graph.uuid === node.graphUuid)?.title ?? node.title} · #{node.number}
         </button>} />
       {agreement.markdown.trim() && <section className="group relative isolate min-w-0 px-1 pb-4">
         <button type="button" className="absolute inset-0 z-0 w-full rounded-lg border-0 bg-transparent p-0 text-left transition hover:bg-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal" title={`查看分支约定的行动背景：${node.title}`} onClick={() => onOpenNode(node, 'objective')} />
         <div className="pointer-events-none relative">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm leading-6">
-            {authorId && <ProfilePreview profile={author} userId={authorId} className="pointer-events-auto relative z-10 inline-flex min-w-0 items-center gap-2 rounded-sm text-ink hover:text-signal focus-visible:outline-2 focus-visible:outline-signal">
-              <Avatar profile={author} label={author?.name ?? authorId} size="compact" /><strong className="text-sm font-medium">{author?.name ?? authorId}</strong>
+            {authorUuid && <ProfilePreview profile={author} userUuid={authorUuid} className="pointer-events-auto relative z-10 inline-flex min-w-0 items-center gap-2 rounded-sm text-ink hover:text-signal focus-visible:outline-2 focus-visible:outline-signal">
+              <Avatar profile={author} label={author?.name ?? authorUuid} size="compact" /><strong className="text-sm font-medium">{author?.name ?? authorUuid}</strong>
             </ProfilePreview>}
-            <h4 className="text-sm font-normal text-muted">{authorId ? '的约定' : '约定'}</h4>
+            <h4 className="text-sm font-normal text-muted">{authorUuid ? '的约定' : '约定'}</h4>
           </div>
           <blockquote className="mt-3 border-l-2 border-signal/25 pl-3"><p className="post-summary-clamp text-sm leading-[1.85] text-copy">{getMarkdownSummary(agreement.markdown)}</p></blockquote>
           <RecordThumbnails images={getMarkdownImages(agreement.markdown)} />

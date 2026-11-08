@@ -7,21 +7,21 @@ export function getActionAgreements(nodes: ActionNode[]): Map<string, ActionAgre
 }
 
 /** 读取本节点传给后续引用者的有效约定；只沿承接链继承，尊重主动清空。 */
-export function getActionAgreement(nodes: ActionNode[], nodeId: string): ActionAgreement {
-  return getInheritedActionDocument(nodes, nodeId, 'agreementMarkdown')
+export function getActionAgreement(nodes: ActionNode[], nodeUuid: string): ActionAgreement {
+  return getInheritedActionDocument(nodes, nodeUuid, 'agreementMarkdown')
 }
 
 /** 跳过仅继承的中间节点，定位约定的真实来源版本。 */
-export function getActionAgreementOrigin(nodes: ActionNode[], nodeId: string): ActionAgreementOrigin | undefined {
-  return getInheritedActionDocumentOrigin(nodes, nodeId, 'agreementMarkdown')
+export function getActionAgreementOrigin(nodes: ActionNode[], nodeUuid: string): ActionAgreementOrigin | undefined {
+  return getInheritedActionDocumentOrigin(nodes, nodeUuid, 'agreementMarkdown')
 }
 
 /** 与表达共用编辑资格：只有未被后续引用的节点可以修改当前有效约定。 */
-export function canEditActionAgreement(nodes: ActionNode[], nodeId: string): boolean {
-  return canEditActionDocument(nodes, nodeId)
+export function canEditActionAgreement(nodes: ActionNode[], nodeUuid: string): boolean {
+  return canEditActionDocument(nodes, nodeUuid)
 }
 
 /** 修改本节点向后的约定，不改行动事实、本次来源约定核对和既有对话。 */
-export function updateActionAgreement(nodes: ActionNode[], nodeId: string, markdown: string, editor: Pick<ActionDocumentRevision, 'authorId' | 'createdAt'>): ActionNode[] {
-  return updateActionDocument(nodes, nodeId, 'agreementMarkdown', markdown, editor)
+export function updateActionAgreement(nodes: ActionNode[], nodeUuid: string, markdown: string, editor: Pick<ActionDocumentRevision, 'authorUuid' | 'createdAt'>): ActionNode[] {
+  return updateActionDocument(nodes, nodeUuid, 'agreementMarkdown', markdown, editor)
 }

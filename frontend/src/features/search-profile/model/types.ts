@@ -2,4 +2,4 @@
 export type ProfileSearchScope = 'expressions' | 'agreements' | 'actions' | 'graphs'
 
 /** Keyword and optional bidirectional agreement counterpart for one profile search. */
-export type ProfileSearchCriteria = { keyword: string; counterpartId: string }
+export type ProfileSearchCriteria = { keyword: string; counterpartUuid: string }

@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import { searchPublicGraphs } from './search.ts'
 
-const graph = (id, extra = {}) => ({ uuid: id, id, ownerId: 'jo', title: '生活练习', description: '真实记录', createdAt: '2026-10-01T12:00:00+08:00', ...extra })
-const action = (id, graphId, createdAt) => ({ uuid: id, id, graphId, number: 1, authorId: 'jo', title: '行动', markdown: '实际完成', images: [], conversation: [], createdAt })
+const graph = (id, extra = {}) => ({ uuid: id, id, ownerUuid: 'jo', title: '生活练习', description: '真实记录', createdAt: '2026-10-01T12:00:00+08:00', ...extra })
+const action = (id, graphUuid, createdAt) => ({ uuid: id, id, graphUuid, number: 1, authorUuid: 'jo', title: '行动', markdown: '实际完成', images: [], conversation: [], createdAt })
 
 describe('public graph search', () => {
   test('matches names or introductions literally and ignores case and surrounding whitespace', () => {

@@ -2,13 +2,13 @@
 export type Graph = {
   legacyId?: string
   uuid: string
-  ownerId: string
-  participantIds: string[]
+  ownerUuid: string
+  participantUuids: string[]
   title: string
   description: string
   avatar?: string
-  avatarAssetId?: string | null
-  backgroundAssetId?: string | null
+  avatarAssetUuid?: string | null
+  backgroundAssetUuid?: string | null
   backgroundImage?: string
   createdAt: string
   updatedAt: string

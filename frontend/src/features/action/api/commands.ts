@@ -5,17 +5,17 @@ import type { ActionContextNode } from '../../../entities/action/api/context'
 export type DocumentUpdate = { mode: 'inherit' } | { mode: 'clear' } | { mode: 'update'; markdown: string }
 
 /** 一个直接来源的约定核对；true 满足、false 不满足、null 尚未核对。 */
-export type SourceAssessment = { sourceId: string; complies: boolean | null; exceptionReason?: string }
+export type SourceAssessment = { sourceUuid: string; complies: boolean | null; exceptionReason?: string }
 
 /** 发布参数携带引用来源版本，节点编号由服务分配；表达和后续约定各自声明处理方式。 */
 export type CreateActionInput = {
-  graphId: string
-  generationId: string
-  parentId?: string
-  mergedParentIds: string[]
-  sourceVersions: { nodeId: string; version: number }[]
+  graphUuid: string
+  generationUuid: string
+  parentUuid?: string
+  mergedParentUuids: string[]
+  sourceVersions: { nodeUuid: string; version: number }[]
   referenceAgreements: SourceAssessment[]
-  images: { assetId: string; alt: string }[]
+  images: { assetUuid: string; alt: string }[]
 }
 
 /** 发布一次行动，连同表达、后续约定、引用核对和形成对话提交业务接口。 */
@@ -24,12 +24,12 @@ export function createAction(input: CreateActionInput, options: BusinessRequestO
 }
 
 /** 在已有节点保存连续 AI 对话形成的表达修改，不创建新行动。 */
-export function reviseExpression(input: { nodeId: string; expectedVersion: number; generationId: string }, options: BusinessRequestOptions): Promise<ActionContextNode> {
+export function reviseExpression(input: { nodeUuid: string; expectedVersion: number; generationUuid: string }, options: BusinessRequestOptions): Promise<ActionContextNode> {
   return postAPI('/api/commands/expressions/update', input, options)
 }
 
 /** 保存向后传递的约定修改，不回写本节点引用来源时的核对结果。 */
-export function reviseAgreement(input: { nodeId: string; expectedVersion: number; generationId?: string; document?: DocumentUpdate }, options: BusinessRequestOptions): Promise<ActionContextNode> {
+export function reviseAgreement(input: { nodeUuid: string; expectedVersion: number; generationUuid?: string; document?: DocumentUpdate }, options: BusinessRequestOptions): Promise<ActionContextNode> {
   return postAPI('/api/commands/agreements/update', input, options)
 }
 
@@ -39,6 +39,6 @@ export function documentUpdate(markdown: string | undefined): DocumentUpdate {
 }
 
 /** 删除作者尚未被接续的终端节点。 */
-export function deleteAction(input: { nodeId: string; expectedVersion: number }, options: BusinessRequestOptions): Promise<unknown> {
+export function deleteAction(input: { nodeUuid: string; expectedVersion: number }, options: BusinessRequestOptions): Promise<unknown> {
   return postAPI('/api/commands/actions/delete', input, options)
 }

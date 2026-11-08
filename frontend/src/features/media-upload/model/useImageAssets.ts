@@ -13,7 +13,7 @@ export function useImageAssets(csrfToken: string) {
     if (!match) throw new Error('请选择本地图片后保存')
     const bytes = Uint8Array.from(atob(match[2]), (character) => character.charCodeAt(0))
     const image = await uploadImage(new File([bytes], 'image', { type: match[1] }), csrfToken)
-    uploads.current.set(value, image.assetId)
-    return image.assetId
+    uploads.current.set(value, image.assetUuid)
+    return image.assetUuid
   }
 }

@@ -2,18 +2,18 @@ import { describe, expect, test } from 'bun:test'
 import { getActivityDate, getProfileActivity, getProfileActivityDays, groupProfileActivity } from './profile-activity.ts'
 
 const node = (id, extra = {}) => ({
-  uuid: id, id, graphId: 'cooking', number: Number(id), authorId: 'jo', title: '行动 ' + id,
+  uuid: id, id, graphUuid: 'cooking', number: Number(id), authorUuid: 'jo', title: '行动 ' + id,
   markdown: '实际做过的事情', images: [], conversation: [], createdAt: '2026-10-20T12:00:00+08:00', ...extra,
 })
 
 describe('profile action activity', () => {
   test('one published action stays one event despite expression edits and multiple agreement responses', () => {
-    const actions = [node('1', { authorId: 'lin', agreementMarkdown: '记录用时' }),
-      node('2', { authorId: 'miao', agreementMarkdown: '记录实际锅具' }),
-      node('3', { parentId: '1', mergedParentIds: ['2'], expressionMarkdown: '我认为先实践再下结论',
-        expressionSupplement: { authorId: 'jo', createdAt: '2026-10-21T12:00:00+08:00' },
-        agreementSupplement: { authorId: 'jo', createdAt: '2026-10-22T12:00:00+08:00' },
-        referenceAgreements: [{ sourceId: '1', complies: true }, { sourceId: '2', complies: true }] })]
+    const actions = [node('1', { authorUuid: 'lin', agreementMarkdown: '记录用时' }),
+      node('2', { authorUuid: 'miao', agreementMarkdown: '记录实际锅具' }),
+      node('3', { parentUuid: '1', mergedParentUuids: ['2'], expressionMarkdown: '我认为先实践再下结论',
+        expressionSupplement: { authorUuid: 'jo', createdAt: '2026-10-21T12:00:00+08:00' },
+        agreementSupplement: { authorUuid: 'jo', createdAt: '2026-10-22T12:00:00+08:00' },
+        referenceAgreements: [{ sourceUuid: '1', complies: true }, { sourceUuid: '2', complies: true }] })]
     const activity = getProfileActivity(actions, 'jo')
     expect(activity).toHaveLength(1)
     const days = getProfileActivityDays(activity, new Date('2026-10-22T12:00:00+08:00'))
@@ -24,13 +24,13 @@ describe('profile action activity', () => {
 
   test('inherited, updated and cleared expressions do not add timeline events', () => {
     const activity = getProfileActivity([node('1', { expressionMarkdown: '最初的表达' }),
-      node('2', { parentId: '1' }), node('3', { parentId: '2', expressionMarkdown: '' })], 'jo')
+      node('2', { parentUuid: '1' }), node('3', { parentUuid: '2', expressionMarkdown: '' })], 'jo')
     expect(activity.map((item) => item.node.uuid)).toEqual(['3', '2', '1'])
   })
 
   test('sorts newest first, groups local dates and never counts someone else or malformed dates', () => {
     const actions = [node('1', { createdAt: '2026-10-19T12:00:00+08:00' }),
-      node('2'), node('3'), node('4', { authorId: 'other' }), node('5', { createdAt: 'invalid' })]
+      node('2'), node('3'), node('4', { authorUuid: 'other' }), node('5', { createdAt: 'invalid' })]
     const activity = getProfileActivity(actions, 'jo')
     const groups = groupProfileActivity(activity)
     expect(groups.map((group) => group.items.map((item) => item.node.uuid))).toEqual([['3', '2'], ['1']])

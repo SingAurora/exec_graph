@@ -15,8 +15,8 @@ const graphPageSize = 10
 const groups = [{ id: 'all', label: '全部', icon: Network }, { id: 'joined', label: '我参与的', icon: UsersRound }, { id: 'owned', label: '我发起的', icon: UserRound }] as const
 
 /** Browses public graphs without introducing a join gate or a planned-action state. */
-export function GraphDirectory({ currentUserId, graphs, actions, onCreateGraph, onOpenGraph }: {
-  currentUserId: string; graphs: Graph[]; actions: ActionNode[]
+export function GraphDirectory({ currentUserUuid, graphs, actions, onCreateGraph, onOpenGraph }: {
+  currentUserUuid: string; graphs: Graph[]; actions: ActionNode[]
   onCreateGraph: (input: CreateGraphInput) => void | Promise<void>; onOpenGraph: (id: string) => void
 }) {
   const [group, setGroup] = useState<GraphGroup>('all')
@@ -25,7 +25,7 @@ export function GraphDirectory({ currentUserId, graphs, actions, onCreateGraph, 
   const [page, setPage] = useState(1)
   const summaries = graphs.map((graph) => getGraphActivity(graph, actions))
   const query = keyword.trim().toLocaleLowerCase('zh-CN')
-  const filtered = summaries.filter(({ graph }) => (group === 'all' || (group === 'owned' ? graph.ownerId === currentUserId : hasUserContributed(graph.uuid, currentUserId, actions))) && `${graph.title} ${graph.description}`.toLocaleLowerCase('zh-CN').includes(query))
+  const filtered = summaries.filter(({ graph }) => (group === 'all' || (group === 'owned' ? graph.ownerUuid === currentUserUuid : hasUserContributed(graph.uuid, currentUserUuid, actions))) && `${graph.title} ${graph.description}`.toLocaleLowerCase('zh-CN').includes(query))
     .sort((a, b) => sort === 'name' ? a.graph.title.localeCompare(b.graph.title, 'zh-CN') : Date.parse(sort === 'created' ? b.graph.createdAt : b.lastActionAt ?? b.graph.createdAt) - Date.parse(sort === 'created' ? a.graph.createdAt : a.lastActionAt ?? a.graph.createdAt))
   const pageCount = Math.max(1, Math.ceil(filtered.length / graphPageSize))
   const currentPage = Math.min(page, pageCount)

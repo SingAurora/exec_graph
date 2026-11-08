@@ -1,7 +1,7 @@
 import { Footprints, MessageCircle, ScrollText, UsersRound } from 'lucide-react'
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ComponentProps } from 'react'
-import { getReferenceAgreementAuthorId } from '../../../entities/action/lib/agreement-responses'
+import { getReferenceAgreementAuthorUuid } from '../../../entities/action/lib/agreement-responses'
 import { getActionReferences } from '../../../entities/action/lib/references'
 import type { GraphSearchScope } from '../../../features/search-graph/model/types'
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from '../../../shared/ui/tabs/Tabs'
@@ -22,16 +22,16 @@ export function GraphSearch({ active, ...props }: Props) {
   const scrollPositions = useRef<Partial<Record<GraphSearchScope, number>>>({})
   const pendingScroll = useRef<number | undefined>(undefined)
   const filterUsers = useMemo(() => {
-    const authors = new Set(props.actions.filter((node) => node.graphId === props.graphId).map((node) => node.authorId))
+    const authors = new Set(props.actions.filter((node) => node.graphUuid === props.graphUuid).map((node) => node.authorUuid))
     const unique = new Map(props.users.filter((user) => authors.has(user.uuid)).map((user) => [user.uuid, user]))
     return [...unique.values()].sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
-  }, [props.actions, props.users, props.graphId])
+  }, [props.actions, props.users, props.graphUuid])
   const agreementUsers = useMemo(() => {
-    const authors = new Set(getActionReferences(props.actions.filter((node) => node.graphId === props.graphId))
-      .flatMap((reference) => [getReferenceAgreementAuthorId(reference), reference.target.authorId]))
+    const authors = new Set(getActionReferences(props.actions.filter((node) => node.graphUuid === props.graphUuid))
+      .flatMap((reference) => [getReferenceAgreementAuthorUuid(reference), reference.target.authorUuid]))
     const unique = new Map([...filterUsers, ...props.users.filter((user) => authors.has(user.uuid))].map((user) => [user.uuid, user]))
     return [...unique.values()].sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
-  }, [filterUsers, props.actions, props.users, props.graphId])
+  }, [filterUsers, props.actions, props.users, props.graphUuid])
 
   useLayoutEffect(() => {
     if (!active || pendingScroll.current === undefined) return

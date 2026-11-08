@@ -9,14 +9,14 @@ export const cookingContextGuide = '持续关注做法是否容易复做、时�
 const records: ActionNode[] = cookingExamples.map(({ parent, mergedParents = [], images = [], expression, ...example }) => ({
   ...example,
   uuid: `cooking-${example.number}`,
-  graphId: 'cooking',
-  parentId: parent ? `cooking-${parent}` : undefined,
-  mergedParentIds: mergedParents.map((number) => `cooking-${number}`),
+  graphUuid: 'cooking',
+  parentUuid: parent ? `cooking-${parent}` : undefined,
+  mergedParentUuids: mergedParents.map((number) => `cooking-${number}`),
   images,
   objectiveMarkdown: example.markdown,
   expressionMarkdown: expression,
   contextSnapshot: {
-    directNodeIds: [...(parent ? [`cooking-${parent}`] : []), ...mergedParents.map((number) => `cooking-${number}`)],
+    directNodeUuids: [...(parent ? [`cooking-${parent}`] : []), ...mergedParents.map((number) => `cooking-${number}`)],
     historyNodeCount: 0,
     guide: cookingContextGuide,
   },

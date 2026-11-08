@@ -50,7 +50,7 @@ func TestRealGraphProfileFollowingWrites(t *testing.T) {
 	jo.call(t, "POST", "graphs/delete", remove, 409, "")
 	count = 0
 	jo.call(t, "POST", "graphs/delete", remove, 200, "")
-	jo.call(t, "GET", "graphs/detail?graphId="+created.ID, nil, 404, "")
+	jo.call(t, "GET", "graphs/detail?graphUuid="+created.ID, nil, 404, "")
 	jo.call(t, "POST", "graphs/update", graph.UpdateGraphInput{GraphID: created.ID, ExpectedVersion: 2, Title: "不能复活"}, 404, "")
 	if again := jo.call(t, "POST", "graphs/create", graph.CreateGraphInput{Title: "幂等空图", Description: ""}, 200, key); !bytes.Equal(first, again) {
 		t.Fatal("删除后重试创建丢失了原始回执")

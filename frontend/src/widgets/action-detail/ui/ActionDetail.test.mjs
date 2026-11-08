@@ -5,7 +5,7 @@ import { ToastContext } from '../../../shared/ui/toast/ToastContext.ts'
 import { ActionDetail } from './ActionDetail.tsx'
 
 const noop = () => {}
-const node = (number, parentId, expressionMarkdown, extra = {}) => ({ uuid: String(number), id: String(number), graphId: 'graph', number, parentId, expressionMarkdown, nodeReady: true, authorId: 'jo', title: `行动 ${number}`, markdown: '这次发生的事情', images: [], conversation: [], createdAt: '2026-10-18T12:00:00+08:00', ...extra })
+const node = (number, parentUuid, expressionMarkdown, extra = {}) => ({ uuid: String(number), id: String(number), graphUuid: 'graph', number, parentUuid, expressionMarkdown, nodeReady: true, authorUuid: 'jo', title: `行动 ${number}`, markdown: '这次发生的事情', images: [], conversation: [], createdAt: '2026-10-18T12:00:00+08:00', ...extra })
 function render(actions, id, props = {}) {
   return renderToStaticMarkup(createElement(ToastContext.Provider, { value: { showToast: noop } }, createElement(ActionDetail, {
     node: actions.find((item) => item.uuid === id), actions, users: [], recordMode: 'objective', isHighlightTip: false,
@@ -64,8 +64,8 @@ describe('node detail document tabs', () => {
   })
 
   test('agreement tab includes the source agreement review below the own document', () => {
-    const source = { ...node(1, undefined, ''), authorId: 'lin', agreementMarkdown: '记录总用时' }
-    const child = { ...node(2, '1', ''), agreementMarkdown: '记录锅具', nodeReady: true, referenceAgreements: [{ sourceId: '1', complies: true }] }
+    const source = { ...node(1, undefined, ''), authorUuid: 'lin', agreementMarkdown: '记录总用时' }
+    const child = { ...node(2, '1', ''), agreementMarkdown: '记录锅具', nodeReady: true, referenceAgreements: [{ sourceUuid: '1', complies: true }] }
     const html = render([source, child], '2', { recordMode: 'agreement', isAuthor: true, terminal: true })
     expect(html).toContain('记录锅具')
     expect(html).toContain('来源约定')

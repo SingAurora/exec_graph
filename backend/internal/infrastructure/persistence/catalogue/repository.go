@@ -42,7 +42,7 @@ func MediaURL(uuid *string) *string {
 	if uuid == nil {
 		return nil
 	}
-	value := "/api/commands/media/file?assetId=" + url.QueryEscape(*uuid)
+	value := "/api/commands/media/file?assetUuid=" + url.QueryEscape(*uuid)
 	return &value
 }
 

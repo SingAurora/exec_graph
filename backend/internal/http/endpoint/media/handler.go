@@ -70,7 +70,7 @@ func (h *Handler) Retain(c *gin.Context) { common.Mutation(c, h.auth, h.service.
 
 // File 未保存资源只向上传者返回，已发布配图允许匿名读取；响应不套 JSON。
 func (h *Handler) File(c *gin.Context) {
-	uuid, err := common.Query(c, "assetId")
+	uuid, err := common.Query(c, "assetUuid")
 	if err != nil {
 		common.Fail(c, err)
 		return

@@ -50,7 +50,7 @@ type WorkspaceFrameProps = {
   profileName: string
   profile?: UserProfile
   users?: UserProfile[]
-  defaultAuthorId?: string
+  defaultAuthorUuid?: string
   input: string
   inputLabel?: string
   placeholder: string
@@ -70,7 +70,7 @@ type WorkspaceFrameProps = {
 }
 
 /** 三类工作区共用界面框架；各工作区只显示当前业务需要的文档栏目。 */
-export function WorkspaceFrame({ title, tabs = ['conversation', 'objective', 'expression', 'agreement'], help, draftControls, view, onViewChange, restoring = false, context, tabActions, composerMode = 'conversation', onComposerModeChange, imageComposer, imageModeBadge, status, messages, starterHint, profileName, profile, users = [], defaultAuthorId, input, inputLabel = '对话内容', placeholder, sending, sendingLabel = '正在整理', fallbackAIName, disabled = false, onInputChange, onSend, onBack, action, actionControls, expression, agreement, guide, footer }: WorkspaceFrameProps) {
+export function WorkspaceFrame({ title, tabs = ['conversation', 'objective', 'expression', 'agreement'], help, draftControls, view, onViewChange, restoring = false, context, tabActions, composerMode = 'conversation', onComposerModeChange, imageComposer, imageModeBadge, status, messages, starterHint, profileName, profile, users = [], defaultAuthorUuid, input, inputLabel = '对话内容', placeholder, sending, sendingLabel = '正在整理', fallbackAIName, disabled = false, onInputChange, onSend, onBack, action, actionControls, expression, agreement, guide, footer }: WorkspaceFrameProps) {
   const [localTab, setTab] = useState<WorkspaceTab>('conversation')
   const [nodeInfoOpen, setNodeInfoOpen] = useState(false)
   const requestedTab = view?.tab ?? localTab
@@ -123,9 +123,9 @@ export function WorkspaceFrame({ title, tabs = ['conversation', 'objective', 'ex
   const copiedModel = fallbackAIName?.trim() || [...messages].reverse().find((message) => message.speaker === 'ai' && message.model?.trim())?.model?.trim()
   const copyText = formatConversationForCopy(messages.filter((message) => message.id !== 'welcome'), {
     resolveUserName: (message) => {
-      const authorId = message.authorId ?? defaultAuthorId ?? profile?.uuid
-      const author = users.find((user) => user.uuid === authorId) ?? (authorId === profile?.uuid ? profile : undefined)
-      return author?.name ?? authorId ?? profileName
+      const authorUuid = message.authorUuid ?? defaultAuthorUuid ?? profile?.uuid
+      const author = users.find((user) => user.uuid === authorUuid) ?? (authorUuid === profile?.uuid ? profile : undefined)
+      return author?.name ?? authorUuid ?? profileName
     },
     fallbackAIName: copiedModel || '引序 AI',
   })

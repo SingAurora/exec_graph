@@ -31,7 +31,7 @@ export type ActionWorkspaceDraft = {
   agreementMode: ActionDocumentUpdateMode
   agreementDraft: string
   agreementReviews: AIActionAgreementReview[]
-  mergedParentIds: string[]
+  mergedParentUuids: string[]
   sourcesChanged: boolean
   contextSignature: string
   view: WorkspaceView
@@ -94,7 +94,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 function isMessage(value: unknown): boolean {
   return isRecord(value) && typeof value.id === 'string' && (value.speaker === 'ai' || value.speaker === 'user')
-    && typeof value.body === 'string' && (value.authorId === undefined || typeof value.authorId === 'string')
+    && typeof value.body === 'string' && (value.authorUuid === undefined || typeof value.authorUuid === 'string')
     && (value.model === undefined || typeof value.model === 'string')
 }
 function isMessages(value: unknown): boolean { return Array.isArray(value) && value.every(isMessage) }
@@ -103,14 +103,14 @@ function isGenerationState(value: Record<string, unknown>): boolean {
   const request = value.generationRequest, generation = value.generation
   if (request !== undefined) {
     if (!isRecord(request) || typeof request.key !== 'string' || !isRecord(request.input)
-      || !['action', 'expression', 'agreement'].includes(String(request.input.mode)) || typeof request.input.graphId !== 'string'
+      || !['action', 'expression', 'agreement'].includes(String(request.input.mode)) || typeof request.input.graphUuid !== 'string'
       || !(Array.isArray(request.input.messages) || typeof request.input.message === 'string')
       || (Array.isArray(request.input.messages) && !request.input.messages.every((message) => typeof message === 'string'))
-      || !Array.isArray(request.input.sourceVersions) || !Array.isArray(request.input.mergedParentIds)
+      || !Array.isArray(request.input.sourceVersions) || !Array.isArray(request.input.mergedParentUuids)
       || !isRecord(request.input.agreement) || !isMode(request.input.agreement.mode)) return false
   }
-  if (generation !== undefined && (!isRecord(generation) || typeof generation.generationId !== 'string'
-    || typeof generation.conversationId !== 'string' || !['pending', 'succeeded', 'failed'].includes(String(generation.status)))) return false
+  if (generation !== undefined && (!isRecord(generation) || typeof generation.generationUuid !== 'string'
+    || typeof generation.conversationUuid !== 'string' || !['pending', 'succeeded', 'failed'].includes(String(generation.status)))) return false
   return true
 }
 function isView(value: unknown): boolean {
@@ -125,7 +125,7 @@ export function isActionWorkspaceDraft(value: unknown): value is ActionWorkspace
   const { details, expression } = value
   return isGenerationState(value) && isMessages(value.messages) && typeof value.input === 'string' && typeof value.document === 'string'
     && (value.pendingReports === undefined || (Array.isArray(value.pendingReports) && value.pendingReports.every((message) => typeof message === 'string')))
-    && (value.images === undefined || (Array.isArray(value.images) && value.images.length <= 12 && value.images.every((image) => isRecord(image) && typeof image.assetId === 'string' && typeof image.url === 'string' && typeof image.alt === 'string')))
+    && (value.images === undefined || (Array.isArray(value.images) && value.images.length <= 12 && value.images.every((image) => isRecord(image) && typeof image.assetUuid === 'string' && typeof image.url === 'string' && typeof image.alt === 'string')))
     && (value.imagePlacementPending === undefined || typeof value.imagePlacementPending === 'boolean')
     && typeof details.title === 'string' && typeof details.description === 'string' && typeof details.note === 'string'
     && Array.isArray(details.points) && details.points.every((point) => typeof point === 'string')
@@ -137,7 +137,7 @@ export function isActionWorkspaceDraft(value: unknown): value is ActionWorkspace
     && Array.isArray(value.agreementReviews) && value.agreementReviews.every((review) => isRecord(review)
       && typeof review.nodeNumber === 'number' && Number.isFinite(review.nodeNumber)
       && (review.complies === true || review.complies === false || review.complies === null) && typeof review.reason === 'string')
-    && Array.isArray(value.mergedParentIds) && value.mergedParentIds.every((id) => typeof id === 'string')
+    && Array.isArray(value.mergedParentUuids) && value.mergedParentUuids.every((id) => typeof id === 'string')
     && typeof value.sourcesChanged === 'boolean' && typeof value.contextSignature === 'string' && isView(value.view)
 }
 

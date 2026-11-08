@@ -9,7 +9,7 @@ import (
 // SetFollowingInput 必须显式提供 following，遗漏不能当作取消。
 type SetFollowingInput struct {
 	Kind      string `json:"kind"`
-	TargetID  string `json:"targetId"`
+	TargetID  string `json:"targetUuid"`
 	Following *bool  `json:"following"`
 }
 

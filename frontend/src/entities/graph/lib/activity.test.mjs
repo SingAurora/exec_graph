@@ -3,14 +3,14 @@ import { getActiveGraphActivities, getGraphActivity, hasUserContributed } from '
 import { getPublishedExpressions } from '../../action/lib/published.ts'
 
 const node = (id, extra = {}) => ({
-  uuid: id, id, graphId: 'g', number: Number(id), authorId: 'jo', title: '行动', markdown: '完成了某件事',
+  uuid: id, id, graphUuid: 'g', number: Number(id), authorUuid: 'jo', title: '行动', markdown: '完成了某件事',
   images: [], conversation: [], createdAt: `2026-10-${id.padStart(2, '0')}T12:00:00+08:00`, ...extra,
 })
-const graph = { uuid: 'g', id: 'g', ownerId: 'owner', participantIds: ['stale'], title: '公开图', description: '', createdAt: '2026-10-01T00:00:00+08:00' }
+const graph = { uuid: 'g', id: 'g', ownerUuid: 'owner', participantUuids: ['stale'], title: '公开图', description: '', createdAt: '2026-10-01T00:00:00+08:00' }
 
 describe('public graph activity', () => {
   test('counts actual distinct authors and current nonempty expressions, ignoring legacy membership and other graphs', () => {
-    const nodes = [node('1', { expressionMarkdown: '先观察' }), node('2', { parentId: '1', authorId: 'lin' }), node('3', { parentId: '1', expressionMarkdown: '' }), node('4', { graphId: 'other', authorId: 'outside' })]
+    const nodes = [node('1', { expressionMarkdown: '先观察' }), node('2', { parentUuid: '1', authorUuid: 'lin' }), node('3', { parentUuid: '1', expressionMarkdown: '' }), node('4', { graphUuid: 'other', authorUuid: 'outside' })]
     expect(getGraphActivity(graph, nodes)).toEqual({ graph: graph, actionCount: 3, expressionCount: 1, participantCount: 2, lastActionAt: nodes[2].createdAt })
     expect(hasUserContributed('g', 'stale', nodes)).toBe(false)
     expect(hasUserContributed('g', 'owner', nodes)).toBe(false)
@@ -19,22 +19,22 @@ describe('public graph activity', () => {
   })
 
   test('filters followed authors only after resolving endpoints across all authors and merge references', () => {
-    const nodes = [node('1', { expressionMarkdown: '旧表达' }), node('2', { parentId: '1', authorId: 'lin' }), node('3', { expressionMarkdown: '另一条链' }), node('4', { parentId: '2', mergedParentIds: ['3'], authorId: 'miao' })]
+    const nodes = [node('1', { expressionMarkdown: '旧表达' }), node('2', { parentUuid: '1', authorUuid: 'lin' }), node('3', { expressionMarkdown: '另一条链' }), node('4', { parentUuid: '2', mergedParentUuids: ['3'], authorUuid: 'miao' })]
     expect(getPublishedExpressions(nodes, ['jo'])).toEqual([])
     expect(getPublishedExpressions(nodes, ['miao']).map((item) => item.uuid)).toEqual(['4'])
     expect(getPublishedExpressions(nodes, [])).toEqual([])
   })
 
   test('inheritance remains readable, explicit clearing propagates, and only a later new expression returns', () => {
-    const nodes = [node('1', { expressionMarkdown: '起初的看法' }), node('2', { parentId: '1' }), node('3', { parentId: '2', expressionMarkdown: '' }), node('4', { parentId: '3' })]
+    const nodes = [node('1', { expressionMarkdown: '起初的看法' }), node('2', { parentUuid: '1' }), node('3', { parentUuid: '2', expressionMarkdown: '' }), node('4', { parentUuid: '3' })]
     expect(getPublishedExpressions(nodes)).toEqual([])
-    const update = node('5', { parentId: '4', expressionMarkdown: '新的看法' })
+    const update = node('5', { parentUuid: '4', expressionMarkdown: '新的看法' })
     expect(getPublishedExpressions([...nodes, update])).toEqual([update])
   })
 
   test('a reference from another graph cannot remove a local endpoint or borrow its expression', () => {
     const root = node('1', { expressionMarkdown: '本图表达' })
-    const foreign = node('2', { graphId: 'other', parentId: '1' })
+    const foreign = node('2', { graphUuid: 'other', parentUuid: '1' })
     expect(getPublishedExpressions([root, foreign])).toEqual([root])
   })
 
@@ -42,8 +42,8 @@ describe('public graph activity', () => {
     const graphs = [{ ...graph, updatedAt: '2026-12-01T00:00:00+08:00' },
       { ...graph, uuid: 'newer', id: 'newer', title: '最近行动的图' },
       { ...graph, uuid: 'empty', id: 'empty', createdAt: '2026-12-01T00:00:00+08:00' }]
-    const nodes = [node('1'), node('2', { graphId: 'newer', authorId: 'lin' }),
-      node('3', { graphId: 'missing' })]
+    const nodes = [node('1'), node('2', { graphUuid: 'newer', authorUuid: 'lin' }),
+      node('3', { graphUuid: 'missing' })]
     const activities = getActiveGraphActivities(graphs, nodes)
     expect(activities.map(({ graph }) => graph.uuid)).toEqual(['newer', 'g'])
     expect(activities[0].participantCount).toBe(1)

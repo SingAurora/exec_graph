@@ -24,7 +24,7 @@ func assetUUID(value string) *string {
 	if err != nil || u.Path != "/api/commands/media/file" {
 		return nil
 	}
-	uuid := u.Query().Get("assetId")
+	uuid := u.Query().Get("assetUuid")
 	if !id.Valid(uuid) {
 		return nil
 	}

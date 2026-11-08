@@ -15,7 +15,7 @@ export function DashboardDocumentCard({ node, actions, users, graph, mode, compa
 }) {
   if (mode === 'expression') return (
     <ActionPostList nodes={[node]} actions={actions} users={users} mode="expression" presentation="feed" onExplore={onOpenNode}
-      renderContext={() => <GraphContextLink id={node.graphId} title={graph?.title} onOpen={onOpenGraph} />} />
+      renderContext={() => <GraphContextLink id={node.graphUuid} title={graph?.title} onOpen={onOpenGraph} />} />
   )
   const markdown = node.objectiveMarkdown ?? node.markdown
   const images = node.images

@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState, type FocusEvent, type Mous
 import cytoscape, { type Core } from 'cytoscape'
 import { GitBranch, LocateFixed, Maximize2, Minus, Network, Plus, Scan, X } from 'lucide-react'
 import type { ActionNode } from '../../../entities/action/model/types'
-import { getActionContextIds, getActionParentIds } from '../../../entities/action/lib/graph'
+import { getActionContextIds, getActionParentUuids } from '../../../entities/action/lib/graph'
 import { ActionGraphLegend } from '../../../entities/action/ui/ActionGraphLegend'
 import type { UserProfile } from '../../../entities/profile/model/types'
 import { HelpPopover } from '../../../shared/ui/help/HelpPopover'
@@ -22,7 +22,7 @@ type Props = {
   highlightedPath: ActionNode[]
   users: UserProfile[]
   selectedId?: string
-  selectedReferenceId?: string
+  selectedReferenceUuid?: string
   showLegend: boolean
   background: GraphBackgroundPreferences
   active?: boolean
@@ -36,7 +36,7 @@ type Props = {
 }
 
 /** Cytoscape 行动图：实虚线表示作者关系，叉号表示不满足约定；React 管理选择和工具栏。 */
-export function ActionGraph({ actions, highlightedPath, users, selectedId, selectedReferenceId, showLegend, background, active = true, focusRequest = 0, locateRequest = 0, detailsVisible = true, onSelect, onSelectReference, onFitViewport, onClearHighlight }: Props) {
+export function ActionGraph({ actions, highlightedPath, users, selectedId, selectedReferenceUuid, showLegend, background, active = true, focusRequest = 0, locateRequest = 0, detailsVisible = true, onSelect, onSelectReference, onFitViewport, onClearHighlight }: Props) {
   const container = useRef<HTMLDivElement>(null)
   const targets = useRef<HTMLDivElement>(null)
   const graphRef = useRef<Core | null>(null)
@@ -75,18 +75,18 @@ export function ActionGraph({ actions, highlightedPath, users, selectedId, selec
   }, [palette, layout])
 
   const { zoom, changeZoom, locate, fit } = useGraphViewport({ graphRef, container, targets, active,
-    focusId: selectedReferenceId ?? selectedId, selectionId: selectedReferenceId ?? selectedId,
+    focusId: selectedReferenceUuid ?? selectedId, selectionId: selectedReferenceUuid ?? selectedId,
     focusRequest, locateRequest, generation: layout, onMove: () => setHover(null) })
 
   useEffect(() => {
     const graph = graphRef.current
     if (!graph || !active) return
-    const reference = selectedReferenceId ? referenceById.get(selectedReferenceId) : undefined
+    const reference = selectedReferenceUuid ? referenceById.get(selectedReferenceUuid) : undefined
     const contextId = highlightedPath.at(-1)?.uuid
     const context = contextId ? getActionContextIds(actions, contextId) : new Set<string>()
     const pathIds = new Set(highlightedPath.map((node) => node.uuid))
     const selected = actions.find((node) => node.uuid === selectedId)
-    const sources = new Set(reference ? [reference.source.uuid, reference.target.uuid] : selected ? getActionParentIds(selected) : [])
+    const sources = new Set(reference ? [reference.source.uuid, reference.target.uuid] : selected ? getActionParentUuids(selected) : [])
     // 批量更新视觉类；承接主链、合入背景、来源和当前选择各自独立，颜色不表示路线优劣。
     graph.batch(() => {
       graph.elements().removeClass('active source outside main context')
@@ -97,16 +97,16 @@ export function ActionGraph({ actions, highlightedPath, users, selectedId, selec
         if (sources.has(node.id())) node.addClass('source')
       })
       graph.edges().forEach((edge) => {
-        const sourceId = edge.source().id()
-        const targetId = edge.target().id()
-        if (pathIds.has(sourceId) && pathIds.has(targetId) && !edge.hasClass('incorporated')) edge.addClass('main')
-        else if (context.has(sourceId) && context.has(targetId)) edge.addClass('context')
-        if (contextId && (!context.has(sourceId) || !context.has(targetId))) edge.addClass('outside')
+        const sourceUuid = edge.source().id()
+        const targetUuid = edge.target().id()
+        if (pathIds.has(sourceUuid) && pathIds.has(targetUuid) && !edge.hasClass('incorporated')) edge.addClass('main')
+        else if (context.has(sourceUuid) && context.has(targetUuid)) edge.addClass('context')
+        if (contextId && (!context.has(sourceUuid) || !context.has(targetUuid))) edge.addClass('outside')
       })
       const activeId = reference?.uuid ?? selectedId
       if (activeId) graph.getElementById(activeId).addClass('active')
     })
-  }, [selectedId, selectedReferenceId, referenceById, actions, layout, palette, active, highlightedPath])
+  }, [selectedId, selectedReferenceUuid, referenceById, actions, layout, palette, active, highlightedPath])
 
   useEffect(() => {
     const graph = graphRef.current
@@ -146,7 +146,7 @@ export function ActionGraph({ actions, highlightedPath, users, selectedId, selec
       </HelpPopover></div></div>
         <div className="action-graph-heading-actions">
           <button className="action-graph-icon-button" type="button" title="重新铺满" onClick={onFitViewport}><Maximize2 size={16} /></button>
-          {!highlightTip && <button className="action-graph-icon-button" type="button" title={selectedReferenceId ? '定位选中关系' : '定位选中节点'} onClick={() => locateNode(selectedReferenceId ?? selectedId)}><LocateFixed size={16} /></button>}
+          {!highlightTip && <button className="action-graph-icon-button" type="button" title={selectedReferenceUuid ? '定位选中关系' : '定位选中节点'} onClick={() => locateNode(selectedReferenceUuid ?? selectedId)}><LocateFixed size={16} /></button>}
         </div>
       </header>
       <div className="action-graph-toolbar">

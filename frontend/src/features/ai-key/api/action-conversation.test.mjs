@@ -18,7 +18,7 @@ afterEach(() => { fetchSpy?.mockRestore(); fetchSpy = undefined })
 describe('one action conversation with two documents', () => {
   test('returns both documents and supplies the current expression to the same dialogue', async () => {
     respond({ mode: 'update', markdown: '口感比速度更值得在意' })
-    const result = await generateAIDocument({ ...input, currentExpression: { mode: 'inherit', markdown: '' }, historyFacts: [{ number: 2, authorId: 'lin', title: '先盛蛋', markdown: '鸡蛋边缘没有变硬' }] })
+    const result = await generateAIDocument({ ...input, currentExpression: { mode: 'inherit', markdown: '' }, historyFacts: [{ number: 2, authorUuid: 'lin', title: '先盛蛋', markdown: '鸡蛋边缘没有变硬' }] })
     expect(result.document).toBe('本次行动的事实')
     expect(result.expression).toEqual({ mode: 'update', markdown: '口感比速度更值得在意' })
     expect(request.messages.slice(1)).toEqual(input.turns)
@@ -26,7 +26,7 @@ describe('one action conversation with two documents', () => {
     expect(request.messages[0].content).toContain('上次的表达')
     expect(request.messages[0].content).toContain('不要把聊天拆成两个阶段')
     expect(request.messages[0].content).toContain('鸡蛋边缘没有变硬')
-    expect(request.messages[0].content).toContain('"authorId":"lin"')
+    expect(request.messages[0].content).toContain('"authorUuid":"lin"')
   })
 
   test('keeps all prior turns when changing an expression within the action conversation', async () => {
@@ -78,7 +78,7 @@ describe('one action conversation with two documents', () => {
     ])
     const result = await generateAIDocument({ ...input,
       sourceAgreements: [{ nodeNumber: 2, markdown: '记录锅温' }, { nodeNumber: 7, markdown: '静置十分钟' }, { nodeNumber: 11, markdown: '记录用时' }],
-      historyFacts: [{ number: 7, authorId: 'miao', title: '放凉观察', markdown: '合入的行动事实' }],
+      historyFacts: [{ number: 7, authorUuid: 'miao', title: '放凉观察', markdown: '合入的行动事实' }],
     })
     expect(result.agreementReviews).toEqual([
       { nodeNumber: 2, complies: true, reason: '锅温有记录' },

@@ -4,8 +4,8 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { ActionArchive } from './ActionArchive.tsx'
 import { getActionExpressionChange } from '../../../entities/action/lib/formation.ts'
 
-const node = (number, parentId, expressionMarkdown, extra = {}) => ({
-  uuid: String(number), id: String(number), graphId: 'graph', number, parentId, expressionMarkdown, authorId: 'jo', title: `行动 ${number}`,
+const node = (number, parentUuid, expressionMarkdown, extra = {}) => ({
+  uuid: String(number), id: String(number), graphUuid: 'graph', number, parentUuid, expressionMarkdown, authorUuid: 'jo', title: `行动 ${number}`,
   markdown: '文档正文', images: [], conversation: [], createdAt: '2026-10-18T12:00:00+08:00', ...extra,
 })
 const user = { uuid: 'jo', id: 'jo', name: '乔', avatar: '' }
@@ -24,7 +24,7 @@ describe('action formation provenance', () => {
   test('names AI turns by their actual model and offers copying the formation conversation', () => {
     const action = node(1, undefined, undefined, {
       conversation: [
-        { id: 'user-1', speaker: 'user', body: '做了一顿饭', authorId: 'jo' },
+        { id: 'user-1', speaker: 'user', body: '做了一顿饭', authorUuid: 'jo' },
         { id: 'ai-1', speaker: 'ai', body: '已整理行动', model: 'deepseek-flash' },
       ],
     })
@@ -37,8 +37,8 @@ describe('action formation provenance', () => {
   test('continues original dialogue with expression revision turns and credits the participant', () => {
     const action = node(1, undefined, '更新后的表达', {
       conversation: [{ id: 'original-user', speaker: 'user', body: '原本的行动对话' }],
-      expressionSupplement: { authorId: 'lin', createdAt: '2026-10-18T15:00:00+08:00', kind: 'modify' },
-      expressionConversation: [{ id: 'expression-user', speaker: 'user', body: '更新表达的对话', authorId: 'lin' }, { id: 'expression-ai', speaker: 'ai', body: '对话生成的新表达' }],
+      expressionSupplement: { authorUuid: 'lin', createdAt: '2026-10-18T15:00:00+08:00', kind: 'modify' },
+      expressionConversation: [{ id: 'expression-user', speaker: 'user', body: '更新表达的对话', authorUuid: 'lin' }, { id: 'expression-ai', speaker: 'ai', body: '对话生成的新表达' }],
     })
     const html = render([action], '1')
     expect(html.indexOf('原本的行动对话')).toBeLessThan(html.indexOf('更新表达的对话'))
@@ -75,7 +75,7 @@ describe('action formation provenance', () => {
   })
 
   test('inherited expression results link to their source without mixing its conversation into this node', () => {
-    const source = node(1, undefined, '源节点的表达', { authorId: 'lin', conversation: [{ id: 'source', speaker: 'user', body: '源节点的表达想法' }] })
+    const source = node(1, undefined, '源节点的表达', { authorUuid: 'lin', conversation: [{ id: 'source', speaker: 'user', body: '源节点的表达想法' }] })
     const child = node(2, '1', undefined, { conversation: [{ id: 'child', speaker: 'user', body: '本次只记录行动，沿用表达' }] })
     const html = render([source, child], '2')
     expect(html).toContain('本次只记录行动，沿用表达')
@@ -106,8 +106,8 @@ describe('action formation provenance', () => {
 
   test('keeps continuation, merge and noncompliance distinct without trusting stale snapshot counts', () => {
     const actions = [node(1), node(2, '1', '表达', { agreementMarkdown: '固定份量' }), node(3, '1'), node(4, '2', undefined, {
-      mergedParentIds: ['3'], contextSnapshot: { directNodeIds: [], historyNodeCount: 99 },
-      referenceAgreements: [{ sourceId: '2', complies: false, exceptionReason: '换份量' }],
+      mergedParentUuids: ['3'], contextSnapshot: { directNodeUuids: [], historyNodeCount: 99 },
+      referenceAgreements: [{ sourceUuid: '2', complies: false, exceptionReason: '换份量' }],
     }), node(99, undefined, '无关分支')]
     const html = render(actions, '4')
     expect(html).toContain('承接 #2')
@@ -122,7 +122,7 @@ describe('action formation provenance', () => {
   })
 
   test('identifies later supplements without changing the original conversation', () => {
-    const action = node(1, undefined, '补充的表达', { expressionSupplement: { authorId: 'jo', createdAt: '2026-10-18T15:00:00+08:00' } })
+    const action = node(1, undefined, '补充的表达', { expressionSupplement: { authorUuid: 'jo', createdAt: '2026-10-18T15:00:00+08:00' } })
     const html = render([action], '1')
     expect(html).toContain('发布后补充表达')
     expect(html).toContain('未记录编辑对话')
@@ -131,7 +131,7 @@ describe('action formation provenance', () => {
   })
 
   test('shows a supplemented agreement as a later document rather than an original AI conversation', () => {
-    const action = node(1, undefined, '', { agreementMarkdown: '后续记录实际用时', agreementSupplement: { authorId: 'jo', createdAt: '2026-10-18T15:00:00+08:00' },
+    const action = node(1, undefined, '', { agreementMarkdown: '后续记录实际用时', agreementSupplement: { authorUuid: 'jo', createdAt: '2026-10-18T15:00:00+08:00' },
       conversation: [{ id: 'original', speaker: 'user', body: '原始行动说明' }] })
     const html = render([action], '1')
     expect(html).toContain('约定文档')
@@ -143,7 +143,7 @@ describe('action formation provenance', () => {
 
   test('labels later modifications and clears accurately, including empty document results', () => {
     for (const kind of ['modify', 'clear']) {
-      const revision = { kind, authorId: 'jo', createdAt: '2026-10-18T16:00:00+08:00' }
+      const revision = { kind, authorUuid: 'jo', createdAt: '2026-10-18T16:00:00+08:00' }
       const action = node(1, undefined, kind === 'clear' ? '' : '修改后的表达', {
         expressionSupplement: revision, agreementMarkdown: kind === 'clear' ? '' : '修改后的约定', agreementSupplement: revision,
       })

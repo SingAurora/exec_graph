@@ -5,7 +5,7 @@ import { ToastContext } from '../../shared/ui/toast/ToastContext.ts'
 import { AgreementWorkspace } from './AgreementWorkspace.tsx'
 
 const node = {
-  uuid: 'node-1', id: 'node-1', graphId: 'graph-1', number: 1, authorId: 'user-1', version: 2,
+  uuid: 'node-1', id: 'node-1', graphUuid: 'graph-1', number: 1, authorUuid: 'user-1', version: 2,
   title: '本次实际行动', markdown: '行动事实', agreementMarkdown: '引用时记录观察结果',
   conversation: [{ id: 'action-user', speaker: 'user', body: '行动对话不能混入约定对话' }],
   agreementConversation: [{ id: 'agreement-user', speaker: 'user', body: '约定对话历史应恢复' }],
@@ -13,7 +13,7 @@ const node = {
 
 function render() {
   return renderToStaticMarkup(createElement(ToastContext.Provider, { value: { showToast() {} } },
-    createElement(AgreementWorkspace, { node, actions: [node], profileName: '乔', profileId: 'user-1', onBack() {}, onConfirm() { return true } })))
+    createElement(AgreementWorkspace, { node, actions: [node], profileName: '乔', profileUuid: 'user-1', onBack() {}, onConfirm() { return true } })))
 }
 
 describe('agreement workspace', () => {

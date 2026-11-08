@@ -21,13 +21,13 @@ import { appendWorkspaceError, appendWorkspaceNotice, createWorkspaceView, isExp
 import { BusinessRequestError } from '../../shared/api/errors'
 
 /** 独立整理本节点向后传递的约定，不改写行动、表达或已有来源核对。 */
-export function AgreementWorkspace({ node, csrfToken, draftKey, actions, profileName, profileId, profile, users = [], contextGuide, onBack, onConfirm, onPublishDraft }: {
+export function AgreementWorkspace({ node, csrfToken, draftKey, actions, profileName, profileUuid, profile, users = [], contextGuide, onBack, onConfirm, onPublishDraft }: {
   node: ActionNode & { version: number }
   csrfToken: string
   draftKey?: string
   actions: ActionNode[]
   profileName: string
-  profileId: string
+  profileUuid: string
   profile?: UserProfile
   users?: UserProfile[]
   contextGuide?: string
@@ -38,7 +38,7 @@ export function AgreementWorkspace({ node, csrfToken, draftKey, actions, profile
   const { generate } = useGeneration(csrfToken)
   const [initialDraft, setInitialDraft] = useState('')
   useEffect(() => {
-    if (node.authorId !== profileId) return
+    if (node.authorUuid !== profileUuid) return
     let active = true
     void getNodeDocuments(node.uuid).then((documents) => {
       const document = documents.find((item) => item.kind === 'agreement')
@@ -46,13 +46,13 @@ export function AgreementWorkspace({ node, csrfToken, draftKey, actions, profile
       if (active && draft) setInitialDraft(draft)
     }).catch(() => undefined)
     return () => { active = false }
-  }, [node.uuid, node.authorId, profileId])
+  }, [node.uuid, node.authorUuid, profileUuid])
   const agreement = { markdown: initialDraft || node.agreementMarkdown || '' }
   const expressionContext = useMemo(() => getActionExpressionContext(actions, node.uuid), [actions, node.uuid])
   const signature = JSON.stringify({ node: node.uuid, version: node.version, guide: contextGuide, agreement: node.agreementMarkdown ?? '',
     facts: expressionContext?.facts })
   const local = useLocalDraft<ExpressionWorkspaceDraft>({
-    draftKey: draftKey ?? getActionDraftKey(profileId, node.graphId, 'agreement', node.uuid),
+    draftKey: draftKey ?? getActionDraftKey(profileUuid, node.graphUuid, 'agreement', node.uuid),
     initialValue: { messages: node.agreementConversation ?? [], input: '', generated: false, contextSignature: signature, view: createWorkspaceView() },
     validate: isExpressionWorkspaceDraft,
     restore: (saved) => reconcileWorkspaceDraft({ ...saved, generationRequest: normalizeGenerationRequest(saved.generationRequest) }, signature),
@@ -77,7 +77,7 @@ export function AgreementWorkspace({ node, csrfToken, draftKey, actions, profile
     if (!draft) throw new Error('AI 没有返回约定草稿，请重新发送。')
     if (draft.mode === 'inherit') throw new Error('约定没有变化，请说明要补充或调整的内容')
     local.update((current) => ({ ...current, generation: result, draftDocument: draft.mode === 'update' ? draft.markdown : '', generated: true, contextSignature: signature,
-      messages: [...current.messages, { id: `agreement-ai-${result.generationId}`, speaker: 'ai', body: result.draft!.reply, model: result.model }] }))
+      messages: [...current.messages, { id: `agreement-ai-${result.generationUuid}`, speaker: 'ai', body: result.draft!.reply, model: result.model }] }))
   }
   const applyGenerationRef = useRef(applyGeneration)
   applyGenerationRef.current = applyGeneration
@@ -102,9 +102,9 @@ export function AgreementWorkspace({ node, csrfToken, draftKey, actions, profile
     event.preventDefault()
     const clean = input.trim()
     if (!local.ready || !clean || sending || saving || !canEdit) return
-    const next = [...messages.filter(isConversationMessage), { id: `agreement-user-${Date.now()}`, speaker: 'user' as const, body: clean, authorId: profileId }]
-    const requestInput: GenerateInput = { mode: 'agreement', graphId: node.graphId, nodeId: node.uuid, expectedVersion: node.version, messages: [clean],
-      conversationId: generation?.conversationId, mergedParentIds: [], sourceVersions: [], agreement: documentUpdate(node.agreementMarkdown ?? ''), currentDocument: markdown }
+    const next = [...messages.filter(isConversationMessage), { id: `agreement-user-${Date.now()}`, speaker: 'user' as const, body: clean, authorUuid: profileUuid }]
+    const requestInput: GenerateInput = { mode: 'agreement', graphUuid: node.graphUuid, nodeUuid: node.uuid, expectedVersion: node.version, messages: [clean],
+      conversationUuid: generation?.conversationUuid, mergedParentUuids: [], sourceVersions: [], agreement: documentUpdate(node.agreementMarkdown ?? ''), currentDocument: markdown }
     const request: GenerationRequest = !generated && generationRequest && generation?.status !== 'failed' && JSON.stringify(generationRequest.input) === JSON.stringify(requestInput)
       ? generationRequest : { key: crypto.randomUUID(), input: requestInput }
     update({ messages: next, input: '', generated: false, generationRequest: request })
@@ -117,7 +117,7 @@ export function AgreementWorkspace({ node, csrfToken, draftKey, actions, profile
       local.update((current) => ({ ...current, messages: append(current.messages, `暂时无法更新约定：${error instanceof Error ? error.message : '请求失败，请稍后重试。'}`), input: clean }))
     } finally { setSending(false) }
   }
-  const conversation: ActionExpressionMessage[] = messages.map((message) => ({ ...message, authorId: message.authorId ?? profileId }))
+  const conversation: ActionExpressionMessage[] = messages.map((message) => ({ ...message, authorUuid: message.authorUuid ?? profileUuid }))
   const context = expressionContext
   const workspaceStatus: { text: string; tone: 'muted' | 'signal' | 'warning' | 'coral' } = !canEdit ? { text: '不可修改', tone: 'coral' }
     : sending ? { text: '正在整理…', tone: 'muted' }
@@ -136,7 +136,7 @@ export function AgreementWorkspace({ node, csrfToken, draftKey, actions, profile
       draftControls={<LocalDraftControls status={local.status} hasDraft={local.hasDraft} disabled={sending || saving || !local.ready} onDiscard={local.discard} />}
       help={<HelpPopover title="约定的作用"><p>约定说明后来引用这个节点时，你希望对方满足什么条件。它参考整条支链的事实与表达，但不同于本次行动是否满足来源节点的约定。</p><p>约定从当前节点向后生效；保存后不会改写已有引用的核对结果。</p><p>想要低负担默认稿时，直接说“给我一个默认效果的约定”。</p></HelpPopover>}
       context={{ label: `节点 #${node.number}`, title: node.title, facts: context?.facts.filter((fact) => fact.number !== node.number) ?? [] }}
-      starterHint="你希望后来引用这个节点的人满足什么条件？可以说得具体一些，也可以先讨论再决定。" messages={conversation.filter((message) => message.id !== 'welcome')} profileName={profileName} profile={profile} users={users} defaultAuthorId={profileId} status={workspaceStatus}
+      starterHint="你希望后来引用这个节点的人满足什么条件？可以说得具体一些，也可以先讨论再决定。" messages={conversation.filter((message) => message.id !== 'welcome')} profileName={profileName} profile={profile} users={users} defaultAuthorUuid={profileUuid} status={workspaceStatus}
       input={input} inputLabel="约定对话内容" placeholder="说说你希望对方满足什么条件，或“给我一个默认效果的约定”" sending={sending} fallbackAIName={generation?.model} disabled={saving || !local.ready || !canEdit}
       onInputChange={(input) => update({ input })} onSend={send} onBack={onBack}
       action={{ title: node.title, markdown: node.objectiveMarkdown ?? node.markdown, images: node.images, status: '只读', empty: '暂无行动记录' }}

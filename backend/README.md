@@ -24,7 +24,7 @@ EXEC_GRAPH_DATABASE_SCHEMA=exec_graph go run ./cmd/manage verify
 
 ## Go 同时提供前端与 API
 
-部署后只运行一个 Go 进程：`/` 提供前端首页，构建资源从 `frontend/dist` 读取，`/api/commands/...` 继续提供业务接口。不需要运行 Vite，也不需要 Nginx。路由使用 `/#my`、`/#graph?graphId=...` 等 hash 地址。
+部署后只运行一个 Go 进程：`/` 提供前端首页，构建资源从 `frontend/dist` 读取，`/api/commands/...` 继续提供业务接口。不需要运行 Vite，也不需要 Nginx。路由使用 `/#my`、`/#graph?graphUuid=...` 等 hash 地址。
 
 从仓库根目录构建（服务器需安装 Bun 和 Go）：
 
@@ -148,16 +148,16 @@ EXEC_GRAPH_DATABASE_SCHEMA=exec_graph EXEC_GRAPH_ADDR=127.0.0.1:8080 EXEC_GRAPH_
 | POST | `/auth/password-change`、`/auth/email-change` | 当前密码与验证码双重校验，成功撤销旧会话 |
 | GET | `/profiles/catalogue` | 公开用户资料，不含邮箱和测试管理字段 |
 | GET | `/graphs/catalogue` | 可见图目录 |
-| GET | `/graphs/detail?graphId=...` | 单图资料 |
-| GET | `/actions/context?graphId=...` | 图内完整确认上下文 |
-| GET | `/actions/detail?nodeId=...` | 单个行动 |
+| GET | `/graphs/detail?graphUuid=...` | 单图资料 |
+| GET | `/actions/context?graphUuid=...` | 图内完整确认上下文 |
+| GET | `/actions/detail?nodeUuid=...` | 单个行动 |
 | GET | `/following/sources` | 当前登录账号的关注集合 |
-| GET | `/media/file?assetId=...` | 已就绪图片；成功时返回二进制，不套 JSON |
+| GET | `/media/file?assetUuid=...` | 已就绪图片；成功时返回二进制，不套 JSON |
 | POST | `/media/upload`、`/media/retain` | 上传登记与草稿图片续期 |
 | POST | `/ai/generate` | 平台 AI 生成私有草稿，需要提交键 |
 | POST | `/ai/chat` | 在对话中判断继续整理或核验当前草稿 |
 | POST | `/ai/verify` | 显式核验已生成草稿，返回一条核验结果 |
-| GET | `/ai/generation?generationId=...` | 读取本人生成结果及确认参数 |
+| GET | `/ai/generation?generationUuid=...` | 读取本人生成结果及确认参数 |
 | POST | `/graphs/create`、`/graphs/update`、`/graphs/delete` | 图创建、版本更新和受保护删除 |
 | POST | `/actions/create` | 确认服务端 AI 结果并原子发布行动 |
 | POST | `/expressions/update`、`/agreements/update` | 终点表达／约定的版本化确认 |
@@ -166,9 +166,9 @@ EXEC_GRAPH_DATABASE_SCHEMA=exec_graph EXEC_GRAPH_ADDR=127.0.0.1:8080 EXEC_GRAPH_
 
 使用 Bearer token 和 Redis 会话；客户端需携带 `Authorization: Bearer <token>`。每次会话读取检查数据库停用状态及认证版本。密码采用 Argon2id，不提供明文或可逆密码读取。
 
-读取兼容导入数据的旧短 ID，但响应资源 ID 一律为 UUID；写入只接受 UUID。行动 DTO 和前端都使用 `graphId`，资源标识字段为 `uuid`；关注模型使用 `graphIds`。未确认的 AI 对话不会公开。
+读取兼容导入数据的旧短 ID，但响应资源 ID 一律为 UUID；写入只接受 UUID。行动 DTO 和前端都使用 `graphUuid`，资源标识字段为 `uuid`；关注模型使用 `graphUuids`。未确认的 AI 对话不会公开。
 
-写入的准确 DTO、权限和事务行为见 [真实后端写入契约](../doc/backend-write-contract.md)。创建带 `Idempotency-Key`，全部业务写入需要会话，修改带 `expectedVersion`。图和资料图片接受已上传的资产 UUID；行动及表达确认使用 `generationId`，不接受浏览器直接伪造的 AI 文稿／对话。
+写入的准确 DTO、权限和事务行为见 [真实后端写入契约](../doc/backend-write-contract.md)。创建带 `Idempotency-Key`，全部业务写入需要会话，修改带 `expectedVersion`。图和资料图片接受已上传的资产 UUID；行动及表达确认使用 `generationUuid`，不接受浏览器直接伪造的 AI 文稿／对话。
 
 前端只连接真实后端，认证、上传、生成和确认发布已接入。外部能力 DTO、私有草稿隔离、限时和回收边界见 [外部能力契约](../doc/backend-external-contract.md)。未知接口返回 404，不返回模拟成功。
 

@@ -51,7 +51,7 @@ export function buildBranchSummaries(plans: PlanNode[], completions: CompletionN
     groups.set(branchId, branchPlans)
   })
 
-  const completionByPlan = new Map(completions.map((completion) => [completion.planNodeId, completion]))
+  const completionByPlan = new Map(completions.map((completion) => [completion.planNodeUuid, completion]))
   const summaries = Array.from(groups, ([id, branchPlans]) => {
     const planIds = new Set(branchPlans.map((plan) => plan.id))
     const completedCount = branchPlans.filter((plan) => plan.status === 'completed' || completionByPlan.has(plan.id)).length

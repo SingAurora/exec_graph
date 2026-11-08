@@ -3,15 +3,15 @@ import { getActionContinuationContext, getActionMergeCandidates } from './contin
 import { getActionExpression } from './expressions.ts'
 import { getActionReferences } from './references.ts'
 
-const node = (number, extra = {}) => ({ uuid: String(number), id: String(number), graphId: 'cooking', number, authorId: 'jo', title: `行动 ${number}`, markdown: `事实 ${number}`, images: [], conversation: [], createdAt: '2026-10-19T12:00:00+08:00', ...extra })
+const node = (number, extra = {}) => ({ uuid: String(number), id: String(number), graphUuid: 'cooking', number, authorUuid: 'jo', title: `行动 ${number}`, markdown: `事实 ${number}`, images: [], conversation: [], createdAt: '2026-10-19T12:00:00+08:00', ...extra })
 const actions = [
   node(1, { agreementMarkdown: '保留失败记录', expressionMarkdown: '先观察再下结论' }),
-  node(2, { parentId: '1', agreementMarkdown: '记录锅温' }),
-  node(3, { parentId: '1', agreementMarkdown: '静置十分钟', expressionMarkdown: '合入的观点' }),
-  node(4, { parentId: '3', objectiveMarkdown: '实际静置了五分钟' }),
-  node(5, { parentId: '1', agreementMarkdown: '' }),
-  node(6, { graphId: 'other' }),
-  node(7, { parentId: '1', agreementMarkdown: '记录用时' }),
+  node(2, { parentUuid: '1', agreementMarkdown: '记录锅温' }),
+  node(3, { parentUuid: '1', agreementMarkdown: '静置十分钟', expressionMarkdown: '合入的观点' }),
+  node(4, { parentUuid: '3', objectiveMarkdown: '实际静置了五分钟' }),
+  node(5, { parentUuid: '1', agreementMarkdown: '' }),
+  node(6, { graphUuid: 'other' }),
+  node(7, { parentUuid: '1', agreementMarkdown: '记录用时' }),
 ]
 
 describe('continuation and merged sources', () => {
@@ -21,7 +21,7 @@ describe('continuation and merged sources', () => {
   })
 
   test('being incorporated also ends eligibility, while references in another graph do not', () => {
-    const graph = [...actions, node(8, { parentId: '7', mergedParentIds: ['4'] }), node(9, { graphId: 'other', parentId: '5', mergedParentIds: ['8'] })]
+    const graph = [...actions, node(8, { parentUuid: '7', mergedParentUuids: ['4'] }), node(9, { graphUuid: 'other', parentUuid: '5', mergedParentUuids: ['8'] })]
     expect(getActionMergeCandidates(graph, '2').map((item) => item.uuid)).toEqual(['8', '5'])
     expect(getActionContinuationContext(graph, '2', ['4'])).toBeUndefined()
     expect(getActionContinuationContext(graph, '2', ['8', '5'])).toBeDefined()
@@ -29,7 +29,7 @@ describe('continuation and merged sources', () => {
 
   test('rejects selected sources that gain a continuation or merge before publication', () => {
     expect(getActionContinuationContext(actions, '2', ['4', '5'])).toBeDefined()
-    const advanced = [...actions, node(8, { parentId: '4' }), node(9, { parentId: '7', mergedParentIds: ['5'] })]
+    const advanced = [...actions, node(8, { parentUuid: '4' }), node(9, { parentUuid: '7', mergedParentUuids: ['5'] })]
     expect(getActionContinuationContext(advanced, '2', ['4', '5'])).toBeUndefined()
     expect(getActionContinuationContext(advanced, '2', ['8', '9'])).toBeDefined()
   })
@@ -55,8 +55,8 @@ describe('continuation and merged sources', () => {
   })
 
   test('published source assessments independently drive every link without changing inherited expression or agreement', () => {
-    const assessments = [{ sourceId: '2', complies: true }, { sourceId: '4', complies: false, exceptionReason: '只静置了五分钟' }]
-    const published = node(8, { parentId: '2', mergedParentIds: ['4', '5', '7'], referenceAgreements: assessments })
+    const assessments = [{ sourceUuid: '2', complies: true }, { sourceUuid: '4', complies: false, exceptionReason: '只静置了五分钟' }]
+    const published = node(8, { parentUuid: '2', mergedParentUuids: ['4', '5', '7'], referenceAgreements: assessments })
     const graph = [...actions, published]
     const incoming = getActionReferences(graph).filter((item) => item.target.uuid === '8')
     expect(incoming.map((item) => [item.source.uuid, item.incorporated, item.agreementStatus])).toEqual([

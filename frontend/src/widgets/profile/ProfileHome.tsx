@@ -10,8 +10,8 @@ import { ProfileTimelineItem } from './ProfileTimelineItem'
 const pageSize = 10
 
 /** Retained daily activity overview; only published actions contribute to the heatmap. */
-export function ProfileHome({ userId, actions, active, onOpenNode }: {
-  userId: string; actions: ActionNode[]; active: boolean
+export function ProfileHome({ userUuid, actions, active, onOpenNode }: {
+  userUuid: string; actions: ActionNode[]; active: boolean
   onOpenNode: (node: ActionNode, mode: ActionDocumentMode) => void
 }) {
   const [selectedDate, setSelectedDate] = useState<string>()
@@ -19,7 +19,7 @@ export function ProfileHome({ userId, actions, active, onOpenNode }: {
   const timelineRef = useRef<HTMLDivElement>(null)
   const scrollTop = useRef(0)
   const endRef = useRef<HTMLParagraphElement>(null)
-  const activity = useMemo(() => getProfileActivity(actions, userId), [actions, userId])
+  const activity = useMemo(() => getProfileActivity(actions, userUuid), [actions, userUuid])
   const days = getProfileActivityDays(activity)
   const filtered = selectedDate ? activity.filter((item) => item.date === selectedDate) : activity
   const visibleActivity = filtered.slice(0, visibleCount)

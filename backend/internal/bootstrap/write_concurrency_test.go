@@ -92,7 +92,7 @@ func TestRealConcurrentWrites(t *testing.T) {
 		func() (commandResponse, error) { return lin.send("POST", "agreements/update", updateLin, "") },
 	)
 	statuses(t, results, 1, 1)
-	root = decode[catalogue.ActionView](t, jo.call(t, "GET", "actions/detail?nodeId="+root.ID, nil, 200, ""))
+	root = decode[catalogue.ActionView](t, jo.call(t, "GET", "actions/detail?nodeUuid="+root.ID, nil, 200, ""))
 	if root.Version != 2 {
 		t.Fatal("并发更新导致版本丢失")
 	}

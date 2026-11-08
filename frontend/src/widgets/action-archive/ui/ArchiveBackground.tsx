@@ -12,7 +12,7 @@ const agreementLabels: Record<ActionReference['agreementStatus'], string> = {
 
 /** 展示引用背景、来源约定和已保存的指引；图关系不等同于当时完整的 AI 请求日志。 */
 export function ArchiveBackground({ node, actions, onSelectSource }: { node: ActionNode; actions: ActionNode[]; onSelectSource: (id: string) => void }) {
-  const graphActions = actions.filter((action) => action.graphId === node.graphId)
+  const graphActions = actions.filter((action) => action.graphUuid === node.graphUuid)
   const references = getActionReferences(graphActions).filter((reference) => reference.target.uuid === node.uuid)
   const historyIds = getActionContextIds(graphActions, node.uuid)
   const history = graphActions.filter((action) => action.uuid !== node.uuid && historyIds.has(action.uuid)).sort((a, b) => a.number - b.number)

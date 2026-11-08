@@ -10,17 +10,17 @@ describe('source agreement assessments when publishing an action', () => {
       { nodeNumber: 2, complies: null, reason: '' }, { nodeNumber: 7, complies: null, reason: '' },
     ])
     expect(readActionAgreementReviews([], [{ nodeNumber: 1, markdown: ' ' }])).toEqual([])
-    expect(getReferenceAgreementRecords([{ sourceId: 'source', nodeNumber: 2 }], readActionAgreementReviews([], sources))).toEqual([])
+    expect(getReferenceAgreementRecords([{ sourceUuid: 'source', nodeNumber: 2 }], readActionAgreementReviews([], sources))).toEqual([])
   })
 
   test('a published mismatch keeps its reason and produces an exception regardless of authorship', () => {
     const reviews = readActionAgreementReviews([{ nodeNumber: 2, complies: false, reason: '只尝了热时，没有静置' }, { nodeNumber: 7, complies: true, reason: '' }], sources)
-    const referenceAgreements = getReferenceAgreementRecords([{ sourceId: 'first', nodeNumber: 2 }, { sourceId: 'merged', nodeNumber: 7 }], reviews)
-    expect(referenceAgreements).toEqual([{ sourceId: 'first', complies: false, exceptionReason: '只尝了热时，没有静置' }, { sourceId: 'merged', complies: true }])
-    for (const authorId of ['jo', 'lin']) {
-      const nodes = [{ uuid: 'first', id: 'first', graphId: 'graph', number: 2, authorId: 'jo', agreementMarkdown: '静置十分钟' },
-        { uuid: 'merged', id: 'merged', graphId: 'graph', number: 7, authorId: 'lin', agreementMarkdown: '说明用时' },
-        { uuid: 'published', id: 'published', graphId: 'graph', number: 9, authorId, parentId: 'first', mergedParentIds: ['merged'], referenceAgreements }]
+    const referenceAgreements = getReferenceAgreementRecords([{ sourceUuid: 'first', nodeNumber: 2 }, { sourceUuid: 'merged', nodeNumber: 7 }], reviews)
+    expect(referenceAgreements).toEqual([{ sourceUuid: 'first', complies: false, exceptionReason: '只尝了热时，没有静置' }, { sourceUuid: 'merged', complies: true }])
+    for (const authorUuid of ['jo', 'lin']) {
+      const nodes = [{ uuid: 'first', id: 'first', graphUuid: 'graph', number: 2, authorUuid: 'jo', agreementMarkdown: '静置十分钟' },
+        { uuid: 'merged', id: 'merged', graphUuid: 'graph', number: 7, authorUuid: 'lin', agreementMarkdown: '说明用时' },
+        { uuid: 'published', id: 'published', graphUuid: 'graph', number: 9, authorUuid, parentUuid: 'first', mergedParentUuids: ['merged'], referenceAgreements }]
       const references = getActionReferences(nodes)
       expect(references.map((reference) => reference.agreementStatus)).toEqual(['exception', 'satisfied'])
       expect(references[0].exceptionReason).toBe('只尝了热时，没有静置')

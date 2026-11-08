@@ -9,7 +9,7 @@ export function useNodeDocuments({ node, csrfToken, enabled, onPublished }: {
   node?: ActionNode
   csrfToken: string
   enabled: boolean
-  onPublished?: (nodeId: string, expectedVersion: number, kind: Kind) => Promise<void>
+  onPublished?: (nodeUuid: string, expectedVersion: number, kind: Kind) => Promise<void>
 }) {
   const [documents, setDocuments] = useState<NodeDocument[]>([])
   const [loading, setLoading] = useState(false)

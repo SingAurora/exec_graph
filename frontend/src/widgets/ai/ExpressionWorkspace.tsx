@@ -21,13 +21,13 @@ import { appendWorkspaceError, appendWorkspaceNotice, createWorkspaceView, isExp
 import { BusinessRequestError } from '../../shared/api/errors'
 
 /** 使用独立对话修改表达；行动事实和约定在此只读，不创建新行动。 */
-export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profileName, profileId, profile, users = [], contextGuide, onBack, onConfirm, onPublishDraft }: {
+export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profileName, profileUuid, profile, users = [], contextGuide, onBack, onConfirm, onPublishDraft }: {
   node: ActionNode & { version: number }
   csrfToken: string
   draftKey?: string
   actions: ActionNode[]
   profileName: string
-  profileId: string
+  profileUuid: string
   profile?: UserProfile
   users?: UserProfile[]
   contextGuide?: string
@@ -38,7 +38,7 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
   const { generate } = useGeneration(csrfToken)
   const [initialDraft, setInitialDraft] = useState('')
   useEffect(() => {
-    if (node.authorId !== profileId) return
+    if (node.authorUuid !== profileUuid) return
     let active = true
     void getNodeDocuments(node.uuid).then((documents) => {
       const document = documents.find((item) => item.kind === 'expression')
@@ -46,7 +46,7 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
       if (active && draft) setInitialDraft(draft)
     }).catch(() => undefined)
     return () => { active = false }
-  }, [node.uuid, node.authorId, profileId])
+  }, [node.uuid, node.authorUuid, profileUuid])
   const expression = { markdown: initialDraft || node.expressionMarkdown || '' }
   const context = useMemo(() => getActionExpressionContext(actions, node.uuid), [actions, node.uuid])
   // 当前事实、文档或对话变化都会让旧生成结果失效；草稿保留，但需再对话才能保存。
@@ -55,7 +55,7 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
     downstreamAgreement: node.agreementMarkdown ?? '' })
   const initialMessages: ActionExpressionMessage[] = node.expressionConversation ?? []
   const local = useLocalDraft<ExpressionWorkspaceDraft>({
-    draftKey: draftKey ?? getActionDraftKey(profileId, node.graphId, 'expression', node.uuid),
+    draftKey: draftKey ?? getActionDraftKey(profileUuid, node.graphUuid, 'expression', node.uuid),
     initialValue: { messages: initialMessages, input: '', generated: false, contextSignature, view: createWorkspaceView() },
     validate: isExpressionWorkspaceDraft,
     restore: (saved) => reconcileWorkspaceDraft({ ...saved, generationRequest: normalizeGenerationRequest(saved.generationRequest) }, contextSignature),
@@ -90,7 +90,7 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
     const draft = result.draft
     if (draft.expression.mode === 'inherit') throw new Error('表达没有变化，请说明想调整的内容')
     local.update((current) => ({ ...current, generation: result, draftDocument: draft.expression.mode === 'update' ? draft.expression.markdown : '', generated: true, contextSignature,
-      messages: [...current.messages, { id: 'expression-ai-' + result.generationId, speaker: 'ai', body: draft.reply, model: result.model }] }))
+      messages: [...current.messages, { id: 'expression-ai-' + result.generationUuid, speaker: 'ai', body: draft.reply, model: result.model }] }))
   }
   const applyGenerationRef = useRef(applyGeneration)
   applyGenerationRef.current = applyGeneration
@@ -116,9 +116,9 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
     const clean = input.trim()
     if (!local.ready || !clean || sending || saving || !canEdit || !context) return
     const savedMessages = messages.filter(isConversationMessage)
-    const next = [...savedMessages, { id: `expression-user-${Date.now()}`, speaker: 'user' as const, body: clean, authorId: profileId }]
-    const requestInput: GenerateInput = { mode: 'expression', graphId: node.graphId, nodeId: node.uuid, expectedVersion: node.version, messages: [clean],
-      conversationId: generation?.conversationId, mergedParentIds: [], sourceVersions: [], agreement: { mode: 'inherit' }, currentDocument: document }
+    const next = [...savedMessages, { id: `expression-user-${Date.now()}`, speaker: 'user' as const, body: clean, authorUuid: profileUuid }]
+    const requestInput: GenerateInput = { mode: 'expression', graphUuid: node.graphUuid, nodeUuid: node.uuid, expectedVersion: node.version, messages: [clean],
+      conversationUuid: generation?.conversationUuid, mergedParentUuids: [], sourceVersions: [], agreement: { mode: 'inherit' }, currentDocument: document }
     const request: GenerationRequest = !generated && generationRequest && generation?.status !== 'failed' && JSON.stringify(generationRequest.input) === JSON.stringify(requestInput)
       ? generationRequest : { key: crypto.randomUUID(), input: requestInput }
     update({ messages: next, input: '', generated: false, generationRequest: request })
@@ -134,7 +134,7 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
     }
   }
 
-  const conversation: ActionExpressionMessage[] = messages.map((message) => ({ ...message, authorId: message.authorId ?? profileId }))
+  const conversation: ActionExpressionMessage[] = messages.map((message) => ({ ...message, authorUuid: message.authorUuid ?? profileUuid }))
 
   return (
     <WorkspaceFrame title="梳理表达"
@@ -146,7 +146,7 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
           <p>只更新当前节点的表达，行动与约定保持原样。表达面向其他用户，写兴趣、态度和有依据的判断，不必按时间复述行动。要清空表达，可在对话中说明；确认保存后生效。</p><p>想要低负担默认稿时，直接说“给我一个默认效果的表达”。</p>
         </HelpPopover>}
       context={{ label: `节点 #${node.number}`, title: node.title, facts: context?.facts.filter((fact) => fact.number !== node.number) ?? [] }}
-      starterHint="基于这些行动，你想让别人看到你对什么感兴趣、持什么态度？" messages={conversation.filter((message) => message.id !== 'welcome')} profileName={profileName} profile={profile} users={users} defaultAuthorId={profileId} status={workspaceStatus}
+      starterHint="基于这些行动，你想让别人看到你对什么感兴趣、持什么态度？" messages={conversation.filter((message) => message.id !== 'welcome')} profileName={profileName} profile={profile} users={users} defaultAuthorUuid={profileUuid} status={workspaceStatus}
       input={input} inputLabel="表达对话内容" placeholder="说说想保留或调整的看法，或“给我一个默认效果的表达”" sending={sending} fallbackAIName={generation?.model} disabled={saving || !local.ready || !canEdit}
       onInputChange={(input) => update({ input })} onSend={send} onBack={onBack}
       action={{ title: node.title, markdown: node.objectiveMarkdown ?? node.markdown, images: node.images, status: '只读', empty: '暂无行动记录' }}

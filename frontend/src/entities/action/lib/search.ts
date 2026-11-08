@@ -1,5 +1,5 @@
 import { getActionExpression } from './expressions'
-import { getReferenceAgreementAuthorId } from './agreement-responses'
+import { getReferenceAgreementAuthorUuid } from './agreement-responses'
 import type { ActionReference } from './references'
 import type { ActionNode } from '../model/types'
 import type { UserProfile } from '../../profile/model/types'
@@ -15,10 +15,10 @@ export function searchExpressions(candidates: ActionNode[], actions: ActionNode[
   if (!query.trim()) return candidates
   const names = new Map(users.map((user) => [user.uuid, user.name]))
   return candidates.filter((node) => {
-    const context = actions.filter((action) => action.graphId === node.graphId)
+    const context = actions.filter((action) => action.graphUuid === node.graphUuid)
     const expression = getActionExpression(context, node.uuid)
-    const sourceAuthor = expression.sourceNode?.expressionSupplement?.authorId ?? expression.sourceNode?.authorId
-    return matches(query, node.title, getMarkdownSummary(expression.markdown), names.get(node.authorId) ?? '', names.get(sourceAuthor ?? '') ?? '')
+    const sourceAuthor = expression.sourceNode?.expressionSupplement?.authorUuid ?? expression.sourceNode?.authorUuid
+    return matches(query, node.title, getMarkdownSummary(expression.markdown), names.get(node.authorUuid) ?? '', names.get(sourceAuthor ?? '') ?? '')
   })
 }
 
@@ -27,12 +27,12 @@ export function searchAgreementResponses(candidates: ActionReference[], users: U
   if (!query.trim()) return candidates
   const names = new Map(users.map((user) => [user.uuid, user.name]))
   return candidates.filter((reference) => matches(query, getMarkdownSummary(reference.agreement.markdown), reference.target.title,
-    names.get(reference.target.authorId) ?? '', names.get(getReferenceAgreementAuthorId(reference)) ?? ''))
+    names.get(reference.target.authorUuid) ?? '', names.get(getReferenceAgreementAuthorUuid(reference)) ?? ''))
 }
 
 /** Searches supplied actions by title, factual document and author, excluding dialogue and expressions. */
 export function searchActions(candidates: ActionNode[], users: UserProfile[], query: string): ActionNode[] {
   if (!query.trim()) return candidates
   const names = new Map(users.map((user) => [user.uuid, user.name]))
-  return candidates.filter((node) => matches(query, node.title, getMarkdownSummary(node.objectiveMarkdown ?? node.markdown), names.get(node.authorId) ?? ''))
+  return candidates.filter((node) => matches(query, node.title, getMarkdownSummary(node.objectiveMarkdown ?? node.markdown), names.get(node.authorUuid) ?? ''))
 }

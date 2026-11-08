@@ -55,7 +55,7 @@ func Prepare(source Dataset, digest, mainPassword string, passwords Passwords) (
 		if !assetNames[key] {
 			return "", fmt.Errorf("配图不在清单中")
 		}
-		return "/api/commands/media/file?assetId=" + id.Demo("asset", key), nil
+		return "/api/commands/media/file?assetUuid=" + id.Demo("asset", key), nil
 	}
 	optionalMedia := func(value *string) (*string, error) {
 		if value == nil {

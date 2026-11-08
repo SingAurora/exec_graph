@@ -8,7 +8,7 @@ type GraphDetailsAsideProps = {
   createdAt: string
   actionCount: number
   lastActionAt?: string
-  participantIds: string[]
+  participantUuids: string[]
   users: UserProfile[]
 }
 
@@ -16,10 +16,10 @@ const creationDateFormatter = new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia
 const participantPreviewLimit = 5
 
 /** Graph introduction, recent activity and participant profile links beside the lists. */
-export function GraphDetailsAside({ description, createdAt, actionCount, lastActionAt, participantIds, users }: GraphDetailsAsideProps) {
+export function GraphDetailsAside({ description, createdAt, actionCount, lastActionAt, participantUuids, users }: GraphDetailsAsideProps) {
   const creationDate = new Date(createdAt)
   const creationDateLabel = Number.isNaN(creationDate.getTime()) ? createdAt : creationDateFormatter.format(creationDate)
-  const remainingParticipantCount = Math.max(0, participantIds.length - participantPreviewLimit)
+  const remainingParticipantCount = Math.max(0, participantUuids.length - participantPreviewLimit)
   return (
     <aside className="min-w-0 rounded-lg bg-soft p-4">
       {description && <p className="whitespace-pre-line break-words text-sm leading-[1.7] text-copy">{description}</p>}
@@ -39,15 +39,15 @@ export function GraphDetailsAside({ description, createdAt, actionCount, lastAct
             : '暂无'}</dd>
         </div>
       </dl>
-      {participantIds.length > 0 && <section className="mt-5">
+      {participantUuids.length > 0 && <section className="mt-5">
         <h4 className="text-xs font-normal leading-5 text-muted">参与者</h4>
         <ul className="mt-2 flex flex-wrap gap-1">
-          {participantIds.slice(0, participantPreviewLimit).map((id) => {
+          {participantUuids.slice(0, participantPreviewLimit).map((id) => {
             const profile = users.find((user) => user.uuid === id)
             const name = profile?.name || id
             return (
               <li key={id} className="flex">
-                <ProfilePreview profile={profile} userId={id} className="inline-flex rounded-lg transition hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal">
+                <ProfilePreview profile={profile} userUuid={id} className="inline-flex rounded-lg transition hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal">
                   <Avatar profile={profile} label={name} size="compact" />
                 </ProfilePreview>
               </li>

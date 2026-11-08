@@ -1,5 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { filterAgreementParticipants, getReferenceAgreementAuthorId } from '../../../entities/action/lib/agreement-responses'
+import { filterAgreementParticipants, getReferenceAgreementAuthorUuid } from '../../../entities/action/lib/agreement-responses'
 import { searchActions, searchAgreementResponses, searchExpressions } from '../../../entities/action/lib/search'
 import type { ActionReference } from '../../../entities/action/lib/references'
 import type { ActionDocumentMode, ActionNode } from '../../../entities/action/model/types'
@@ -24,7 +24,7 @@ type Props = {
   references?: ActionReference[]
   graphs?: Graph[]
   users: UserProfile[]
-  profileId?: string
+  profileUuid?: string
   onOpenNode: (node: ActionNode, mode: ActionDocumentMode) => void
   onOpenReference?: (reference: ActionReference) => void
   onOpenGraph: (id: string) => void
@@ -32,10 +32,10 @@ type Props = {
 }
 const pageSize = 6
 const labels: Record<ProfileSearchScope, string> = { expressions: '表达', agreements: '约定', actions: '行动', graphs: '图' }
-const emptyCriteria: ProfileSearchCriteria = { keyword: '', counterpartId: '' }
+const emptyCriteria: ProfileSearchCriteria = { keyword: '', counterpartUuid: '' }
 
 /** Retains one category's draft, submitted results and page without filtering the normal profile lists. */
-export function ProfileSearchPanel({ scope, active, expressions, actions, allActions, references, graphs, users, profileId, onOpenNode, onOpenReference, onOpenGraph, renderContext }: Props) {
+export function ProfileSearchPanel({ scope, active, expressions, actions, allActions, references, graphs, users, profileUuid, onOpenNode, onOpenReference, onOpenGraph, renderContext }: Props) {
   const [draft, setDraft] = useState(emptyCriteria)
   const [submitted, setSubmitted] = useState<ProfileSearchCriteria | null>(null)
   const [page, setPage] = useState(1)
@@ -45,12 +45,12 @@ export function ProfileSearchPanel({ scope, active, expressions, actions, allAct
     ? searchExpressions(expressions, allActions, users, submitted.keyword)
     : scope === 'actions' ? searchActions(actions, users, submitted.keyword) : [], [scope, submitted, expressions, actions, allActions, users])
   const agreements = useMemo(() => submitted && scope === 'agreements'
-    ? searchAgreementResponses(filterAgreementParticipants(references ?? [], profileId, submitted.counterpartId), users, submitted.keyword) : [], [submitted, scope, references, profileId, users])
+    ? searchAgreementResponses(filterAgreementParticipants(references ?? [], profileUuid, submitted.counterpartUuid), users, submitted.keyword) : [], [submitted, scope, references, profileUuid, users])
   const graphMatches = useMemo(() => submitted && scope === 'graphs' ? searchGraphs(graphs ?? [], submitted.keyword) : [], [submitted, scope, graphs])
-  const counterpartOptions = useMemo(() => [...new Set((references ?? []).flatMap((reference) => [reference.target.authorId, getReferenceAgreementAuthorId(reference)]))]
-    .filter((id) => id !== profileId)
+  const counterpartOptions = useMemo(() => [...new Set((references ?? []).flatMap((reference) => [reference.target.authorUuid, getReferenceAgreementAuthorUuid(reference)]))]
+    .filter((id) => id !== profileUuid)
     .map((id) => ({ value: id, label: users.find((user) => user.uuid === id)?.name ?? id }))
-    .sort((a, b) => a.label.localeCompare(b.label, 'zh-CN')), [references, profileId, users])
+    .sort((a, b) => a.label.localeCompare(b.label, 'zh-CN')), [references, profileUuid, users])
   const count = scope === 'graphs' ? graphMatches.length : scope === 'agreements' ? agreements.length : documents.length
   const pageCount = Math.max(1, Math.ceil(count / pageSize))
   const currentPage = Math.min(page, pageCount)

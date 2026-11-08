@@ -16,7 +16,7 @@ export function DraftImages({ images, csrfToken, ready, disabled, onChange, onBu
   const [uploading, setUploading] = useState(false)
   const [previewIndex, setPreviewIndex] = useState<number | null>(null)
   const input = useRef<HTMLInputElement>(null)
-  const signature = images.map((image) => image.assetId).join(',')
+  const signature = images.map((image) => image.assetUuid).join(',')
   useEffect(() => {
     if (!ready || !signature) return
     let active = true
@@ -40,8 +40,8 @@ export function DraftImages({ images, csrfToken, ready, disabled, onChange, onBu
       const image = await loadImage(source)
       const compressed = renderScaledImage(image, { maxWidth: 1600, maxHeight: 1600, quality: file.size > imageCompressionThreshold ? .78 : .88 })
       const asset = await uploadImage(dataUrlToFile(compressed, 'action-image.jpg'), csrfToken)
-      await retainImages([asset.assetId], csrfToken)
-      onChange([...images, { assetId: asset.assetId, url: asset.url, alt: '' }])
+      await retainImages([asset.assetUuid], csrfToken)
+      onChange([...images, { assetUuid: asset.assetUuid, url: asset.url, alt: '' }])
     } catch (error) { setError(error instanceof Error ? error.message : '图片处理失败，请选择其他图片') }
     finally { setUploading(false); onBusyChange(false) }
   }
@@ -59,7 +59,7 @@ export function DraftImages({ images, csrfToken, ready, disabled, onChange, onBu
         }} />
         {images.map((image, index) => {
           const count = [...image.alt].length
-          return <div className="flex items-start gap-3" key={image.assetId}>
+          return <div className="flex items-start gap-3" key={image.assetUuid}>
             <button className="h-16 w-20 flex-none overflow-hidden rounded border border-line p-0 transition hover:opacity-90" type="button" title={`查看图片 ${index + 1} 大图`} onClick={() => setPreviewIndex(index)}>
               <img className="size-full object-cover" src={image.url} alt={image.alt || `图片 ${index + 1}`} />
             </button>

@@ -11,7 +11,7 @@
 - 仅使用 `GET` 和 `POST`。GET 读取，POST 创建、修改、删除或执行有副作用的操作。图片上传使用 POST multipart。
 - 普通 POST 使用 `Content-Type: application/json`。JSON 字段和 query 参数用 camelCase；枚举值使用稳定英文标识。
 - 统一客户端基于 `VITE_API_BASE_URL` 解析服务根地址，默认值为空；该变量不包含 `/api/commands`，不能包含凭据。
-- 资源自身标识字段统一为 `uuid`，值是 UUID；图的关联字段统一为 `graphId`。公开端点不再接受或返回 `id`、`projectId` 作为资源标识。
+- 资源自身标识字段统一为 `uuid`，值是 UUID；图的关联字段统一为 `graphUuid`。公开端点不再接受或返回 `id`、`projectId` 作为资源标识。
 
 ## 2. 参数与资源身份
 
@@ -91,7 +91,7 @@ type DocumentUpdate =
 
 - 新行动默认继承主要来源已发布的表达和约定；某一种没有可继承版本时，只把该种创建为待生成。自己的来源不参与来源约定核对。
 - 每条直接引用独立记录 `complies: true | false | null`；`null` 表示尚未核对。不满足时带说明；不满足和未知都不自动阻止发布，不引入申请或批准流程。
-- 发布行动和确认 AI 文档草稿只使用服务端 `generationId` 及返回的确认参数，不接受浏览器直接提交 AI 正文。
+- 发布行动和确认 AI 文档草稿只使用服务端 `generationUuid` 及返回的确认参数，不接受浏览器直接提交 AI 正文。
 - AI 相关接口：`ai/generate` 生成草稿，`ai/generation` 读取任务，`ai/chat` 由模型判断继续生成或核验，`ai/verify` 显式核验，`ai/node-documents` 生成节点文档草案，`ai/place-images` 放置图片。
 - `ai/chat` 的“核验”意图由模型判断，不依赖前端关键词；生成和核验由服务端读取事实与固定提示词。
 - 当前读取使用完整图上下文，没有远端分页和搜索分页；数据量增长前再新增分页契约。

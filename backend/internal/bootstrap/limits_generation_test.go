@@ -126,7 +126,7 @@ func TestRealGenerationAccountLimits(t *testing.T) {
 		view := decode[app.View](t, client.call(t, "POST", "ai/generate", input, 200, id.New()))
 		mustDB(t, s.deps.DB.Model(&model.AIGeneration{}).Where("uuid = ?", view.GenerationID).Select("Status", "CompletedAt", "ConfirmedAt", "OutputMessageUUID", "CreatedAt").Updates(model.AIGeneration{Status: "pending", CreatedAt: time.Now().UTC().Add(-3 * time.Minute)}))
 		client.call(t, "POST", "ai/generate", input, 200, id.New())
-		status := decode[app.View](t, client.call(t, "GET", "ai/generation?generationId="+view.GenerationID, nil, 200, ""))
+		status := decode[app.View](t, client.call(t, "GET", "ai/generation?generationUuid="+view.GenerationID, nil, 200, ""))
 		if status.Status != "failed" || status.ErrorCode != "interrupted" {
 			t.Fatal("中断占用没有在读取时结束")
 		}

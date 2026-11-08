@@ -6,7 +6,7 @@ import { ActionOwnAgreement, ActionSourceAgreements } from './ActionAgreements.t
 import { ActionReferenceDetail } from '../../action-reference/ui/ActionReferenceDetail.tsx'
 import { ArchiveBackground } from '../../action-archive/ui/ArchiveBackground.tsx'
 
-const node = (id, extra = {}) => ({ uuid: id, id, graphId: 'graph', authorId: 'jo', number: Number(id), title: `行动 ${id}`, markdown: '行动内容', images: [], conversation: [], createdAt: '2026-10-18T12:00:00+08:00', ...extra })
+const node = (id, extra = {}) => ({ uuid: id, id, graphUuid: 'graph', authorUuid: 'jo', number: Number(id), title: `行动 ${id}`, markdown: '行动内容', images: [], conversation: [], createdAt: '2026-10-18T12:00:00+08:00', ...extra })
 const users = [{ uuid: 'lin', id: 'lin', name: '林岚', avatar: '' }, { id: 'jo', name: '乔', avatar: '' }]
 function render(actions, id) {
   return renderToStaticMarkup(createElement(ActionSourceAgreements, { node: actions.find((item) => item.uuid === id), actions, users, onSelect() {} }))
@@ -14,8 +14,8 @@ function render(actions, id) {
 
 describe('node agreement overview', () => {
   test('reference details and formation history read the source node own agreement', () => {
-    const actions = [node('1', { agreementMarkdown: '祖先约定' }), node('2', { parentId: '1', agreementMarkdown: '直接约定' }),
-      node('3', { parentId: '2', agreementMarkdown: '', referenceAgreements: [{ sourceId: '2', complies: true }] })]
+    const actions = [node('1', { agreementMarkdown: '祖先约定' }), node('2', { parentUuid: '1', agreementMarkdown: '直接约定' }),
+      node('3', { parentUuid: '2', agreementMarkdown: '', referenceAgreements: [{ sourceUuid: '2', complies: true }] })]
     const reference = getActionReferences(actions).find((item) => item.target.uuid === '3')
     const line = renderToStaticMarkup(createElement(ActionReferenceDetail, { reference, actions, users, onSelectNode() {}, onHide() {} }))
     const archive = renderToStaticMarkup(createElement(ArchiveBackground, { node: actions[2], actions, onSelectSource() {} }))
@@ -26,8 +26,8 @@ describe('node agreement overview', () => {
     }
   })
   test('lists each direct source own agreement and does not add inherited ancestors', () => {
-    const actions = [node('1', { authorId: 'lin', agreementMarkdown: '祖先约定' }), node('2', { parentId: '1' }), node('3', { authorId: 'lin', agreementMarkdown: '直接约定' }), node('4', { graphId: 'other', agreementMarkdown: '其他图约定' }),
-      node('5', { parentId: '2', mergedParentIds: ['3', '3', '4'] })]
+    const actions = [node('1', { authorUuid: 'lin', agreementMarkdown: '祖先约定' }), node('2', { parentUuid: '1' }), node('3', { authorUuid: 'lin', agreementMarkdown: '直接约定' }), node('4', { graphUuid: 'other', agreementMarkdown: '其他图约定' }),
+      node('5', { parentUuid: '2', mergedParentUuids: ['3', '3', '4'] })]
     expect(getActionSourceAgreements(actions, '5').map((reference) => reference.source.uuid)).toEqual(['3'])
     expect(getActionSourceAgreements(actions, '2').map((reference) => reference.source.uuid)).toEqual(['1'])
     const html = render(actions, '5')
@@ -40,12 +40,12 @@ describe('node agreement overview', () => {
   })
 
   test('separates compliance, unknown and noncompliance without approval for either author relationship', () => {
-    const sources = [node('1', { authorId: 'lin' }), node('2', { authorId: 'lin' }), node('3', { authorId: 'lin' }), node('4', { authorId: 'lin' }), node('5')].map((source) => ({ ...source, agreementMarkdown: `约定 ${source.uuid}` }))
-    const target = node('6', { parentId: '1', mergedParentIds: ['2', '3', '4', '5'], referenceAgreements: [
-      { sourceId: '1', complies: true },
-      { sourceId: '3', complies: false, exceptionReason: '本人换锅' },
-      { sourceId: '4', complies: false, exceptionReason: '只尝热时' },
-      { sourceId: '5', complies: false, exceptionReason: '未做静置' },
+    const sources = [node('1', { authorUuid: 'lin' }), node('2', { authorUuid: 'lin' }), node('3', { authorUuid: 'lin' }), node('4', { authorUuid: 'lin' }), node('5')].map((source) => ({ ...source, agreementMarkdown: `约定 ${source.uuid}` }))
+    const target = node('6', { parentUuid: '1', mergedParentUuids: ['2', '3', '4', '5'], referenceAgreements: [
+      { sourceUuid: '1', complies: true },
+      { sourceUuid: '3', complies: false, exceptionReason: '本人换锅' },
+      { sourceUuid: '4', complies: false, exceptionReason: '只尝热时' },
+      { sourceUuid: '5', complies: false, exceptionReason: '未做静置' },
     ] })
     const actions = [...sources, target]
     const references = getActionSourceAgreements(actions, '6')
@@ -61,8 +61,8 @@ describe('node agreement overview', () => {
   })
 
   test('noncompliance needs no further approval and does not count as unreviewed', () => {
-    const source = node('1', { authorId: 'lin', agreementMarkdown: '十分钟静置观察' })
-    const target = node('2', { parentId: '1', referenceAgreements: [{ sourceId: '1', complies: false, exceptionReason: '只放五分钟' }] })
+    const source = node('1', { authorUuid: 'lin', agreementMarkdown: '十分钟静置观察' })
+    const target = node('2', { parentUuid: '1', referenceAgreements: [{ sourceUuid: '1', complies: false, exceptionReason: '只放五分钟' }] })
     const references = getActionSourceAgreements([source, target], '2')
     expect(getUnreviewedAgreementCount(references)).toBe(0)
     expect(references[0].agreementStatus).toBe('exception')
@@ -81,7 +81,7 @@ describe('node agreement overview', () => {
     expect(html).toContain('>约定</span>')
     expect(html).toContain('<strong>后续引用</strong>')
     expect(render([action], '1')).toBe('')
-    const child = node('2', { parentId: '1' })
+    const child = node('2', { parentUuid: '1' })
     expect(renderOwn([action, child], child)).toContain('无约定')
     expect(renderOwn([action, child], child)).not.toContain('继承自')
     const own = { ...child, agreementMarkdown: '子节点自己的约定' }

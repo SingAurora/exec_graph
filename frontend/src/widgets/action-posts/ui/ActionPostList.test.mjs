@@ -23,10 +23,10 @@ describe('empty graph lists', () => {
 })
 
 describe('shared feed document presentation', () => {
-  const base = { graphId: 'g', authorId: 'lin', createdAt: '2026-10-21T12:00:00+08:00', images: [], conversation: [], markdown: '行动过程' }
+  const base = { graphUuid: 'g', authorUuid: 'lin', createdAt: '2026-10-21T12:00:00+08:00', images: [], conversation: [], markdown: '行动过程' }
   const root = { ...base, uuid: 'root', id: 'root', number: 1, title: '开始', expressionMarkdown: '先照顾食材的状态' }
-  const branch = { ...base, uuid: 'branch', id: 'branch', number: 2, title: '另一种试法', parentId: 'root' }
-  const last = { ...base, uuid: 'last', id: 'last', number: 3, title: '今天做的饭', parentId: 'root', mergedParentIds: ['branch', 'root', 'missing'] }
+  const branch = { ...base, uuid: 'branch', id: 'branch', number: 2, title: '另一种试法', parentUuid: 'root' }
+  const last = { ...base, uuid: 'last', id: 'last', number: 3, title: '今天做的饭', parentUuid: 'root', mergedParentUuids: ['branch', 'root', 'missing'] }
   const actions = [root, branch, last]
 
   test('prioritizes effective expression over action title and counts distinct context actions including merges', () => {
@@ -39,7 +39,7 @@ describe('shared feed document presentation', () => {
   })
 
   test('credits another author when the endpoint inherits their expression', () => {
-    const endpoint = { ...last, authorId: 'jo' }
+    const endpoint = { ...last, authorUuid: 'jo' }
     const html = render({ nodes: [endpoint], actions: [root, endpoint], mode: 'expression', presentation: 'feed', users: [{ uuid: 'lin', id: 'lin', name: '林岚' }] })
     expect(html).toContain('沿用林岚的表达')
   })

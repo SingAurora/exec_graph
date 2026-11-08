@@ -4,10 +4,10 @@ import { getActionDraftKey } from '../../../entities/action/lib/draft-key.ts'
 import { isAgreementDraft } from '../../../features/action-agreement/model/draft.ts'
 
 const draft = () => ({
-  messages: [{ id: 'user-1', speaker: 'user', body: '今天换了锅', authorId: 'jo' }, { id: 'ai-1', speaker: 'ai', body: '已整理' }],
+  messages: [{ id: 'user-1', speaker: 'user', body: '今天换了锅', authorUuid: 'jo' }, { id: 'ai-1', speaker: 'ai', body: '已整理' }],
   input: '还想补充一点', document: '# 换锅后的行动', details: { title: '换锅', description: '新观察', points: ['蛋偏硬'], note: '' },
   generated: true, expression: { mode: 'clear', markdown: '' }, agreementMode: 'update', agreementDraft: '记录锅具',
-  agreementReviews: [{ nodeNumber: 9, complies: false, reason: '没有计时' }], mergedParentIds: ['source-2'], sourcesChanged: false,
+  agreementReviews: [{ nodeNumber: 9, complies: false, reason: '没有计时' }], mergedParentUuids: ['source-2'], sourcesChanged: false,
   contextSignature: 'original-context', view: { tab: 'expression', positions: { conversation: 230, expression: 140 } },
 })
 
@@ -53,10 +53,10 @@ describe('local workspace drafts', () => {
   test('keeps the conversation, unsent input, both documents, merge choices, reviews and view after serialization', () => {
     const restored = JSON.parse(JSON.stringify(draft()))
     expect(isActionWorkspaceDraft(restored)).toBe(true)
-    expect(restored.messages[0].authorId).toBe('jo')
+    expect(restored.messages[0].authorUuid).toBe('jo')
     expect(restored.expression).toEqual({ mode: 'clear', markdown: '' })
     expect(restored.view.positions.expression).toBe(140)
-    expect(restored.mergedParentIds).toEqual(['source-2'])
+    expect(restored.mergedParentUuids).toEqual(['source-2'])
     expect(restored.agreementReviews[0].complies).toBe(false)
   })
   test('persists only the three verification states', () => {
@@ -89,11 +89,11 @@ describe('local workspace drafts', () => {
     expect(restored.input).toBe(saved.input)
   })
   test('restores old single-message pending requests without reopening successful drafts', () => {
-    const oldRequest = { key: 'request', input: { mode: 'action', graphId: 'graph', message: '这次实际做了什么', mergedParentIds: [], sourceVersions: [], agreement: { mode: 'clear' } } }
+    const oldRequest = { key: 'request', input: { mode: 'action', graphUuid: 'graph', message: '这次实际做了什么', mergedParentUuids: [], sourceVersions: [], agreement: { mode: 'clear' } } }
     const normalized = normalizeGenerationRequest(oldRequest)
     expect(normalized.input.messages).toEqual(['这次实际做了什么'])
     expect(pendingReportsForRestore({ ...draft(), generationRequest: oldRequest })).toEqual(['这次实际做了什么'])
-    expect(pendingReportsForRestore({ ...draft(), generation: { generationId: 'g', conversationId: 'c', status: 'succeeded' }, generationRequest: oldRequest })).toEqual([])
+    expect(pendingReportsForRestore({ ...draft(), generation: { generationUuid: 'g', conversationUuid: 'c', status: 'succeeded' }, generationRequest: oldRequest })).toEqual([])
   })
   test('recovers unsummarized user messages from an old failed conversation', () => {
     const saved = { ...draft(), messages: [

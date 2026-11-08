@@ -5,16 +5,16 @@ import { cookingActions } from '../../../app/demo/cooking/index.ts'
 import { cookingParticipants } from '../../../app/demo/cooking/participants.ts'
 
 function node(id, extra = {}) {
-  return { uuid: id, id, graphId: 'graph', number: Number(id), authorId: 'cook', title: '晚饭', markdown: '本次行动', images: [], conversation: [], createdAt: `2026-10-${id.padStart(2, '0')}T12:00:00+08:00`, ...extra }
+  return { uuid: id, id, graphUuid: 'graph', number: Number(id), authorUuid: 'cook', title: '晚饭', markdown: '本次行动', images: [], conversation: [], createdAt: `2026-10-${id.padStart(2, '0')}T12:00:00+08:00`, ...extra }
 }
 
 describe('graph-local document search', () => {
   test('searches inherited effective expression at the endpoint, without borrowing action facts', () => {
-    const actions = [node('1', { expressionMarkdown: '慢慢练习才有改变' }), node('2', { parentId: '1', objectiveMarkdown: '放了葱' })]
+    const actions = [node('1', { expressionMarkdown: '慢慢练习才有改变' }), node('2', { parentUuid: '1', objectiveMarkdown: '放了葱' })]
     expect(searchGraphDocuments(actions, 'graph', '练习', 'expression').map((item) => item.uuid)).toEqual(['2'])
     expect(searchGraphDocuments(actions, 'graph', '葱', 'expression')).toEqual([])
     expect(searchGraphDocuments(actions, 'graph', '葱', 'objective').map((item) => item.uuid)).toEqual(['2'])
-    expect(searchGraphDocuments([...actions, node('3', { parentId: '2', expressionMarkdown: '' })], 'graph', '练习', 'expression')).toEqual([])
+    expect(searchGraphDocuments([...actions, node('3', { parentUuid: '2', expressionMarkdown: '' })], 'graph', '练习', 'expression')).toEqual([])
   })
 
   test('ranks title matches before body matches, then keeps newest publication order', () => {
@@ -24,7 +24,7 @@ describe('graph-local document search', () => {
   })
 
   test('ignores other graphs, blank queries, image URLs and formatting-only matches', () => {
-    const actions = [node('1', { markdown: '![少油照片](https://example.com/少油.jpg)' }), node('2', { graphId: 'other', markdown: '少油' })]
+    const actions = [node('1', { markdown: '![少油照片](https://example.com/少油.jpg)' }), node('2', { graphUuid: 'other', markdown: '少油' })]
     expect(searchGraphDocuments(actions, 'graph', '少油', 'objective')).toEqual([])
     expect(searchGraphDocuments(actions, 'graph', '  ', 'objective')).toEqual([])
   })
@@ -44,8 +44,8 @@ describe('graph-local document search', () => {
   })
 
   test('allows author-only searches and applies expression authors after resolving route endpoints', () => {
-    const actions = [node('1', { authorId: 'jo', expressionMarkdown: '慢慢练习才有改变' }),
-      node('2', { authorId: 'lin', parentId: '1' }), node('3', { authorId: 'jo', graphId: 'other' })]
+    const actions = [node('1', { authorUuid: 'jo', expressionMarkdown: '慢慢练习才有改变' }),
+      node('2', { authorUuid: 'lin', parentUuid: '1' }), node('3', { authorUuid: 'jo', graphUuid: 'other' })]
     expect(searchGraphDocuments(actions, 'graph', '', 'expression', 'lin').map((item) => item.uuid)).toEqual(['2'])
     expect(searchGraphDocuments(actions, 'graph', '', 'expression', 'jo')).toEqual([])
     expect(searchGraphDocuments(actions, 'graph', '', 'objective', 'jo').map((item) => item.uuid)).toEqual(['1'])
@@ -55,32 +55,32 @@ describe('graph-local document search', () => {
 })
 
 describe('agreement response search', () => {
-  const sources = [node('1', { authorId: 'jo', agreementMarkdown: '记录实际用时。\n\n![示意](/only-photo.jpg)' }),
-    node('2', { parentId: '1', authorId: 'lin', title: '盛蛋早了一些', referenceAgreements: [{ sourceId: '1', complies: true }] }),
-    node('3', { parentId: '2', authorId: 'miao', referenceAgreements: [{ sourceId: '2', complies: true }] }),
-    node('4', { parentId: '2', authorId: 'jo', referenceAgreements: [{ sourceId: '2', complies: true }] }),
-    node('5', { parentId: '1', authorId: 'lin', referenceAgreements: [{ sourceId: '1', complies: false }] }),
-    node('6', { parentId: '1', authorId: 'miao' }),
-    node('7', { graphId: 'other', authorId: 'jo', agreementMarkdown: '记录用时' }),
-    node('8', { graphId: 'other', authorId: 'lin', parentId: '7', referenceAgreements: [{ sourceId: '7', complies: true }] })]
+  const sources = [node('1', { authorUuid: 'jo', agreementMarkdown: '记录实际用时。\n\n![示意](/only-photo.jpg)' }),
+    node('2', { parentUuid: '1', authorUuid: 'lin', title: '盛蛋早了一些', referenceAgreements: [{ sourceUuid: '1', complies: true }] }),
+    node('3', { parentUuid: '2', authorUuid: 'miao', referenceAgreements: [{ sourceUuid: '2', complies: true }] }),
+    node('4', { parentUuid: '2', authorUuid: 'jo', referenceAgreements: [{ sourceUuid: '2', complies: true }] }),
+    node('5', { parentUuid: '1', authorUuid: 'lin', referenceAgreements: [{ sourceUuid: '1', complies: false }] }),
+    node('6', { parentUuid: '1', authorUuid: 'miao' }),
+    node('7', { graphUuid: 'other', authorUuid: 'jo', agreementMarkdown: '记录用时' }),
+    node('8', { graphUuid: 'other', authorUuid: 'lin', parentUuid: '7', referenceAgreements: [{ sourceUuid: '7', complies: true }] })]
 
   test('filters either role of selected participants and attributes inherited agreements to their actual author', () => {
-    expect(searchGraphAgreementResponses(sources, 'graph', { keyword: '', participantId: 'jo' }).map((item) => item.uuid)).toEqual(['2:3', '1:2'])
-    expect(searchGraphAgreementResponses(sources, 'graph', { keyword: '', participantId: 'miao', otherParticipantId: 'jo' }).map((item) => item.uuid)).toEqual(['2:3'])
-    expect(searchGraphAgreementResponses(sources, 'graph', { keyword: '', participantId: 'miao', otherParticipantId: 'lin' })).toEqual([])
-    expect(searchGraphAgreementResponses(sources, 'graph', { keyword: '', otherParticipantId: 'jo' }).map((item) => item.uuid)).toEqual(['2:3', '1:2'])
+    expect(searchGraphAgreementResponses(sources, 'graph', { keyword: '', participantUuid: 'jo' }).map((item) => item.uuid)).toEqual(['2:3', '1:2'])
+    expect(searchGraphAgreementResponses(sources, 'graph', { keyword: '', participantUuid: 'miao', otherParticipantUuid: 'jo' }).map((item) => item.uuid)).toEqual(['2:3'])
+    expect(searchGraphAgreementResponses(sources, 'graph', { keyword: '', participantUuid: 'miao', otherParticipantUuid: 'lin' })).toEqual([])
+    expect(searchGraphAgreementResponses(sources, 'graph', { keyword: '', otherParticipantUuid: 'jo' }).map((item) => item.uuid)).toEqual(['2:3', '1:2'])
   })
 
   test('combines both directions newest first, intersects keywords and excludes unrelated exchanges', () => {
     const actions = [...sources,
-      node('9', { authorId: 'lin', agreementMarkdown: '写下盛蛋时的状态' }),
-      node('10', { parentId: '9', authorId: 'jo', referenceAgreements: [{ sourceId: '9', complies: true }] })]
-    const criteria = { keyword: '', participantId: 'jo', otherParticipantId: 'lin' }
+      node('9', { authorUuid: 'lin', agreementMarkdown: '写下盛蛋时的状态' }),
+      node('10', { parentUuid: '9', authorUuid: 'jo', referenceAgreements: [{ sourceUuid: '9', complies: true }] })]
+    const criteria = { keyword: '', participantUuid: 'jo', otherParticipantUuid: 'lin' }
     const forward = searchGraphAgreementResponses(actions, 'graph', criteria)
     expect(forward.map((item) => item.uuid)).toEqual(['9:10', '1:2'])
-    expect(searchGraphAgreementResponses(actions, 'graph', { ...criteria, participantId: 'lin', otherParticipantId: 'jo' })).toEqual(forward)
+    expect(searchGraphAgreementResponses(actions, 'graph', { ...criteria, participantUuid: 'lin', otherParticipantUuid: 'jo' })).toEqual(forward)
     expect(searchGraphAgreementResponses(actions, 'graph', { ...criteria, keyword: '实际用时' }).map((item) => item.uuid)).toEqual(['1:2'])
-    expect(searchGraphAgreementResponses(actions, 'graph', { ...criteria, otherParticipantId: 'jo' })).toEqual([])
+    expect(searchGraphAgreementResponses(actions, 'graph', { ...criteria, otherParticipantUuid: 'jo' })).toEqual([])
   })
 
   test('matches agreement text or response title, excluding unrelated facts, images and other graphs', () => {
@@ -95,7 +95,7 @@ describe('agreement response search', () => {
 describe('participant search', () => {
   test('matches nicknames only, deduplicates participants, and prioritizes exact names', () => {
     const user = (id, name) => ({ uuid: id, id, name, bio: 'Robin 的简介', email: 'robin@example.com', avatar: '', gender: 'unknown', activeDays: 1 })
-    const actions = [node('1'), node('2'), node('3', { authorId: 'second' }), node('4', { authorId: 'outside', graphId: 'other' })]
+    const actions = [node('1'), node('2'), node('3', { authorUuid: 'second' }), node('4', { authorUuid: 'outside', graphUuid: 'other' })]
     const users = [user('cook', 'Robin小厨'), user('second', 'Robin'), user('cook', 'Robin小厨'), user('outside', 'Robin')]
     expect(searchGraphParticipants(actions, users, 'graph', 'robin').map((item) => item.uuid)).toEqual(['second', 'cook'])
     expect(searchGraphParticipants(actions, users, 'graph', '简介')).toEqual([])

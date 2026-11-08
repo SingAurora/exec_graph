@@ -15,7 +15,7 @@ afterEach(() => { fetchSpy?.mockRestore(); fetchSpy = undefined })
 
 describe('expression generation requests', () => {
   const input = { mode: 'expression', currentDocument: '已有的表达', contextGuide: '保留个人偏好',
-    expressionContext: { nodeNumber: 3, facts: [{ number: 1, authorId: 'lin', title: '第一次炒菜', markdown: '鸡蛋边缘偏硬' }, { number: 3, authorId: 'jo', title: '复做', markdown: '先盛蛋后没有硬边' }] },
+    expressionContext: { nodeNumber: 3, facts: [{ number: 1, authorUuid: 'lin', title: '第一次炒菜', markdown: '鸡蛋边缘偏硬' }, { number: 3, authorUuid: 'jo', title: '复做', markdown: '先盛蛋后没有硬边' }] },
     sourceAgreements: [{ nodeNumber: 1, markdown: '说明锅具' }], downstreamAgreement: '记录用时',
     turns: [{ role: 'user', content: '原行动说明' }, { role: 'assistant', content: '原行动回复' }, { role: 'user', content: '只说明我的取舍' }],
   }

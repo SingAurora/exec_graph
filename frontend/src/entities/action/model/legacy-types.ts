@@ -5,7 +5,7 @@ import type { ChatMessage, PostImage } from '../../../shared/model/content'
 /** Legacy topic grouping retained for reading earlier prototype records. */
 export type ActionTopic = {
   id: string
-  graphId: string
+  graphUuid: string
   title: string
   description: string
   createdAt: string
@@ -15,7 +15,7 @@ export type ActionTopic = {
 export type PlanNode = {
   id: string
   topicId: string
-  authorId: string
+  authorUuid: string
   parentPlanId?: string
   branchId?: string
   branchTitle?: string
@@ -36,8 +36,8 @@ export type ArchiveTab = 'plan' | 'history'
 export type CompletionNode = {
   id: string
   topicId: string
-  planNodeId: string
-  authorId: string
+  planNodeUuid: string
+  authorUuid: string
   title: string
   markdown: string
   images?: PostImage[]

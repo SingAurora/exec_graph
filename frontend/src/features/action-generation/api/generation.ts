@@ -3,13 +3,13 @@ import type { ActionContextNode } from '../../../entities/action/api/context'
 import type { CreateActionInput, DocumentUpdate, SourceAssessment } from '../../action/api/commands'
 
 /** 本轮上传的图片及用户备注；备注用于 AI 判断正文位置。 */
-export type GeneratedImage = { assetId: string; alt: string }
+export type GeneratedImage = { assetUuid: string; alt: string }
 
 /** 浏览器只提交本轮输入与选择；历史事实、图指引和对话由服务端读取。 */
 export type GenerateInput = {
-  mode: 'action' | 'expression' | 'agreement'; graphId: string; conversationId?: string
-  nodeId?: string; expectedVersion?: number; messages: string[]; parentId?: string
-  mergedParentIds: string[]; sourceVersions: { nodeId: string; version: number }[]; agreement: DocumentUpdate
+  mode: 'action' | 'expression' | 'agreement'; graphUuid: string; conversationUuid?: string
+  nodeUuid?: string; expectedVersion?: number; messages: string[]; parentUuid?: string
+  mergedParentUuids: string[]; sourceVersions: { nodeUuid: string; version: number }[]; agreement: DocumentUpdate
   /** 作者正在调整的私有表达/约定草案；仅 expression/agreement 模式。 */
   currentDocument?: string
   /** 上一轮核验失败的具体原因，帮助模型定向改写。 */
@@ -19,34 +19,34 @@ export type GenerateInput = {
 export type GenerationRequest = { key: string; input: GenerateInput }
 /** 生成结果与发布参数成套返回，前端不重新拼装 AI 正文。 */
 export type GenerationView = {
-  generationId: string; conversationId: string; status: 'pending' | 'succeeded' | 'failed'; model?: string; errorCode?: string
+  generationUuid: string; conversationUuid: string; status: 'pending' | 'succeeded' | 'failed'; model?: string; errorCode?: string
   draft?: { reply: string; title: string; objective: string; expression: DocumentUpdate; agreement?: DocumentUpdate; reviews: SourceAssessment[]; images?: GeneratedImage[]; invalidImages?: { ref: string; reason: string }[] }
   createAction?: CreateActionInput
-  updateExpression?: { nodeId: string; expectedVersion: number; generationId: string }
-  updateAgreement?: { nodeId: string; expectedVersion: number; generationId: string }
+  updateExpression?: { nodeUuid: string; expectedVersion: number; generationUuid: string }
+  updateAgreement?: { nodeUuid: string; expectedVersion: number; generationUuid: string }
 }
 
 /** 已发布节点的独立表达/约定草案。 */
 export type NodeDocument = { kind: 'expression' | 'agreement'; status: 'pending' | 'generating' | 'draft' | 'published' | 'failed'; draftMarkdown?: string; errorCode?: string; errorMessage?: string }
 
 /** 行动发布后为节点生成表达和约定草案；失败时服务端保留 failed 状态。 */
-export function generateNodeDocuments(nodeId: string, csrfToken: string): Promise<NodeDocument[]> {
-  return postAPI('/api/commands/ai/node-documents', { nodeId }, { csrfToken, timeoutMs: 110_000 })
+export function generateNodeDocuments(nodeUuid: string, csrfToken: string): Promise<NodeDocument[]> {
+  return postAPI('/api/commands/ai/node-documents', { nodeUuid }, { csrfToken, timeoutMs: 110_000 })
 }
 
 /** 读取作者自己的节点文档草案和状态。 */
-export function getNodeDocuments(nodeId: string): Promise<NodeDocument[]> {
-  return getAPI('/api/commands/actions/node-documents', { nodeId })
+export function getNodeDocuments(nodeUuid: string): Promise<NodeDocument[]> {
+  return getAPI('/api/commands/actions/node-documents', { nodeUuid })
 }
 
 /** 将节点当前草案发布为版本；返回更新后的行动节点。 */
-export function publishNodeDocument(nodeId: string, expectedVersion: number, kind: 'expression' | 'agreement', csrfToken: string): Promise<ActionContextNode> {
-  return postAPI('/api/commands/actions/publish-document', { nodeId, expectedVersion, kind }, { csrfToken })
+export function publishNodeDocument(nodeUuid: string, expectedVersion: number, kind: 'expression' | 'agreement', csrfToken: string): Promise<ActionContextNode> {
+  return postAPI('/api/commands/actions/publish-document', { nodeUuid, expectedVersion, kind }, { csrfToken })
 }
 
 /** 只对已有行动草稿放置图片；服务端保证正文文字不变。 */
-export function placeGenerationImages(generationId: string, images: GeneratedImage[], csrfToken: string): Promise<GenerationView> {
-  return postAPI('/api/commands/ai/place-images', { generationId, images }, { csrfToken, timeoutMs: 110_000 })
+export function placeGenerationImages(generationUuid: string, images: GeneratedImage[], csrfToken: string): Promise<GenerationView> {
+  return postAPI('/api/commands/ai/place-images', { generationUuid, images }, { csrfToken, timeoutMs: 110_000 })
 }
 
 /** 同键重试只读取已有任务；pending 时轮询私有结果，不再次生成。 */
@@ -60,14 +60,14 @@ export async function generateDraft(request: GenerationRequest, csrfToken: strin
       signal.addEventListener('abort', abort, { once: true })
       if (signal.aborted) abort()
     })
-    view = await getAPI('/api/commands/ai/generation', { generationId: view.generationId }, { signal })
+    view = await getAPI('/api/commands/ai/generation', { generationUuid: view.generationUuid }, { signal })
   }
   return view
 }
 
 /** 服务端显式核验结果；核验只读，不生成新草稿。 */
 export type VerifyResult = {
-  generationId: string
+  generationUuid: string
   status: 'passed' | 'failed'
   message: string
   sourceReviews: SourceAssessment[]
@@ -79,6 +79,6 @@ export type ChatResult =
   | { kind: 'verification'; verification: VerifyResult }
 
 /** 让服务端模型判断本轮是继续整理还是核验，避免前端关键词猜测。 */
-export function chatDraft(request: GenerationRequest, generationId: string | undefined, csrfToken: string, signal: AbortSignal): Promise<ChatResult> {
-  return postAPI('/api/commands/ai/chat', { ...request.input, generationId }, { csrfToken, idempotencyKey: request.key, timeoutMs: 110_000, signal })
+export function chatDraft(request: GenerationRequest, generationUuid: string | undefined, csrfToken: string, signal: AbortSignal): Promise<ChatResult> {
+  return postAPI('/api/commands/ai/chat', { ...request.input, generationUuid }, { csrfToken, idempotencyKey: request.key, timeoutMs: 110_000, signal })
 }

@@ -12,7 +12,7 @@ import (
 
 func TestParsePreservesExplicitAssessmentAndDocumentIntent(t *testing.T) {
 	sources := []action.GenerationSource{{NodeID: "one", AgreementStatus: "unreviewed"}}
-	base := `{"reply":"已整理","title":"骑行","objective":"骑了六公里","reviews":[{"sourceId":"one","complies":null}]}`
+	base := `{"reply":"已整理","title":"骑行","objective":"骑了六公里","reviews":[{"sourceUuid":"one","complies":null}]}`
 	draft, err := parse(base, "action", true, sources)
 	if err != nil || draft.Reviews[0].Complies != nil || draft.Expression.Mode != "inherit" || draft.Expression.Markdown != nil {
 		t.Fatalf("未知或继承语义被改变: %+v %v", draft, err)
@@ -30,7 +30,7 @@ func TestParsePreservesExplicitAssessmentAndDocumentIntent(t *testing.T) {
 		"missing review":   strings.Replace(base, `,"complies":null`, "", 1),
 		"wrong source":     strings.Replace(base, `"one"`, `"other"`, 1),
 		"false no reason":  strings.Replace(base, `"complies":null`, `"complies":false`, 1),
-		"duplicate review": strings.Replace(base, `"reviews":[`, `"reviews":[{"sourceId":"one","complies":true},`, 1),
+		"duplicate review": strings.Replace(base, `"reviews":[`, `"reviews":[{"sourceUuid":"one","complies":true},`, 1),
 	} {
 		draft, err := parse(body, "action", true, sources)
 		if err != nil || len(draft.Reviews) != 1 || draft.Reviews[0].Complies != nil {
@@ -79,7 +79,7 @@ func TestParseAllowsOmittedReviewsWhenActionHasNoSources(t *testing.T) {
 	if err != nil || draft.Reply != "已记录这次行动" || draft.Title != "解放波士顿" || len(draft.Reviews) != 0 {
 		t.Fatalf("没有来源时省略空核对列表应按空列表处理: %+v %v", draft, err)
 	}
-	withIrrelevantOutput := `{"reply":"已记录这次行动","title":"解放波士顿","objective":"先攻下小城，再解放波士顿。","expression":{"mode":"update","markdown":"多余输出"},"agreement":{"mode":"update","markdown":"多余输出"},"reviews":[{"sourceId":"old","complies":true}]}`
+	withIrrelevantOutput := `{"reply":"已记录这次行动","title":"解放波士顿","objective":"先攻下小城，再解放波士顿。","expression":{"mode":"update","markdown":"多余输出"},"agreement":{"mode":"update","markdown":"多余输出"},"reviews":[{"sourceUuid":"old","complies":true}]}`
 	draft, err = parse(withIrrelevantOutput, "action", false, nil)
 	if err != nil || len(draft.Reviews) != 0 || draft.Expression.Mode != "clear" {
 		t.Fatalf("行动模式应忽略未使用的表达与无来源核对输出: %+v %v", draft, err)

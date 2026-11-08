@@ -39,7 +39,7 @@ func (p *recordedProvider) Complete(ctx context.Context, messages []app.Message)
 	var snapshot struct {
 		Mode    string `json:"mode"`
 		Sources []struct {
-			NodeID string `json:"nodeId"`
+			NodeID string `json:"nodeUuid"`
 		} `json:"sources"`
 	}
 	prefix := "当前服务端快照："
@@ -102,7 +102,7 @@ type fixtureCondition struct {
 }
 
 type fixtureAgreementCheck struct {
-	SourceID   string             `json:"sourceId"`
+	SourceID   string             `json:"sourceUuid"`
 	Conditions []fixtureCondition `json:"conditions"`
 }
 
@@ -115,11 +115,11 @@ func (p *recordedProvider) verification(input string) (app.Completion, error) {
 				Text string `json:"text"`
 			} `json:"reports"`
 			Facts []struct {
-				NodeID    string `json:"nodeId"`
+				NodeID    string `json:"nodeUuid"`
 				Objective string `json:"objective"`
 			} `json:"facts"`
 			Sources []struct {
-				NodeID    string `json:"nodeId"`
+				NodeID    string `json:"nodeUuid"`
 				Agreement string `json:"agreement"`
 			} `json:"sources"`
 		} `json:"context"`

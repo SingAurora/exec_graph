@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { searchHighlightCandidates } from './search.ts'
 
 const entry = (id, patch = {}) => ({
-  node: { uuid: id, id, title: `行动 ${id}`, graphId: 'cooking', number: 1 },
+  node: { uuid: id, id, title: `行动 ${id}`, graphUuid: 'cooking', number: 1 },
   markdown: '普通表达', agreement: { markdown: '' }, ...patch,
 })
 const graphs = [{ uuid: 'cooking', id: 'cooking', title: '厨房复做' }, { uuid: 'cycling', id: 'cycling', title: '周末骑行' }]
@@ -18,9 +18,9 @@ describe('profile highlight candidate search', () => {
   test('matches visible expression text, action titles, inherited agreements, graph names and node numbers', () => {
     const entries = [
       entry('expression', { markdown: '**先看食材状态**' }),
-      entry('action', { node: { uuid: 'action', id: 'action', title: '记录桌游体验', graphId: 'cooking', number: 12 } }),
-      entry('agreement', { agreement: { markdown: '请留下真实用时', sourceNode: { authorId: 'other' } } }),
-      entry('graph', { node: { uuid: 'graph', id: 'graph', title: '一次出发', graphId: 'cycling', number: 3 } }),
+      entry('action', { node: { uuid: 'action', id: 'action', title: '记录桌游体验', graphUuid: 'cooking', number: 12 } }),
+      entry('agreement', { agreement: { markdown: '请留下真实用时', sourceNode: { authorUuid: 'other' } } }),
+      entry('graph', { node: { uuid: 'graph', id: 'graph', title: '一次出发', graphUuid: 'cycling', number: 3 } }),
     ]
     for (const [query, id] of [['食材状态', 'expression'], ['桌游', 'action'], ['真实用时', 'agreement'], ['周末骑行', 'graph'], ['#12', 'action']]) {
       expect(searchHighlightCandidates(entries, graphs, query).map(({ node }) => node.uuid)).toEqual([id])

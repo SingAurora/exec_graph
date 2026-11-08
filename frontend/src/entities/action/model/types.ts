@@ -1,21 +1,21 @@
 import type { ChatMessage, PostImage } from '../../../shared/model/content'
 
-/** 原型接续入口保留的模式；实际引用关系由 parentId 和 mergedParentIds 表达。 */
+/** 原型接续入口保留的模式；实际引用关系由 parentUuid 和 mergedParentUuids 表达。 */
 export type BranchMode = 'continue' | 'fork'
 
 /** 发布后的最近一次文档编辑；旧记录没有 kind 时按手动补充理解。 */
 export type ActionDocumentRevision = {
-  authorId: string
+  authorUuid: string
   createdAt: string
   kind?: 'supplement' | 'modify' | 'clear'
 }
 
 /** 继续修改表达时的聊天消息，可记录实际参与该轮对话的用户。 */
-export type ActionExpressionMessage = ChatMessage & { authorId?: string }
+export type ActionExpressionMessage = ChatMessage & { authorUuid?: string }
 
 /** 本次引用对某个直接来源的约定核对；模型中缺少记录表示未核对，接口用 null 传递。 */
 export type ActionReferenceAgreement = {
-  sourceId: string
+  sourceUuid: string
   complies: boolean
   exceptionReason?: string
 }
@@ -29,23 +29,23 @@ export type ActionNode = {
   legacyId?: string
   /** 资源身份，用于查找、引用和更新；不能用展示编号代替。 */
   uuid: string
-  /** 所属行动图；旧 UI 沿用 graphId，请求 DTO 使用 graphId 并在 API 层显式映射。 */
-  graphId: string
+  /** 所属行动图；旧 UI 沿用 graphUuid，请求 DTO 使用 graphUuid 并在 API 层显式映射。 */
+  graphUuid: string
   /** 图内稳定展示编号，和引用深度（第几层）分别计算。 */
   number: number
   /** 行动节点版本；旧演示数据可能缺省。 */
   version?: number
   /** 主要承接来源；表达和后续约定只沿这条关系继承。 */
-  parentId?: string
+  parentUuid?: string
   /** 额外引用的背景来源，参与事实上下文，但不会自动覆盖承接来源的表达／约定。 */
-  mergedParentIds?: string[]
+  mergedParentUuids?: string[]
   /** 留给后来引用者的约定：undefined 沿承接来源继承，空字符串主动清空，非空则设新版本。 */
   agreementMarkdown?: string
   /** 后续约定的最近一次手动编辑信息，与原始行动对话分开保存。 */
   agreementSupplement?: ActionDocumentRevision
   /** 本次引用是否满足各直接来源的约定，与本节点向后提出的 agreementMarkdown 分开。 */
   referenceAgreements?: ActionReferenceAgreement[]
-  authorId: string
+  authorUuid: string
   title: string
   markdown: string
   /** 只记本次实际发生的事实；旧记录缺少此字段时才回退读取 markdown。 */
@@ -64,7 +64,7 @@ export type ActionNode = {
   /** 独立整理向后传递约定的对话。 */
   agreementConversation?: ActionExpressionMessage[]
   /** 保存的来源摘要；用于追溯背景，不等同于完整的 AI 请求日志。 */
-  contextSnapshot?: { directNodeIds: string[]; historyNodeCount: number; guide?: string }
+  contextSnapshot?: { directNodeUuids: string[]; historyNodeCount: number; guide?: string }
   images: PostImage[]
   conversation: ChatMessage[]
   createdAt: string
@@ -79,7 +79,7 @@ export type ActionExpression = {
 /** 修改表达可用的事实：仅本节点和引用历史，排除图内无关分支。 */
 export type ActionExpressionContext = {
   nodeNumber: number
-  facts: { number: number; authorId: string; title: string; markdown: string }[]
+  facts: { number: number; authorUuid: string; title: string; markdown: string }[]
 }
 
 /** 解析继承后的有效约定，以及最后设置或清空约定的节点。 */

@@ -3,7 +3,7 @@ export type ConversationCopyMessage = {
   speaker: 'ai' | 'user'
   body: string
   model?: string
-  authorId?: string
+  authorUuid?: string
 }
 
 /**

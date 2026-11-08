@@ -16,7 +16,7 @@ export function ProfileHighlights({ profile, self, actions, graphs, users, onOpe
   const [editing, setEditing] = useState(false)
   const editRef = useRef<HTMLButtonElement>(null)
   const candidates = getProfileHighlightCandidates(actions, profile.uuid)
-  const entries = [...new Set(profile.highlights?.expressionNodeIds ?? [])].slice(0, profileHighlightLimit)
+  const entries = [...new Set(profile.highlights?.expressionNodeUuids ?? [])].slice(0, profileHighlightLimit)
     .flatMap((id) => candidates.filter(({ node }) => node.uuid === id))
   if (!self && !entries.length) return null
 
@@ -29,7 +29,7 @@ export function ProfileHighlights({ profile, self, actions, graphs, users, onOpe
       <ol className="divide-y divide-line">{entries.map((entry) => <li key={entry.node.uuid} className="min-w-0">
         <ProfileHighlightItem entry={entry} actions={actions} graphs={graphs} users={users} onOpenNode={onOpenNode} />
       </li>)}</ol>
-      {editing && <ChooseProfileHighlights userId={profile.uuid} highlights={profile.highlights} candidates={candidates} graphs={graphs} returnFocusRef={editRef} onClose={() => setEditing(false)} />}
+      {editing && <ChooseProfileHighlights userUuid={profile.uuid} highlights={profile.highlights} candidates={candidates} graphs={graphs} returnFocusRef={editRef} onClose={() => setEditing(false)} />}
     </section>
   )
 }

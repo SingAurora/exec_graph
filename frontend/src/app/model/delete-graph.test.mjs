@@ -2,8 +2,8 @@ import { describe, expect, test } from 'bun:test'
 import { canDeleteGraph, getGraphDeletionDisabledReason, isGraphParticipant } from '../../entities/graph/lib/permissions.ts'
 import { deleteGraphContent } from './delete-graph.ts'
 
-const graph = (id, ownerId = 'jo', participantIds = []) => ({ uuid: id, id, ownerId, participantIds, title: id })
-const node = (id, graphId, authorId = 'jo') => ({ uuid: id, id, graphId, authorId })
+const graph = (id, ownerUuid = 'jo', participantUuids = []) => ({ uuid: id, id, ownerUuid, participantUuids, title: id })
+const node = (id, graphUuid, authorUuid = 'jo') => ({ uuid: id, id, graphUuid, authorUuid })
 const state = (graphs, actions = []) => ({ graphs, actions, topics: [], plans: [], completions: [], reactions: {} })
 
 describe('graph deletion permission', () => {
@@ -55,9 +55,9 @@ describe('graph content deletion', () => {
   test('removes own nodes and legacy records in the selected graph, preserving the other graph', () => {
     const content = {
       ...state([graph('a'), graph('b')], [node('a1', 'a'), node('a2', 'a'), node('b1', 'b')]),
-      topics: [{ uuid: 'ta', id: 'ta', graphId: 'a' }, { id: 'tb', graphId: 'b' }],
+      topics: [{ uuid: 'ta', id: 'ta', graphUuid: 'a' }, { id: 'tb', graphUuid: 'b' }],
       plans: [{ uuid: 'pa', id: 'pa', topicId: 'ta' }, { id: 'pb', topicId: 'tb' }],
-      completions: [{ uuid: 'ca', id: 'ca', topicId: 'ta', planNodeId: 'pa' }, { id: 'cb', topicId: 'tb', planNodeId: 'pb' }],
+      completions: [{ uuid: 'ca', id: 'ca', topicId: 'ta', planNodeUuid: 'pa' }, { id: 'cb', topicId: 'tb', planNodeUuid: 'pb' }],
       reactions: { ca: 'believe', cb: 'doubt', pa: null },
     }
     const snapshot = JSON.parse(JSON.stringify(content))

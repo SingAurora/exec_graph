@@ -28,7 +28,7 @@ export function useAppCommands(scope: string, csrfToken: string) {
     const node = actionFromView(view)
     for (const query of client.getQueryCache().findAll({ queryKey: actionKeys.scope(scope) })) {
       const ids = query.queryKey[3]
-      if (!Array.isArray(ids) || !ids.includes(node.graphId)) continue
+      if (!Array.isArray(ids) || !ids.includes(node.graphUuid)) continue
       client.setQueryData<VersionedAction[]>(query.queryKey, (nodes) => nodes ? [node, ...nodes.filter((item) => item.uuid !== node.uuid)] : nodes)
     }
     void client.invalidateQueries({ queryKey: actionKeys.scope(scope) })
@@ -45,8 +45,8 @@ export function useAppCommands(scope: string, csrfToken: string) {
     client.setQueryData<GraphView[]>(graphKeys.catalogue(scope), (graphs) => graphs?.map((item) => item.uuid === graph.uuid ? graph : item))
   } })
   const graphDelete = useMutation({ mutationFn: (input: Parameters<typeof removeGraph>[0]) => removeGraph(input, options), onSuccess(_data, input) {
-    client.setQueryData<GraphView[]>(graphKeys.catalogue(scope), (graphs) => graphs?.filter((item) => item.uuid !== input.graphId))
-    client.setQueriesData<VersionedAction[]>({ queryKey: actionKeys.scope(scope) }, (nodes) => nodes?.filter((node) => node.graphId !== input.graphId))
+    client.setQueryData<GraphView[]>(graphKeys.catalogue(scope), (graphs) => graphs?.filter((item) => item.uuid !== input.graphUuid))
+    client.setQueriesData<VersionedAction[]>({ queryKey: actionKeys.scope(scope) }, (nodes) => nodes?.filter((node) => node.graphUuid !== input.graphUuid))
     void client.invalidateQueries({ queryKey: followingKeys.sources(scope) })
   } })
   const actionCreate = useMutation({ mutationFn: (input: Parameters<typeof createAction>[0]) => {
@@ -55,11 +55,11 @@ export function useAppCommands(scope: string, csrfToken: string) {
   }, onSuccess(node) { actionSubmission.current = undefined; updateNode(node) } })
   const expressionUpdate = useMutation({ mutationFn: (input: Parameters<typeof reviseExpression>[0]) => reviseExpression(input, options), onSuccess: updateNode })
   const agreementUpdate = useMutation({ mutationFn: (input: Parameters<typeof reviseAgreement>[0]) => reviseAgreement(input, options), onSuccess: updateNode })
-  const actionDelete = useMutation({ mutationFn: (input: { nodeId: string; expectedVersion: number }) => deleteAction(input, options), onSuccess(_data, input) {
-    client.setQueriesData<VersionedAction[]>({ queryKey: actionKeys.scope(scope) }, (nodes) => nodes?.filter((node) => node.uuid !== input.nodeId))
+  const actionDelete = useMutation({ mutationFn: (input: { nodeUuid: string; expectedVersion: number }) => deleteAction(input, options), onSuccess(_data, input) {
+    client.setQueriesData<VersionedAction[]>({ queryKey: actionKeys.scope(scope) }, (nodes) => nodes?.filter((node) => node.uuid !== input.nodeUuid))
     void client.invalidateQueries({ queryKey: actionKeys.scope(scope) })
   } })
-  const nodeDocumentPublish = useMutation({ mutationFn: (input: { nodeId: string; expectedVersion: number; kind: 'expression' | 'agreement' }) => publishNodeDocument(input.nodeId, input.expectedVersion, input.kind, csrfToken), onSuccess: updateNode })
+  const nodeDocumentPublish = useMutation({ mutationFn: (input: { nodeUuid: string; expectedVersion: number; kind: 'expression' | 'agreement' }) => publishNodeDocument(input.nodeUuid, input.expectedVersion, input.kind, csrfToken), onSuccess: updateNode })
   const followUpdate = useMutation({ mutationFn: (input: Parameters<typeof setFollowing>[0]) => setFollowing(input, options), onSuccess(sources) { client.setQueryData(followingKeys.sources(scope), sources) } })
   const profileUpdate = useMutation({ mutationFn: (input: Parameters<typeof updateProfile>[0]) => updateProfile(input, options), onSuccess(user) {
     client.setQueryData<SessionView>(profileKeys.session, (session) => session ? { ...session, user } : session)

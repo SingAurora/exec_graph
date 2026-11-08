@@ -24,13 +24,13 @@ export function PersonalWorkspace({ profile, users, graphs, actions, onCreateGra
   onOpenNode: (node: ActionNode, mode: ActionDocumentMode) => void
   onOpenReference: (reference: ActionReference) => void
 }) {
-  const ownActions = sortActionsNewestFirst(actions.filter((node) => node.authorId === profile.uuid))
+  const ownActions = sortActionsNewestFirst(actions.filter((node) => node.authorUuid === profile.uuid))
   const expressions = getPublishedExpressions(actions, [profile.uuid])
-  const related = graphs.filter((graph) => graph.ownerId === profile.uuid || hasUserContributed(graph.uuid, profile.uuid, actions))
+  const related = graphs.filter((graph) => graph.ownerUuid === profile.uuid || hasUserContributed(graph.uuid, profile.uuid, actions))
   const agreements = useMemo(() => getProfileAgreementResponses(getActionReferences(actions), profile.uuid), [actions, profile.uuid])
-  const graphActivities = related.map((graph) => ({ graph, lastOwnActionAt: ownActions.find((node) => node.graphId === graph.uuid)?.createdAt }))
+  const graphActivities = related.map((graph) => ({ graph, lastOwnActionAt: ownActions.find((node) => node.graphUuid === graph.uuid)?.createdAt }))
     .sort((a, b) => Date.parse(b.lastOwnActionAt ?? b.graph.createdAt) - Date.parse(a.lastOwnActionAt ?? a.graph.createdAt))
-  const profileHref = '#profile?userId=' + encodeURIComponent(profile.uuid)
+  const profileHref = '#profile?userUuid=' + encodeURIComponent(profile.uuid)
   const stats = [
     { value: ownActions.length, label: '行动', href: profileHref + '&tab=actions' },
     { value: expressions.length, label: '表达', href: profileHref + '&tab=expressions' },
@@ -52,12 +52,12 @@ export function PersonalWorkspace({ profile, users, graphs, actions, onCreateGra
         <div className="grid min-w-0 gap-7">
           {sections.map(({ id, title, mode, nodes, empty }) => <section className="min-w-0" key={id}>
             <div className="mb-3 flex items-center justify-between gap-3"><h2 id={'recent-' + id + '-title'} className="text-base font-semibold tracking-tight">{title}</h2><a href={profileHref + '&tab=' + id} className="inline-flex items-center gap-1 text-xs text-muted hover:text-signal">查看全部<ArrowRight size={13} /></a></div>
-            {nodes.length ? <div className={`grid rounded-lg bg-surface p-4 ${mode === 'objective' ? 'gap-5' : ''}`}>{nodes.map((node, index) => <DashboardDocumentCard key={node.uuid} node={node} actions={actions} users={users} graph={graphActivities.find((activity) => activity.graph.uuid === node.graphId)?.graph} mode={mode} compact={mode === 'objective' && index > 0} onOpenNode={onOpenNode} onOpenGraph={onOpenGraph} />)}</div>
+            {nodes.length ? <div className={`grid rounded-lg bg-surface p-4 ${mode === 'objective' ? 'gap-5' : ''}`}>{nodes.map((node, index) => <DashboardDocumentCard key={node.uuid} node={node} actions={actions} users={users} graph={graphActivities.find((activity) => activity.graph.uuid === node.graphUuid)?.graph} mode={mode} compact={mode === 'objective' && index > 0} onOpenNode={onOpenNode} onOpenGraph={onOpenGraph} />)}</div>
               : <p className="rounded-lg bg-surface px-4 py-10 text-center text-sm text-muted">{empty}</p>}
           </section>)}
           <section className="min-w-0">
             <div className="mb-3 flex items-center justify-between gap-3"><h2 id="recent-agreements-title" className="text-base font-semibold tracking-tight">最近约定</h2><a href={profileHref + '&tab=agreements'} className="inline-flex items-center gap-1 text-xs text-muted hover:text-signal" title="查看全部约定">查看全部<ArrowRight size={13} /></a></div>
-            {agreements.length ? <div className="grid rounded-lg bg-surface p-4">{agreements.slice(0, recentItemLimit).map((reference) => <DashboardAgreementCard key={reference.uuid} reference={reference} users={users} graph={graphActivities.find((activity) => activity.graph.uuid === reference.target.graphId)?.graph} onOpenReference={onOpenReference} onOpenGraph={onOpenGraph} />)}</div>
+            {agreements.length ? <div className="grid rounded-lg bg-surface p-4">{agreements.slice(0, recentItemLimit).map((reference) => <DashboardAgreementCard key={reference.uuid} reference={reference} users={users} graph={graphActivities.find((activity) => activity.graph.uuid === reference.target.graphUuid)?.graph} onOpenReference={onOpenReference} onOpenGraph={onOpenGraph} />)}</div>
               : <p className="rounded-lg bg-surface px-4 py-10 text-center text-sm text-muted">暂无约定交流</p>}
           </section>
         </div>

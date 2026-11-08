@@ -10,7 +10,7 @@ import (
 
 // AssetView 返回稳定资产身份和站内展示地址，不公开对象键。
 type AssetView struct {
-	AssetID     string    `json:"assetId"`
+	AssetID     string    `json:"assetUuid"`
 	URL         string    `json:"url"`
 	MIMEType    string    `json:"mimeType"`
 	ByteSize    uint64    `json:"byteSize"`
@@ -28,12 +28,12 @@ type Upload struct {
 
 // RetainInput 对草稿使用的本站资产显式续期，空数组不续期任何文件。
 type RetainInput struct {
-	AssetIDs []string `json:"assetIds"`
+	AssetIDs []string `json:"assetUuids"`
 }
 
 // RetentionView 告知客户端本次续期截止时间。
 type RetentionView struct {
-	AssetIDs    []string  `json:"assetIds"`
+	AssetIDs    []string  `json:"assetUuids"`
 	RetainUntil time.Time `json:"retainUntil"`
 }
 

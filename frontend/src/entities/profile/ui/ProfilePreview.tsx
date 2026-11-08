@@ -9,15 +9,15 @@ import { formatMainlandLocation } from '../model/mainland-regions'
 
 type ProfilePreviewProps = {
   profile?: UserProfile
-  userId: string
+  userUuid: string
   href?: string
   className?: string
   children: ReactNode
 }
 
 /** Opens a public profile preview before navigating through its avatar or name. */
-export function ProfilePreview({ profile, userId, href, className = '', children }: ProfilePreviewProps) {
-  const name = profile?.name ?? userId
+export function ProfilePreview({ profile, userUuid, href, className = '', children }: ProfilePreviewProps) {
+  const name = profile?.name ?? userUuid
   return (
     <Popover.Root>
       <Popover.Trigger asChild>
@@ -27,7 +27,7 @@ export function ProfilePreview({ profile, userId, href, className = '', children
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content className="pointer-events-auto z-[90] max-h-[calc(100dvh-24px)] w-72 max-w-[calc(100vw-24px)] overflow-y-auto overscroll-contain rounded-lg border border-line bg-surface text-ink shadow-app outline-none" sideOffset={8} collisionPadding={12} align="start">
-          <ProfilePreviewCard profile={profile} userId={userId} href={href} />
+          <ProfilePreviewCard profile={profile} userUuid={userUuid} href={href} />
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>
@@ -35,9 +35,9 @@ export function ProfilePreview({ profile, userId, href, className = '', children
 }
 
 /** Public-only card content; account email stays in the signed-in sidebar card. */
-export function ProfilePreviewCard({ profile, userId, href }: Pick<ProfilePreviewProps, 'profile' | 'userId' | 'href'>) {
-  const name = profile?.name ?? userId
-  const profileHref = href ?? '#profile?userId=' + encodeURIComponent(userId)
+export function ProfilePreviewCard({ profile, userUuid, href }: Pick<ProfilePreviewProps, 'profile' | 'userUuid' | 'href'>) {
+  const name = profile?.name ?? userUuid
+  const profileHref = href ?? '#profile?userUuid=' + encodeURIComponent(userUuid)
   const nameId = useId()
   const linkClass = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal'
   return (

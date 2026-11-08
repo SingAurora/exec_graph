@@ -1,15 +1,15 @@
 import { describe, expect, test } from 'bun:test'
 import { canEditActionExpression, getActionExpression, getActionExpressionNodes, getActionExpressionOrigin, sortActionsNewestFirst, updateActionExpression } from './expressions.ts'
 
-function node(id, parentId, expressionMarkdown, extra = {}) {
-  return { uuid: id, id, graphId: 'graph', number: Number(id) || 1, parentId, expressionMarkdown, authorId: id, title: id, markdown: '事实不是表达', images: [], conversation: [], createdAt: `2026-10-${id.padStart(2, '0')}T12:00:00+08:00`, ...extra }
+function node(id, parentUuid, expressionMarkdown, extra = {}) {
+  return { uuid: id, id, graphUuid: 'graph', number: Number(id) || 1, parentUuid, expressionMarkdown, authorUuid: id, title: id, markdown: '事实不是表达', images: [], conversation: [], createdAt: `2026-10-${id.padStart(2, '0')}T12:00:00+08:00`, ...extra }
 }
 
-const supplement = { authorId: 'jo', createdAt: '2026-10-18T15:00:00+08:00' }
+const supplement = { authorUuid: 'jo', createdAt: '2026-10-18T15:00:00+08:00' }
 
 describe('effective action expressions', () => {
   test('inherits through multiple nodes and preserves the original author and source', () => {
-    const root = node('1', undefined, '原有观点', { authorId: 'original-author' })
+    const root = node('1', undefined, '原有观点', { authorUuid: 'original-author' })
     const actions = [root, node('2', '1'), node('3', '2')]
     expect(getActionExpression(actions, '3')).toEqual({ markdown: '原有观点', sourceNode: root })
     const updated = node('4', '3', '新的观点')
@@ -35,7 +35,7 @@ describe('effective action expressions', () => {
 
   test('merges do not override the primary expression, even if it is empty', () => {
     const merged = node('2', undefined, '合入来源的观点')
-    const actions = [node('1'), merged, node('3', '1', undefined, { mergedParentIds: ['2'] })]
+    const actions = [node('1'), merged, node('3', '1', undefined, { mergedParentUuids: ['2'] })]
     expect(getActionExpression(actions, '3')).toEqual({ markdown: '' })
     actions[0] = node('1', undefined, '主承接观点')
     expect(getActionExpression(actions, '3').markdown).toBe('主承接观点')
@@ -46,7 +46,7 @@ describe('effective action expressions', () => {
 
   test('does not borrow facts or unrelated expressions across missing sources, graphs, or cycles', () => {
     expect(getActionExpression([node('1', 'missing'), node('2', undefined, '无关观点')], '1')).toEqual({ markdown: '' })
-    expect(getActionExpression([node('1', '2'), node('2', undefined, '其他图', { graphId: 'other' })], '1')).toEqual({ markdown: '' })
+    expect(getActionExpression([node('1', '2'), node('2', undefined, '其他图', { graphUuid: 'other' })], '1')).toEqual({ markdown: '' })
     expect(getActionExpression([node('1', '2'), node('2', '1')], '1')).toEqual({ markdown: '' })
     expect(getActionExpression([], 'missing')).toEqual({ markdown: '' })
   })
@@ -56,7 +56,7 @@ describe('expression and fact lists', () => {
   test('moves a route to its new endpoint while keeping other branches separate', () => {
     const actions = [node('1'), node('2', '1'), node('3', '1'), node('4', '2')]
     expect(getActionExpressionNodes(actions).map((item) => item.uuid)).toEqual(['4', '3'])
-    expect(getActionExpressionNodes([...actions, node('5', '4', undefined, { mergedParentIds: ['3'] })]).map((item) => item.uuid)).toEqual(['5'])
+    expect(getActionExpressionNodes([...actions, node('5', '4', undefined, { mergedParentUuids: ['3'] })]).map((item) => item.uuid)).toEqual(['5'])
     expect(getActionExpressionNodes([node('1')]).map((item) => item.uuid)).toEqual(['1'])
     expect(getActionExpressionNodes([])).toEqual([])
   })
@@ -97,9 +97,9 @@ describe('editing an endpoint expression', () => {
 
   test('a merge also ends eligibility, while references from another graph do not', () => {
     const empty = node('1', undefined, '')
-    const merge = node('2', undefined, undefined, { mergedParentIds: ['1'] })
+    const merge = node('2', undefined, undefined, { mergedParentUuids: ['1'] })
     expect(canEditActionExpression([empty, merge], '1')).toBe(false)
-    expect(canEditActionExpression([empty, { ...merge, graphId: 'other' }], '1')).toBe(true)
+    expect(canEditActionExpression([empty, { ...merge, graphUuid: 'other' }], '1')).toBe(true)
     expect(canEditActionExpression([node('1', undefined, '上游表达'), node('2', '1')], '2')).toBe(true)
   })
 
@@ -141,7 +141,7 @@ describe('editing an endpoint expression', () => {
     expect(updateActionExpression(actions, '1', '补充', supplement)).toBe(actions)
     expect(updateActionExpression(actions, '3', ' 已有表达 ', supplement)).toBe(actions)
     expect(updateActionExpression(actions, 'missing', '补充', supplement)).toBe(actions)
-    for (const extra of [{ parentId: '3' }, { mergedParentIds: ['3'] }]) {
+    for (const extra of [{ parentUuid: '3' }, { mergedParentUuids: ['3'] }]) {
       const continued = [...actions, node('4', undefined, undefined, extra)]
       expect(updateActionExpression(continued, '3', '修改', supplement)).toBe(continued)
       expect(updateActionExpression(continued, '3', '', supplement)).toBe(continued)

@@ -9,7 +9,7 @@ import { ToastContext } from '../../../shared/ui/toast/ToastContext.ts'
 const noop = () => {}
 const graphs = [{ uuid: 'cooking', id: 'cooking', title: '厨艺练习', createdAt: '2026-10-01' }]
 const users = [{ uuid: 'lin', id: 'lin', name: '林', bio: '', avatar: '', gender: 'unknown' }, { id: 'miao', name: '苗', bio: '', avatar: '', gender: 'unknown' }]
-const node = (number, extra = {}) => ({ uuid: String(number), id: String(number), number, graphId: 'cooking', authorId: 'lin', title: `行动 ${number}`, markdown: '今天做了一盘炒蛋', images: [], conversation: [], createdAt: `2026-10-${String(number).padStart(2, '0')}T12:00:00+08:00`, ...extra })
+const node = (number, extra = {}) => ({ uuid: String(number), id: String(number), number, graphUuid: 'cooking', authorUuid: 'lin', title: `行动 ${number}`, markdown: '今天做了一盘炒蛋', images: [], conversation: [], createdAt: `2026-10-${String(number).padStart(2, '0')}T12:00:00+08:00`, ...extra })
 const render = (sources, actions = []) => renderToStaticMarkup(createElement(TooltipProvider, null,
   createElement(ToastContext.Provider, { value: { showToast: noop } }, createElement(Following, {
     sources, actions, active: true, graphs, users,
@@ -18,7 +18,7 @@ const render = (sources, actions = []) => renderToStaticMarkup(createElement(Too
 
 describe('following navigation and empty states', () => {
   test('one tab bar prioritizes expressions and agreements without a separate action feed', () => {
-    const html = render({ userIds: [], graphIds: [] })
+    const html = render({ userUuids: [], graphUuids: [] })
     expect(html.match(/role="tablist"/g)).toHaveLength(1)
     expect(html.match(/role="tab"/g)).toHaveLength(4)
     expect(html).not.toContain('trigger-actions')
@@ -30,7 +30,7 @@ describe('following navigation and empty states', () => {
   })
 
   test('following someone without publications uses the shared empty state', () => {
-    const html = render({ userIds: ['lin'], graphIds: [] })
+    const html = render({ userUuids: ['lin'], graphUuids: [] })
     expect(html).toContain('暂无数据')
     expect(html).not.toContain('关注的用户和图暂无表达')
     expect(html).not.toContain('还没有关注的图或用户')
@@ -38,9 +38,9 @@ describe('following navigation and empty states', () => {
   })
 
   test('an unfamiliar responder explains the followed author and still targets the actual arrow', () => {
-    const html = render({ userIds: ['lin'], graphIds: [] }, [
+    const html = render({ userUuids: ['lin'], graphUuids: [] }, [
       node(1, { agreementMarkdown: '记录实际用时' }),
-      node(2, { authorId: 'miao', parentId: '1', referenceAgreements: [{ sourceId: '1', complies: true }] }),
+      node(2, { authorUuid: 'miao', parentUuid: '1', referenceAgreements: [{ sourceUuid: '1', complies: true }] }),
     ])
     expect(html).toContain('回应了你关注的')
     expect(html).toContain('查看林的资料')
@@ -51,9 +51,9 @@ describe('following navigation and empty states', () => {
   test('the same expression and agreement have identical items in discovery and following', () => {
     const actions = [
       node(1, { expressionMarkdown: '先照顾食材的状态', images: [{ url: '/egg.jpg', alt: '炒蛋' }], agreementMarkdown: '记录实际用时\n\n![配图](/agreement.jpg)' }),
-      node(2, { authorId: 'miao', parentId: '1', referenceAgreements: [{ sourceId: '1', complies: true }] }),
+      node(2, { authorUuid: 'miao', parentUuid: '1', referenceAgreements: [{ sourceUuid: '1', complies: true }] }),
     ]
-    const following = render({ userIds: [], graphIds: ['cooking'] }, actions)
+    const following = render({ userUuids: [], graphUuids: ['cooking'] }, actions)
     const discovery = renderToStaticMarkup(createElement(Discovery, {
       actions, graphs, users, active: true, onOpenNode: noop, onOpenReference: noop, onOpenGraph: noop, onSearchGraphs: noop,
     }))

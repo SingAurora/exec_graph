@@ -18,7 +18,7 @@ import { DefaultEffectGuide } from './DefaultEffectGuide'
 import { appendWorkspaceError, appendWorkspaceNotice, createWorkspaceView, isActionWorkspaceDraft, normalizeGenerationRequest, pendingReportsForRestore, reconcileWorkspaceDraft, type ActionWorkspaceDraft } from './model/workspace-draft'
 
 type ActionWorkspaceProps = {
-  graphId: string
+  graphUuid: string
   csrfToken: string
   profileName: string
   profile?: UserProfile
@@ -29,7 +29,7 @@ type ActionWorkspaceProps = {
   inheritedExpression?: string
   inheritedExpressionImages?: PostImage[]
   inheritedAgreement?: string
-  sourceNodeId?: string
+  sourceNodeUuid?: string
   sourceNodeNumber?: number
   actions?: (ActionNode & { version?: number })[]
   historyFacts?: ActionExpressionContext['facts']
@@ -40,12 +40,12 @@ type ActionWorkspaceProps = {
 }
 
 /** 行动发布工作区：同一条 AI 对话整理行动事实与表达，另行设置后续约定并核对来源。 */
-export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draftKey, hasParent, contextTitle, contextGuide, inheritedExpression = '', inheritedExpressionImages = [], inheritedAgreement = '', sourceNodeId, sourceNodeNumber, actions, historyFacts = [], initialDocument = '', initialMessages, onBack, onConfirm }: ActionWorkspaceProps) {
+export function ActionWorkspace({ graphUuid, csrfToken, profileName, profile, draftKey, hasParent, contextTitle, contextGuide, inheritedExpression = '', inheritedExpressionImages = [], inheritedAgreement = '', sourceNodeUuid, sourceNodeNumber, actions, historyFacts = [], initialDocument = '', initialMessages, onBack, onConfirm }: ActionWorkspaceProps) {
   const { generate, chat } = useGeneration(csrfToken)
   // 背景签名用于判断草稿是否仍对应当前引用事实；来源变化后必须再对话核实，不能直接发布旧结果。
   const signatureFor = (mergedIds: string[]) => {
-    const context = actions && sourceNodeId ? getActionContinuationContext(actions, sourceNodeId, mergedIds) : undefined
-    return JSON.stringify({ sourceNodeId, mergedIds, contextGuide, inheritedExpression, inheritedAgreement,
+    const context = actions && sourceNodeUuid ? getActionContinuationContext(actions, sourceNodeUuid, mergedIds) : undefined
+    return JSON.stringify({ sourceNodeUuid, mergedIds, contextGuide, inheritedExpression, inheritedAgreement,
       facts: context?.facts ?? historyFacts, sources: context?.sources.map(({ node, agreement }) => [node.uuid, actions?.find((item) => item.uuid === node.uuid)?.version, agreement.markdown]) })
   }
   // 对话、文档和预览位置作为一份本地草稿保存；恢复完成前禁止编辑，避免初始空值覆盖旧草稿。
@@ -54,18 +54,18 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
     initialValue: { messages: initialMessages ?? [], pendingReports: [], input: '', document: initialDocument,
       details: { title: '', description: '', points: [], note: '' }, generated: Boolean(initialDocument),
       expression: { mode: hasParent ? 'inherit' : 'clear', markdown: '' }, agreementMode: 'inherit', agreementDraft: inheritedAgreement,
-      agreementReviews: [], mergedParentIds: [], sourcesChanged: false, imagePlacementPending: false, contextSignature: signatureFor([]), view: createWorkspaceView() },
+      agreementReviews: [], mergedParentUuids: [], sourcesChanged: false, imagePlacementPending: false, contextSignature: signatureFor([]), view: createWorkspaceView() },
     validate: isActionWorkspaceDraft,
     restore: (saved) => {
       const generationRequest = normalizeGenerationRequest(saved.generationRequest)
-      const normalized = { ...saved, generationRequest, pendingReports: [], input: saved.input || pendingReportsForRestore(saved).join('\n\n'), mergedParentIds: [] }
-      const restored = reconcileWorkspaceDraft(normalized, signatureFor(normalized.mergedParentIds))
+      const normalized = { ...saved, generationRequest, pendingReports: [], input: saved.input || pendingReportsForRestore(saved).join('\n\n'), mergedParentUuids: [] }
+      const restored = reconcileWorkspaceDraft(normalized, signatureFor(normalized.mergedParentUuids))
       return restored === normalized ? normalized : { ...restored, sourcesChanged: true, agreementReviews: [], verificationStatus: 'unverified' }
     },
     hasContent: (value) => Boolean(value.input || value.document || value.messages.some(isSavedMessage)
       || value.agreementMode !== 'inherit' || value.agreementDraft !== inheritedAgreement || value.images?.length),
   })
-  const { messages, input, document, images = [], imagePlacementPending = false, generated, verificationStatus = 'unverified', agreementReviews, mergedParentIds, sourcesChanged, generation, generationRequest } = local.value
+  const { messages, input, document, images = [], imagePlacementPending = false, generated, verificationStatus = 'unverified', agreementReviews, mergedParentUuids, sourcesChanged, generation, generationRequest } = local.value
   const update = (patch: Partial<ActionWorkspaceDraft>) => local.update((current) => ({ ...current, ...patch }))
   const fillPhrase = (phrase: string) => update({ input: phrase, view: { ...local.value.view, tab: 'conversation' } })
   const signatureForRef = useRef(signatureFor)
@@ -79,24 +79,24 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
   const [composerMode, setComposerMode] = useState<'conversation' | 'image'>('conversation')
   const [publishError, setPublishError] = useState('')
   const changeImages = (next: PostImage[]) => { update({ images: next, imagePlacementPending: next.length > 0 || Boolean(generation?.draft?.images?.length), verificationStatus: 'unverified' }); setPublishError('') }
-  const continuation = actions && sourceNodeId ? getActionContinuationContext(actions, sourceNodeId, mergedParentIds) : undefined
+  const continuation = actions && sourceNodeUuid ? getActionContinuationContext(actions, sourceNodeUuid, mergedParentUuids) : undefined
   const knownFacts = continuation?.facts ?? historyFacts
-  const parentNode = actions?.find((node) => node.uuid === sourceNodeId)
-  const directSources = continuation?.sources.map(({ node, agreement }) => ({ sourceId: node.uuid, nodeNumber: node.number, authorId: node.authorId, markdown: agreement.markdown }))
-    ?? (hasParent && sourceNodeId && sourceNodeNumber !== undefined ? [{ sourceId: sourceNodeId, nodeNumber: sourceNodeNumber, authorId: parentNode?.authorId, markdown: inheritedAgreement }] : [])
+  const parentNode = actions?.find((node) => node.uuid === sourceNodeUuid)
+  const directSources = continuation?.sources.map(({ node, agreement }) => ({ sourceUuid: node.uuid, nodeNumber: node.number, authorUuid: node.authorUuid, markdown: agreement.markdown }))
+    ?? (hasParent && sourceNodeUuid && sourceNodeNumber !== undefined ? [{ sourceUuid: sourceNodeUuid, nodeNumber: sourceNodeNumber, authorUuid: parentNode?.authorUuid, markdown: inheritedAgreement }] : [])
   // 约定核对只属于其他用户；约定文档本身默认沿用上一个节点，避免重复整理。
   const agreementIntent = documentUpdate(hasParent ? undefined : '')
   const selectedAgreement = hasParent ? inheritedAgreement : ''
   const effectiveExpression = inheritedExpression
-  const actionImages: PostImage[] = (generation?.draft?.images ?? []).flatMap(({ assetId, alt }) => {
-    const image = images.find((item) => item.assetId === assetId)
+  const actionImages: PostImage[] = (generation?.draft?.images ?? []).flatMap(({ assetUuid, alt }) => {
+    const image = images.find((item) => item.assetUuid === assetUuid)
     return image ? [{ ...image, alt }] : []
   })
   const contextValid = !actions || !hasParent || Boolean(continuation)
   // 发布要求本轮生成完整、用户已核验且背景未变；来源约定明确不满足时核验失败，未知仍可发布并保留详情。
   // 发布资格以服务端确认参数和显式核验为准；来源版本仍由发布接口做最终校验。
   const canPublish = local.ready && Boolean(document.trim()) && generated && verificationStatus === 'passed' && Boolean(generation?.createAction) && !input.trim() && !sending && !publishing && !uploading && contextValid && !imagePlacementPending
-  const agreementSources = directSources.filter((source) => source.authorId !== undefined && source.authorId !== profile?.uuid && source.markdown.trim())
+  const agreementSources = directSources.filter((source) => source.authorUuid !== undefined && source.authorUuid !== profile?.uuid && source.markdown.trim())
   const agreementStats = agreementSources.reduce((stats, source) => {
     const review = agreementReviews.find((item) => item.nodeNumber === source.nodeNumber)
     if (review?.complies === true) stats.passed += 1
@@ -118,11 +118,11 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
   // 来源或引用版本变化时，旧核验结果不再有效；保留草稿供阅读，但要求重新核验。
   useEffect(() => {
     if (!local.ready) return
-    const current = signatureForRef.current(mergedParentIds)
+    const current = signatureForRef.current(mergedParentUuids)
     if (local.value.contextSignature !== current && (generated || verificationStatus !== 'unverified' || !sourcesChanged)) {
       updateRef.current({ generated: false, verificationStatus: 'unverified', sourcesChanged: true, agreementReviews: [] })
     }
-  }, [actions, contextGuide, generated, inheritedAgreement, inheritedExpression, mergedParentIds, sourcesChanged, verificationStatus, local.ready, local.value.contextSignature])
+  }, [actions, contextGuide, generated, inheritedAgreement, inheritedExpression, mergedParentUuids, sourcesChanged, verificationStatus, local.ready, local.value.contextSignature])
 
   const publish = async () => {
     if (!canPublish) return
@@ -150,10 +150,10 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
     }
     const draft = result.draft
     local.update((current) => {
-      const messages = [...current.messages, { id: 'ai-' + result.generationId, speaker: 'ai' as const, body: draft.reply, model: result.model }]
+      const messages = [...current.messages, { id: 'ai-' + result.generationUuid, speaker: 'ai' as const, body: draft.reply, model: result.model }]
       return { ...current, generation: result, document: draft.objective, details: { title: draft.title, description: '', points: [], note: '' }, expression: { mode: hasParent ? 'inherit' : 'clear', markdown: '' }, agreementMode: hasParent ? 'inherit' : 'clear', agreementDraft: selectedAgreement,
-        agreementReviews: draft.reviews.map((review) => ({ nodeNumber: actions?.find((node) => node.uuid === review.sourceId)?.number ?? 0, complies: review.complies, reason: review.exceptionReason ?? '' })), messages,
-        generated: true, verificationStatus: 'unverified', sourcesChanged: false, imagePlacementPending: images.length > 0, contextSignature: signatureFor(mergedParentIds) }
+        agreementReviews: draft.reviews.map((review) => ({ nodeNumber: actions?.find((node) => node.uuid === review.sourceUuid)?.number ?? 0, complies: review.complies, reason: review.exceptionReason ?? '' })), messages,
+        generated: true, verificationStatus: 'unverified', sourcesChanged: false, imagePlacementPending: images.length > 0, contextSignature: signatureFor(mergedParentUuids) }
     })
   }
   const applyGenerationRef = useRef(applyGeneration)
@@ -181,17 +181,17 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
     const clean = input.trim()
     if (!local.ready || !clean || sending || publishing || uploading || !contextValid) return
     const next = [...messages.filter((message) => !message.id.startsWith('error-')), { id: 'user-' + Date.now(), speaker: 'user' as const, body: clean }]
-    const requestInput: GenerateInput = { mode: 'action', graphId, messages: [clean], conversationId: generation?.conversationId, feedback: local.value.verificationFeedback,
-      parentId: sourceNodeId, mergedParentIds: [], sourceVersions: directSources.map(({ sourceId }) => ({ nodeId: sourceId, version: actions?.find((node) => node.uuid === sourceId)?.version ?? 0 })), agreement: agreementIntent }
+    const requestInput: GenerateInput = { mode: 'action', graphUuid, messages: [clean], conversationUuid: generation?.conversationUuid, feedback: local.value.verificationFeedback,
+      parentUuid: sourceNodeUuid, mergedParentUuids: [], sourceVersions: directSources.map(({ sourceUuid }) => ({ nodeUuid: sourceUuid, version: actions?.find((node) => node.uuid === sourceUuid)?.version ?? 0 })), agreement: agreementIntent }
     const request: GenerationRequest = !generated && generationRequest && generation?.status !== 'failed' && JSON.stringify(generationRequest.input) === JSON.stringify(requestInput)
       ? generationRequest : { key: crypto.randomUUID(), input: requestInput }
     update({ messages: next, input: '', generated: false, verificationStatus: 'unverified', agreementReviews: [], generationRequest: request })
     setSending(true); setPublishError('')
     try {
-      const result = await chat(request, generation?.generationId)
+      const result = await chat(request, generation?.generationUuid)
       if (result.kind === 'verification') {
         const verification = result.verification
-        const reviews = verification.sourceReviews.map((review) => ({ nodeNumber: actions?.find((node) => node.uuid === review.sourceId)?.number ?? 0, complies: review.complies, reason: review.exceptionReason ?? '' }))
+        const reviews = verification.sourceReviews.map((review) => ({ nodeNumber: actions?.find((node) => node.uuid === review.sourceUuid)?.number ?? 0, complies: review.complies, reason: review.exceptionReason ?? '' }))
         const feedback = verification.status === 'failed' ? verification.message : undefined
         update({ verificationStatus: verification.status, agreementReviews: reviews, verificationFeedback: feedback, generated: true })
         local.update((current) => ({ ...current, generated: true, verificationStatus: verification.status, agreementReviews: reviews, verificationFeedback: feedback,
@@ -214,7 +214,7 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
     if (!local.ready || !generation || generation.status !== 'succeeded' || !generation.createAction || (images.length > 0 && images.some((image) => !image.alt.trim())) || placing || sending || publishing || uploading) return
     setPlacing(true)
     try {
-      const result = await placeGenerationImages(generation.generationId, images.map((image) => ({ assetId: image.assetId!, alt: image.alt.trim() })), csrfToken)
+      const result = await placeGenerationImages(generation.generationUuid, images.map((image) => ({ assetUuid: image.assetUuid!, alt: image.alt.trim() })), csrfToken)
       if (result.status !== 'succeeded' || !result.draft) throw new Error('图片放置没有完成，请重试')
       local.update((current) => ({
         ...current, generation: result, document: result.draft!.objective,
@@ -262,7 +262,7 @@ export function ActionWorkspace({ graphId, csrfToken, profileName, profile, draf
           <div className="divide-y divide-line">{directSources.map((source) => {
             const review = agreementReviews.find((item) => item.nodeNumber === source.nodeNumber)
             const status = review?.complies === true ? '满足约定' : review?.complies === false ? '不满足约定' : '尚未核对'
-            return <div className="py-3" key={source.sourceId}>
+            return <div className="py-3" key={source.sourceUuid}>
               <p className="mb-1 flex items-center justify-between gap-3 text-xs"><span>节点 #{source.nodeNumber}</span><span className={review?.complies === false ? 'text-coral' : review?.complies === true ? 'text-signal' : 'text-muted'}>{status}</span></p>
               {source.markdown ? <MarkdownContent markdown={source.markdown} /> : <p className="text-xs text-muted">来源没有设置约定</p>}
               {review?.reason && <p className="mt-2 text-xs text-muted">不符合原因：{review.reason}</p>}

@@ -6,12 +6,12 @@ import { RecentGraphsAside } from './RecentGraphsAside.tsx'
 import { getActiveGraphActivities } from '../../../entities/graph/lib/activity.ts'
 
 const graphs = Array.from({ length: 8 }, (_, index) => ({
-  uuid: `g-${index}`, id: `g-${index}`, ownerId: 'jo', title: `图 ${index}`, description: '公开空间', createdAt: '2026-10-01T12:00:00+08:00',
+  uuid: `g-${index}`, id: `g-${index}`, ownerUuid: 'jo', title: `图 ${index}`, description: '公开空间', createdAt: '2026-10-01T12:00:00+08:00',
 }))
 const actions = graphs.flatMap((graph, index) => {
-  const base = { graphId: graph.uuid, createdAt: `2026-10-${String(index + 1).padStart(2, '0')}T12:00:00+08:00`, images: [], conversation: [] }
-  return [{ ...base, uuid: `source-${index}`, id: `source-${index}`, number: 1, authorId: 'lin', title: '来源行动', markdown: '真实行动', expressionMarkdown: '原来的表达', agreementMarkdown: '记录用时' },
-    { ...base, uuid: `response-${index}`, id: `response-${index}`, number: 2, authorId: 'jo', title: `回应 ${index}`, markdown: '本次行动', expressionMarkdown: '目前的表达', parentId: `source-${index}`, referenceAgreements: [{ sourceId: `source-${index}`, complies: true }] }]
+  const base = { graphUuid: graph.uuid, createdAt: `2026-10-${String(index + 1).padStart(2, '0')}T12:00:00+08:00`, images: [], conversation: [] }
+  return [{ ...base, uuid: `source-${index}`, id: `source-${index}`, number: 1, authorUuid: 'lin', title: '来源行动', markdown: '真实行动', expressionMarkdown: '原来的表达', agreementMarkdown: '记录用时' },
+    { ...base, uuid: `response-${index}`, id: `response-${index}`, number: 2, authorUuid: 'jo', title: `回应 ${index}`, markdown: '本次行动', expressionMarkdown: '目前的表达', parentUuid: `source-${index}`, referenceAgreements: [{ sourceUuid: `source-${index}`, complies: true }] }]
 })
 const render = (overrides = {}) => renderToStaticMarkup(createElement(Discovery, {
   graphs, actions, users: [], active: true, onOpenGraph() {}, onOpenNode() {}, onOpenReference() {}, onSearchGraphs() {}, ...overrides,
@@ -19,7 +19,7 @@ const render = (overrides = {}) => renderToStaticMarkup(createElement(Discovery,
 
 describe('public discovery', () => {
   test('resolves current endpoints and satisfied exchanges with full context while excluding unknown graphs', () => {
-    const html = render({ actions: [...actions, { ...actions[0], uuid: 'orphan', id: 'orphan', graphId: 'removed', expressionMarkdown: '不可见表达' }] })
+    const html = render({ actions: [...actions, { ...actions[0], uuid: 'orphan', id: 'orphan', graphUuid: 'removed', expressionMarkdown: '不可见表达' }] })
     expect(html).toContain('trigger-expressions')
     expect(html).toContain('trigger-agreements')
     expect(html).not.toContain('trigger-graphs')

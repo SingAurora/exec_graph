@@ -5,16 +5,16 @@ import { getActionReferences } from '../../../entities/action/lib/references.ts'
 import { AgreementResponseList } from './AgreementResponseList.tsx'
 
 const source = {
-  uuid: 'source', id: 'source', graphId: 'graph', number: 1, authorId: 'jo', title: '来源行动',
+  uuid: 'source', id: 'source', graphUuid: 'graph', number: 1, authorUuid: 'jo', title: '来源行动',
   agreementMarkdown: '请记录食材状态。\n\n![约定配图](/agreement.jpg)',
   images: [{ url: '/source-action.jpg', alt: '来源行动附图' }], createdAt: '2026-10-01T12:00:00+08:00',
 }
-const inherited = { ...source, uuid: 'inherited', id: 'inherited', number: 2, authorId: 'lin', parentId: 'source', agreementMarkdown: undefined }
+const inherited = { ...source, uuid: 'inherited', id: 'inherited', number: 2, authorUuid: 'lin', parentUuid: 'source', agreementMarkdown: undefined }
 const response = {
-  ...source, uuid: 'response', id: 'response', number: 3, authorId: 'miao', parentId: 'inherited',
+  ...source, uuid: 'response', id: 'response', number: 3, authorUuid: 'miao', parentUuid: 'inherited',
   agreementMarkdown: '后续约定\n\n![后续附图](/downstream.jpg)',
   images: [{ url: '/response-action.jpg', alt: '本次行动附图' }],
-  referenceAgreements: [{ sourceId: 'inherited', complies: true }],
+  referenceAgreements: [{ sourceUuid: 'inherited', complies: true }],
 }
 const render = (nodes) => renderToStaticMarkup(createElement(AgreementResponseList, {
   references: getActionReferences(nodes), users: [], active: true, onExplore() {},

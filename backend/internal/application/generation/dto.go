@@ -13,13 +13,13 @@ import (
 // GenerateInput 只提交本轮输入和引用选择，历史事实及已有对话由服务端读取。
 type GenerateInput struct {
 	Mode            string                 `json:"mode"`
-	GraphID         string                 `json:"graphId"`
-	ConversationID  string                 `json:"conversationId,omitempty"`
-	NodeID          string                 `json:"nodeId,omitempty"`
+	GraphID         string                 `json:"graphUuid"`
+	ConversationID  string                 `json:"conversationUuid,omitempty"`
+	NodeID          string                 `json:"nodeUuid,omitempty"`
 	ExpectedVersion uint32                 `json:"expectedVersion,omitempty"`
 	Messages        []string               `json:"messages"`
-	ParentID        string                 `json:"parentId,omitempty"`
-	MergedParentIDs []string               `json:"mergedParentIds"`
+	ParentID        string                 `json:"parentUuid,omitempty"`
+	MergedParentIDs []string               `json:"mergedParentUuids"`
 	SourceVersions  []action.SourceVersion `json:"sourceVersions"`
 	Agreement       action.DocumentUpdate  `json:"agreement"`
 	Images          []action.ImageInput    `json:"images"`
@@ -49,7 +49,7 @@ type ImageIssue struct {
 
 // PlaceImagesInput 只对已有行动草稿做图片放置，不提交正文或新的行动报告。
 type PlaceImagesInput struct {
-	GenerationID string              `json:"generationId"`
+	GenerationID string              `json:"generationUuid"`
 	Images       []action.ImageInput `json:"images"`
 }
 
@@ -65,8 +65,8 @@ type Placement struct {
 
 // View 是仅生成发起者可读的结果及对应确认参数。
 type View struct {
-	GenerationID     string                        `json:"generationId"`
-	ConversationID   string                        `json:"conversationId"`
+	GenerationID     string                        `json:"generationUuid"`
+	ConversationID   string                        `json:"conversationUuid"`
 	Status           string                        `json:"status"`
 	Model            string                        `json:"model,omitempty"`
 	ErrorCode        string                        `json:"errorCode,omitempty"`
@@ -160,7 +160,7 @@ type VerificationContext struct {
 
 // VerifyView 是一次显式核验的公开结果。
 type VerifyView struct {
-	GenerationID  string                    `json:"generationId"`
+	GenerationID  string                    `json:"generationUuid"`
 	Status        string                    `json:"status"`
 	Message       string                    `json:"message"`
 	SourceReviews []action.SourceAssessment `json:"sourceReviews"`
@@ -180,13 +180,13 @@ type Provider interface {
 
 // VerifyInput 指定要核验的已生成草稿。
 type VerifyInput struct {
-	GenerationID string `json:"generationId"`
+	GenerationID string `json:"generationUuid"`
 }
 
 // ChatInput 在同一轮对话中携带当前草稿，供服务端判断是继续生成还是核验。
 type ChatInput struct {
 	GenerateInput
-	GenerationID string `json:"generationId,omitempty"`
+	GenerationID string `json:"generationUuid,omitempty"`
 }
 
 // ChatView 是对话路由结果：要么生成草稿，要么核验当前草稿。

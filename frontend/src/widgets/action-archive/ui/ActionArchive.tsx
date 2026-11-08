@@ -28,24 +28,24 @@ export function ActionArchive({ graph, node, actions, users, onBack, onSelectSou
   onBack: () => void
   onSelectSource: (id: string) => void
 }) {
-  const author = users.find((user) => user.uuid === node.authorId)
-  const authorName = author?.name ?? node.authorId
+  const author = users.find((user) => user.uuid === node.authorUuid)
+  const authorName = author?.name ?? node.authorUuid
   const expression = getActionExpression(actions, node.uuid)
   const agreement = getActionAgreement(actions, node.uuid)
   const change = getActionExpressionChange(actions, node.uuid)
   const expressionSource = change.source
   const changeLabels = { initial: '首次填写表达', modified: '修改自', inherited: '继承自', cleared: '已主动清空表达', empty: '未填写表达' }
   const supplement = node.expressionSupplement
-  const supplementAuthor = supplement && (users.find((user) => user.uuid === supplement.authorId)?.name ?? supplement.authorId)
+  const supplementAuthor = supplement && (users.find((user) => user.uuid === supplement.authorUuid)?.name ?? supplement.authorUuid)
   const [documentTab, setDocumentTab] = useState('objective')
   const expressionNode = expression.sourceNode ?? node
   const expressionRevision = expressionNode.expressionSupplement
   const expressionDialogue = expressionNode.expressionConversation ?? []
   const dialogue = [
-    ...node.conversation.map((message) => ({ ...message, authorId: node.authorId })),
-    ...(node.expressionConversation ?? []).map((message) => ({ ...message, authorId: message.authorId ?? supplement?.authorId ?? node.authorId })),
+    ...node.conversation.map((message) => ({ ...message, authorUuid: node.authorUuid })),
+    ...(node.expressionConversation ?? []).map((message) => ({ ...message, authorUuid: message.authorUuid ?? supplement?.authorUuid ?? node.authorUuid })),
   ].filter((message) => message.id !== 'welcome' && !message.id.startsWith('error-'))
-  const profileLink = `#profile?userId=${encodeURIComponent(node.authorId)}&fromGraph=${encodeURIComponent(graph.uuid)}&fromTab=explore`
+  const profileLink = `#profile?userUuid=${encodeURIComponent(node.authorUuid)}&fromGraph=${encodeURIComponent(graph.uuid)}&fromTab=explore`
 
   return (
     <section className="max-w-[860px] pb-12 pt-5">
@@ -63,7 +63,7 @@ export function ActionArchive({ graph, node, actions, users, onBack, onSelectSou
         </div>
         <h2 className="mt-3 text-2xl font-semibold leading-[1.5] tracking-[-.03em]">{node.title}</h2>
         <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs leading-5 text-muted">
-          <ProfilePreview profile={author} userId={node.authorId} className="inline-flex items-center gap-2 text-ink hover:text-signal" href={profileLink}>
+          <ProfilePreview profile={author} userUuid={node.authorUuid} className="inline-flex items-center gap-2 text-ink hover:text-signal" href={profileLink}>
             <Avatar profile={author} label={authorName} size="small" /><span className="text-sm font-medium">{authorName}</span>
           </ProfilePreview>
           <time dateTime={node.createdAt} title={formatFullPublicationTime(node.createdAt)}>{formatPublicationTime(node.createdAt)}</time>
@@ -92,7 +92,7 @@ export function ActionArchive({ graph, node, actions, users, onBack, onSelectSou
         </div>
       </details>}
 
-      <ArchiveConversation label="AI 对话" messages={dialogue} authorId={node.authorId} graphId={graph.uuid} users={users} />
+      <ArchiveConversation label="AI 对话" messages={dialogue} authorUuid={node.authorUuid} graphUuid={graph.uuid} users={users} />
       <div className="mt-8">
         <h3 className="text-sm font-medium">文档结果</h3>
         <TabsRoot value={documentTab} onValueChange={setDocumentTab}>

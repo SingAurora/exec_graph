@@ -20,8 +20,8 @@ import { ProfileHome } from './ProfileHome'
 import { ProfileHighlights } from './ProfileHighlights'
 
 /** 本人与他人共用的公开主页，组织热力图、表达、约定回应、行动和图等栏目。 */
-export function PublicProfile({ profile, currentUserId, following, users, graphs, actions, active, activityTabRequest, onCreateGraph, onSetUserFollow, onOpenGraph, onOpenNode, onOpenReference }: {
-  profile: UserProfile; currentUserId: string; following: boolean; users: UserProfile[]
+export function PublicProfile({ profile, currentUserUuid, following, users, graphs, actions, active, activityTabRequest, onCreateGraph, onSetUserFollow, onOpenGraph, onOpenNode, onOpenReference }: {
+  profile: UserProfile; currentUserUuid: string; following: boolean; users: UserProfile[]
   graphs: Graph[]; actions: ActionNode[]; active?: boolean
   activityTabRequest?: ComponentProps<typeof ActivityFeed>['tabRequest']
   onCreateGraph?: (input: CreateGraphInput) => void
@@ -29,11 +29,11 @@ export function PublicProfile({ profile, currentUserId, following, users, graphs
   onOpenNode: (node: ActionNode, mode: ActionDocumentMode) => void
   onOpenReference: (reference: ActionReference) => void
 }) {
-  const authorActions = actions.filter((node) => node.authorId === profile.uuid)
-  const related = graphs.filter((graph) => graph.ownerId === profile.uuid || hasUserContributed(graph.uuid, profile.uuid, actions))
-  const expressionCount = getPublishedExpressions(actions).filter((node) => node.authorId === profile.uuid).length
+  const authorActions = actions.filter((node) => node.authorUuid === profile.uuid)
+  const related = graphs.filter((graph) => graph.ownerUuid === profile.uuid || hasUserContributed(graph.uuid, profile.uuid, actions))
+  const expressionCount = getPublishedExpressions(actions).filter((node) => node.authorUuid === profile.uuid).length
   const agreementResponses = useMemo(() => getProfileAgreementResponses(getActionReferences(actions), profile.uuid), [actions, profile.uuid])
-  const self = profile.uuid === currentUserId
+  const self = profile.uuid === currentUserUuid
   const avatar = <Avatar profile={profile} size="xlarge" shape="circle" />
   return (
     <section className="pt-6">
@@ -49,8 +49,8 @@ export function PublicProfile({ profile, currentUserId, following, users, graphs
         <div className="mt-3 px-5"><ProfileBiography biography={profile.bio} /></div>
         <div className="mt-4 flex flex-wrap gap-x-7 gap-y-2 px-5 text-sm text-muted"><span><strong className="font-semibold text-ink">{expressionCount}</strong> 表达</span><span><strong className="font-semibold text-ink">{agreementResponses.length}</strong> 约定</span><span><strong className="font-semibold text-ink">{authorActions.length}</strong> 行动</span><span><strong className="font-semibold text-ink">{related.length}</strong> 图</span></div>
       </header>
-      <ActivityFeed actions={actions} graphs={graphs} users={users} authorIds={[profile.uuid]} graphItems={related} agreementResponses={agreementResponses} active={active} tabRequest={activityTabRequest}
-        home={(homeActive) => <><ProfileHighlights profile={profile} self={self} actions={actions} graphs={graphs} users={users} onOpenNode={onOpenNode} /><ProfileHome userId={profile.uuid} actions={actions} active={homeActive} onOpenNode={onOpenNode} /></>}
+      <ActivityFeed actions={actions} graphs={graphs} users={users} authorUuids={[profile.uuid]} graphItems={related} agreementResponses={agreementResponses} active={active} tabRequest={activityTabRequest}
+        home={(homeActive) => <><ProfileHighlights profile={profile} self={self} actions={actions} graphs={graphs} users={users} onOpenNode={onOpenNode} /><ProfileHome userUuid={profile.uuid} actions={actions} active={homeActive} onOpenNode={onOpenNode} /></>}
         graphToolbar={self && onCreateGraph && <div className="flex items-center justify-between gap-3 pt-4"><a href="#graphs" className="text-button text-xs">管理行动图</a><CreateGraphButton onCreate={onCreateGraph} compact /></div>}
         onOpenNode={onOpenNode} onOpenGraph={onOpenGraph} onOpenReference={onOpenReference} />
     </section>

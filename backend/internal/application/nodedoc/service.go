@@ -32,7 +32,7 @@ func New(store actionapp.Store, provider generationapp.Provider) *Service {
 const rules = generationapp.DefaultNodeDocumentRules
 
 type promptInput struct {
-	ActorID    string         `json:"actorId"`
+	ActorID    string         `json:"actorUuid"`
 	Guide      string         `json:"guide,omitempty"`
 	Action     promptAction   `json:"action"`
 	Facts      []promptFact   `json:"facts"`
@@ -45,15 +45,15 @@ type promptAction struct {
 }
 
 type promptFact struct {
-	NodeID    string `json:"nodeId"`
+	NodeID    string `json:"nodeUuid"`
 	Number    uint32 `json:"number"`
-	AuthorID  string `json:"authorId"`
+	AuthorID  string `json:"authorUuid"`
 	Title     string `json:"title"`
 	Objective string `json:"objective"`
 }
 
 type promptSource struct {
-	NodeID     string `json:"nodeId"`
+	NodeID     string `json:"nodeUuid"`
 	Expression string `json:"expression"`
 	Agreement  string `json:"agreement"`
 }
@@ -237,5 +237,5 @@ func terminal(graph actionapp.Graph, nodeID string) bool {
 
 // GenerateInput 只接受当前账号可编辑的节点身份。
 type GenerateInput struct {
-	NodeID string `json:"nodeId"`
+	NodeID string `json:"nodeUuid"`
 }

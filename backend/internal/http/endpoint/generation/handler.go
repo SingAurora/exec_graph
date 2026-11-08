@@ -34,7 +34,7 @@ func (h *Handler) PlaceImages(c *gin.Context) {
 
 // Get 只向当前会话返回本人发起的生成。
 func (h *Handler) Get(c *gin.Context) {
-	uuid, err := common.Query(c, "generationId")
+	uuid, err := common.Query(c, "generationUuid")
 	if err != nil {
 		common.Fail(c, err)
 		return

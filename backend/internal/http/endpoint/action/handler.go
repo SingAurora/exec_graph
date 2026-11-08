@@ -52,7 +52,7 @@ func (h *Handler) Delete(c *gin.Context) {
 
 // Documents 只向作者读取节点表达/约定草案。
 func (h *Handler) Documents(c *gin.Context) {
-	nodeID, err := common.Query(c, "nodeId")
+	nodeID, err := common.Query(c, "nodeUuid")
 	if err != nil {
 		common.Fail(c, err)
 		return

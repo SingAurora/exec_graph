@@ -2,7 +2,7 @@ package generation
 
 // platformOutputContract 只描述平台要求的 JSON 外壳，不包含具体核验内容。
 const platformOutputContract = `只返回 JSON，不输出代码块或额外解释。
-行动：{"reply":"","title":"","objective":"","reviews":[{"sourceId":"","complies":true|false|null,"exceptionReason":""}],"invalidImages":[{"ref":"","reason":""}]}
+行动：{"reply":"","title":"","objective":"","reviews":[{"sourceUuid":"","complies":true|false|null,"exceptionReason":""}],"invalidImages":[{"ref":"","reason":""}]}
 表达：{"reply":"","expression":{"mode":"update|clear","markdown":""}}
 约定：{"reply":"","agreement":{"mode":"update|clear","markdown":""}}`
 

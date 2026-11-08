@@ -7,9 +7,9 @@ import { TooltipProvider } from '../shared/ui/tooltip/Tooltip.tsx'
 import { GraphPage } from './GraphPage.tsx'
 
 const noop = () => {}
-const graph = { uuid: 'empty-graph', id: 'empty-graph', ownerId: 'jo', participantIds: [], title: '厨艺练习', description: '', createdAt: '2026-10-18T12:00:00+08:00' }
+const graph = { uuid: 'empty-graph', id: 'empty-graph', ownerUuid: 'jo', participantUuids: [], title: '厨艺练习', description: '', createdAt: '2026-10-18T12:00:00+08:00' }
 const render = (actions, props = {}) => renderToStaticMarkup(createElement(TooltipProvider, null, createElement(ToastContext.Provider, { value: { showToast: noop } }, createElement(GraphPage, {
-  graph, currentUserId: 'jo', users: [], actions, showActionGraphLegend: false,
+  graph, currentUserUuid: 'jo', users: [], actions, showActionGraphLegend: false,
   graphBackground: createDefaultGraphBackground(), onCreateAction: noop,
   onContinueAction: noop, onOpenActionArchive: noop, onUpdateGraph: noop,
   following: false, onSetGraphFollow: () => true,
@@ -28,7 +28,7 @@ describe('first action entry', () => {
 
   test('publishing a node removes the first action entry and enables search', () => {
     const html = render([{
-      uuid: 'action-1', id: 'action-1', graphId: graph.uuid, number: 1, authorId: 'jo', title: '做了一盘炒蛋',
+      uuid: 'action-1', id: 'action-1', graphUuid: graph.uuid, number: 1, authorUuid: 'jo', title: '做了一盘炒蛋',
       markdown: '鸡蛋边缘偏硬', expressionMarkdown: '', images: [], conversation: [], createdAt: graph.createdAt,
     }])
     expect(html).not.toContain('记录第一次行动')
@@ -47,7 +47,7 @@ describe('graph deletion entry', () => {
   })
 
   test('a participant sees disabled deletion with a reason without inheriting editing permission', () => {
-    const html = render([], { graph: { ...graph, ownerId: 'lin', participantIds: ['jo'] } })
+    const html = render([], { graph: { ...graph, ownerUuid: 'lin', participantUuids: ['jo'] } })
     expect(html).toContain('删除图')
     expect(html).toContain('trigger-settings')
     expect(html).not.toContain('图标题')
@@ -57,13 +57,13 @@ describe('graph deletion entry', () => {
   })
 
   test('a creator also sees disabled deletion when another user has joined', () => {
-    const html = render([], { graph: { ...graph, participantIds: ['lin'] } })
+    const html = render([], { graph: { ...graph, participantUuids: ['lin'] } })
     expect(html).toContain('删除图：已有其他用户参与，不能删除此图')
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*>[\s\S]*?删除图<\/button>/)
   })
 
   test('an uninvolved visitor has no deletion control or settings tab', () => {
-    const html = render([], { currentUserId: 'visitor' })
+    const html = render([], { currentUserUuid: 'visitor' })
     expect(html).not.toContain('删除图')
     expect(html).not.toContain('trigger-settings')
   })

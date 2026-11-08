@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { cookingActions } from './index.ts'
-import { getActionContextIds, getActionParentIds, getPreferredPath } from '../../../entities/action/lib/graph.ts'
+import { getActionContextIds, getActionParentUuids, getPreferredPath } from '../../../entities/action/lib/graph.ts'
 import { getActionSourceAgreements, getUnreviewedAgreementCount } from '../../../entities/action/lib/references.ts'
 import { getActionAgreement, getActionAgreementOrigin } from '../../../entities/action/lib/agreements.ts'
 
@@ -37,17 +37,17 @@ describe('cooking demo provenance', () => {
   })
   test('only references earlier published actions and captures the complete cited background', () => {
     for (const node of cookingActions) {
-      const sources = getActionParentIds(node)
-      for (const sourceId of sources) {
-        const source = byId.get(sourceId)
+      const sources = getActionParentUuids(node)
+      for (const sourceUuid of sources) {
+        const source = byId.get(sourceUuid)
         expect(source, `${node.uuid} has a missing source`).toBeDefined()
         expect(Date.parse(source.createdAt)).toBeLessThan(Date.parse(node.createdAt))
       }
-      expect(node.contextSnapshot.directNodeIds).toEqual(sources)
+      expect(node.contextSnapshot.directNodeUuids).toEqual(sources)
       expect(node.contextSnapshot.historyNodeCount).toBe(getActionContextIds(cookingActions, node.uuid).size - 1)
       for (const assessment of node.referenceAgreements ?? []) {
-        expect(sources).toContain(assessment.sourceId)
-        const source = byId.get(assessment.sourceId)
+        expect(sources).toContain(assessment.sourceUuid)
+        const source = byId.get(assessment.sourceUuid)
         expect(getActionAgreement(cookingActions, source.uuid).markdown.trim()).toBeTruthy()
         expect(assessment).not.toHaveProperty('approvedById')
       }

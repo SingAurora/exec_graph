@@ -27,7 +27,7 @@ func TestRealGenerationConfirmationAndPrivateInputs(t *testing.T) {
 	}
 	input.Messages = []string{"不同输入"}
 	jo.call(t, "POST", "ai/generate", input, 409, key)
-	lin.call(t, "GET", "ai/generation?generationId="+generated.GenerationID, nil, 404, "")
+	lin.call(t, "GET", "ai/generation?generationUuid="+generated.GenerationID, nil, 404, "")
 	root := jo.publish(t, *generated.CreateAction)
 	if root.ObjectiveMarkdown != "实际完成了短途骑行。" || len(root.Conversation) != 2 {
 		t.Fatalf("生成确认未保留实际事实和对话: %+v", root)

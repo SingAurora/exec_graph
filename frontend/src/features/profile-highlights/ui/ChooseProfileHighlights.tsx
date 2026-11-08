@@ -14,15 +14,15 @@ import { setProfileHighlights } from '../api/commands'
 import { HighlightCandidates } from './HighlightCandidates'
 
 /** 主页精选的唯一管理入口；添加、移出和排序都只修改草稿，保存后统一生效。 */
-export function ChooseProfileHighlights({ userId, highlights, candidates, graphs, returnFocusRef, onClose }: {
-  userId: string
+export function ChooseProfileHighlights({ userUuid, highlights, candidates, graphs, returnFocusRef, onClose }: {
+  userUuid: string
   highlights?: ProfileHighlights
   candidates: ProfileHighlightEntry[]
   graphs: Graph[]
   returnFocusRef: RefObject<HTMLElement | null>
   onClose: () => void
 }) {
-  const [draft, setDraft] = useState(() => [...new Set(highlights?.expressionNodeIds ?? [])].filter((id) => candidates.some(({ node }) => node.uuid === id)).slice(0, profileHighlightLimit))
+  const [draft, setDraft] = useState(() => [...new Set(highlights?.expressionNodeUuids ?? [])].filter((id) => candidates.some(({ node }) => node.uuid === id)).slice(0, profileHighlightLimit))
   const [adding, setAdding] = useState(false)
   const addRef = useRef<HTMLButtonElement>(null)
   const scrollRef = useRef<HTMLElement>(null)
@@ -32,17 +32,17 @@ export function ChooseProfileHighlights({ userId, highlights, candidates, graphs
   const client = useQueryClient()
   const save = useMutation({
     mutationFn: async () => {
-      if (!session.data || session.data.user.uuid !== userId) throw new Error('当前账户已变化，请重新打开主页')
-      return setProfileHighlights({ expressionNodeIds: draft, expectedVersion: session.data.user.version }, { csrfToken: session.data.csrfToken })
+      if (!session.data || session.data.user.uuid !== userUuid) throw new Error('当前账户已变化，请重新打开主页')
+      return setProfileHighlights({ expressionNodeUuids: draft, expectedVersion: session.data.user.version }, { csrfToken: session.data.csrfToken })
     },
     onSuccess(user) {
       client.setQueryData<SessionView>(profileKeys.session, (current) => current?.user.uuid === user.uuid ? { ...current, user } : current)
-      void client.invalidateQueries({ queryKey: profileKeys.catalogue(userId) })
+      void client.invalidateQueries({ queryKey: profileKeys.catalogue(userUuid) })
       onClose()
     },
     onError() {
       // 保留本次选择；刷新版本后可重试，不能用旧账户版本静默覆盖资料。
-      if (client.getQueryData<SessionView>(profileKeys.session)?.user.uuid === userId) void client.invalidateQueries({ queryKey: profileKeys.session })
+      if (client.getQueryData<SessionView>(profileKeys.session)?.user.uuid === userUuid) void client.invalidateQueries({ queryKey: profileKeys.session })
     },
   })
   const move = (id: string, offset: number) => setDraft((current) => {
@@ -56,7 +56,7 @@ export function ChooseProfileHighlights({ userId, highlights, candidates, graphs
     return next
   })
   const describe = ({ node, markdown, agreement }: ProfileHighlightEntry, keyword = '') => <div className="min-w-0 flex-1">
-    <p className="text-xs text-muted"><HighlightedText text={graphs.find((graph) => graph.uuid === node.graphId)?.title ?? node.graphId} query={keyword} /> · #{node.number}</p>
+    <p className="text-xs text-muted"><HighlightedText text={graphs.find((graph) => graph.uuid === node.graphUuid)?.title ?? node.graphUuid} query={keyword} /> · #{node.number}</p>
     <p className="mt-1 break-words text-sm font-medium leading-6"><HighlightedText text={node.title} query={keyword} /></p>
     <p className="mt-1 line-clamp-2 break-words text-sm leading-6 text-copy"><HighlightedText text={getSearchExcerpt(getMarkdownSummary(markdown), keyword)} query={keyword} /></p>
     {agreement.markdown.trim() && <p className="mt-1 line-clamp-2 break-words text-xs leading-5 text-muted">分支约定：<HighlightedText text={getSearchExcerpt(getMarkdownSummary(agreement.markdown), keyword)} query={keyword} /></p>}
@@ -83,7 +83,7 @@ export function ChooseProfileHighlights({ userId, highlights, candidates, graphs
             </li>)}</ol>
           </section>
           <HighlightCandidates active={adding} candidates={available} graphs={graphs} full={draft.length >= profileHighlightLimit} renderEntry={describe} onAdd={(id) => { setDraft((current) => current.length < profileHighlightLimit && !current.includes(id) ? [...current, id] : current); addRef.current?.focus() }} />
-          <div className="mt-5 flex justify-end gap-2"><button type="button" className="quiet-button" onClick={onClose}>取消</button><button type="button" className="primary-button" disabled={!session.data || session.data.user.uuid !== userId || session.isFetching} onClick={() => { if (!save.isPending && !session.isFetching && session.data?.user.uuid === userId) save.mutate() }}>{save.isPending ? '保存中…' : '保存精选'}</button></div>
+          <div className="mt-5 flex justify-end gap-2"><button type="button" className="quiet-button" onClick={onClose}>取消</button><button type="button" className="primary-button" disabled={!session.data || session.data.user.uuid !== userUuid || session.isFetching} onClick={() => { if (!save.isPending && !session.isFetching && session.data?.user.uuid === userUuid) save.mutate() }}>{save.isPending ? '保存中…' : '保存精选'}</button></div>
         </fieldset>
         {(save.error || session.error) && <p className="mt-3 text-xs text-coral">{save.error?.message ?? session.error?.message}</p>}
       </div>

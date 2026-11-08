@@ -2,18 +2,18 @@ import { describe, expect, test } from 'bun:test'
 import { getActionExpressionContext } from './expression-context.ts'
 import { updateActionExpressionFromConversation } from './expressions.ts'
 
-const node = (number, extra = {}) => ({ uuid: String(number), id: String(number), number, graphId: 'graph', authorId: 'jo', title: `行动 ${number}`, markdown: `事实 ${number}`, conversation: [], ...extra })
-const editor = { authorId: 'lin', createdAt: '2026-10-18T12:00:00+08:00' }
+const node = (number, extra = {}) => ({ uuid: String(number), id: String(number), number, graphUuid: 'graph', authorUuid: 'jo', title: `行动 ${number}`, markdown: `事实 ${number}`, conversation: [], ...extra })
+const editor = { authorUuid: 'lin', createdAt: '2026-10-18T12:00:00+08:00' }
 const conversation = [
-  { id: 'expression-user', speaker: 'user', body: '保留个人偏好，不推断别人', authorId: 'lin' },
+  { id: 'expression-user', speaker: 'user', body: '保留个人偏好，不推断别人', authorUuid: 'lin' },
   { id: 'expression-ai', speaker: 'ai', body: '已调整表达' },
 ]
 
 describe('expression dialogue context and confirmation', () => {
   test('includes current and all cited facts once, excluding unrelated branches and cross-graph references', () => {
-    const nodes = [node(1), node(2, { parentId: '1', expressionMarkdown: '看法不是事实' }), node(3, { parentId: '1' }),
-      node(4, { parentId: '2', mergedParentIds: ['3', '99'], objectiveMarkdown: '本次事实', markdown: '旧版兼容正文' }),
-      node(5, { parentId: '1' }), node(99, { graphId: 'other' })]
+    const nodes = [node(1), node(2, { parentUuid: '1', expressionMarkdown: '看法不是事实' }), node(3, { parentUuid: '1' }),
+      node(4, { parentUuid: '2', mergedParentUuids: ['3', '99'], objectiveMarkdown: '本次事实', markdown: '旧版兼容正文' }),
+      node(5, { parentUuid: '1' }), node(99, { graphUuid: 'other' })]
     const context = getActionExpressionContext(nodes, '4')
     expect(context.nodeNumber).toBe(4)
     expect(context.facts.map((fact) => fact.number)).toEqual([1, 2, 3, 4])
@@ -24,7 +24,7 @@ describe('expression dialogue context and confirmation', () => {
 
   test('saves AI expression dialogue separately, preserving source, facts, agreements and original dialogue', () => {
     const original = [{ id: 'original', speaker: 'user', body: '这次实际发生的事情' }]
-    const nodes = [node(1, { expressionMarkdown: '上游表达' }), node(2, { parentId: '1', agreementMarkdown: '记录用时', conversation: original })]
+    const nodes = [node(1, { expressionMarkdown: '上游表达' }), node(2, { parentUuid: '1', agreementMarkdown: '记录用时', conversation: original })]
     const updated = updateActionExpressionFromConversation(nodes, '2', '新的表达', editor, conversation)
     expect(updated).toHaveLength(2)
     expect(updated[0]).toBe(nodes[0])
@@ -45,7 +45,7 @@ describe('expression dialogue context and confirmation', () => {
     for (const turns of [[], conversation.slice(0, 1), [{ id: 'error-failure', speaker: 'ai', body: '失败' }]]) {
       expect(updateActionExpressionFromConversation(nodes, '1', '新表达', editor, turns)).toBe(nodes)
     }
-    for (const extra of [{ parentId: '1' }, { mergedParentIds: ['1'] }]) {
+    for (const extra of [{ parentUuid: '1' }, { mergedParentUuids: ['1'] }]) {
       const referenced = [...nodes, node(2, extra)]
       expect(updateActionExpressionFromConversation(referenced, '1', '新表达', editor, conversation)).toBe(referenced)
     }

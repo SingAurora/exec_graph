@@ -37,7 +37,7 @@ func TestFrontendAndAPIRouting(t *testing.T) {
 		status                                int
 	}{
 		{"首页", "GET", "/", "text/html", "<title>引序</title>", 200},
-		{"hash 路由的文档请求", "GET", "/?projectId=cooking", "text/html", "<title>引序</title>", 200},
+		{"hash 路由的文档请求", "GET", "/?graphUuid=cooking", "text/html", "<title>引序</title>", 200},
 		{"脚本", "GET", "/assets/app-123.js", "javascript", "console.log('app')", 200},
 		{"样式", "GET", "/assets/app-123.css", "text/css", "body", 200},
 		{"根目录公共资源", "GET", "/favicon.svg", "image/svg+xml", "<svg>", 200},

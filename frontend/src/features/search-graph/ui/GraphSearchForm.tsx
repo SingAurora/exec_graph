@@ -22,8 +22,8 @@ const placeholders: Record<GraphSearchScope, string> = {
 export function GraphSearchForm({ scope, criteria, users, onChange, onSubmit, onReset }: Props) {
   const options = [{ value: '', label: '全部' }, ...users.map((user) => ({ value: user.uuid, label: user.name }))]
   const filters = scope === 'agreements'
-    ? [{ field: 'participantId' as const, label: '参与者一' }, { field: 'otherParticipantId' as const, label: '参与者二' }]
-    : scope === 'users' ? [] : [{ field: 'authorId' as const, label: '作者' }]
+    ? [{ field: 'participantUuid' as const, label: '参与者一' }, { field: 'otherParticipantUuid' as const, label: '参与者二' }]
+    : scope === 'users' ? [] : [{ field: 'authorUuid' as const, label: '作者' }]
   const hasCriteria = Boolean(criteria.keyword.trim() || filters.some(({ field }) => criteria[field]))
   return (
     <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); if (hasCriteria) onSubmit() }}>
@@ -39,7 +39,7 @@ export function GraphSearchForm({ scope, criteria, users, onChange, onSubmit, on
       {filters.length > 0 && <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
         {filters.map(({ field, label }) => <div key={field} className="flex items-center gap-2"><span className="text-xs text-muted">{label}</span>
           <SearchSelect label={label} value={criteria[field] ?? ''}
-            options={options.filter((option) => !option.value || field === 'authorId' || option.value !== criteria[field === 'participantId' ? 'otherParticipantId' : 'participantId'])}
+            options={options.filter((option) => !option.value || field === 'authorUuid' || option.value !== criteria[field === 'participantUuid' ? 'otherParticipantUuid' : 'participantUuid'])}
             onValueChange={(value) => onChange({ ...criteria, [field]: value || undefined })} />
         </div>)}
       </div>}

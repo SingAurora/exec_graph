@@ -63,16 +63,16 @@ func TestDocumentIntentAndAssessmentPresence(t *testing.T) {
 		}
 	}
 	var omitted, unknown SourceAssessment
-	if err := json.Unmarshal([]byte(`{"sourceId":"x"}`), &omitted); err != nil {
+	if err := json.Unmarshal([]byte(`{"sourceUuid":"x"}`), &omitted); err != nil {
 		t.Fatal(err)
 	}
-	if err := json.Unmarshal([]byte(`{"sourceId":"x","complies":null}`), &unknown); err != nil {
+	if err := json.Unmarshal([]byte(`{"sourceUuid":"x","complies":null}`), &unknown); err != nil {
 		t.Fatal(err)
 	}
 	if omitted.Provided || !unknown.Provided || unknown.Complies != nil {
 		t.Fatal("complies 缺省和显式 null 混同")
 	}
-	if err := json.Unmarshal([]byte(`{"sourceId":"x","complies":null,"arbitrary":true}`), &unknown); err == nil {
+	if err := json.Unmarshal([]byte(`{"sourceUuid":"x","complies":null,"arbitrary":true}`), &unknown); err == nil {
 		t.Fatal("未知核对字段应拒绝")
 	}
 }

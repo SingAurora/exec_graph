@@ -26,7 +26,7 @@ export function ActionSourceAgreements({ node, actions, users, onSelect }: { nod
           <p>不逐层叠加已被修改或清空的旧版本。修改本节点向后传递的约定，不会改变这次引用的核对结果。</p>
         </HelpPopover></div>
         <div className="divide-y divide-line">{references.map((reference) => {
-          const sourceAuthor = users.find((user) => user.uuid === reference.source.authorId)?.name ?? reference.source.authorId
+          const sourceAuthor = users.find((user) => user.uuid === reference.source.authorUuid)?.name ?? reference.source.authorUuid
           const exception = reference.agreementStatus === 'exception'
           return (
             <section className="py-3" key={reference.uuid}>

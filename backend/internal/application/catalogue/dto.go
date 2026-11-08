@@ -16,7 +16,7 @@ type LocationView struct {
 
 // Highlights 只保存按用户顺序选择的表达节点。
 type Highlights struct {
-	ExpressionNodeIDs []string `json:"expressionNodeIds"`
+	ExpressionNodeIDs []string `json:"expressionNodeUuids"`
 }
 
 // ProfileView 是不含邮箱和测试管理标记的公开资料。
@@ -29,8 +29,8 @@ type ProfileView struct {
 	Location          *LocationView `json:"location,omitempty"`
 	Avatar            string        `json:"avatar"`
 	BackgroundImage   *string       `json:"backgroundImage,omitempty"`
-	AvatarAssetID     *string       `json:"avatarAssetId"`
-	BackgroundAssetID *string       `json:"backgroundAssetId"`
+	AvatarAssetID     *string       `json:"avatarAssetUuid"`
+	BackgroundAssetID *string       `json:"backgroundAssetUuid"`
 	ActiveDays        int           `json:"activeDays"`
 	Highlights        Highlights    `json:"highlights"`
 }
@@ -39,14 +39,14 @@ type ProfileView struct {
 type GraphView struct {
 	LegacyID          string    `json:"legacyId,omitempty"`
 	ID                string    `json:"uuid"`
-	OwnerID           string    `json:"ownerId"`
-	ParticipantIDs    []string  `json:"participantIds"`
+	OwnerID           string    `json:"ownerUuid"`
+	ParticipantIDs    []string  `json:"participantUuids"`
 	Title             string    `json:"title"`
 	Description       string    `json:"description"`
 	Avatar            *string   `json:"avatar,omitempty"`
 	BackgroundImage   *string   `json:"backgroundImage,omitempty"`
-	AvatarAssetID     *string   `json:"avatarAssetId"`
-	BackgroundAssetID *string   `json:"backgroundAssetId"`
+	AvatarAssetID     *string   `json:"avatarAssetUuid"`
+	BackgroundAssetID *string   `json:"backgroundAssetUuid"`
 	ContextGuide      string    `json:"contextGuide,omitempty"`
 	Version           uint32    `json:"version"`
 	CreatedAt         time.Time `json:"createdAt"`
@@ -55,7 +55,7 @@ type GraphView struct {
 
 // Image 是附图展示结构。
 type Image struct {
-	AssetID *string `json:"assetId,omitempty"`
+	AssetID *string `json:"assetUuid,omitempty"`
 	URL     string  `json:"url"`
 	Alt     string  `json:"alt"`
 }
@@ -65,27 +65,27 @@ type Message struct {
 	ID       string `json:"id"`
 	Speaker  string `json:"speaker"`
 	Body     string `json:"body"`
-	AuthorID string `json:"authorId,omitempty"`
+	AuthorID string `json:"authorUuid,omitempty"`
 	Model    string `json:"model,omitempty"`
 }
 
 // Revision 只描述发布后的明确文档操作，不代表协作权限。
 type Revision struct {
-	AuthorID  string    `json:"authorId"`
+	AuthorID  string    `json:"authorUuid"`
 	CreatedAt time.Time `json:"createdAt"`
 	Kind      string    `json:"kind"`
 }
 
 // Assessment 区分未知、满足和不满足；未知不得转换成满足。
 type Assessment struct {
-	SourceID        string  `json:"sourceId"`
+	SourceID        string  `json:"sourceUuid"`
 	Complies        *bool   `json:"complies"`
 	ExceptionReason *string `json:"exceptionReason,omitempty"`
 }
 
 // ContextSnapshot 描述本行动的真实引用背景。
 type ContextSnapshot struct {
-	DirectNodeIDs    []string `json:"directNodeIds"`
+	DirectNodeIDs    []string `json:"directNodeUuids"`
 	HistoryNodeCount uint32   `json:"historyNodeCount"`
 	Guide            string   `json:"guide,omitempty"`
 }
@@ -94,11 +94,11 @@ type ContextSnapshot struct {
 type ActionView struct {
 	LegacyID               string           `json:"legacyId,omitempty"`
 	ID                     string           `json:"uuid"`
-	GraphID                string           `json:"graphId"`
+	GraphID                string           `json:"graphUuid"`
 	Number                 uint32           `json:"number"`
-	ParentID               string           `json:"parentId,omitempty"`
-	MergedParentIDs        []string         `json:"mergedParentIds,omitempty"`
-	AuthorID               string           `json:"authorId"`
+	ParentID               string           `json:"parentUuid,omitempty"`
+	MergedParentIDs        []string         `json:"mergedParentUuids,omitempty"`
+	AuthorID               string           `json:"authorUuid"`
 	Title                  string           `json:"title"`
 	Markdown               string           `json:"markdown"`
 	ObjectiveMarkdown      string           `json:"objectiveMarkdown"`
@@ -121,6 +121,6 @@ type ActionView struct {
 
 // FollowingView 是当前账户的显式关注集合。
 type FollowingView struct {
-	UserIDs  []string `json:"userIds"`
-	GraphIDs []string `json:"graphIds"`
+	UserIDs  []string `json:"userUuids"`
+	GraphIDs []string `json:"graphUuids"`
 }

@@ -15,21 +15,21 @@ import (
 )
 
 type fact struct {
-	NodeID    string `json:"nodeId"`
+	NodeID    string `json:"nodeUuid"`
 	Number    uint32 `json:"number"`
-	ActorID   string `json:"actorId"`
+	ActorID   string `json:"actorUuid"`
 	Title     string `json:"title"`
 	Objective string `json:"objective"`
 }
 type source struct {
-	NodeID     string `json:"nodeId"`
+	NodeID     string `json:"nodeUuid"`
 	Expression string `json:"expression"`
 	Agreement  string `json:"agreement"`
 }
 type branchNode struct {
-	NodeID     string `json:"nodeId"`
+	NodeID     string `json:"nodeUuid"`
 	Number     uint32 `json:"number"`
-	AuthorID   string `json:"authorId"`
+	AuthorID   string `json:"authorUuid"`
 	Title      string `json:"title"`
 	Objective  string `json:"objective"`
 	Expression string `json:"expression"`
@@ -38,8 +38,8 @@ type branchNode struct {
 }
 type contextSnapshot struct {
 	Mode                string                `json:"mode"`
-	ActorID             string                `json:"actorId"`
-	NodeID              string                `json:"nodeId,omitempty"`
+	ActorID             string                `json:"actorUuid"`
+	NodeID              string                `json:"nodeUuid,omitempty"`
 	Reports             []report              `json:"reports"`
 	Guide               string                `json:"guide"`
 	HasParent           bool                  `json:"hasParent"`

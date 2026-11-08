@@ -32,8 +32,8 @@ export function Following({ sources, actions, graphs, users, active, onOpenGraph
   const [tab, setTab] = useState<FollowingTab>('expressions')
   const scrollPositions = useRef<Partial<Record<FollowingTab, number>>>({})
   const pendingScroll = useRef<number | undefined>(undefined)
-  const followedGraphs = graphs.filter((graph) => sources.graphIds.includes(graph.uuid))
-  const followedUsers = [...new Map(users.filter((user) => sources.userIds.includes(user.uuid)).map((user) => [user.uuid, user])).values()]
+  const followedGraphs = graphs.filter((graph) => sources.graphUuids.includes(graph.uuid))
+  const followedUsers = [...new Map(users.filter((user) => sources.userUuids.includes(user.uuid)).map((user) => [user.uuid, user])).values()]
   const activity = useMemo(() => getFollowedActivity(actions, sources), [actions, sources])
   useLayoutEffect(() => {
     if (!active || pendingScroll.current === undefined) return
@@ -49,13 +49,13 @@ export function Following({ sources, actions, graphs, users, active, onOpenGraph
     setTab(next)
   }
   const directoryProps = { graphs: followedGraphs, users: followedUsers, actions, onOpenGraph, onSetGraphFollow, onSetUserFollow }
-  const context = (node: ActionNode) => <GraphContextLink id={node.graphId} title={graphs.find((graph) => graph.uuid === node.graphId)?.title} onOpen={onOpenGraph} />
+  const context = (node: ActionNode) => <GraphContextLink id={node.graphUuid} title={graphs.find((graph) => graph.uuid === node.graphUuid)?.title} onOpen={onOpenGraph} />
   const agreementContext = (reference: ActionReference) => {
-    const recipientId = getFollowedAgreementRecipient(reference, sources)
-    const recipient = users.find((user) => user.uuid === recipientId)
-    if (!recipientId) return context(reference.target)
+    const recipientUuid = getFollowedAgreementRecipient(reference, sources)
+    const recipient = users.find((user) => user.uuid === recipientUuid)
+    if (!recipientUuid) return context(reference.target)
     return (
-      <div className="grid gap-1.5">{context(reference.target)}<p className="text-xs leading-5 text-muted">回应了你关注的 <ProfilePreview profile={recipient} userId={recipientId} className="rounded-sm text-xs hover:text-signal">{recipient?.name ?? recipientId}</ProfilePreview></p></div>
+      <div className="grid gap-1.5">{context(reference.target)}<p className="text-xs leading-5 text-muted">回应了你关注的 <ProfilePreview profile={recipient} userUuid={recipientUuid} className="rounded-sm text-xs hover:text-signal">{recipient?.name ?? recipientUuid}</ProfilePreview></p></div>
     )
   }
   return (

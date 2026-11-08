@@ -14,7 +14,7 @@ const labels: Record<ProfileSearchScope, string> = { expressions: '表达', agre
 
 /** Profile-specific search controls, with a counterpart filter for agreement exchanges. */
 export function ProfileSearchForm({ scope, criteria, counterpartOptions, onChange, onSubmit, onReset }: Props) {
-  const hasCriteria = Boolean(criteria.keyword.trim() || (scope === 'agreements' && criteria.counterpartId))
+  const hasCriteria = Boolean(criteria.keyword.trim() || (scope === 'agreements' && criteria.counterpartUuid))
   return (
     <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); if (hasCriteria) onSubmit() }}>
       <div className="flex items-center gap-2">
@@ -24,7 +24,7 @@ export function ProfileSearchForm({ scope, criteria, counterpartOptions, onChang
       </div>
       {scope === 'agreements' && <div className="flex items-center gap-2">
         <span className="text-xs text-muted">往来对象</span>
-        <SearchSelect label="往来对象" value={criteria.counterpartId} options={[{ value: '', label: '全部对象' }, ...counterpartOptions]} onValueChange={(counterpartId) => onChange({ ...criteria, counterpartId })} />
+        <SearchSelect label="往来对象" value={criteria.counterpartUuid} options={[{ value: '', label: '全部对象' }, ...counterpartOptions]} onValueChange={(counterpartUuid) => onChange({ ...criteria, counterpartUuid })} />
       </div>}
     </form>
   )

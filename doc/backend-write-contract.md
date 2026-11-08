@@ -17,8 +17,8 @@
 | 路径 | 请求 | 成功 data |
 | --- | --- | --- |
 | `/graphs/create` | `title`、`description` | `GraphView`，空图、版本 1 |
-| `/graphs/update` | `graphId`、`expectedVersion`、`title`、`description`、`avatarAssetId`、`backgroundAssetId` | 更新后的 `GraphView` |
-| `/graphs/delete` | `graphId`、`expectedVersion`、`expectedNodeCount` | `null` |
+| `/graphs/update` | `graphUuid`、`expectedVersion`、`title`、`description`、`avatarAssetUuid`、`backgroundAssetUuid` | 更新后的 `GraphView` |
+| `/graphs/delete` | `graphUuid`、`expectedVersion`、`expectedNodeCount` | `null` |
 
 名称最多 60 个字符，简介最多 240 个字符。创建者及行动贡献数量前三位用户可修改资料；贡献相同时按最早行动时间、作者 UUID 排序。没有该权限返回 403。
 
@@ -32,21 +32,21 @@
 
 ```ts
 type CreateActionInput = {
-  graphId: string
-  generationId: string
-  parentId?: string
-  mergedParentIds: string[]
-  sourceVersions: { nodeId: string; version: number }[]
+  graphUuid: string
+  generationUuid: string
+  parentUuid?: string
+  mergedParentUuids: string[]
+  sourceVersions: { nodeUuid: string; version: number }[]
   referenceAgreements: {
-    sourceId: string
+    sourceUuid: string
     complies: boolean | null
     exceptionReason?: string
   }[]
-  images: { assetId: string; alt: string }[]
+  images: { assetUuid: string; alt: string }[]
 }
 ```
 
-成功返回 `ActionView`。标题、行动文稿、表达、后续约定及形成对话全部从 `generationId` 指向的服务端记录读取，不接受发布请求指定 `title`、`objectiveMarkdown`、`conversation`、作者、编号或时间。生成由 `POST /ai/generate` 发起，不直接发布业务事实。生成标题最多 30 个字符，行动正文最多 2000 个字符；超长要求精简或拆成多个行动，不静默截断。`images` 必须与生成正文中按顺序出现的 `asset:` 引用完全一致；不能追加、删除、换序或提交未在正文使用的图片。
+成功返回 `ActionView`。标题、行动文稿、表达、后续约定及形成对话全部从 `generationUuid` 指向的服务端记录读取，不接受发布请求指定 `title`、`objectiveMarkdown`、`conversation`、作者、编号或时间。生成由 `POST /ai/generate` 发起，不直接发布业务事实。生成标题最多 30 个字符，行动正文最多 2000 个字符；超长要求精简或拆成多个行动，不静默截断。`images` 必须与生成正文中按顺序出现的 `asset:` 引用完全一致；不能追加、删除、换序或提交未在正文使用的图片。
 
 确认前检查：
 
@@ -77,8 +77,8 @@ type DocumentUpdate =
 
 | 路径 | 请求 | 成功 data |
 | --- | --- | --- |
-| `/expressions/update` | `nodeId`、`expectedVersion`、`generationId` | 更新后的 `ActionView` |
-| `/agreements/update` | `nodeId`、`expectedVersion`、`document` | 更新后的 `ActionView` |
+| `/expressions/update` | `nodeUuid`、`expectedVersion`、`generationUuid` | 更新后的 `ActionView` |
+| `/agreements/update` | `nodeUuid`、`expectedVersion`、`document` | 更新后的 `ActionView` |
 
 保持当前产品规则：任何已登录用户都可以整理尚未被主要承接或合入引用的终点，不额外增加“仅原作者”限制。实际整理者记录在不可变文档版本中，行动作者保持不变。
 
@@ -88,8 +88,8 @@ type DocumentUpdate =
 
 | 路径 | 请求 | 成功 data |
 | --- | --- | --- |
-| `/profiles/update` | `expectedVersion`、`name`、`gender`、`bio`、`locationCode`、`avatarAssetId`、`backgroundAssetId` | 当前 `AccountView` |
-| `/profiles/highlights-set` | `expectedVersion`、`expressionNodeIds` | 当前 `AccountView` |
+| `/profiles/update` | `expectedVersion`、`name`、`gender`、`bio`、`locationCode`、`avatarAssetUuid`、`backgroundAssetUuid` | 当前 `AccountView` |
+| `/profiles/highlights-set` | `expectedVersion`、`expressionNodeUuids` | 当前 `AccountView` |
 
 资料只能修改当前账户。昵称去除首尾空白后最多 30 个 Unicode 码点，简介去除首尾空白后最多 512 个 Unicode 码点，性别为 `unknown`／`male`／`female`；两者均远低于数据库 `varchar(30)`／`text` 的容量。图片的资产规则与图资料相同。资料和精选各自保存，不覆盖另一部分。
 
@@ -99,7 +99,7 @@ type DocumentUpdate =
 
 ## 关注
 
-`POST /following/set` 接收 `{kind: 'user' | 'graph', targetId: UUID, following: boolean}`，返回 `FollowingView`。
+`POST /following/set` 接收 `{kind: 'user' | 'graph', targetUuid: UUID, following: boolean}`，返回 `FollowingView`。
 
 必须显式提供布尔值，重复设置同一状态不产生重复记录。不能关注自己、不可用用户或还没有行动的图。取消关注允许清理已不可见对象。关注图不等于关注图内所有用户。
 
@@ -109,4 +109,4 @@ type DocumentUpdate =
 
 生成确认测试使用带 `integration-fixture` 标记的服务端夹具，不构成真实 AI 验证，也没有运行时生成后门。所有测试库和会话前缀随机隔离；测试完成删除自己的库及会话。
 
-前端统一使用 `graphId`，关注模型使用 `graphIds`。真实登录生命周期、资产上传及 UUID 引用、AI 生成／确认 DTO 已接入；导入资源返回显式 `legacyId`，兼容旧链接与草稿键。请求失败不回退到演示数据。
+前端统一使用 `graphUuid`，关注模型使用 `graphUuids`。真实登录生命周期、资产上传及 UUID 引用、AI 生成／确认 DTO 已接入；导入资源返回显式 `legacyId`，兼容旧链接与草稿键。请求失败不回退到演示数据。

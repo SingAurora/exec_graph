@@ -32,7 +32,7 @@ func (s *Service) Upload(ctx context.Context, actor identity.Actor, body []byte)
 		return AssetView{}, err
 	}
 	asset.AssetID = id.New()
-	asset.URL = "/api/commands/media/file?assetId=" + asset.AssetID
+	asset.URL = "/api/commands/media/file?assetUuid=" + asset.AssetID
 	asset.RetainUntil = time.Now().UTC().Add(constants.UnusedMediaRetention)
 	asset.ObjectKey, err = s.objects.Key(asset.AssetID, format)
 	if err != nil {

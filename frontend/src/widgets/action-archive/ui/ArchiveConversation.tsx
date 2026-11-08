@@ -8,17 +8,17 @@ import { CopyConversationButton } from '../../../shared/ui/CopyConversationButto
 import { formatConversationForCopy } from '../../../shared/lib/format-conversation'
 
 /** 按顺序展示真实保存的对话；行动和表达共用连续消息，不重复成两套生成历史。 */
-export function ArchiveConversation({ label, messages, authorId, graphId, users }: {
+export function ArchiveConversation({ label, messages, authorUuid, graphUuid, users }: {
   label: string
   messages: ActionExpressionMessage[]
-  authorId: string
-  graphId: string
+  authorUuid: string
+  graphUuid: string
   users: UserProfile[]
 }) {
   const copyText = formatConversationForCopy(messages, {
     resolveUserName: (message) => {
-      const participantId = message.authorId ?? authorId
-      return users.find((user) => user.uuid === participantId)?.name ?? participantId
+      const participantUuid = message.authorUuid ?? authorUuid
+      return users.find((user) => user.uuid === participantUuid)?.name ?? participantUuid
     },
     fallbackAIName: '引序 AI',
   })
@@ -31,16 +31,16 @@ export function ArchiveConversation({ label, messages, authorId, graphId, users 
       {!messages.length && <p className="py-8 text-sm text-muted">暂无对话记录</p>}
       <div className="mt-5 grid gap-6">
         {messages.map((message) => {
-          const participantId = message.authorId ?? authorId
-          const participant = users.find((user) => user.uuid === participantId)
-          const participantName = participant?.name ?? participantId
-          const participantLink = `#profile?userId=${encodeURIComponent(participantId)}&fromGraph=${encodeURIComponent(graphId)}&fromTab=explore`
+          const participantUuid = message.authorUuid ?? authorUuid
+          const participant = users.find((user) => user.uuid === participantUuid)
+          const participantName = participant?.name ?? participantUuid
+          const participantLink = `#profile?userUuid=${encodeURIComponent(participantUuid)}&fromGraph=${encodeURIComponent(graphUuid)}&fromTab=explore`
           return (
             <article className="flex items-start gap-3" key={message.id}>
-              {message.speaker === 'user' ? <ProfilePreview profile={participant} userId={participantId} className="shrink-0 rounded-lg" href={participantLink}><Avatar profile={participant} label={participantName} size="small" /></ProfilePreview>
+              {message.speaker === 'user' ? <ProfilePreview profile={participant} userUuid={participantUuid} className="shrink-0 rounded-lg" href={participantLink}><Avatar profile={participant} label={participantName} size="small" /></ProfilePreview>
                 : <span className="inline-grid size-8 shrink-0 place-items-center rounded-[9px] bg-signal-soft text-signal"><Bot size={17} /></span>}
               <div className="min-w-0 flex-1">
-                {message.speaker === 'user' ? <ProfilePreview profile={participant} userId={participantId} className="inline-block py-1 text-sm font-medium hover:text-signal" href={participantLink}>{participantName}</ProfilePreview> : <span className="inline-block py-1 text-sm font-medium text-muted">{message.model?.trim() || '引序 AI'}</span>}
+                {message.speaker === 'user' ? <ProfilePreview profile={participant} userUuid={participantUuid} className="inline-block py-1 text-sm font-medium hover:text-signal" href={participantLink}>{participantName}</ProfilePreview> : <span className="inline-block py-1 text-sm font-medium text-muted">{message.model?.trim() || '引序 AI'}</span>}
                 <div className={`mt-1 rounded-lg px-4 py-3 ${message.speaker === 'user' ? 'bg-soft' : 'bg-surface'}`}><MarkdownContent markdown={message.body} /></div>
               </div>
             </article>

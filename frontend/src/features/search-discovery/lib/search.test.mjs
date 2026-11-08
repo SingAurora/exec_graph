@@ -4,12 +4,12 @@ import { getActionReferences } from '../../../entities/action/lib/references.ts'
 import { getSatisfiedAgreementResponses } from '../../../entities/action/lib/agreement-responses.ts'
 import { searchDiscoveryAgreements, searchDiscoveryExpressions } from './search.ts'
 
-const base = { graphId: 'cooking', images: [], conversation: [], createdAt: '2026-10-21T12:00:00+08:00' }
+const base = { graphUuid: 'cooking', images: [], conversation: [], createdAt: '2026-10-21T12:00:00+08:00' }
 const actions = [
-  { ...base, uuid: 'first', id: 'first', number: 1, authorId: 'lin', title: '开火', markdown: '切了番茄', expressionMarkdown: '分开加热更好吃', agreementMarkdown: '记录用时 ![过程](https://example.com/secret-image.jpg)' },
-  { ...base, uuid: 'middle', id: 'middle', number: 2, authorId: 'qiao', title: '第二顿', markdown: '鸡蛋先盛出', parentId: 'first', referenceAgreements: [{ sourceId: 'first', complies: true }] },
-  { ...base, uuid: 'last', id: 'last', number: 3, authorId: 'robin', title: '第三顿', markdown: '加入了葱花', parentId: 'middle', referenceAgreements: [{ sourceId: 'middle', complies: true }] },
-  { ...base, uuid: 'clear', id: 'clear', number: 4, authorId: 'qiao', title: '清空', markdown: '实际尝试', parentId: 'first', expressionMarkdown: '', referenceAgreements: [{ sourceId: 'first', complies: false }] },
+  { ...base, uuid: 'first', id: 'first', number: 1, authorUuid: 'lin', title: '开火', markdown: '切了番茄', expressionMarkdown: '分开加热更好吃', agreementMarkdown: '记录用时 ![过程](https://example.com/secret-image.jpg)' },
+  { ...base, uuid: 'middle', id: 'middle', number: 2, authorUuid: 'qiao', title: '第二顿', markdown: '鸡蛋先盛出', parentUuid: 'first', referenceAgreements: [{ sourceUuid: 'first', complies: true }] },
+  { ...base, uuid: 'last', id: 'last', number: 3, authorUuid: 'robin', title: '第三顿', markdown: '加入了葱花', parentUuid: 'middle', referenceAgreements: [{ sourceUuid: 'middle', complies: true }] },
+  { ...base, uuid: 'clear', id: 'clear', number: 4, authorUuid: 'qiao', title: '清空', markdown: '实际尝试', parentUuid: 'first', expressionMarkdown: '', referenceAgreements: [{ sourceUuid: 'first', complies: false }] },
 ]
 const users = [{ uuid: 'lin', id: 'lin', name: '林岚' }, { uuid: 'qiao', id: 'qiao', name: '乔' }, { uuid: 'robin', id: 'robin', name: 'Robin' }]
 const ids = (items) => items.map((item) => item.uuid)

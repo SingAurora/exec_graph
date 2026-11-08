@@ -3,7 +3,7 @@ import type { GraphView } from '../../../entities/graph/api/graphs'
 import type { CreateGraphInput } from '../model/types'
 
 /** Graph settings accepted by the versioned update command. */
-export type UpdateGraphInput = { graphId: string; expectedVersion: number; title: string; description: string; avatarAssetId: string | null; backgroundAssetId: string | null }
+export type UpdateGraphInput = { graphUuid: string; expectedVersion: number; title: string; description: string; avatarAssetUuid: string | null; backgroundAssetUuid: string | null }
 
 /** Creates an empty graph; its first action is a separate command. */
 export function createGraph(input: CreateGraphInput, options: BusinessRequestOptions): Promise<GraphView> {
@@ -16,7 +16,7 @@ export function updateGraph(input: UpdateGraphInput, options: BusinessRequestOpt
 }
 
 /** Removes a graph after server-side participant and node-count checks. */
-export function removeGraph(input: { graphId: string; expectedVersion: number; expectedNodeCount: number }, options: BusinessRequestOptions): Promise<null> {
+export function removeGraph(input: { graphUuid: string; expectedVersion: number; expectedNodeCount: number }, options: BusinessRequestOptions): Promise<null> {
   return postAPI('/api/commands/graphs/delete', input, options)
 }
 

@@ -2,16 +2,16 @@ import { describe, expect, test } from 'bun:test'
 import { formatConversationForCopy } from './format-conversation.ts'
 
 const messages = [
-  { speaker: 'user', body: '我做了好多事情', authorId: 'jo' },
+  { speaker: 'user', body: '我做了好多事情', authorUuid: 'jo' },
   { speaker: 'ai', body: '请补充这次实际做了什么', model: 'deepseek-flash' },
-  { speaker: 'user', body: '我洗了菜', authorId: 'lin' },
+  { speaker: 'user', body: '我洗了菜', authorUuid: 'lin' },
   { speaker: 'ai', body: '已整理', model: ' ' },
 ]
 
 describe('conversation copy', () => {
   test('uses the actual model name for AI turns and resolved names for users', () => {
     const text = formatConversationForCopy(messages, {
-      resolveUserName: (message) => message.authorId === 'jo' ? '乔' : '林岚',
+      resolveUserName: (message) => message.authorUuid === 'jo' ? '乔' : '林岚',
     })
     expect(text).toContain('乔：\n我做了好多事情')
     expect(text).toContain('deepseek-flash：\n请补充这次实际做了什么')

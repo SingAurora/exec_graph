@@ -17,8 +17,8 @@ export function getActivityDate(value: string | Date): string {
 }
 
 /** One row per action, regardless of later expression or agreement edits. */
-export function getProfileActivity(actions: ActionNode[], userId: string): ProfileActivity[] {
-  return sortActionsNewestFirst(actions.filter((node) => node.authorId === userId && Number.isFinite(Date.parse(node.createdAt))))
+export function getProfileActivity(actions: ActionNode[], userUuid: string): ProfileActivity[] {
+  return sortActionsNewestFirst(actions.filter((node) => node.authorUuid === userUuid && Number.isFinite(Date.parse(node.createdAt))))
     .map((node) => ({ node, date: getActivityDate(node.createdAt) }))
 }
 

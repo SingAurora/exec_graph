@@ -18,8 +18,8 @@ import { getRetainedTabScrollTop } from '../../shared/lib/tab-scroll'
 type ActivityTab = 'home' | 'expressions' | 'agreements' | 'actions' | 'graphs' | 'search'
 
 /** Retains the public profile's document lists and reading positions. */
-export function ActivityFeed({ actions, allActions = actions, users, graphs, authorIds, graphItems, agreementResponses, active = true, compactTabs = false, tabRequest, home, graphToolbar, onOpenNode, onOpenGraph, onOpenReference }: {
-  actions: ActionNode[]; allActions?: ActionNode[]; users: UserProfile[]; graphs: Graph[]; authorIds?: string[]
+export function ActivityFeed({ actions, allActions = actions, users, graphs, authorUuids, graphItems, agreementResponses, active = true, compactTabs = false, tabRequest, home, graphToolbar, onOpenNode, onOpenGraph, onOpenReference }: {
+  actions: ActionNode[]; allActions?: ActionNode[]; users: UserProfile[]; graphs: Graph[]; authorUuids?: string[]
   graphItems?: Graph[]; active?: boolean; compactTabs?: boolean
   agreementResponses?: ActionReference[]
   tabRequest?: { value: ActivityTab }
@@ -59,10 +59,10 @@ export function ActivityFeed({ actions, allActions = actions, users, graphs, aut
     pendingScroll.current = getRetainedTabScrollTop(scrollPositions.current[next], currentTop, navigationTop())
     setTab(next)
   }
-  const include = (node: ActionNode) => !authorIds || authorIds.includes(node.authorId)
-  const expressions = getPublishedExpressions(allActions, authorIds).filter((node) => actions.some((action) => action.uuid === node.uuid))
+  const include = (node: ActionNode) => !authorUuids || authorUuids.includes(node.authorUuid)
+  const expressions = getPublishedExpressions(allActions, authorUuids).filter((node) => actions.some((action) => action.uuid === node.uuid))
   const facts = sortActionsNewestFirst(actions.filter(include))
-  const context = (node: ActionNode) => <GraphContextLink id={node.graphId} title={graphs.find((graph) => graph.uuid === node.graphId)?.title} onOpen={onOpenGraph} />
+  const context = (node: ActionNode) => <GraphContextLink id={node.graphUuid} title={graphs.find((graph) => graph.uuid === node.graphUuid)?.title} onOpen={onOpenGraph} />
   return (
     <div ref={contentRef} className="[overflow-anchor:none]"><TabsRoot value={tab} onValueChange={switchTab} className="flow-root min-h-dvh">
       <div ref={navigationRef} className={`sticky top-0 z-20 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 bg-paper pb-1 ${compactTabs ? '' : 'mt-[23px]'}`}>
@@ -80,7 +80,7 @@ export function ActivityFeed({ actions, allActions = actions, users, graphs, aut
       {agreementResponses && onOpenReference && <TabsContent value="agreements" keepMounted><AgreementResponseList references={agreementResponses} users={users} presentation="feed" active={active && tab === 'agreements'} onExplore={onOpenReference} renderContext={(reference) => context(reference.target)} /></TabsContent>}
       <TabsContent value="actions" keepMounted><ActionPostList nodes={facts} actions={allActions} users={users} mode="objective" infinite active={active && tab === 'actions'} onExplore={onOpenNode} renderContext={context} /></TabsContent>
       {graphItems && <TabsContent value="graphs" keepMounted>{graphToolbar}<GraphList items={graphItems.map((graph) => getGraphActivity(graph, allActions))} onOpen={onOpenGraph} infinite active={active && tab === 'graphs'} dividers={false} /></TabsContent>}
-      <TabsContent value="search" keepMounted><ProfileSearch active={active && tab === 'search'} expressions={expressions} actions={facts} allActions={allActions} references={agreementResponses} graphs={graphItems} users={users} profileId={authorIds?.length === 1 ? authorIds[0] : undefined} onOpenNode={onOpenNode} onOpenReference={onOpenReference} onOpenGraph={onOpenGraph} renderContext={context} /></TabsContent>
+      <TabsContent value="search" keepMounted><ProfileSearch active={active && tab === 'search'} expressions={expressions} actions={facts} allActions={allActions} references={agreementResponses} graphs={graphItems} users={users} profileUuid={authorUuids?.length === 1 ? authorUuids[0] : undefined} onOpenNode={onOpenNode} onOpenReference={onOpenReference} onOpenGraph={onOpenGraph} renderContext={context} /></TabsContent>
     </TabsRoot></div>
   )
 }

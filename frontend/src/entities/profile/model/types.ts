@@ -1,6 +1,6 @@
 /** 用户自主排序的主页表达分支；约定由所选节点的有效约定派生，不另存选择。 */
 export type ProfileHighlights = {
-  expressionNodeIds: string[]
+  expressionNodeUuids: string[]
 }
 
 /** 中国大陆省、市、区县三级公开地址。只保存区县代码，名称由服务端返回。 */
@@ -24,8 +24,8 @@ export type UserProfile = {
   bio: string
 	location?: ProfileLocation
   avatar: string
-  avatarAssetId?: string | null
-  backgroundAssetId?: string | null
+  avatarAssetUuid?: string | null
+  backgroundAssetUuid?: string | null
   backgroundImage?: string
   activeDays: number
   isTestAccount?: boolean

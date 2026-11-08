@@ -25,10 +25,10 @@ export function readActionAgreementReviews(value: unknown, sources: AIActionSour
 }
 
 /** 用可信来源表将 AI 返回的编号映射为节点 ID；未知结果暂不写入模型，由提交层转为 null。 */
-export function getReferenceAgreementRecords(sources: { sourceId: string; nodeNumber: number }[], reviews: AIActionAgreementReview[]): ActionReferenceAgreement[] {
-  return sources.flatMap(({ sourceId, nodeNumber }) => {
+export function getReferenceAgreementRecords(sources: { sourceUuid: string; nodeNumber: number }[], reviews: AIActionAgreementReview[]): ActionReferenceAgreement[] {
+  return sources.flatMap(({ sourceUuid, nodeNumber }) => {
     const review = reviews.find((item) => item.nodeNumber === nodeNumber)
     if (!review || review.complies === null) return []
-    return [{ sourceId, complies: review.complies, ...(review.complies ? {} : { exceptionReason: review.reason }) }]
+    return [{ sourceUuid, complies: review.complies, ...(review.complies ? {} : { exceptionReason: review.reason }) }]
   })
 }

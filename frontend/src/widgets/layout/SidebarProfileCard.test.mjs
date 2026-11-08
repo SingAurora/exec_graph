@@ -11,7 +11,7 @@ const render = (overrides = {}) => renderToStaticMarkup(createElement(SidebarPro
 describe('sidebar profile shortcuts', () => {
   test('keeps account identity and sends each category to the matching own-profile tab', () => {
     const html = render()
-    const href = '#profile?userId=' + encodeURIComponent(profile.uuid)
+    const href = '#profile?userUuid=' + encodeURIComponent(profile.uuid)
     expect(html).not.toContain('qiao@example.com')
     expect(html.split(`href="${href}"`)).toHaveLength(3)
     for (const [tab, label, count] of [['actions', '行动', 6], ['expressions', '表达', 2], ['agreements', '约定', 3]]) {

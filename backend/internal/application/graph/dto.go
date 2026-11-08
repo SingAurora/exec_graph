@@ -16,17 +16,17 @@ type CreateGraphInput struct {
 
 // UpdateGraphInput 只使用已上传的资产 UUID，不接受 data URL 或第三方地址。
 type UpdateGraphInput struct {
-	GraphID           string  `json:"graphId"`
+	GraphID           string  `json:"graphUuid"`
 	ExpectedVersion   uint32  `json:"expectedVersion"`
 	Title             string  `json:"title"`
 	Description       string  `json:"description"`
-	AvatarAssetID     *string `json:"avatarAssetId"`
-	BackgroundAssetID *string `json:"backgroundAssetId"`
+	AvatarAssetID     *string `json:"avatarAssetUuid"`
+	BackgroundAssetID *string `json:"backgroundAssetUuid"`
 }
 
 // DeleteGraphInput 同时确认图资料版本及用户已看到的行动数量。
 type DeleteGraphInput struct {
-	GraphID           string  `json:"graphId"`
+	GraphID           string  `json:"graphUuid"`
 	ExpectedVersion   uint32  `json:"expectedVersion"`
 	ExpectedNodeCount *uint32 `json:"expectedNodeCount"`
 }

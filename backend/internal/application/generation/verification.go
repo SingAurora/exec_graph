@@ -47,7 +47,7 @@ type conditionCheck struct {
 }
 
 type agreementCheck struct {
-	SourceID   string           `json:"sourceId"`
+	SourceID   string           `json:"sourceUuid"`
 	Conditions []conditionCheck `json:"conditions"`
 }
 

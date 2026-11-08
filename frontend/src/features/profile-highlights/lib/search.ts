@@ -8,6 +8,6 @@ export function searchHighlightCandidates(candidates: ProfileHighlightEntry[], g
   if (!keyword.trim()) return candidates
   const titles = new Map(graphs.map((graph) => [graph.uuid, graph.title]))
   return candidates.filter(({ node, markdown, agreement }) => [
-    node.title, `#${node.number}`, titles.get(node.graphId) ?? '', getMarkdownSummary(markdown), getMarkdownSummary(agreement.markdown),
+    node.title, `#${node.number}`, titles.get(node.graphUuid) ?? '', getMarkdownSummary(markdown), getMarkdownSummary(agreement.markdown),
   ].some((text) => findSearchMatch(text, keyword) !== -1))
 }

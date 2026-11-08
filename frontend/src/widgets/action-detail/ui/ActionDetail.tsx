@@ -2,7 +2,7 @@ import { ArrowRight, ChevronDown, Ellipsis, LoaderCircle, MessageCircle, Route, 
 import { AlertDialog, DropdownMenu, Popover } from 'radix-ui'
 import { useMemo, useState } from 'react'
 import type { ActionDocumentMode, ActionNode } from '../../../entities/action/model/types'
-import { getActionParentIds } from '../../../entities/action/lib/graph'
+import { getActionParentUuids } from '../../../entities/action/lib/graph'
 import { getActionLevels } from '../../../entities/action/lib/levels'
 import type { UserProfile } from '../../../entities/profile/model/types'
 import { formatFullPublicationTime, formatPublicationTime } from '../../../shared/lib/date'
@@ -16,9 +16,9 @@ import type { NodeDocument } from '../../../features/action-generation/api/gener
 
 /** 头部只显示承接和合入的直接来源；完整祖先背景留在形成过程展示。 */
 function ActionSources({ node, actions, users, onSelect }: { node: ActionNode; actions: ActionNode[]; users: UserProfile[]; onSelect: (id: string) => void }) {
-  const parents = getActionParentIds(node).map((id) => actions.find((action) => action.uuid === id)).filter((action) => action !== undefined)
-  const continuation = parents.find((parent) => parent.uuid === node.parentId)
-  const merged = parents.filter((parent) => parent.uuid !== node.parentId)
+  const parents = getActionParentUuids(node).map((id) => actions.find((action) => action.uuid === id)).filter((action) => action !== undefined)
+  const continuation = parents.find((parent) => parent.uuid === node.parentUuid)
+  const merged = parents.filter((parent) => parent.uuid !== node.parentUuid)
   if (!parents.length) return null
   const sourceButton = (parent: ActionNode, relation: string) => <button key={parent.uuid} className="group inline-flex min-h-6 items-center gap-1 whitespace-nowrap rounded-sm border-0 bg-transparent p-0 text-xs" type="button" title={parent.title} onClick={() => onSelect(parent.uuid)}>
     <span className="text-muted group-hover:text-ink">{relation}</span>
@@ -38,7 +38,7 @@ function ActionSources({ node, actions, users, onSelect }: { node: ActionNode; a
           <div className="px-3 pb-1 pt-3 text-xs font-medium text-muted">合入节点 · {merged.length}</div>
           <div className="max-h-64 overflow-y-auto overscroll-contain p-1.5">
             {merged.map((parent) => {
-              const authorName = users.find((user) => user.uuid === parent.authorId)?.name ?? parent.authorId
+              const authorName = users.find((user) => user.uuid === parent.authorUuid)?.name ?? parent.authorUuid
               return (
                 <Popover.Close asChild key={parent.uuid}>
                   <button className="group block w-full rounded border-0 bg-transparent px-2 py-2 text-left hover:bg-soft focus-visible:outline-2 focus-visible:outline-signal" type="button" title={`查看合入节点 #${parent.number}：${parent.title}`} onClick={() => onSelect(parent.uuid)}>
@@ -72,7 +72,7 @@ export function ActionDetail({ node, actions, users, author, isHighlightTip, onH
   onModeChange: (mode: ActionDocumentMode) => void
   onOpenArchive: () => void
   onContinue: () => void
-  onSelect: (nodeId: string) => void
+  onSelect: (nodeUuid: string) => void
   onEditExpression: (node: ActionNode) => void
   onEditAgreement: (node: ActionNode) => void
   terminal?: boolean
@@ -88,7 +88,7 @@ export function ActionDetail({ node, actions, users, author, isHighlightTip, onH
   const objectiveMarkdown = node.objectiveMarkdown ?? node.markdown
   const levels = useMemo(() => getActionLevels(actions), [actions])
   const level = levels.get(node.uuid)
-  const authorName = author?.name ?? node.authorId
+  const authorName = author?.name ?? node.authorUuid
   const [deleteOpen, setDeleteOpen] = useState(false)
   const nodeReady = node.nodeReady !== false
   const documentFor = (kind: 'expression' | 'agreement') => documents.find((document) => document.kind === kind)
@@ -161,7 +161,7 @@ export function ActionDetail({ node, actions, users, author, isHighlightTip, onH
         </div>
         <h3 className="mt-2 text-xl font-semibold leading-[1.55] tracking-[-.02em] text-ink">{node.title}</h3>
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs leading-5 text-muted">
-          <ProfilePreview profile={author} userId={node.authorId} className="inline-flex min-w-0 items-center gap-2 rounded-sm text-ink hover:text-signal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal" href={`#profile?userId=${encodeURIComponent(node.authorId)}&fromGraph=${encodeURIComponent(node.graphId)}&fromTab=explore`}><Avatar profile={author} label={authorName.slice(0, 1)} size="small" /><span className="max-w-[180px] truncate text-sm font-medium">{authorName}</span></ProfilePreview>
+          <ProfilePreview profile={author} userUuid={node.authorUuid} className="inline-flex min-w-0 items-center gap-2 rounded-sm text-ink hover:text-signal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal" href={`#profile?userUuid=${encodeURIComponent(node.authorUuid)}&fromGraph=${encodeURIComponent(node.graphUuid)}&fromTab=explore`}><Avatar profile={author} label={authorName.slice(0, 1)} size="small" /><span className="max-w-[180px] truncate text-sm font-medium">{authorName}</span></ProfilePreview>
           <time dateTime={node.createdAt} title={formatFullPublicationTime(node.createdAt)}>{formatPublicationTime(node.createdAt)}</time>
         </div>
       </header>
