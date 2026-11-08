@@ -59,7 +59,7 @@ function ActionSources({ node, actions, users, onSelect }: { node: ActionNode; a
 }
 
 /** 当前节点阅读区：行动、表达、约定三个平行文档 tab；草稿通过 AI 对话编辑。 */
-export function ActionDetail({ node, actions, users, author, isHighlightTip, onHighlight, onHide, onLocate, recordMode, onModeChange, branches, onOpenArchive, onContinue, onSelect, onEditExpression, onEditAgreement, terminal = false, canDelete = false, onDelete, documents = [], documentsLoading = false, documentsError = '', isAuthor = false }: {
+export function ActionDetail({ node, actions, users, author, isHighlightTip, onHighlight, onHide, onLocate, recordMode, onModeChange, onOpenArchive, onContinue, onSelect, onEditExpression, onEditAgreement, terminal = false, canDelete = false, onDelete, documents = [], documentsLoading = false, documentsError = '', isAuthor = false }: {
   node: ActionNode
   actions: ActionNode[]
   users: UserProfile[]
@@ -70,7 +70,6 @@ export function ActionDetail({ node, actions, users, author, isHighlightTip, onH
   onLocate: () => void
   recordMode: ActionDocumentMode
   onModeChange: (mode: ActionDocumentMode) => void
-  branches: ActionNode[]
   onOpenArchive: () => void
   onContinue: () => void
   onSelect: (nodeId: string) => void
@@ -176,16 +175,6 @@ export function ActionDetail({ node, actions, users, author, isHighlightTip, onH
         {recordMode === 'agreement' && <div className="mt-8 border-t border-line pt-4"><ActionSourceAgreements node={node} actions={actions} users={users} onSelect={onSelect} /></div>}
       </div>
       <footer className="flex flex-wrap items-center gap-x-5 gap-y-3 px-6 pb-6 pt-1">{renderFooter()}</footer>
-      {branches.length > 0 && <section className="border-t border-line px-6 py-5">
-        <h4 className="text-sm font-medium">后续行动 <span className="ml-1 text-xs font-normal text-muted">{branches.length}</span></h4>
-        <div className="mt-2 divide-y divide-line">{branches.map((branch) => {
-          const branchAuthor = users.find((user) => user.id === branch.authorId)
-          return <div className="flex w-full items-center gap-3 py-3" key={branch.id}>
-            <ProfilePreview profile={branchAuthor} userId={branch.authorId} className="inline-flex shrink-0 rounded-lg focus-visible:outline-2 focus-visible:outline-signal"><Avatar profile={branchAuthor} label={branchAuthor?.name ?? branch.authorId} size="small" /></ProfilePreview>
-            <button className="group flex min-w-0 flex-1 items-center gap-3 border-0 bg-transparent p-0 text-left" type="button" onClick={() => onSelect(branch.id)}><span className="min-w-0 flex-1"><strong className="block text-sm font-medium leading-6 group-hover:text-signal">{branch.title}</strong><span className="mt-1 block text-xs text-muted">{branchAuthor?.name ?? branch.authorId} · 节点 #{branch.number}</span></span><ArrowRight size={15} className="shrink-0 text-muted group-hover:text-signal" /></button>
-          </div>
-        })}</div>
-      </section>}
       <AlertDialog.Root open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialog.Portal>
           <AlertDialog.Overlay className="fixed inset-0 z-50 bg-black/35 backdrop-blur-[2px]" />
