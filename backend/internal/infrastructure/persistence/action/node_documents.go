@@ -6,6 +6,7 @@ import (
 	app "github.com/singaurora/exec-graph/backend/internal/application/action"
 	"github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/model"
 	"github.com/singaurora/exec-graph/backend/internal/shared/id"
+	"github.com/singaurora/exec-graph/backend/internal/shared/timezone"
 )
 
 // NodeDocuments 读取节点自己的表达/约定状态和草案。
@@ -77,7 +78,7 @@ func (t *actionTransaction) DocumentHistory(nodeID string) ([]app.DocumentVersio
 	}
 	versions := make([]app.DocumentVersionView, 0, len(rows))
 	for _, row := range rows {
-		version := app.DocumentVersionView{Kind: row.Kind, Revision: row.RevisionNumber, Mode: row.Mode, Markdown: row.Markdown, ActorID: row.ActorUUID, ChangeKind: row.ChangeKind, CreatedAt: row.CreatedAt}
+		version := app.DocumentVersionView{Kind: row.Kind, Revision: row.RevisionNumber, Mode: row.Mode, Markdown: row.Markdown, ActorID: row.ActorUUID, ChangeKind: row.ChangeKind, CreatedAt: timezone.InChina(row.CreatedAt)}
 		if row.GenerationUUID != nil {
 			version.GenerationID = *row.GenerationUUID
 		}

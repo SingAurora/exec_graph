@@ -8,6 +8,7 @@ import (
 	"github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/model"
 	"github.com/singaurora/exec-graph/backend/internal/shared/aimodel"
 	"github.com/singaurora/exec-graph/backend/internal/shared/fault"
+	"github.com/singaurora/exec-graph/backend/internal/shared/timezone"
 	"gorm.io/gorm"
 )
 
@@ -131,7 +132,7 @@ func (r *Repository) actions(ctx context.Context, nodes []model.ActionNode) ([]a
 	}
 	byID := map[string]*app.ActionView{}
 	for _, n := range nodes {
-		result = append(result, app.ActionView{ID: n.UUID, GraphID: n.GraphUUID, Number: n.NodeNumber, AuthorID: n.AuthorUUID, Title: n.Title, Markdown: n.ObjectiveMarkdown, ObjectiveMarkdown: n.ObjectiveMarkdown, Version: n.Version, CreatedAt: n.CreatedAt, Images: []app.Image{}, Conversation: []app.Message{}, ExpressionConversation: []app.Message{}, AgreementConversation: []app.Message{}, ReferenceAgreements: []app.Assessment{}, ContextSnapshot: &app.ContextSnapshot{DirectNodeIDs: []string{}, HistoryNodeCount: n.HistoryNodeCount, Guide: n.ContextGuideSnapshot}})
+		result = append(result, app.ActionView{ID: n.UUID, GraphID: n.GraphUUID, Number: n.NodeNumber, AuthorID: n.AuthorUUID, Title: n.Title, Markdown: n.ObjectiveMarkdown, ObjectiveMarkdown: n.ObjectiveMarkdown, Version: n.Version, CreatedAt: timezone.InChina(n.CreatedAt), Images: []app.Image{}, Conversation: []app.Message{}, ExpressionConversation: []app.Message{}, AgreementConversation: []app.Message{}, ReferenceAgreements: []app.Assessment{}, ContextSnapshot: &app.ContextSnapshot{DirectNodeIDs: []string{}, HistoryNodeCount: n.HistoryNodeCount, Guide: n.ContextGuideSnapshot}})
 	}
 	for i := range result {
 		byID[result[i].ID] = &result[i]
@@ -175,7 +176,7 @@ func (r *Repository) actions(ctx context.Context, nodes []model.ActionNode) ([]a
 		var revision *app.Revision
 		// 继承自父节点的版本只用于展示，不伪装成本节点的补充记录。
 		if s.LocalVersionUUID != nil && (document.RevisionNumber > 1 || document.CreatedAt.After(node.CreatedAt)) {
-			revision = &app.Revision{AuthorID: document.ActorUUID, CreatedAt: document.CreatedAt, Kind: document.ChangeKind}
+			revision = &app.Revision{AuthorID: document.ActorUUID, CreatedAt: timezone.InChina(document.CreatedAt), Kind: document.ChangeKind}
 		}
 		if s.Kind == "expression" {
 			node.ExpressionMarkdown = &text

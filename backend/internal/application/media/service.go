@@ -10,6 +10,7 @@ import (
 	"github.com/singaurora/exec-graph/backend/internal/shared/constants"
 	"github.com/singaurora/exec-graph/backend/internal/shared/fault"
 	"github.com/singaurora/exec-graph/backend/internal/shared/id"
+	"github.com/singaurora/exec-graph/backend/internal/shared/timezone"
 )
 
 // Service 协调资产登记与网络存储；网络调用始终在数据库事务之外。
@@ -46,12 +47,15 @@ func (s *Service) Upload(ctx context.Context, actor identity.Actor, body []byte)
 	if err := s.store.Complete(ctx, actor, asset.AssetID); err != nil {
 		return AssetView{}, err
 	}
-	return asset.AssetView, nil
+	view := asset.AssetView
+	view.RetainUntil = timezone.InChina(view.RetainUntil)
+	return view, nil
 }
 
 // Retain 校验归属后对草稿配图续期，不接受客户端指定任意保留时间。
 func (s *Service) Retain(ctx context.Context, actor identity.Actor, input RetainInput) (RetentionView, error) {
-	out := RetentionView{AssetIDs: input.AssetIDs, RetainUntil: time.Now().UTC().Add(constants.DraftMediaRetention)}
+	retainUntil := time.Now().UTC().Add(constants.DraftMediaRetention)
+	out := RetentionView{AssetIDs: input.AssetIDs, RetainUntil: timezone.InChina(retainUntil)}
 	if input.AssetIDs == nil || len(input.AssetIDs) > constants.ActionImageLimit {
 		return out, fault.New(fault.Invalid, "请提交最多十二张草稿图片")
 	}
@@ -62,7 +66,7 @@ func (s *Service) Retain(ctx context.Context, actor identity.Actor, input Retain
 		}
 		seen[uuid] = true
 	}
-	return out, s.store.Retain(ctx, actor, input.AssetIDs, out.RetainUntil)
+	return out, s.store.Retain(ctx, actor, input.AssetIDs, retainUntil)
 }
 
 // File 未保存的图片只允许上传者读取；被公开内容引用后允许公开读取。
