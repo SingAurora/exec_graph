@@ -8,19 +8,8 @@ import { ToastProvider } from './shared/ui/toast/Toast'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { createQueryClient } from './app/providers/query-client'
 
-/** 清理旧版 MSW 留下的 Service Worker，避免它继续拦截真实接口。 */
-function removeLegacyMockWorker() {
-  if (!('serviceWorker' in navigator)) return
-  void navigator.serviceWorker.getRegistrations().then((registrations) => Promise.all(
-    registrations
-      .filter((registration) => registration.active?.scriptURL.endsWith('/mockServiceWorker.js'))
-      .map((registration) => registration.unregister()),
-  )).catch(() => undefined)
-}
-
 /** 准备全局 Provider，再把业务应用挂载到 HTML 的 #root 容器。 */
 function start() {
-  removeLegacyMockWorker()
   // 一个应用共享一份 Query 缓存；Provider 通过 React Context 把能力传给内部组件。
   const client = createQueryClient()
   // createRoot 接管容器，render 渲染组件树；“!”仅告诉 TypeScript 此元素非空。
