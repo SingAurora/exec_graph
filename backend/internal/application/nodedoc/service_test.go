@@ -23,7 +23,7 @@ func TestParseRequiresBothNodeDocuments(t *testing.T) {
 }
 
 func TestDefaultNodeDocumentRulesAreLowBurden(t *testing.T) {
-	for _, phrase := range []string{"2～4 句", "1～3 个行动", "只写两句话", "不列 1～5 条清单"} {
+	for _, phrase := range []string{"2～4 句", "1～3 个行动", "只写两句话", "至少一件即可", "当前 expression"} {
 		if !strings.Contains(rules, phrase) {
 			t.Fatalf("自动文档规则缺少低负担约束: %s", phrase)
 		}
