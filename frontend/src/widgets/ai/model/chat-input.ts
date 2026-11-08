@@ -8,3 +8,8 @@ export function resizeChatInput(element: Pick<HTMLTextAreaElement, 'scrollHeight
   element.style.height = 'auto'
   element.style.height = `${Math.min(element.scrollHeight, CHAT_INPUT_MAX_HEIGHT)}px`
 }
+
+/** 回车发送，Shift+回车换行；输入法组合中的回车不发送。 */
+export function shouldSendChatOnEnter(key: string, shiftKey: boolean, composing = false): boolean {
+  return key === 'Enter' && !shiftKey && !composing
+}

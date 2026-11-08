@@ -11,7 +11,7 @@ import { CopyConversationButton } from '../../shared/ui/CopyConversationButton'
 import { Dialog } from '../../shared/ui/dialog/Dialog'
 import { formatConversationForCopy } from '../../shared/lib/format-conversation'
 import type { WorkspaceView } from './model/workspace-draft'
-import { CHAT_INPUT_LIMIT, resizeChatInput } from './model/chat-input'
+import { CHAT_INPUT_LIMIT, resizeChatInput, shouldSendChatOnEnter } from './model/chat-input'
 
 type WorkspaceTab = 'conversation' | 'objective' | 'expression' | 'agreement'
 type DocumentPreview = { title?: string; markdown: string; images?: PostImage[]; status?: string; empty: string }
@@ -175,7 +175,12 @@ export function WorkspaceFrame({ title, tabs = ['conversation', 'objective', 'ex
               </div>}
               {imageComposer && composerMode === 'image' ? <div>{imageComposer}<div className="mt-2"><CopyConversationButton text={copyText} label="复制对话" className="text-button text-xs" /></div></div> : <form className="flex flex-col gap-2" onSubmit={onSend}>
                 <div className="rounded-lg border border-line bg-paper px-3 py-2 transition-colors focus-within:border-signal">
-                  <textarea ref={inputRef} className="workspace-chat-input min-h-12 max-h-32 w-full resize-none overflow-y-auto border-0 bg-transparent py-1.5 text-sm leading-[1.6] outline-none" title={inputLabel} maxLength={CHAT_INPUT_LIMIT} value={input} onChange={(event) => onInputChange(event.target.value)} placeholder={placeholder} disabled={sending || disabled} />
+                  <textarea ref={inputRef} className="workspace-chat-input min-h-12 max-h-32 w-full resize-none overflow-y-auto border-0 bg-transparent py-1.5 text-sm leading-[1.6] outline-none" title={inputLabel} maxLength={CHAT_INPUT_LIMIT} value={input} onChange={(event) => onInputChange(event.target.value)} onKeyDown={(event) => {
+                    if (!shouldSendChatOnEnter(event.key, event.shiftKey, event.nativeEvent.isComposing)) return
+                    event.preventDefault()
+                    if (!input.trim() || sending || disabled) return
+                    event.currentTarget.form?.requestSubmit()
+                  }} placeholder={placeholder} disabled={sending || disabled} />
                 </div>
                 <div className="flex min-w-0 items-center justify-between gap-3">
                   <CopyConversationButton text={copyText} label="复制对话" className="text-button text-xs" />

@@ -181,3 +181,19 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
+
+/* Markdown 表格与代码块：草稿和对话统一留出内边距，避免文字贴住边框。 */
+.record-markdown table,
+.chat-markdown table { width: 100%; margin: 12px 0 0; border-collapse: collapse; font-size: 13px; line-height: 1.7; }
+.record-markdown th,
+.record-markdown td,
+.chat-markdown th,
+.chat-markdown td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
+.record-markdown th,
+.chat-markdown th { background: var(--soft); font-weight: 600; }
+.record-markdown pre,
+.chat-markdown pre { margin: 12px 0 0; overflow-x: auto; border-radius: 6px; background: var(--soft); padding: 10px 12px; }
+.record-markdown code,
+.chat-markdown code { border-radius: 4px; background: var(--soft); padding: 1px 4px; font-size: .92em; }
+.record-markdown pre code,
+.chat-markdown pre code { background: transparent; padding: 0; }
