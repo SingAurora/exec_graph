@@ -43,14 +43,15 @@ export function GuestApp({ graphs, actions, users }: GuestAppProps) {
     <div className="relative isolate mx-auto min-h-screen w-[min(1200px,calc(100%-72px))] pt-[30px] max-[1000px]:w-[min(920px,calc(100%-48px))]">
       <AppBackdrop />
       <header className="flex min-h-[66px] items-center justify-between gap-4 border-b border-line">
-        <div className="flex min-w-0 items-center gap-2">
+        <a className="inline-flex w-max rounded-sm" href="#home" title="引序 公开内容"><Brand /></a>
+        <div className="flex items-center gap-2">
           {selectedGraph && <button className="quiet-button" type="button" onClick={() => navigate('home')}><ArrowLeft size={15} />返回</button>}
-          <a className="inline-flex w-max rounded-sm" href="#home" title="引序 公开内容"><Brand /></a>
+          <button className="quiet-button" type="button" onClick={login} title="登录引序"><LogIn size={15} />登录</button>
         </div>
-        <button className="quiet-button" type="button" onClick={login} title="登录引序"><LogIn size={15} />登录</button>
       </header>
       {selectedGraph ? (
         <main className="pb-20">
+          <div className="mx-auto w-full max-w-[1000px]">
           <GraphPage
             graph={selectedGraph}
             active
@@ -72,6 +73,7 @@ export function GuestApp({ graphs, actions, users }: GuestAppProps) {
             following={false}
             onSetGraphFollow={() => { login(); return false }}
           />
+          </div>
         </main>
       ) : (
         <main className="pb-20">
