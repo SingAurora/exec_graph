@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useAppResources } from './model/useAppResources'
 import { useAppCommands } from './model/useAppCommands'
 import { useAppearance } from './model/useAppearance'
-import { isAppView, isAuthView, useHashRoute } from '../shared/lib/navigation'
+import { isAppView, isAuthView } from '../shared/lib/navigation'
 import { profileKeys, type SessionView } from '../entities/profile/api/profiles'
 import { logout } from '../features/auth/api/account'
 import { clearAuthToken, readAuthToken, writeAuthToken } from '../shared/api/auth-token'
@@ -54,10 +54,16 @@ export function App() {
   const resources = useAppResources()
   const client = useQueryClient()
   const [darkMode, toggleTheme] = useAppearance()
-  const rawView = window.location.hash.slice(1).split('?')[0]
+  const [hash, setHash] = useState(() => window.location.hash)
+  useEffect(() => {
+    const sync = () => setHash(window.location.hash)
+    window.addEventListener('hashchange', sync)
+    return () => window.removeEventListener('hashchange', sync)
+  }, [])
+  const rawView = hash.slice(1).split('?')[0]
   const loadingView = isAppView(rawView) && rawView !== 'topic' ? rawView : 'home'
   const loadingAuth = isAuthView(rawView)
-  const [authView] = useHashRoute('login', isAuthView)
+  const authView = isAuthView(rawView) ? rawView : 'login'
   const { showToast } = useToast()
   const enter = async (session: SessionView) => {
     if (session.token) writeAuthToken(session.token)
