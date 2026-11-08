@@ -23,6 +23,7 @@ type Highlights struct {
 type ProfileView struct {
 	ID                string        `json:"uuid"`
 	Name              string        `json:"name"`
+	Email             string        `json:"email"`
 	Gender            string        `json:"gender"`
 	Bio               string        `json:"bio"`
 	Location          *LocationView `json:"location,omitempty"`

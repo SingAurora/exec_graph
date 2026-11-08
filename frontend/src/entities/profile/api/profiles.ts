@@ -7,8 +7,8 @@ import type { UserProfile } from '../model/types'
 /** 当前账户资料及版本，包含本人邮箱，仅由会话接口返回。 */
 export type AccountProfile = UserProfile & { version: number }
 
-/** 公开用户 DTO；Omit 从现有类型排除邮箱和演示账户标记。 */
-export type PublicProfileView = Omit<UserProfile, 'email' | 'isTestAccount'>
+/** 公开用户 DTO；演示阶段返回邮箱，只隐藏数据库测试标记。 */
+export type PublicProfileView = Omit<UserProfile, 'isTestAccount'>
 
 /** 当前会话资料；认证使用 localStorage 中的 Bearer token。 */
 export type SessionView = { user: AccountProfile; token?: string }

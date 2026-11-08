@@ -40,7 +40,7 @@ func MediaURL(uuid *string) *string {
 	return &value
 }
 
-// Profiles 只读取公开字段，不把凭据、邮箱或测试标记发往公开目录。
+// Profiles 读取公开目录；当前演示阶段同时返回邮箱。
 func (r *Repository) Profiles(ctx context.Context) ([]app.ProfileView, error) {
 	var users []model.User
 	if err := r.db.WithContext(ctx).Where("disabled_at IS NULL").Order("id").Find(&users).Error; err != nil {
@@ -74,6 +74,14 @@ func (r *Repository) profiles(ctx context.Context, users []model.User) ([]app.Pr
 	}
 	if len(ids) == 0 {
 		return views, nil
+	}
+	var credentials []model.UserCredential
+	if err := r.db.WithContext(ctx).Where("user_uuid IN ?", ids).Find(&credentials).Error; err != nil {
+		return nil, fmt.Errorf("读取用户邮箱: %w", err)
+	}
+	emails := make(map[string]string, len(credentials))
+	for _, credential := range credentials {
+		emails[credential.UserUUID] = credential.Email
 	}
 	var nodes []model.ActionNode
 	if err := r.db.WithContext(ctx).Table("action_nodes AS n").Select("n.author_uuid, n.created_at").Joins("JOIN graphs g ON g.uuid = n.graph_uuid").Where("g.deleted_at IS NULL AND n.author_uuid IN ?", ids).Find(&nodes).Error; err != nil {
@@ -109,7 +117,7 @@ func (r *Repository) profiles(ctx context.Context, users []model.User) ([]app.Pr
 				profileLocation = &app.LocationView{Code: value.Code, ProvinceCode: value.ProvinceCode, Province: value.Province, CityCode: value.CityCode, City: value.City, DistrictCode: value.DistrictCode, District: value.District}
 			}
 		}
-		views = append(views, app.ProfileView{ID: u.UUID, Name: u.Name, Gender: u.Gender, Bio: u.BiographyMarkdown, Location: profileLocation, Avatar: avatar, BackgroundImage: MediaURL(u.CoverAssetUUID), AvatarAssetID: u.AvatarAssetUUID, BackgroundAssetID: u.CoverAssetUUID, ActiveDays: len(days[u.UUID]), Highlights: app.Highlights{ExpressionNodeIDs: list}})
+		views = append(views, app.ProfileView{ID: u.UUID, Name: u.Name, Email: emails[u.UUID], Gender: u.Gender, Bio: u.BiographyMarkdown, Location: profileLocation, Avatar: avatar, BackgroundImage: MediaURL(u.CoverAssetUUID), AvatarAssetID: u.AvatarAssetUUID, BackgroundAssetID: u.CoverAssetUUID, ActiveDays: len(days[u.UUID]), Highlights: app.Highlights{ExpressionNodeIDs: list}})
 	}
 	return views, nil
 }

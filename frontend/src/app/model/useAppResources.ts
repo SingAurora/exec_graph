@@ -21,8 +21,8 @@ export function useAppResources() {
   const contexts = useQuery({ queryKey: actionKeys.contexts(scope, graphUuids), queryFn: ({ signal }) => readActionContexts(graphUuids, signal),
     enabled: enabled && Boolean(graphs.data), placeholderData: (previous, query) => query?.queryKey[1] === scope ? previous : undefined })
   const profile = session.data?.user
-  // 公开目录不含邮箱；为兼容现有展示类型补空值，本人资料以会话接口返回的版本为准。
-  const allUsers = useMemo(() => profile && users.data ? [profile, ...users.data.filter((user) => user.uuid !== profile.uuid).map((user) => ({ ...user, email: '' }))] : [], [profile, users.data])
+  // 公开目录包含邮箱；本人资料以会话接口返回的版本为准。
+  const allUsers = useMemo(() => profile && users.data ? [profile, ...users.data.filter((user) => user.uuid !== profile.uuid)] : [], [profile, users.data])
   const error = session.error ?? graphs.error ?? users.error ?? following.error ?? contexts.error
   const ready = Boolean(profile && graphs.data && users.data && following.data && contexts.data)
   const retry = () => { void session.refetch(); if (enabled) { void graphs.refetch(); void users.refetch(); void following.refetch(); if (graphs.data) void contexts.refetch() } }

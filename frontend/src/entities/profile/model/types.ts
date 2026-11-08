@@ -14,7 +14,7 @@ export type ProfileLocation = {
 	district: string
 }
 
-/** 原型界面共用的用户资料类型；公开接口不返回邮箱，只有当前账户接口提供本人邮箱。 */
+/** 原型界面共用的用户资料类型；演示阶段公开接口也返回邮箱。 */
 export type UserProfile = {
   uuid: string
   name: string
