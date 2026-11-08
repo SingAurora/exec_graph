@@ -117,8 +117,39 @@ func Migrate(ctx context.Context, db *gorm.DB) error {
 				return fmt.Errorf("记录节点文档迁移版本: %w", err)
 			}
 		}
+		if applied < 6 {
+			// 旧库中的 DATETIME 由 UTC 墙钟写入；切换连接默认东八区前先平移已有值。
+			// 全新库 applied=0，不需要平移，避免新写入的数据被重复加八小时。
+			if applied > 0 {
+				if err := shiftDatetimesToChina(conn); err != nil {
+					return err
+				}
+			}
+			if err := conn.Create(&model.SchemaVersion{Version: 6, AppliedAt: time.Now().UTC()}).Error; err != nil {
+				return fmt.Errorf("记录东八区迁移版本: %w", err)
+			}
+		}
 		return Check(ctx, conn)
 	})
+}
+
+// shiftDatetimesToChina 把既有 DATETIME 墙钟从 UTC 平移到东八区。
+func shiftDatetimesToChina(db *gorm.DB) error {
+	type column struct {
+		TableName  string `gorm:"column:TABLE_NAME"`
+		ColumnName string `gorm:"column:COLUMN_NAME"`
+	}
+	var columns []column
+	if err := db.Raw("SELECT TABLE_NAME, COLUMN_NAME FROM information_schema.columns WHERE table_schema = DATABASE() AND data_type = 'datetime'").Scan(&columns).Error; err != nil {
+		return fmt.Errorf("读取待平移时间列: %w", err)
+	}
+	for _, item := range columns {
+		statement := fmt.Sprintf("UPDATE `%s` SET `%s` = DATE_ADD(`%s`, INTERVAL 8 HOUR) WHERE `%s` IS NOT NULL", item.TableName, item.ColumnName, item.ColumnName, item.ColumnName)
+		if err := db.Exec(statement).Error; err != nil {
+			return fmt.Errorf("平移时间列 %s.%s: %w", item.TableName, item.ColumnName, err)
+		}
+	}
+	return nil
 }
 
 // Check 验证 schema 版本和模型表；不会自动修复或修改结构。

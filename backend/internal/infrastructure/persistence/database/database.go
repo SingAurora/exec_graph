@@ -11,12 +11,13 @@ import (
 	driver "github.com/go-sql-driver/mysql"
 	"github.com/singaurora/exec-graph/backend/internal/bootstrap/config"
 	"github.com/singaurora/exec-graph/backend/internal/shared/constants"
+	"github.com/singaurora/exec-graph/backend/internal/shared/timezone"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
 
-// Open 创建 UTC 连接池，关闭自动外键，禁止把 SQL 参数写入日志。
+// Open 创建中国东八区连接池，关闭自动外键，禁止把 SQL 参数写入日志。
 func Open(c config.Database) (*gorm.DB, error) {
 	dsn := driver.NewConfig()
 	dsn.User = c.User
@@ -25,11 +26,11 @@ func Open(c config.Database) (*gorm.DB, error) {
 	dsn.Addr = net.JoinHostPort(c.Host, strconv.Itoa(c.Port))
 	dsn.DBName = c.Schema
 	dsn.ParseTime = true
-	dsn.Loc = time.UTC
+	dsn.Loc = timezone.China
 	dsn.Timeout = constants.DependencyTimeout
 	dsn.ReadTimeout = constants.DependencyTimeout
 	dsn.WriteTimeout = constants.DependencyTimeout
-	dsn.Params = map[string]string{"charset": "utf8mb4", "time_zone": "'+00:00'"}
+	dsn.Params = map[string]string{"charset": "utf8mb4", "time_zone": "'+08:00'"}
 	db, err := gorm.Open(mysql.Open(dsn.FormatDSN()), &gorm.Config{DisableForeignKeyConstraintWhenMigrating: true, Logger: logger.Default.LogMode(logger.Silent), TranslateError: true})
 	if err != nil {
 		return nil, fmt.Errorf("连接 MySQL 失败: %w", err)
