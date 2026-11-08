@@ -31,7 +31,7 @@ EXEC_GRAPH_DATABASE_SCHEMA=exec_graph go run ./cmd/manage verify
 ```sh
 cd frontend
 bun install --frozen-lockfile
-VITE_API_BASE_URL= VITE_ENABLE_API_MOCKS=false VITE_ENABLE_DEMO_LOGIN=false bun run build
+VITE_API_BASE_URL= VITE_ENABLE_DEMO_LOGIN=false bun run build
 cd ../backend
 go build -o bin/exec-graph ./cmd/api
 go build -o bin/exec-graph-manage ./cmd/manage
@@ -56,7 +56,7 @@ EXEC_GRAPH_ENABLE_DEMO_LOGIN=false \
 
 浏览器访问 `http://服务器IP:8081/`；服务器需放行 TCP 8081。前端 API 地址留空，页面和 API 使用同一个来源。`allowed_origins` 可以配置明确的来源，也可以配置 `*` 回显任意浏览器 Origin；登录和写入请求使用 Bearer token 与权限校验；当前 demo 阶段已关闭 CSRF 校验。使用 `*` 会放开跨源浏览器访问，生产部署应自行评估网络边界。
 
-上面的 IP HTTP 示例显式采用 `development` 环境；登录返回 Bearer token，不再依赖 Cookie；生产环境可以直接通过 HTTPS 携带 Bearer token。演示登录仍关闭，构建后的前端也不启动 MSW；MySQL、Redis、邮件、图片和 AI 继续使用真实配置。
+上面的 IP HTTP 示例显式采用 `development` 环境；登录返回 Bearer token，不再依赖 Cookie；生产环境可以直接通过 HTTPS 携带 Bearer token。演示登录仍关闭，构建后的前端只连接真实 API；MySQL、Redis、邮件、图片和 AI 继续使用真实配置。
 
 `app.frontend_dir` 与 `EXEC_GRAPH_FRONTEND_DIR` 都可以指定构建目录，环境变量优先；相对路径以 Go 进程的工作目录为准，后台托管进程时建议使用绝对路径。留空保持原有只提供 API 的开发方式；显式配置但缺少 `index.html` 时拒绝启动。仅发布构建目录，不列出目录内容，未知 API 和缺失资源返回 404，不回退成首页。
 
@@ -170,7 +170,7 @@ EXEC_GRAPH_DATABASE_SCHEMA=exec_graph EXEC_GRAPH_ADDR=127.0.0.1:8080 EXEC_GRAPH_
 
 写入的准确 DTO、权限和事务行为见 [真实后端写入契约](../doc/backend-write-contract.md)。创建带 `Idempotency-Key`，全部业务写入需要会话，修改带 `expectedVersion`。图和资料图片接受已上传的资产 UUID；行动及表达确认使用 `generationId`，不接受浏览器直接伪造的 AI 文稿／对话。
 
-前端默认关闭 MSW，真实认证、上传、生成和确认发布已接入。外部能力 DTO、私有草稿隔离、限时和回收边界见 [外部能力契约](../doc/backend-external-contract.md)。未知接口返回 404，不返回模拟成功。
+前端只连接真实后端，认证、上传、生成和确认发布已接入。外部能力 DTO、私有草稿隔离、限时和回收边界见 [外部能力契约](../doc/backend-external-contract.md)。未知接口返回 404，不返回模拟成功。
 
 ## 外部能力配置
 

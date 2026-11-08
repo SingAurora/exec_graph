@@ -9,22 +9,19 @@ bun run dev
 
 ## 请求与缓存
 
-- `src/shared/api/client.ts`：业务 `getAPI`／`postAPI`／`postFormAPI`，统一 JSON 外壳、超时、取消、CSRF、结构化错误；`getBlob` 下载图片。
+- `src/shared/api/client.ts`：业务 `getAPI`／`postAPI`／`postFormAPI`，统一 JSON 外壳、超时、取消、Bearer 认证、结构化错误；`getBlob` 下载图片。
 - `src/entities/*/api`：领域读取、DTO、query key；`src/features/*/api`：明确的写入用例。
 - `src/app/model/useAppResources.ts`：读取装配；`useAppCommands.ts`：写入及成功后的缓存更新；`src/app/providers/query-client.ts`：应用级缓存策略。
-- `src/app/mocks`：模拟服务器及校验；固定演示种子仅从 `src/app/demo` 注入，不用作真实请求失败后的回退。
 
 读取缓存有效期 30 秒、无订阅保留 10 分钟；窗口重新聚焦不自动刷新。暂时性读取失败最多重试一次，写入不自动重试。创建支持幂等键，更新支持版本冲突；表单和本地草稿在失败时保留，确认成功后才提示保存或清理草稿。
 
 目前用目录和完整图上下文承接既有选择器；列表无限滚动及搜索分页仍在完整数据上计算。规模增长前应迁移到摘要流、远端搜索分页和按需详情。完整规范见 [请求契约](../doc/api-request-contract.md)。
 
-## 关闭模拟与联调
+## 联调
 
-真实 API 为默认模式。如需单独演示界面，在 `.env.development.local` 显式设置 `VITE_ENABLE_API_MOCKS=true` 并重启 Vite。不同源部署可配置 `VITE_API_BASE_URL`，仍需正确配置后端 CORS 和 cookie 策略。`VITE_` 环境变量会暴露给浏览器，不要填写账户或 API 密钥。接口不可用时显示错误，不回退演示数据。
+前端只连接真实后端，不提供模拟接口或模拟数据回退。不同源部署可配置 `VITE_API_BASE_URL`，并正确配置后端 CORS。`VITE_` 环境变量会暴露给浏览器，不要填写账户或 API 密钥。接口不可用时显示错误，保留输入和草稿。
 
-MSW 仅在开发构建且开关为 true 时启动，刷新重置模拟写入。本地草稿独立保留。模拟生成采用服务端内明确的固定模型替身，沿用真实生成／确认 DTO；不代表真实 AI。模拟环境不提供邮件、账户安全或对象存储，未声明的业务请求明确失败。生产构建不启动 worker。
-
-真实模式支持邮箱登录、验证码注册／重置、注销和账户安全。401 统一切换为匿名并清除旧账号查询，其他错误保留重试。cookie 由后端以 HttpOnly 设置，前端只保存公开账户及 CSRF token。注销不删除按账号隔离的本地草稿。
+支持邮箱登录、验证码注册／重置、注销和账户安全。401 统一切换为匿名并清除旧账号查询，其他错误保留重试。登录使用 Bearer token，前端保存在浏览器本地存储；不使用 Cookie。注销不删除按账号隔离的本地草稿。
 
 ## 平台 AI
 
@@ -40,6 +37,6 @@ npm exec --yes --package=bun@1.4.4 -- bun run test
 bun run build
 ```
 
-建议 Bun 1.4.4 或更新版本。旧版 Bun 1.1.38 无法加载当前 MSW 的 HTTPParser；以上命令使用隔离版本，不修改全局 Bun。`src/app/mocks/api.test.mjs` 验证生成确认、读写、幂等、版本冲突、权限及继承／清空；统一客户端测试覆盖 multipart、匿名会话、超时和取消；Query 测试覆盖缓存与认证失效。
+建议 Bun 1.4.4 或更新版本。统一客户端测试覆盖 multipart、匿名会话、超时和取消；Query 测试覆盖缓存与认证失效；领域测试覆盖生成确认、幂等、版本冲突、权限及继承／清空。
 
-浏览器可在 Network 中按 `/api/commands/` 筛选请求。断网或让服务返回 503 时，输入和表单应保留，恢复后可重试。MSW 能离线响应，验证真实链路时必须关闭模拟；切换开关后重新加载页面，必要时注销旧 worker。
+浏览器可在 Network 中按 `/api/commands/` 筛选请求。断网或让服务返回 503 时，输入和表单应保留，恢复后可重试。

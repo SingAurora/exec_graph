@@ -44,8 +44,8 @@ echo '正在本地构建前端……'
 	if [[ ! -d node_modules ]]; then
 		bun install --frozen-lockfile
 	fi
-	# 清空 API 地址并关闭模拟服务，生成正式连接真实后端的前端。
-	VITE_API_BASE_URL= VITE_ENABLE_API_MOCKS=false VITE_ENABLE_DEMO_LOGIN=false bun run build
+	# 清空 API 地址，生成连接真实后端的前端。
+	VITE_API_BASE_URL= VITE_ENABLE_DEMO_LOGIN=false bun run build
 )
 
 echo '正在本地交叉编译 Linux/amd64 Go 服务……'

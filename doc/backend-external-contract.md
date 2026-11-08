@@ -144,8 +144,8 @@ GET `/ai/generation?generationId=UUID` 只返回本人发起的任务。pending 
 
 ## 前端与部署边界
 
-前端默认关闭 MSW，Vite 只将 `/api` 转发到 `API_PROXY_TARGET`。密钥保存在被 Git 忽略的服务端配置或 `DEEPSEEK_API_KEY` 环境变量中，没有个人 key 配置，也不注入前端构建。服务端 AI 配置使用 `ai.draft_model` 和 `ai.analysis_model`，分别控制行动整理和表达／约定／来源约定核验；未设置时均使用 `deepseek-flash`，行动整理关闭 thinking，分析和核验开启 thinking。旧配置中的 `ai.model` 仍可读取，但不会覆盖新的默认模型。
+前端只连接真实后端，Vite 只将 `/api` 转发到 `API_PROXY_TARGET`。密钥保存在被 Git 忽略的服务端配置或 `DEEPSEEK_API_KEY` 环境变量中，没有个人 key 配置，也不注入前端构建。服务端 AI 配置使用 `ai.draft_model` 和 `ai.analysis_model`，分别控制行动整理和表达／约定／来源约定核验；未设置时均使用 `deepseek-flash`，行动整理关闭 thinking，分析和核验开启 thinking。旧配置中的 `ai.model` 仍可读取，但不会覆盖新的默认模型。
 
 登录、退出、账户安全成功及统一 401 边界清理旧账号查询；保留活跃会话查询订阅。网络／数据库错误不能被视为匿名或退回模拟数据。真实响应 ID 为 UUID；导入记录可带显式 `legacyId` 用于旧 hash 链接和本地草稿定位，不能自行推算别名。
 
-MSW 仅在显式开发开关下提供固定生成替身及业务确认契约，不模拟真实邮件、账户安全、对象存储或服务端用量配额；未覆盖请求应失败。当前目录和图上下文仍整体读取，尚未实现远端分页。账号配额不代表已经完成全平台费用控制、容量规划或生产验收。
+当前目录和图上下文仍整体读取，尚未实现远端分页。账号配额不代表已经完成全平台费用控制、容量规划或生产验收。

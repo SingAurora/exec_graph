@@ -62,7 +62,7 @@ if [[ -z $artifact_dir ]]; then
     (
         cd "$build_dir/frontend"
         bun install --frozen-lockfile
-        VITE_API_BASE_URL= VITE_ENABLE_API_MOCKS=false VITE_ENABLE_DEMO_LOGIN=false bun run build
+        VITE_API_BASE_URL= VITE_ENABLE_DEMO_LOGIN=false bun run build
     )
 else
 	# 本地部署脚本会设置 artifact_dir，因此这里跳过服务器编译。

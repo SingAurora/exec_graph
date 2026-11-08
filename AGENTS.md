@@ -4,7 +4,7 @@
 
 项目目前处于全新版本开发阶段，不需要兼容不存在的旧版本。修改接口、请求字段、数据模型、Cookie、路由或交互行为时，直接同步实现、测试和文档，不增加旧字段别名、双写、旧路由、旧 Cookie 或兼容分支。只有本文件或具体领域规范明确要求保留的历史链接、演示数据 alias、数据库迁移和本地草稿键兼容规则才例外。
 
-`frontend` 由原 `frontend-v2` 重命名而来；旧版前后端已移除，当前以代码、测试和 `doc/api-request-contract.md`、`doc/backend-write-contract.md`、`doc/backend-external-contract.md` 为准。未完成的端点不能视作已经接入；前端模拟服务仍由显式开关控制。
+`frontend` 由原 `frontend-v2` 重命名而来；旧版前后端已移除，当前以代码、测试和 `doc/api-request-contract.md`、`doc/backend-write-contract.md`、`doc/backend-external-contract.md` 为准。未完成的端点不能视作已经接入。
 
 ## 结构与职责
 
@@ -27,7 +27,7 @@
 
 ## HTTP 与接口
 
-- 业务请求的详细约定及当前接入范围以 `doc/api-request-contract.md` 为准；前端与 MSW 共用 `frontend/src/shared/api/contracts.ts` 的通用协议类型与错误码。默认连接真实后端，模拟服务仅由显式开发开关启用。认证、图片及生成接口见 `doc/backend-external-contract.md`。
+- 业务请求的详细约定及当前接入范围以 `doc/api-request-contract.md` 为准；前端与后端共用 `frontend/src/shared/api/contracts.ts` 的通用协议类型与错误码，默认只连接真实后端。认证、图片及生成接口见 `doc/backend-external-contract.md`。
 - API 仅使用 `GET` 和 `POST`。读取使用 `GET`，筛选参数放 query；会改变状态的操作使用 `POST`，参数放 JSON。文件上传可使用 `multipart/form-data`。
 - 路径采用 `/api/commands/<领域>/<动作>`，不使用通配路径、路径参数、`PATCH` 或 `DELETE`。路由不自行校验 HTTP Method，Gin 路由定义是唯一方法约束。
 - 所有 JSON 返回使用统一顶层结构：`{"code": 0, "msg": "", "data": ...}`；错误由顶层错误边界转换，不在每个 handler 重复写 HTTP 错误响应。
@@ -57,12 +57,11 @@
 - Zustand 只保存会话和必要的跨页面客户端状态。工作区、项目、节点等服务端事实必须由 API 刷新；组件的弹窗、筛选和表单草稿优先使用局部状态。不得加入运行时假数据、离线写入或持久化明文密码。
 - 保持前端类型与后端公开 DTO 的字段语义一致。修改 API 时同步检查调用点；稳定的 API 输入和输出必须定义 TypeScript 类型，避免 `any` 和无语义的对象字面量。
 - 远端业务数据由 TanStack Query 管理，不再复制到 Zustand；读取请求透传 AbortSignal，mutation 成功后按领域更新／失效缓存。Query 缓存、本地草稿和阅读状态保持各自职责。
-- MSW 仅在显式启用的开发环境启动，handler 位于 `app/mocks`，沿用真实业务契约；AI 生成也采用业务 JSON 外壳，不用模拟数据回退真实接口失败。平台密钥仅存在服务端配置或环境变量。
 
 ### 静态原型与类型归属
 
-- 固定演示数据集中在 `frontend/src/app/demo`，只供显式模拟和管理命令导出导入。下层组件不得自行导入演示数据，也不得用虚构记录补齐空状态；真实后端中的演示作者带测试账号标记，请求失败不能回退这些数据。
-- 浏览器本地草稿与真实已发布事实分开管理。显式 MSW 环境的会话内演示操作不表示服务端持久化，不要将其扩展为通用离线业务数据库。
+- 固定演示数据集中在 `frontend/src/app/demo`，只供静态演示和管理命令导出导入。下层组件不得自行导入演示数据，也不得用虚构记录补齐空状态；真实后端中的演示作者带测试账号标记，请求失败不能回退这些数据。
+- 浏览器本地草稿与真实已发布事实分开管理；本地草稿不表示服务端已持久化。
 - 用户、图、行动等业务类型从所属实体的 `model/types.ts` 导入；图片、通用对话消息等不带业务归属的类型可放在 `shared/model` 的专用文件。`shared` UI 用最小展示结构接收数据，不依赖完整业务对象。
 - 旧计划／完成模型集中在 `entities/action/model/legacy-types.ts`，只服务现有兼容读取；新功能使用行动节点模型。整理目录时保持已有 hash 路由、查询参数、节点 ID 和本地存储键兼容。
 - ESLint 检查跨层导入约束；不能为了复用方便让低层反向依赖高层。跨界面的稳定纯逻辑应下沉到合适的 entity 或 shared，避免经由无关 feature、widget 转发。
