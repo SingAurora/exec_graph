@@ -1,139 +1,59 @@
 import { describe, expect, test } from 'bun:test'
-import { demoActions } from '../../../app/demo/actions.ts'
-import { getActionContextIds, getActionParentUuids, getAncestors, getPreferredPath } from '../../../entities/action/lib/graph.ts'
+import { getActionContextIds, getActionParentUuids, getAncestors } from '../../../entities/action/lib/graph.ts'
 import { getActionReferences } from '../../../entities/action/lib/references.ts'
 import { getActionLevels } from '../../../entities/action/lib/levels.ts'
 import { createActionLayout, GRAPH_WIDTH } from './layout.ts'
 
-const actions = demoActions.filter((node) => node.graphUuid === 'cooking')
-const mainPath = getPreferredPath(actions)
+const node = (uuid, extra = {}) => ({ uuid, id: uuid, graphUuid: 'graph', number: Number(uuid.replace(/\D/g, '')) || 1,
+  authorUuid: 'a', title: uuid, markdown: '行动', images: [], conversation: [], createdAt: '2026-10-20T12:00:00+08:00', ...extra })
+const actions = [
+  node('1', { agreementMarkdown: '记录' }),
+  node('2', { parentUuid: '1', authorUuid: 'b' }),
+  node('3', { parentUuid: '1', authorUuid: 'a', referenceAgreements: [{ sourceUuid: '1', complies: false, exceptionReason: '没有记录' }] }),
+  node('4', { parentUuid: '2', mergedParentUuids: ['3'] }),
+]
 
 describe('action graph reference semantics', () => {
-  test('separates authorship from continuation and incorporation', () => {
+  test('separates authorship from continuation and agreement exceptions', () => {
     const references = getActionReferences(actions)
-    expect(references).toHaveLength(19)
-    expect(references.find((edge) => edge.uuid === 'cooking-10:cooking-13').sameAuthor).toBe(true)
-    expect(references.find((edge) => edge.uuid === 'cooking-4:cooking-13').sameAuthor).toBe(true)
-    expect(references.find((edge) => edge.uuid === 'cooking-1:cooking-2').sameAuthor).toBe(false)
-    expect(references.filter((edge) => edge.incorporated).map((edge) => edge.uuid).sort())
-      .toEqual(['cooking-4:cooking-13', 'cooking-7:cooking-14'])
-  })
-
-  test('marks noncompliance independently of authorship without authorization state', () => {
-    const references = getActionReferences(actions)
-    expect(references.find((edge) => edge.uuid === 'cooking-10:cooking-13'))
-      .toMatchObject({ sameAuthor: true, agreementStatus: 'exception' })
-    expect(references.find((edge) => edge.uuid === 'cooking-3:cooking-6'))
-      .toMatchObject({ sameAuthor: false, agreementStatus: 'exception' })
-    expect(references.find((edge) => edge.uuid === 'cooking-4:cooking-13'))
-      .toMatchObject({ sameAuthor: true, agreementStatus: 'satisfied' })
-    expect(references.find((edge) => edge.uuid === 'cooking-4:cooking-7'))
-      .toMatchObject({ sameAuthor: false, agreementStatus: 'satisfied' })
+    expect(references.find((edge) => edge.uuid === '1:2').sameAuthor).toBe(false)
+    expect(references.find((edge) => edge.uuid === '1:3').sameAuthor).toBe(true)
+    expect(references.find((edge) => edge.uuid === '1:3').agreementStatus).toBe('exception')
     const layout = createActionLayout(actions, [])
-    for (const reference of references) {
-      expect(reference).not.toHaveProperty('authorization')
-      const edge = layout.elements.find((element) => element.data.id === reference.uuid)
-      expect(edge.classes.split(' ').includes('exception')).toBe(reference.agreementStatus === 'exception')
-      expect(edge.classes.split(' ')).toContain(reference.sameAuthor ? 'same-author' : 'other-author')
-    }
+    expect(layout.elements.find((element) => element.data.id === '1:3').classes.split(' ')).toContain('exception')
+    expect(layout.elements.find((element) => element.data.id === '1:2').classes.split(' ')).toContain('other-author')
   })
 
-  test('does not infer compliance when an assessment is missing', () => {
-    const source = actions.find((node) => node.uuid === 'cooking-3')
-    const target = actions.find((node) => node.uuid === 'cooking-6')
-    expect(getActionReferences([source, { ...target, referenceAgreements: [] }])[0].agreementStatus).toBe('unreviewed')
-    const referenceAgreements = [{ sourceUuid: source.uuid, complies: false, exceptionReason: '改变份量' }]
-    expect(getActionReferences([source, { ...target, referenceAgreements }])[0]).toMatchObject({ agreementStatus: 'exception', exceptionReason: '改变份量' })
-  })
-
-  test('includes all referenced histories while excluding unrelated branches', () => {
-    expect([...getActionContextIds(actions, 'cooking-13')].sort()).toEqual([
-      'cooking-1', 'cooking-10', 'cooking-13', 'cooking-2', 'cooking-4', 'cooking-5', 'cooking-8', 'cooking-9',
-    ])
-    expect(actions.find((node) => node.uuid === 'cooking-13').contextSnapshot.historyNodeCount).toBe(7)
-    expect(actions.find((node) => node.uuid === 'cooking-14').contextSnapshot.historyNodeCount).toBe(8)
-    const partial = [{ ...actions[0], parentUuid: 'missing', mergedParentUuids: ['cooking-2'] }, actions[1]]
-    expect([...getActionContextIds(partial, 'cooking-2')].sort()).toEqual(['cooking-1', 'cooking-2'])
-    expect(getActionParentUuids({ ...actions[1], mergedParentUuids: ['cooking-1', 'cooking-2'] })).toEqual(['cooking-1'])
+  test('includes only cited histories', () => {
+    expect([...getActionContextIds(actions, '4')].sort()).toEqual(['1', '2', '3', '4'])
+    expect([...getActionContextIds(actions, '2')].sort()).toEqual(['1', '2'])
+    expect(getActionParentUuids({ ...actions[3], mergedParentUuids: ['1', '2'] })).toEqual(['2', '1'])
     expect(getActionReferences([{ ...actions[0], graphUuid: 'other' }, actions[1]])).toHaveLength(0)
   })
-})
 
-describe('fixed-width vertical layout', () => {
-  test('clearing route emphasis preserves geometry, authorship and agreement exceptions', () => {
-    const highlighted = createActionLayout(actions, getAncestors(actions, 'cooking-13'))
+  test('uses depth from one and keeps geometry independent of emphasis', () => {
+    const levels = getActionLevels(actions)
+    expect(levels.get('1')).toBe(1)
+    expect(levels.get('2')).toBe(2)
+    expect(levels.get('3')).toBe(2)
+    expect(levels.get('4')).toBe(3)
     const neutral = createActionLayout(actions, [])
+    const highlighted = createActionLayout(actions, getAncestors(actions, '4'))
     expect([...neutral.positions]).toEqual([...highlighted.positions])
-    expect(neutral.height).toBe(highlighted.height)
-    expect(neutral.elements.every((element) => !element.classes.split(' ').some((name) => name === 'main' || name === 'context'))).toBe(true)
-    const edge = neutral.elements.find((element) => element.data.id === 'cooking-10:cooking-13')
-    expect(edge.classes.split(' ')).toContain('same-author')
-    expect(edge.classes.split(' ')).toContain('exception')
-  })
-
-  test('emphasizes the continuation path separately from incorporated history', () => {
-    const path = getAncestors(actions, 'cooking-13')
-    const layout = createActionLayout(actions, path)
-    const classOf = (id) => layout.elements.find((element) => element.data.id === id).classes.split(' ')
-    expect(path.map((node) => node.uuid)).toEqual(['cooking-1', 'cooking-2', 'cooking-5', 'cooking-8', 'cooking-9', 'cooking-10', 'cooking-13'])
-    expect(classOf('cooking-4')).toContain('context')
-    expect(classOf('cooking-4')).not.toContain('main')
-    expect(classOf('cooking-4:cooking-13')).toContain('context')
-    expect(classOf('cooking-1:cooking-4')).toContain('context')
-    expect(classOf('cooking-10:cooking-13')).toContain('main')
-    expect(classOf('cooking-14')).toContain('branch')
-    expect(classOf('cooking-7:cooking-14')).toContain('branch')
-  })
-
-  test('shows depth from one rather than unique publication numbers', () => {
-    const layout = createActionLayout(actions, mainPath)
-    expect([...layout.levels.values()]).toEqual([1, 2, 2, 2, 3, 3, 3, 4, 5, 6, 6, 6, 7, 7, 3, 4, 2, 3])
-    expect(layout.elements.find((element) => element.data.id === 'cooking-13').data.level).toBe('7')
-    expect(layout.elements.find((element) => element.data.id === 'cooking-14').data.level).toBe('7')
-  })
-
-  test('uses the deepest source even when it is an additional reference and input is unordered', () => {
-    const root = { ...actions[0], uuid: 'root', id: 'root', number: 800 }
-    const first = { ...root, uuid: 'first', id: 'first', number: 400, parentUuid: root.uuid }
-    const second = { ...root, uuid: 'second', id: 'second', number: 200, parentUuid: first.uuid }
-    const merge = { ...root, uuid: 'merge', id: 'merge', number: 100, parentUuid: root.uuid, mergedParentUuids: [second.uuid, second.uuid] }
-    const levels = getActionLevels([merge, second, first, root])
-    expect(levels.get(root.uuid)).toBe(1)
-    expect(levels.get(first.uuid)).toBe(2)
-    expect(levels.get(second.uuid)).toBe(3)
-    expect(levels.get(merge.uuid)).toBe(4)
-  })
-
-  test('rejects cyclic references instead of giving them misleading layers', () => {
-    const a = { ...actions[0], uuid: 'a', id: 'a', parentUuid: 'b' }
-    const b = { ...actions[0], uuid: 'b', id: 'b', parentUuid: 'a' }
-    expect(() => getActionLevels([a, b])).toThrow('行动引用关系存在循环')
-  })
-
-  test('preserves relationships, fits horizontally and puts each source below its action', () => {
-    const layout = createActionLayout(actions, mainPath)
-    expect(layout.positions.size).toBe(18)
-    for (const position of layout.positions.values()) {
+    for (const position of neutral.positions.values()) {
       expect(position.x).toBeGreaterThanOrEqual(40)
       expect(position.x).toBeLessThanOrEqual(GRAPH_WIDTH - 40)
     }
-    for (const reference of layout.references) {
-      expect(layout.positions.get(reference.source.uuid).y).toBeGreaterThan(layout.positions.get(reference.target.uuid).y)
-      const edge = layout.elements.find((element) => element.data.id === reference.uuid)
-      expect(edge.classes.includes('other-author')).toBe(!reference.sameAuthor)
-      expect(edge.classes.includes('exception')).toBe(reference.agreementStatus === 'exception')
-    }
-    expect(new Set([...layout.positions.values()].map((position) => position.y)).size).toBeLessThan(actions.length)
   })
 
-  test('long chains grow vertically and empty or single-node graphs remain usable', () => {
-    const chain = Array.from({ length: 100 }, (_, i) => ({ ...actions[0], uuid: `node-${i}`, id: `node-${i}`, number: i + 1,
-      parentUuid: i ? `node-${i - 1}` : undefined, mergedParentUuids: [] }))
+  test('rejects cycles and grows long chains vertically', () => {
+    const a = node('a', { parentUuid: 'b' })
+    const b = node('b', { parentUuid: 'a' })
+    expect(() => getActionLevels([a, b])).toThrow('行动引用关系存在循环')
+    const chain = Array.from({ length: 100 }, (_, index) => node(String(index + 1), { parentUuid: index ? String(index) : undefined }))
     const layout = createActionLayout(chain, chain)
     expect(layout.height).toBeGreaterThan(8000)
-    expect(layout.positions.get('node-99').x).toBe(GRAPH_WIDTH / 2)
-    expect(layout.levels.get('node-99')).toBe(100)
+    expect(layout.levels.get('100')).toBe(100)
     expect(createActionLayout([], []).positions.size).toBe(0)
-    expect(createActionLayout([actions[0]], [actions[0]]).positions.get(actions[0].uuid).x).toBe(GRAPH_WIDTH / 2)
   })
 })

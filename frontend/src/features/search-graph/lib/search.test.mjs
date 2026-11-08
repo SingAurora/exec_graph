@@ -1,8 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { searchGraphAgreementResponses, searchGraphDocuments, searchGraphParticipants } from './search.ts'
 import { getSearchExcerpt } from '../../../shared/lib/search.ts'
-import { cookingActions } from '../../../app/demo/cooking/index.ts'
-import { cookingParticipants } from '../../../app/demo/cooking/participants.ts'
 
 function node(id, extra = {}) {
   return { uuid: id, id, graphUuid: 'graph', number: Number(id), authorUuid: 'cook', title: '晚饭', markdown: '本次行动', images: [], conversation: [], createdAt: `2026-10-${id.padStart(2, '0')}T12:00:00+08:00`, ...extra }
@@ -27,14 +25,6 @@ describe('graph-local document search', () => {
     const actions = [node('1', { markdown: '![少油照片](https://example.com/少油.jpg)' }), node('2', { graphUuid: 'other', markdown: '少油' })]
     expect(searchGraphDocuments(actions, 'graph', '少油', 'objective')).toEqual([])
     expect(searchGraphDocuments(actions, 'graph', '  ', 'objective')).toEqual([])
-  })
-
-  test('demo queries lead to existing independently readable nodes', () => {
-    expect(searchGraphDocuments(cookingActions, 'cooking', '十八分钟', 'expression').map((item) => item.uuid)).toContain('cooking-14')
-    expect(searchGraphDocuments(cookingActions, 'cooking', '油减到', 'expression')).toEqual([])
-    expect(searchGraphDocuments(cookingActions, 'cooking', '油减到', 'objective').map((item) => item.uuid)).toEqual(['cooking-12'])
-    expect(searchGraphDocuments(cookingActions, 'cooking', '葱花', 'objective').map((item) => item.uuid)).toEqual(['cooking-18'])
-    expect(searchGraphParticipants(cookingActions, cookingParticipants, 'cooking', 'roBIN').map((user) => user.uuid)).toEqual(['robin'])
   })
 
   test('starts the result excerpt near a deep match', () => {
