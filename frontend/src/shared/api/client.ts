@@ -2,16 +2,6 @@ import { API_REQUEST_DEFAULTS } from './contracts'
 import { readAuthToken } from './auth-token'
 import { BusinessRequestError } from './errors'
 
-type APIErrorBody = {
-  error?: { message?: string }
-  msg?: string
-}
-
-export type JSONRequestOptions = {
-  signal?: AbortSignal
-  headers?: HeadersInit
-}
-
 /** AI 等原始 HTTP 接口的错误，保留状态码；业务接口另用 BusinessRequestError。 */
 export class APIRequestError extends Error {
   readonly status: number
@@ -29,34 +19,6 @@ export async function getBlob(url: string): Promise<Blob> {
   const response = await fetch(url, { credentials: 'omit', headers: token ? { Authorization: `Bearer ${token}` } : undefined })
   if (!response.ok) throw new APIRequestError(`图片下载失败（${response.status}）`, response.status)
   return response.blob()
-}
-
-/** AI 代理使用的原始 JSON 请求，不强制套用业务接口的 code／msg／data 外壳。 */
-export async function postJSON<TResponse, TBody>(url: string, body: TBody, options: JSONRequestOptions = {}): Promise<TResponse> {
-  const token = readAuthToken()
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },
-    body: JSON.stringify(body),
-    credentials: 'omit',
-    signal: options.signal,
-  })
-
-  const payload = await readJSON<TResponse | APIErrorBody>(response)
-  if (!response.ok) {
-    const error = payload as APIErrorBody
-    throw new APIRequestError(error.error?.message || error.msg || `请求失败（${response.status}）`, response.status)
-  }
-
-  return payload as TResponse
-}
-
-async function readJSON<T>(response: Response): Promise<T> {
-  try {
-    return await response.json() as T
-  } catch {
-    throw new APIRequestError('AI 服务返回了无法识别的内容。', response.status)
-  }
 }
 
 /** 业务接口的固定路径类型，与 AI 代理和文件下载地址分开。 */
