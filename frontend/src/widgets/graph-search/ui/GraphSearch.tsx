@@ -22,16 +22,16 @@ export function GraphSearch({ active, ...props }: Props) {
   const scrollPositions = useRef<Partial<Record<GraphSearchScope, number>>>({})
   const pendingScroll = useRef<number | undefined>(undefined)
   const filterUsers = useMemo(() => {
-    const authors = new Set(props.actions.filter((node) => node.projectId === props.projectId).map((node) => node.authorId))
-    const unique = new Map(props.users.filter((user) => authors.has(user.id)).map((user) => [user.id, user]))
+    const authors = new Set(props.actions.filter((node) => node.graphId === props.graphId).map((node) => node.authorId))
+    const unique = new Map(props.users.filter((user) => authors.has(user.uuid)).map((user) => [user.uuid, user]))
     return [...unique.values()].sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
-  }, [props.actions, props.users, props.projectId])
+  }, [props.actions, props.users, props.graphId])
   const agreementUsers = useMemo(() => {
-    const authors = new Set(getActionReferences(props.actions.filter((node) => node.projectId === props.projectId))
+    const authors = new Set(getActionReferences(props.actions.filter((node) => node.graphId === props.graphId))
       .flatMap((reference) => [getReferenceAgreementAuthorId(reference), reference.target.authorId]))
-    const unique = new Map([...filterUsers, ...props.users.filter((user) => authors.has(user.id))].map((user) => [user.id, user]))
+    const unique = new Map([...filterUsers, ...props.users.filter((user) => authors.has(user.uuid))].map((user) => [user.uuid, user]))
     return [...unique.values()].sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
-  }, [filterUsers, props.actions, props.users, props.projectId])
+  }, [filterUsers, props.actions, props.users, props.graphId])
 
   useLayoutEffect(() => {
     if (!active || pendingScroll.current === undefined) return

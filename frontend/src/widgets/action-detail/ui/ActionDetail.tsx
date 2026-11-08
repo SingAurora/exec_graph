@@ -16,11 +16,11 @@ import type { NodeDocument } from '../../../features/action-generation/api/gener
 
 /** 头部只显示承接和合入的直接来源；完整祖先背景留在形成过程展示。 */
 function ActionSources({ node, actions, users, onSelect }: { node: ActionNode; actions: ActionNode[]; users: UserProfile[]; onSelect: (id: string) => void }) {
-  const parents = getActionParentIds(node).map((id) => actions.find((action) => action.id === id)).filter((action) => action !== undefined)
-  const continuation = parents.find((parent) => parent.id === node.parentId)
-  const merged = parents.filter((parent) => parent.id !== node.parentId)
+  const parents = getActionParentIds(node).map((id) => actions.find((action) => action.uuid === id)).filter((action) => action !== undefined)
+  const continuation = parents.find((parent) => parent.uuid === node.parentId)
+  const merged = parents.filter((parent) => parent.uuid !== node.parentId)
   if (!parents.length) return null
-  const sourceButton = (parent: ActionNode, relation: string) => <button key={parent.id} className="group inline-flex min-h-6 items-center gap-1 whitespace-nowrap rounded-sm border-0 bg-transparent p-0 text-xs" type="button" title={parent.title} onClick={() => onSelect(parent.id)}>
+  const sourceButton = (parent: ActionNode, relation: string) => <button key={parent.uuid} className="group inline-flex min-h-6 items-center gap-1 whitespace-nowrap rounded-sm border-0 bg-transparent p-0 text-xs" type="button" title={parent.title} onClick={() => onSelect(parent.uuid)}>
     <span className="text-muted group-hover:text-ink">{relation}</span>
     <span className="font-medium tabular-nums text-signal group-hover:underline">#{parent.number}</span>
   </button>
@@ -28,7 +28,7 @@ function ActionSources({ node, actions, users, onSelect }: { node: ActionNode; a
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-l border-line pl-3">
       {continuation && sourceButton(continuation, '承接')}
       {merged.length === 1 && sourceButton(merged[0], '合入')}
-      {merged.length > 1 && <Popover.Root key={node.id}>
+      {merged.length > 1 && <Popover.Root key={node.uuid}>
         <Popover.Trigger type="button" className="group inline-flex min-h-6 items-center gap-1 whitespace-nowrap rounded-sm border-0 bg-transparent p-0 text-xs" title={`查看 ${merged.length} 个合入节点`}>
           <span className="text-muted group-hover:text-ink">合入</span>
           <span className="font-medium tabular-nums text-signal group-hover:underline">{merged.length} 个节点</span>
@@ -38,10 +38,10 @@ function ActionSources({ node, actions, users, onSelect }: { node: ActionNode; a
           <div className="px-3 pb-1 pt-3 text-xs font-medium text-muted">合入节点 · {merged.length}</div>
           <div className="max-h-64 overflow-y-auto overscroll-contain p-1.5">
             {merged.map((parent) => {
-              const authorName = users.find((user) => user.id === parent.authorId)?.name ?? parent.authorId
+              const authorName = users.find((user) => user.uuid === parent.authorId)?.name ?? parent.authorId
               return (
-                <Popover.Close asChild key={parent.id}>
-                  <button className="group block w-full rounded border-0 bg-transparent px-2 py-2 text-left hover:bg-soft focus-visible:outline-2 focus-visible:outline-signal" type="button" title={`查看合入节点 #${parent.number}：${parent.title}`} onClick={() => onSelect(parent.id)}>
+                <Popover.Close asChild key={parent.uuid}>
+                  <button className="group block w-full rounded border-0 bg-transparent px-2 py-2 text-left hover:bg-soft focus-visible:outline-2 focus-visible:outline-signal" type="button" title={`查看合入节点 #${parent.number}：${parent.title}`} onClick={() => onSelect(parent.uuid)}>
                     <span className="flex items-baseline gap-2 text-sm leading-5">
                       <span className="shrink-0 font-medium tabular-nums text-signal">#{parent.number}</span>
                       <span className="min-w-0 truncate group-hover:text-signal" title={parent.title}>{parent.title}</span>
@@ -87,7 +87,7 @@ export function ActionDetail({ node, actions, users, author, isHighlightTip, onH
 }) {
   const objectiveMarkdown = node.objectiveMarkdown ?? node.markdown
   const levels = useMemo(() => getActionLevels(actions), [actions])
-  const level = levels.get(node.id)
+  const level = levels.get(node.uuid)
   const authorName = author?.name ?? node.authorId
   const [deleteOpen, setDeleteOpen] = useState(false)
   const nodeReady = node.nodeReady !== false
@@ -161,7 +161,7 @@ export function ActionDetail({ node, actions, users, author, isHighlightTip, onH
         </div>
         <h3 className="mt-2 text-xl font-semibold leading-[1.55] tracking-[-.02em] text-ink">{node.title}</h3>
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs leading-5 text-muted">
-          <ProfilePreview profile={author} userId={node.authorId} className="inline-flex min-w-0 items-center gap-2 rounded-sm text-ink hover:text-signal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal" href={`#profile?userId=${encodeURIComponent(node.authorId)}&fromGraph=${encodeURIComponent(node.projectId)}&fromTab=explore`}><Avatar profile={author} label={authorName.slice(0, 1)} size="small" /><span className="max-w-[180px] truncate text-sm font-medium">{authorName}</span></ProfilePreview>
+          <ProfilePreview profile={author} userId={node.authorId} className="inline-flex min-w-0 items-center gap-2 rounded-sm text-ink hover:text-signal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal" href={`#profile?userId=${encodeURIComponent(node.authorId)}&fromGraph=${encodeURIComponent(node.graphId)}&fromTab=explore`}><Avatar profile={author} label={authorName.slice(0, 1)} size="small" /><span className="max-w-[180px] truncate text-sm font-medium">{authorName}</span></ProfilePreview>
           <time dateTime={node.createdAt} title={formatFullPublicationTime(node.createdAt)}>{formatPublicationTime(node.createdAt)}</time>
         </div>
       </header>

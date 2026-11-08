@@ -7,13 +7,13 @@ import { TooltipProvider } from '../../../shared/ui/tooltip/Tooltip.tsx'
 import { ToastContext } from '../../../shared/ui/toast/ToastContext.ts'
 
 const noop = () => {}
-const projects = [{ id: 'cooking', title: '厨艺练习', createdAt: '2026-10-01' }]
-const users = [{ id: 'lin', name: '林', bio: '', avatar: '', gender: 'unknown' }, { id: 'miao', name: '苗', bio: '', avatar: '', gender: 'unknown' }]
-const node = (number, extra = {}) => ({ id: String(number), number, projectId: 'cooking', authorId: 'lin', title: `行动 ${number}`, markdown: '今天做了一盘炒蛋', images: [], conversation: [], createdAt: `2026-10-${String(number).padStart(2, '0')}T12:00:00+08:00`, ...extra })
+const graphs = [{ uuid: 'cooking', id: 'cooking', title: '厨艺练习', createdAt: '2026-10-01' }]
+const users = [{ uuid: 'lin', id: 'lin', name: '林', bio: '', avatar: '', gender: 'unknown' }, { id: 'miao', name: '苗', bio: '', avatar: '', gender: 'unknown' }]
+const node = (number, extra = {}) => ({ uuid: String(number), id: String(number), number, graphId: 'cooking', authorId: 'lin', title: `行动 ${number}`, markdown: '今天做了一盘炒蛋', images: [], conversation: [], createdAt: `2026-10-${String(number).padStart(2, '0')}T12:00:00+08:00`, ...extra })
 const render = (sources, actions = []) => renderToStaticMarkup(createElement(TooltipProvider, null,
   createElement(ToastContext.Provider, { value: { showToast: noop } }, createElement(Following, {
-    sources, actions, active: true, projects, users,
-    onOpenProject: noop, onOpenNode: noop, onOpenReference: noop, onSetGraphFollow: () => true, onSetUserFollow: () => true,
+    sources, actions, active: true, graphs, users,
+    onOpenGraph: noop, onOpenNode: noop, onOpenReference: noop, onSetGraphFollow: () => true, onSetUserFollow: () => true,
   }))))
 
 describe('following navigation and empty states', () => {
@@ -55,7 +55,7 @@ describe('following navigation and empty states', () => {
     ]
     const following = render({ userIds: [], graphIds: ['cooking'] }, actions)
     const discovery = renderToStaticMarkup(createElement(Discovery, {
-      actions, projects, users, active: true, onOpenNode: noop, onOpenReference: noop, onOpenProject: noop, onSearchGraphs: noop,
+      actions, graphs, users, active: true, onOpenNode: noop, onOpenReference: noop, onOpenGraph: noop, onSearchGraphs: noop,
     }))
     const item = (html, attribute, id) => html.match(new RegExp(`<article[^>]*${attribute}="${id}"[\\s\\S]*?</article>`))?.[0].replace(/radix-[^"]+/g, 'popover')
     const expression = item(following, 'data-node-id', '2')

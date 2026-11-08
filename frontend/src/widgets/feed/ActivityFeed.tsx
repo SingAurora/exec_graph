@@ -1,12 +1,12 @@
 import { Footprints, Home, MessageCircle, Network, ScrollText, Search } from 'lucide-react'
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import { getGraphActivity } from '../../entities/project/lib/activity'
-import { GraphContextLink } from '../../entities/project/ui/GraphContextLink'
+import { getGraphActivity } from '../../entities/graph/lib/activity'
+import { GraphContextLink } from '../../entities/graph/ui/GraphContextLink'
 import { getPublishedExpressions } from '../../entities/action/lib/published'
 import { sortActionsNewestFirst } from '../../entities/action/lib/expressions'
 import type { ActionDocumentMode, ActionNode } from '../../entities/action/model/types'
 import type { ActionReference } from '../../entities/action/lib/references'
-import type { Project } from '../../entities/project/model/types'
+import type { Graph } from '../../entities/graph/model/types'
 import type { UserProfile } from '../../entities/profile/model/types'
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from '../../shared/ui/tabs/Tabs'
 import { ActionPostList } from '../action-posts/ui/ActionPostList'
@@ -18,14 +18,14 @@ import { getRetainedTabScrollTop } from '../../shared/lib/tab-scroll'
 type ActivityTab = 'home' | 'expressions' | 'agreements' | 'actions' | 'graphs' | 'search'
 
 /** Retains the public profile's document lists and reading positions. */
-export function ActivityFeed({ actions, allActions = actions, users, projects, authorIds, graphItems, agreementResponses, active = true, compactTabs = false, tabRequest, home, graphToolbar, onOpenNode, onOpenProject, onOpenReference }: {
-  actions: ActionNode[]; allActions?: ActionNode[]; users: UserProfile[]; projects: Project[]; authorIds?: string[]
-  graphItems?: Project[]; active?: boolean; compactTabs?: boolean
+export function ActivityFeed({ actions, allActions = actions, users, graphs, authorIds, graphItems, agreementResponses, active = true, compactTabs = false, tabRequest, home, graphToolbar, onOpenNode, onOpenGraph, onOpenReference }: {
+  actions: ActionNode[]; allActions?: ActionNode[]; users: UserProfile[]; graphs: Graph[]; authorIds?: string[]
+  graphItems?: Graph[]; active?: boolean; compactTabs?: boolean
   agreementResponses?: ActionReference[]
   tabRequest?: { value: ActivityTab }
   home?: (active: boolean) => ReactNode
   graphToolbar?: ReactNode
-  onOpenNode: (node: ActionNode, mode: ActionDocumentMode) => void; onOpenProject: (id: string) => void
+  onOpenNode: (node: ActionNode, mode: ActionDocumentMode) => void; onOpenGraph: (id: string) => void
   onOpenReference?: (reference: ActionReference) => void
 }) {
   const [tab, setTab] = useState<ActivityTab>(home ? 'home' : 'expressions')
@@ -60,9 +60,9 @@ export function ActivityFeed({ actions, allActions = actions, users, projects, a
     setTab(next)
   }
   const include = (node: ActionNode) => !authorIds || authorIds.includes(node.authorId)
-  const expressions = getPublishedExpressions(allActions, authorIds).filter((node) => actions.some((action) => action.id === node.id))
+  const expressions = getPublishedExpressions(allActions, authorIds).filter((node) => actions.some((action) => action.uuid === node.uuid))
   const facts = sortActionsNewestFirst(actions.filter(include))
-  const context = (node: ActionNode) => <GraphContextLink id={node.projectId} title={projects.find((project) => project.id === node.projectId)?.title} onOpen={onOpenProject} />
+  const context = (node: ActionNode) => <GraphContextLink id={node.graphId} title={graphs.find((graph) => graph.uuid === node.graphId)?.title} onOpen={onOpenGraph} />
   return (
     <div ref={contentRef} className="[overflow-anchor:none]"><TabsRoot value={tab} onValueChange={switchTab} className="flow-root min-h-dvh">
       <div ref={navigationRef} className={`sticky top-0 z-20 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 bg-paper pb-1 ${compactTabs ? '' : 'mt-[23px]'}`}>
@@ -79,8 +79,8 @@ export function ActivityFeed({ actions, allActions = actions, users, projects, a
       <TabsContent value="expressions" keepMounted><ActionPostList nodes={expressions} actions={allActions} users={users} mode="expression" presentation="feed" infinite active={active && tab === 'expressions'} onExplore={onOpenNode} renderContext={context} /></TabsContent>
       {agreementResponses && onOpenReference && <TabsContent value="agreements" keepMounted><AgreementResponseList references={agreementResponses} users={users} presentation="feed" active={active && tab === 'agreements'} onExplore={onOpenReference} renderContext={(reference) => context(reference.target)} /></TabsContent>}
       <TabsContent value="actions" keepMounted><ActionPostList nodes={facts} actions={allActions} users={users} mode="objective" infinite active={active && tab === 'actions'} onExplore={onOpenNode} renderContext={context} /></TabsContent>
-      {graphItems && <TabsContent value="graphs" keepMounted>{graphToolbar}<GraphList items={graphItems.map((project) => getGraphActivity(project, allActions))} onOpen={onOpenProject} infinite active={active && tab === 'graphs'} dividers={false} /></TabsContent>}
-      <TabsContent value="search" keepMounted><ProfileSearch active={active && tab === 'search'} expressions={expressions} actions={facts} allActions={allActions} references={agreementResponses} graphs={graphItems} users={users} profileId={authorIds?.length === 1 ? authorIds[0] : undefined} onOpenNode={onOpenNode} onOpenReference={onOpenReference} onOpenProject={onOpenProject} renderContext={context} /></TabsContent>
+      {graphItems && <TabsContent value="graphs" keepMounted>{graphToolbar}<GraphList items={graphItems.map((graph) => getGraphActivity(graph, allActions))} onOpen={onOpenGraph} infinite active={active && tab === 'graphs'} dividers={false} /></TabsContent>}
+      <TabsContent value="search" keepMounted><ProfileSearch active={active && tab === 'search'} expressions={expressions} actions={facts} allActions={allActions} references={agreementResponses} graphs={graphItems} users={users} profileId={authorIds?.length === 1 ? authorIds[0] : undefined} onOpenNode={onOpenNode} onOpenReference={onOpenReference} onOpenGraph={onOpenGraph} renderContext={context} /></TabsContent>
     </TabsRoot></div>
   )
 }

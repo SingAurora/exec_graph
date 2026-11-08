@@ -3,18 +3,18 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { PersonalWorkspace } from './PersonalWorkspace.tsx'
 
-const profile = { id: 'jo', name: '乔', avatar: '' }
-const projects = Array.from({ length: 5 }, (_, index) => ({ id: `graph-${index}`, ownerId: 'jo', title: `厨艺 ${index}`, description: '图简介', createdAt: '2026-10-01T12:00:00+08:00' }))
-const actions = projects.flatMap((project, index) => {
-  const base = { projectId: project.id, images: [], conversation: [], createdAt: `2026-10-${String(index + 1).padStart(2, '0')}T12:00:00+08:00` }
+const profile = { uuid: 'jo', id: 'jo', name: '乔', avatar: '' }
+const graphs = Array.from({ length: 5 }, (_, index) => ({ uuid: `graph-${index}`, id: `graph-${index}`, ownerId: 'jo', title: `厨艺 ${index}`, description: '图简介', createdAt: '2026-10-01T12:00:00+08:00' }))
+const actions = graphs.flatMap((graph, index) => {
+  const base = { graphId: graph.uuid, images: [], conversation: [], createdAt: `2026-10-${String(index + 1).padStart(2, '0')}T12:00:00+08:00` }
   return [
-    { ...base, id: `source-${index}`, number: 1, authorId: 'lin', title: '来源行动', markdown: '来源事实', agreementMarkdown: '记录实际用时' },
-    { ...base, id: `response-${index}`, number: 2, authorId: 'jo', title: `行动 ${index}`, markdown: '本次行动事实', parentId: `source-${index}`, expressionMarkdown: '做过再表达', referenceAgreements: [{ sourceId: `source-${index}`, complies: true }] },
+    { ...base, uuid: `source-${index}`, id: `source-${index}`, number: 1, authorId: 'lin', title: '来源行动', markdown: '来源事实', agreementMarkdown: '记录实际用时' },
+    { ...base, uuid: `response-${index}`, id: `response-${index}`, number: 2, authorId: 'jo', title: `行动 ${index}`, markdown: '本次行动事实', parentId: `source-${index}`, expressionMarkdown: '做过再表达', referenceAgreements: [{ sourceId: `source-${index}`, complies: true }] },
   ]
 })
 const render = (overrides = {}) => renderToStaticMarkup(createElement(PersonalWorkspace, {
-  profile, users: [profile, { id: 'lin', name: '林岚', avatar: '' }], projects, actions,
-  onCreateProject() {}, onOpenProject() {}, onOpenNode() {}, onOpenReference() {}, ...overrides,
+  profile, users: [profile, { uuid: 'lin', id: 'lin', name: '林岚', avatar: '' }], graphs, actions,
+  onCreateGraph() {}, onOpenGraph() {}, onOpenNode() {}, onOpenReference() {}, ...overrides,
 }))
 
 describe('personal overview', () => {
@@ -39,7 +39,7 @@ describe('personal overview', () => {
   })
 
   test('empty accounts keep all entry points without inventing activity or exchanges', () => {
-    const html = render({ projects: [], actions: [] })
+    const html = render({ graphs: [], actions: [] })
     expect(html).toContain('还没有行动记录')
     expect(html).toContain('还没有表达')
     expect(html).toContain('暂无约定交流')

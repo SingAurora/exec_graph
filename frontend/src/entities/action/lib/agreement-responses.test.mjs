@@ -3,7 +3,7 @@ import { getActionReferences } from './references.ts'
 import { filterAgreementParticipants, getProfileAgreementResponses, getReferenceAgreementAuthorId, getSatisfiedAgreementResponses } from './agreement-responses.ts'
 
 const node = (number, extra = {}) => ({
-  id: String(number), number, projectId: 'graph', authorId: 'jo', title: `行动 ${number}`,
+  uuid: String(number), id: String(number), number, graphId: 'graph', authorId: 'jo', title: `行动 ${number}`,
   createdAt: `2026-10-${String(number).padStart(2, '0')}T19:00:00+08:00`, ...extra,
 })
 const satisfied = (sourceId) => ({ sourceId: String(sourceId), complies: true })
@@ -18,7 +18,7 @@ describe('interpersonal agreement responses', () => {
       node(5, { parentId: '1', referenceAgreements: [satisfied(1)] }),
       node(6), node(7, { parentId: '6', authorId: 'lin', referenceAgreements: [satisfied(6)] }),
       node(8, { parentId: 'missing', authorId: 'lin', referenceAgreements: [satisfied('missing')] })]
-    expect(responses(nodes).map((item) => item.id)).toEqual(['1:2'])
+    expect(responses(nodes).map((item) => item.uuid)).toEqual(['1:2'])
   })
 
   test('attributes inherited agreements to their origin and omits responses to oneself', () => {
@@ -26,9 +26,9 @@ describe('interpersonal agreement responses', () => {
       node(3, { parentId: '2', authorId: 'miao', referenceAgreements: [satisfied(2)] }),
       node(4, { parentId: '2', authorId: 'jo', referenceAgreements: [satisfied(2)] })]
     const [response] = responses(nodes)
-    expect(response.id).toBe('2:3')
+    expect(response.uuid).toBe('2:3')
     expect(getReferenceAgreementAuthorId(response)).toBe('jo')
-    expect(response.agreement.sourceNode.id).toBe('1')
+    expect(response.agreement.sourceNode.uuid).toBe('1')
     expect(responses(nodes)).toHaveLength(1)
   })
 
@@ -48,9 +48,9 @@ describe('interpersonal agreement responses', () => {
       node(3, { authorId: 'miao', parentId: '1', referenceAgreements: [satisfied(1)] }),
       node(4, { authorId: 'miao', parentId: '1', mergedParentIds: ['2'], referenceAgreements: [satisfied(1), satisfied(2)] })]
     const references = getActionReferences(nodes)
-    const ids = references.map((item) => item.id)
-    expect(getSatisfiedAgreementResponses(references).map((item) => item.id)).toEqual(['1:4', '2:4', '1:3'])
-    expect(references.map((item) => item.id)).toEqual(ids)
+    const ids = references.map((item) => item.uuid)
+    expect(getSatisfiedAgreementResponses(references).map((item) => item.uuid)).toEqual(['1:4', '2:4', '1:3'])
+    expect(references.map((item) => item.uuid)).toEqual(ids)
   })
 
   test('profiles include both exchange directions, attributing inherited agreements to their actual author', () => {
@@ -62,8 +62,8 @@ describe('interpersonal agreement responses', () => {
       node(6, { parentId: '1', authorId: 'che', referenceAgreements: [{ sourceId: '1', complies: false }] }),
       node(7, { parentId: '4', authorId: 'lin' })]
     const references = getActionReferences(nodes)
-    expect(getProfileAgreementResponses(references, 'jo').map((item) => item.id)).toEqual(['4:5', '2:3'])
-    expect(getProfileAgreementResponses(references, 'miao').map((item) => item.id)).toEqual(['4:5', '2:3'])
+    expect(getProfileAgreementResponses(references, 'jo').map((item) => item.uuid)).toEqual(['4:5', '2:3'])
+    expect(getProfileAgreementResponses(references, 'miao').map((item) => item.uuid)).toEqual(['4:5', '2:3'])
     expect(getProfileAgreementResponses(references, 'lin')).toEqual([])
     expect(getProfileAgreementResponses(references, 'che')).toEqual([])
     expect(getProfileAgreementResponses(references, 'unknown')).toEqual([])
@@ -73,12 +73,12 @@ describe('interpersonal agreement responses', () => {
     const nodes = [node(1, { agreementMarkdown: '保留实际结果' }),
       node(2, { parentId: '1', authorId: 'lin' }),
       node(3, { parentId: '2', authorId: 'miao', referenceAgreements: [satisfied(2)] }),
-      node(4, { projectId: 'other', authorId: 'miao', agreementMarkdown: '记录锅具' }),
-      node(5, { projectId: 'other', parentId: '4', referenceAgreements: [satisfied(4)] }),
+      node(4, { graphId: 'other', authorId: 'miao', agreementMarkdown: '记录锅具' }),
+      node(5, { graphId: 'other', parentId: '4', referenceAgreements: [satisfied(4)] }),
       node(6, { parentId: '1', authorId: 'third', referenceAgreements: [satisfied(1)] })]
     const profile = getProfileAgreementResponses(getActionReferences(nodes), 'jo')
     const filtered = filterAgreementParticipants(profile, 'jo', 'miao')
-    expect(filtered.map((item) => item.id)).toEqual(['4:5', '2:3'])
+    expect(filtered.map((item) => item.uuid)).toEqual(['4:5', '2:3'])
     expect(filterAgreementParticipants(profile, 'miao', 'jo')).toEqual(filtered)
     expect(filterAgreementParticipants(profile, 'miao')).toEqual(filtered)
     expect(filterAgreementParticipants(profile, undefined, 'miao')).toEqual(filtered)
@@ -86,7 +86,7 @@ describe('interpersonal agreement responses', () => {
     expect(filterAgreementParticipants(profile, 'jo', 'jo')).toEqual([])
     expect(filterAgreementParticipants(profile, 'unknown')).toEqual([])
     expect(filterAgreementParticipants(profile)).toBe(profile)
-    expect(profile.map((item) => item.id)).toEqual(['1:6', '4:5', '2:3'])
+    expect(profile.map((item) => item.uuid)).toEqual(['1:6', '4:5', '2:3'])
     expect(filtered[0]).toBe(profile[1])
   })
 

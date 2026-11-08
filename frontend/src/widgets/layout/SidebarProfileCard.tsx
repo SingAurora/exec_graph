@@ -14,7 +14,7 @@ export type SidebarProfileStats = {
 
 /** Identifies the signed-in account and links to its public content categories. */
 export function SidebarProfileCard({ profile, stats }: { profile: UserProfile; stats: SidebarProfileStats }) {
-  const profileHref = '#profile?userId=' + encodeURIComponent(profile.id)
+  const profileHref = '#profile?userId=' + encodeURIComponent(profile.uuid)
   const categories = [
     { tab: 'expressions', label: '表达', count: stats.expressions },
     { tab: 'agreements', label: '约定', count: stats.agreements },
@@ -27,7 +27,6 @@ export function SidebarProfileCard({ profile, stats }: { profile: UserProfile; s
         <a className="relative -mt-7 inline-flex rounded-full border-4 border-surface bg-surface align-top focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal" href={profileHref} title={`查看${profile.name}的主页`}><Avatar profile={profile} size="profile" shape="circle" /></a>
         <div className="mt-1.5 grid min-w-0 gap-0.5 pl-1">
           <a className="flex min-w-0 items-center gap-1.5 rounded-sm text-sm font-semibold hover:text-signal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal" href={profileHref} title={profile.name}><span className="min-w-0 truncate">{profile.name}</span><span className="shrink-0"><GenderMark gender={profile.gender} /></span></a>
-          <span className="truncate text-xs text-muted" title={profile.email}>{profile.email}</span>
           {profile.location && <span className="truncate text-xs text-muted">{formatMainlandLocation(profile.location.code)}</span>}
         </div>
         <div className="mt-3"><ProfileBiography biography={profile.bio} compact /></div>

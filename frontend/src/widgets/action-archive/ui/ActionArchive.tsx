@@ -6,7 +6,7 @@ import { getActionExpressionChange } from '../../../entities/action/lib/formatio
 import { getDocumentRevisionLabel } from '../../../entities/action/lib/document-revision'
 import { getActionLevels } from '../../../entities/action/lib/levels'
 import { ExpressionContent } from '../../../entities/action/ui/ExpressionContent'
-import type { Project } from '../../../entities/project/model/types'
+import type { Graph } from '../../../entities/graph/model/types'
 import type { UserProfile } from '../../../entities/profile/model/types'
 import { formatFullPublicationTime, formatPublicationTime } from '../../../shared/lib/date'
 import { Avatar } from '../../../shared/ui/Avatar'
@@ -20,23 +20,23 @@ import { TabsContent, TabsList, TabsRoot, TabsTrigger } from '../../../shared/ui
 import { ArchiveConversation } from './ArchiveConversation'
 
 /** 形成过程：先追溯引用与约定，再连续展示原始及追加对话，最后阅读行动／表达结果。 */
-export function ActionArchive({ project, node, actions, users, onBack, onSelectSource }: {
-  project: Project
+export function ActionArchive({ graph, node, actions, users, onBack, onSelectSource }: {
+  graph: Graph
   node: ActionNode
   actions: ActionNode[]
   users: UserProfile[]
   onBack: () => void
   onSelectSource: (id: string) => void
 }) {
-  const author = users.find((user) => user.id === node.authorId)
+  const author = users.find((user) => user.uuid === node.authorId)
   const authorName = author?.name ?? node.authorId
-  const expression = getActionExpression(actions, node.id)
-  const agreement = getActionAgreement(actions, node.id)
-  const change = getActionExpressionChange(actions, node.id)
+  const expression = getActionExpression(actions, node.uuid)
+  const agreement = getActionAgreement(actions, node.uuid)
+  const change = getActionExpressionChange(actions, node.uuid)
   const expressionSource = change.source
   const changeLabels = { initial: '首次填写表达', modified: '修改自', inherited: '继承自', cleared: '已主动清空表达', empty: '未填写表达' }
   const supplement = node.expressionSupplement
-  const supplementAuthor = supplement && (users.find((user) => user.id === supplement.authorId)?.name ?? supplement.authorId)
+  const supplementAuthor = supplement && (users.find((user) => user.uuid === supplement.authorId)?.name ?? supplement.authorId)
   const [documentTab, setDocumentTab] = useState('objective')
   const expressionNode = expression.sourceNode ?? node
   const expressionRevision = expressionNode.expressionSupplement
@@ -45,7 +45,7 @@ export function ActionArchive({ project, node, actions, users, onBack, onSelectS
     ...node.conversation.map((message) => ({ ...message, authorId: node.authorId })),
     ...(node.expressionConversation ?? []).map((message) => ({ ...message, authorId: message.authorId ?? supplement?.authorId ?? node.authorId })),
   ].filter((message) => message.id !== 'welcome' && !message.id.startsWith('error-'))
-  const profileLink = `#profile?userId=${encodeURIComponent(node.authorId)}&fromGraph=${encodeURIComponent(project.id)}&fromTab=explore`
+  const profileLink = `#profile?userId=${encodeURIComponent(node.authorId)}&fromGraph=${encodeURIComponent(graph.uuid)}&fromTab=explore`
 
   return (
     <section className="max-w-[860px] pb-12 pt-5">
@@ -53,7 +53,7 @@ export function ActionArchive({ project, node, actions, users, onBack, onSelectS
         <div className="flex min-w-0 items-center gap-3 text-xs leading-5 text-muted">
           <button className="text-button shrink-0" type="button" onClick={onBack}><ArrowLeft size={15} />回到行动图</button>
           <span className="text-muted/40">/</span>
-          <span className="min-w-0 flex-1 truncate" title={project.title}>{project.title}</span>
+          <span className="min-w-0 flex-1 truncate" title={graph.title}>{graph.title}</span>
           <HelpPopover title="形成过程">
             <p>行动和表达由同一条连续 AI 对话整理。修改表达继续已有对话，下方分别查看行动和表达两份文档，不拆分或重复聊天记录。</p>
             <p>表达可以首次填写、修改、继承或清空。继承内容不属于本节点重新生成的结果，可通过来源编号查看实际来源节点的形成过程。</p>
@@ -67,7 +67,7 @@ export function ActionArchive({ project, node, actions, users, onBack, onSelectS
             <Avatar profile={author} label={authorName} size="small" /><span className="text-sm font-medium">{authorName}</span>
           </ProfilePreview>
           <time dateTime={node.createdAt} title={formatFullPublicationTime(node.createdAt)}>{formatPublicationTime(node.createdAt)}</time>
-          <div className="ml-auto flex items-center gap-2 tabular-nums"><span>节点 #{node.number}</span><span className="text-muted/40">·</span><span>第 {getActionLevels(actions).get(node.id)} 层</span></div>
+          <div className="ml-auto flex items-center gap-2 tabular-nums"><span>节点 #{node.number}</span><span className="text-muted/40">·</span><span>第 {getActionLevels(actions).get(node.uuid)} 层</span></div>
         </div>
       </header>
 
@@ -77,7 +77,7 @@ export function ActionArchive({ project, node, actions, users, onBack, onSelectS
           <span className="text-muted">表达</span>
           <div className="min-w-0">
             <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1"><span>{changeLabels[change.kind]}</span>
-              {expressionSource && <button className="border-0 bg-transparent p-0 text-[13px] leading-6 text-signal hover:underline" type="button" onClick={() => onSelectSource(expressionSource.id)} title={`查看表达来源节点 #${expressionSource.number}的形成过程`}>节点 #{expressionSource.number}</button>}
+              {expressionSource && <button className="border-0 bg-transparent p-0 text-[13px] leading-6 text-signal hover:underline" type="button" onClick={() => onSelectSource(expressionSource.uuid)} title={`查看表达来源节点 #${expressionSource.number}的形成过程`}>节点 #{expressionSource.number}</button>}
             </div>
             {supplement && <p className="mt-1 text-xs leading-5 text-muted">发布后{getDocumentRevisionLabel(supplement)}表达 · {supplementAuthor} · <time dateTime={supplement.createdAt} title={formatFullPublicationTime(supplement.createdAt)}>{formatPublicationTime(supplement.createdAt)}</time></p>}
           </div>
@@ -88,11 +88,11 @@ export function ActionArchive({ project, node, actions, users, onBack, onSelectS
         <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3.5 text-sm font-medium [&::-webkit-details-marker]:hidden"><FileText size={16} className="text-muted" />约定文档<ChevronDown size={15} className="ml-auto text-muted transition-transform group-open:rotate-180" /></summary>
         <div className="border-t border-line px-5 py-5">
           {agreement.sourceNode?.agreementSupplement && <p className="mb-3 text-xs text-muted">未记录编辑对话</p>}
-          <AgreementContent agreement={agreement} origin={getActionAgreementOrigin(actions, node.id)} onSelectSource={onSelectSource} />
+          <AgreementContent agreement={agreement} origin={getActionAgreementOrigin(actions, node.uuid)} onSelectSource={onSelectSource} />
         </div>
       </details>}
 
-      <ArchiveConversation label="AI 对话" messages={dialogue} authorId={node.authorId} projectId={project.id} users={users} />
+      <ArchiveConversation label="AI 对话" messages={dialogue} authorId={node.authorId} graphId={graph.uuid} users={users} />
       <div className="mt-8">
         <h3 className="text-sm font-medium">文档结果</h3>
         <TabsRoot value={documentTab} onValueChange={setDocumentTab}>
@@ -108,7 +108,7 @@ export function ActionArchive({ project, node, actions, users, onBack, onSelectS
           <TabsContent value="expression" keepMounted>
             <section className="mt-5 rounded-lg border border-line bg-surface p-5">
               {expressionRevision && <p className="mb-3 text-xs text-muted">发布后{getDocumentRevisionLabel(expressionRevision)} · {expressionDialogue.length ? '已记录表达对话' : '未记录编辑对话'}</p>}
-              {expression.markdown.trim() ? <ExpressionContent expression={expression} origin={getActionExpressionOrigin(actions, node.id)} onSelectSource={onSelectSource} /> : <p className="text-sm text-muted">表达为空</p>}
+              {expression.markdown.trim() ? <ExpressionContent expression={expression} origin={getActionExpressionOrigin(actions, node.uuid)} onSelectSource={onSelectSource} /> : <p className="text-sm text-muted">表达为空</p>}
             </section>
           </TabsContent>
         </TabsRoot>

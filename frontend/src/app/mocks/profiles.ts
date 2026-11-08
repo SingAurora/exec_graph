@@ -12,7 +12,7 @@ export function profileHandlers(db: MockDatabase) {
   return [
     http.get('*/api/commands/auth/session', mockResponse(db, () => ({ user: mockAccount(db), csrfToken: db.csrfToken }))),
     http.get('*/api/commands/profiles/catalogue', mockResponse(db, () => db.users.map((user) => ({
-      id: user.id, name: user.name, gender: user.gender, bio: user.bio, location: user.location, avatar: user.avatar, backgroundImage: user.backgroundImage, activeDays: user.activeDays, highlights: user.highlights,
+      uuid: user.uuid, name: user.name, gender: user.gender, bio: user.bio, location: user.location, avatar: user.avatar, backgroundImage: user.backgroundImage, activeDays: user.activeDays, highlights: user.highlights,
     })))),
     http.post('*/api/commands/profiles/update', mockResponse(db, async (request) => {
       const body = await readBody(request, ['name', 'gender', 'bio', 'locationCode', 'avatarAssetId', 'backgroundAssetId', 'expectedVersion'])
@@ -33,7 +33,7 @@ export function profileHandlers(db: MockDatabase) {
       requireVersion(user.version, body.expectedVersion)
       const expressionNodeIds = body.expressionNodeIds
       requireInput(Array.isArray(expressionNodeIds) && expressionNodeIds.length <= profileHighlightLimit, `最多精选 ${profileHighlightLimit} 个表达`)
-      const candidates = new Set(getProfileHighlightCandidates(db.actions, user.id).map(({ node }) => node.id))
+      const candidates = new Set(getProfileHighlightCandidates(db.actions, user.uuid).map(({ node }) => node.uuid))
       requireInput(expressionNodeIds.every((id): id is string => typeof id === 'string' && candidates.has(id)), '只能精选本人分支上的非空本人表达')
       requireInput(new Set(expressionNodeIds).size === expressionNodeIds.length, '不能重复精选同一条表达')
       user.highlights = { expressionNodeIds }

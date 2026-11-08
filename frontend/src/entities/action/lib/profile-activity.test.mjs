@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { getActivityDate, getProfileActivity, getProfileActivityDays, groupProfileActivity } from './profile-activity.ts'
 
 const node = (id, extra = {}) => ({
-  id, projectId: 'cooking', number: Number(id), authorId: 'jo', title: '行动 ' + id,
+  uuid: id, id, graphId: 'cooking', number: Number(id), authorId: 'jo', title: '行动 ' + id,
   markdown: '实际做过的事情', images: [], conversation: [], createdAt: '2026-10-20T12:00:00+08:00', ...extra,
 })
 
@@ -25,7 +25,7 @@ describe('profile action activity', () => {
   test('inherited, updated and cleared expressions do not add timeline events', () => {
     const activity = getProfileActivity([node('1', { expressionMarkdown: '最初的表达' }),
       node('2', { parentId: '1' }), node('3', { parentId: '2', expressionMarkdown: '' })], 'jo')
-    expect(activity.map((item) => item.node.id)).toEqual(['3', '2', '1'])
+    expect(activity.map((item) => item.node.uuid)).toEqual(['3', '2', '1'])
   })
 
   test('sorts newest first, groups local dates and never counts someone else or malformed dates', () => {
@@ -33,9 +33,9 @@ describe('profile action activity', () => {
       node('2'), node('3'), node('4', { authorId: 'other' }), node('5', { createdAt: 'invalid' })]
     const activity = getProfileActivity(actions, 'jo')
     const groups = groupProfileActivity(activity)
-    expect(groups.map((group) => group.items.map((item) => item.node.id))).toEqual([['3', '2'], ['1']])
+    expect(groups.map((group) => group.items.map((item) => item.node.uuid))).toEqual([['3', '2'], ['1']])
     expect(activity[0].date).toBe(getActivityDate(actions[2].createdAt))
-    expect(actions.map((item) => item.id)).toEqual(['1', '2', '3', '4', '5'])
+    expect(actions.map((item) => item.uuid)).toEqual(['1', '2', '3', '4', '5'])
   })
 
   test('calendar keys always follow China time', () => {

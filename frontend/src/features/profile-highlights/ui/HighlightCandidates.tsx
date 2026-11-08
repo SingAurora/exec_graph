@@ -1,7 +1,7 @@
 import { Plus } from 'lucide-react'
 import { useRef, useState, type ReactNode } from 'react'
 import type { ProfileHighlightEntry } from '../../../entities/action/lib/profile-highlights'
-import type { Project } from '../../../entities/project/model/types'
+import type { Graph } from '../../../entities/graph/model/types'
 import { useInfiniteList } from '../../../shared/lib/useInfiniteList'
 import { ListEnd } from '../../../shared/ui/ListEnd'
 import { ListEmptyState } from '../../../shared/ui/empty-state/EmptyState'
@@ -12,10 +12,10 @@ import { searchHighlightCandidates } from '../lib/search'
 const searchPageSize = 6
 
 /** 完整候选的添加列表：普通浏览逐批加载，显式搜索先筛选全量内容再分页；隐藏时暂停观察。 */
-export function HighlightCandidates({ active, candidates, projects, full, onAdd, renderEntry }: {
+export function HighlightCandidates({ active, candidates, graphs, full, onAdd, renderEntry }: {
   active: boolean
   candidates: ProfileHighlightEntry[]
-  projects: Project[]
+  graphs: Graph[]
   full: boolean
   onAdd: (id: string) => void
   renderEntry: (entry: ProfileHighlightEntry, keyword?: string) => ReactNode
@@ -24,7 +24,7 @@ export function HighlightCandidates({ active, candidates, projects, full, onAdd,
   const [keyword, setKeyword] = useState('')
   const [page, setPage] = useState(1)
   const scrollRef = useRef<HTMLDivElement>(null)
-  const matches = searchHighlightCandidates(candidates, projects, keyword)
+  const matches = searchHighlightCandidates(candidates, graphs, keyword)
   const pageCount = Math.max(1, Math.ceil(matches.length / searchPageSize))
   const currentPage = Math.min(page, pageCount)
   const { visibleCount, endRef, hasMore } = useInfiniteList({ itemCount: matches.length, infinite: !keyword, active })
@@ -44,9 +44,9 @@ export function HighlightCandidates({ active, candidates, projects, full, onAdd,
       <p className="mb-2 text-xs text-muted">{keyword ? '搜索结果' : '可选表达'} · 共 {matches.length} 条</p>
       <div ref={scrollRef} className="max-h-[40dvh] overflow-x-hidden overflow-y-auto overscroll-contain pr-4 [scrollbar-gutter:stable]">
         {!matches.length && <ListEmptyState compact />}
-        <ul className="divide-y divide-line">{visible.map((entry) => <li key={entry.node.id} className="py-3">
+        <ul className="divide-y divide-line">{visible.map((entry) => <li key={entry.node.uuid} className="py-3">
           {renderEntry(entry, keyword)}
-          <div className="mt-2 flex justify-end"><button type="button" className="icon-button" title="添加表达" disabled={full} onClick={() => onAdd(entry.node.id)}><Plus size={16} /></button></div>
+          <div className="mt-2 flex justify-end"><button type="button" className="icon-button" title="添加表达" disabled={full} onClick={() => onAdd(entry.node.uuid)}><Plus size={16} /></button></div>
         </li>)}</ul>
         {!keyword && (hasMore || matches.length > 0) && <ListEnd ref={endRef} hasMore={hasMore} doneLabel={matches.length ? '已显示全部可选表达' : undefined} className="py-3" />}
       </div>

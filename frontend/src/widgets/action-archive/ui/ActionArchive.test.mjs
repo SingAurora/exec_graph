@@ -5,13 +5,13 @@ import { ActionArchive } from './ActionArchive.tsx'
 import { getActionExpressionChange } from '../../../entities/action/lib/formation.ts'
 
 const node = (number, parentId, expressionMarkdown, extra = {}) => ({
-  id: String(number), projectId: 'graph', number, parentId, expressionMarkdown, authorId: 'jo', title: `行动 ${number}`,
+  uuid: String(number), id: String(number), graphId: 'graph', number, parentId, expressionMarkdown, authorId: 'jo', title: `行动 ${number}`,
   markdown: '文档正文', images: [], conversation: [], createdAt: '2026-10-18T12:00:00+08:00', ...extra,
 })
-const user = { id: 'jo', name: '乔', avatar: '' }
+const user = { uuid: 'jo', id: 'jo', name: '乔', avatar: '' }
 function render(actions, id) {
   return renderToStaticMarkup(createElement(ActionArchive, {
-    node: actions.find((item) => item.id === id), actions, users: [user], project: { id: 'graph', title: '测试图' }, onBack() {}, onSelectSource() {},
+    node: actions.find((item) => item.uuid === id), actions, users: [user], graph: { uuid: 'graph', id: 'graph', title: '测试图' }, onBack() {}, onSelectSource() {},
   }))
 }
 

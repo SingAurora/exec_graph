@@ -5,10 +5,10 @@ import { getActionExpression, getActionExpressionNodes, sortActionsNewestFirst }
 export function getPublishedExpressions(actions: ActionNode[], authorIds?: string[]): ActionNode[] {
   const graphs = new Map<string, ActionNode[]>()
   for (const node of actions) {
-    const nodes = graphs.get(node.projectId) ?? []
+    const nodes = graphs.get(node.graphId) ?? []
     nodes.push(node)
-    graphs.set(node.projectId, nodes)
+    graphs.set(node.graphId, nodes)
   }
-  const endpoints = [...graphs.values()].flatMap((nodes) => getActionExpressionNodes(nodes).filter((node) => (!authorIds || authorIds.includes(node.authorId)) && Boolean(getActionExpression(nodes, node.id).markdown.trim())))
+  const endpoints = [...graphs.values()].flatMap((nodes) => getActionExpressionNodes(nodes).filter((node) => (!authorIds || authorIds.includes(node.authorId)) && Boolean(getActionExpression(nodes, node.uuid).markdown.trim())))
   return sortActionsNewestFirst(endpoints)
 }

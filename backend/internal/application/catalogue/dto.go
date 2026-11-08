@@ -22,7 +22,7 @@ type Highlights struct {
 // ProfileView 是不含邮箱和测试管理标记的公开资料。
 type ProfileView struct {
 	LegacyID          string        `json:"legacyId,omitempty"`
-	ID                string        `json:"id"`
+	ID                string        `json:"uuid"`
 	Name              string        `json:"name"`
 	Gender            string        `json:"gender"`
 	Bio               string        `json:"bio"`
@@ -35,10 +35,10 @@ type ProfileView struct {
 	Highlights        Highlights    `json:"highlights"`
 }
 
-// GraphView 保留当前 UI 的 Project 字段语义。
+// GraphView 对应前端的行动图模型。
 type GraphView struct {
 	LegacyID          string    `json:"legacyId,omitempty"`
-	ID                string    `json:"id"`
+	ID                string    `json:"uuid"`
 	OwnerID           string    `json:"ownerId"`
 	ParticipantIDs    []string  `json:"participantIds"`
 	Title             string    `json:"title"`
@@ -93,7 +93,7 @@ type ContextSnapshot struct {
 // ActionView 与前端 ActionContextNode 对应，nil 文档表示继承，空字符串表示清空。
 type ActionView struct {
 	LegacyID               string           `json:"legacyId,omitempty"`
-	ID                     string           `json:"id"`
+	ID                     string           `json:"uuid"`
 	GraphID                string           `json:"graphId"`
 	Number                 uint32           `json:"number"`
 	ParentID               string           `json:"parentId,omitempty"`

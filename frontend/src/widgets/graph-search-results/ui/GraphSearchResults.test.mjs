@@ -5,8 +5,8 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { GraphSearchResults } from './GraphSearchResults.tsx'
 import { GraphSearchResultsPage } from '../../../pages/GraphSearchResultsPage.tsx'
 
-const projects = Array.from({ length: 12 }, (_, index) => ({ id: `g${index}`, ownerId: 'jo', title: `练习 ${String(index).padStart(2, '0')}`, description: '留下经验', createdAt: `2026-10-${String(index + 1).padStart(2, '0')}T12:00:00+08:00` }))
-const props = { projects, actions: [], keyword: '练习', page: 1, onOpenProject() {}, onSearch() {}, onPageChange() {} }
+const graphs = Array.from({ length: 12 }, (_, index) => ({ uuid: `g${index}`, id: `g${index}`, ownerId: 'jo', title: `练习 ${String(index).padStart(2, '0')}`, description: '留下经验', createdAt: `2026-10-${String(index + 1).padStart(2, '0')}T12:00:00+08:00` }))
+const props = { graphs, actions: [], keyword: '练习', page: 1, onOpenGraph() {}, onSearch() {}, onPageChange() {} }
 const render = (extra = {}) => renderToStaticMarkup(createElement(GraphSearchResults, { ...props, ...extra }))
 
 describe('full graph search results', () => {

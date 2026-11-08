@@ -18,9 +18,9 @@ describe('source agreement assessments when publishing an action', () => {
     const referenceAgreements = getReferenceAgreementRecords([{ sourceId: 'first', nodeNumber: 2 }, { sourceId: 'merged', nodeNumber: 7 }], reviews)
     expect(referenceAgreements).toEqual([{ sourceId: 'first', complies: false, exceptionReason: '只尝了热时，没有静置' }, { sourceId: 'merged', complies: true }])
     for (const authorId of ['jo', 'lin']) {
-      const nodes = [{ id: 'first', projectId: 'graph', number: 2, authorId: 'jo', agreementMarkdown: '静置十分钟' },
-        { id: 'merged', projectId: 'graph', number: 7, authorId: 'lin', agreementMarkdown: '说明用时' },
-        { id: 'published', projectId: 'graph', number: 9, authorId, parentId: 'first', mergedParentIds: ['merged'], referenceAgreements }]
+      const nodes = [{ uuid: 'first', id: 'first', graphId: 'graph', number: 2, authorId: 'jo', agreementMarkdown: '静置十分钟' },
+        { uuid: 'merged', id: 'merged', graphId: 'graph', number: 7, authorId: 'lin', agreementMarkdown: '说明用时' },
+        { uuid: 'published', id: 'published', graphId: 'graph', number: 9, authorId, parentId: 'first', mergedParentIds: ['merged'], referenceAgreements }]
       const references = getActionReferences(nodes)
       expect(references.map((reference) => reference.agreementStatus)).toEqual(['exception', 'satisfied'])
       expect(references[0].exceptionReason).toBe('只尝了热时，没有静置')

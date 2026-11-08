@@ -4,8 +4,8 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { SourceAgreementReviews } from './SourceAgreementReviews.tsx'
 
 const source = (number, kind, markdown, origin = number) => ({
-  node: { id: String(number), number, title: `行动 ${number}` }, kind,
-  agreement: { markdown, sourceNode: { id: String(origin), number: origin } },
+  node: { uuid: String(number), id: String(number), number, title: `行动 ${number}` }, kind,
+  agreement: { markdown, sourceNode: { uuid: String(origin), id: String(origin), number: origin } },
 })
 
 describe('per-source agreement review presentation', () => {

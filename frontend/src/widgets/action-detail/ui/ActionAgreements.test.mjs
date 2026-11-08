@@ -6,17 +6,17 @@ import { ActionOwnAgreement, ActionSourceAgreements } from './ActionAgreements.t
 import { ActionReferenceDetail } from '../../action-reference/ui/ActionReferenceDetail.tsx'
 import { ArchiveBackground } from '../../action-archive/ui/ArchiveBackground.tsx'
 
-const node = (id, extra = {}) => ({ id, projectId: 'graph', authorId: 'jo', number: Number(id), title: `行动 ${id}`, markdown: '行动内容', images: [], conversation: [], createdAt: '2026-10-18T12:00:00+08:00', ...extra })
-const users = [{ id: 'lin', name: '林岚', avatar: '' }, { id: 'jo', name: '乔', avatar: '' }]
+const node = (id, extra = {}) => ({ uuid: id, id, graphId: 'graph', authorId: 'jo', number: Number(id), title: `行动 ${id}`, markdown: '行动内容', images: [], conversation: [], createdAt: '2026-10-18T12:00:00+08:00', ...extra })
+const users = [{ uuid: 'lin', id: 'lin', name: '林岚', avatar: '' }, { id: 'jo', name: '乔', avatar: '' }]
 function render(actions, id) {
-  return renderToStaticMarkup(createElement(ActionSourceAgreements, { node: actions.find((item) => item.id === id), actions, users, onSelect() {} }))
+  return renderToStaticMarkup(createElement(ActionSourceAgreements, { node: actions.find((item) => item.uuid === id), actions, users, onSelect() {} }))
 }
 
 describe('node agreement overview', () => {
   test('reference details and formation history read the source node own agreement', () => {
     const actions = [node('1', { agreementMarkdown: '祖先约定' }), node('2', { parentId: '1', agreementMarkdown: '直接约定' }),
       node('3', { parentId: '2', agreementMarkdown: '', referenceAgreements: [{ sourceId: '2', complies: true }] })]
-    const reference = getActionReferences(actions).find((item) => item.target.id === '3')
+    const reference = getActionReferences(actions).find((item) => item.target.uuid === '3')
     const line = renderToStaticMarkup(createElement(ActionReferenceDetail, { reference, actions, users, onSelectNode() {}, onHide() {} }))
     const archive = renderToStaticMarkup(createElement(ArchiveBackground, { node: actions[2], actions, onSelectSource() {} }))
     for (const html of [line, archive]) {
@@ -26,10 +26,10 @@ describe('node agreement overview', () => {
     }
   })
   test('lists each direct source own agreement and does not add inherited ancestors', () => {
-    const actions = [node('1', { authorId: 'lin', agreementMarkdown: '祖先约定' }), node('2', { parentId: '1' }), node('3', { authorId: 'lin', agreementMarkdown: '直接约定' }), node('4', { projectId: 'other', agreementMarkdown: '其他图约定' }),
+    const actions = [node('1', { authorId: 'lin', agreementMarkdown: '祖先约定' }), node('2', { parentId: '1' }), node('3', { authorId: 'lin', agreementMarkdown: '直接约定' }), node('4', { graphId: 'other', agreementMarkdown: '其他图约定' }),
       node('5', { parentId: '2', mergedParentIds: ['3', '3', '4'] })]
-    expect(getActionSourceAgreements(actions, '5').map((reference) => reference.source.id)).toEqual(['3'])
-    expect(getActionSourceAgreements(actions, '2').map((reference) => reference.source.id)).toEqual(['1'])
+    expect(getActionSourceAgreements(actions, '5').map((reference) => reference.source.uuid)).toEqual(['3'])
+    expect(getActionSourceAgreements(actions, '2').map((reference) => reference.source.uuid)).toEqual(['1'])
     const html = render(actions, '5')
     expect(html).toMatch(/<button[^>]*title="行动 3"[^>]*>合入 #3<\/button>/)
     expect(html).toContain('直接约定')
@@ -40,7 +40,7 @@ describe('node agreement overview', () => {
   })
 
   test('separates compliance, unknown and noncompliance without approval for either author relationship', () => {
-    const sources = [node('1', { authorId: 'lin' }), node('2', { authorId: 'lin' }), node('3', { authorId: 'lin' }), node('4', { authorId: 'lin' }), node('5')].map((source) => ({ ...source, agreementMarkdown: `约定 ${source.id}` }))
+    const sources = [node('1', { authorId: 'lin' }), node('2', { authorId: 'lin' }), node('3', { authorId: 'lin' }), node('4', { authorId: 'lin' }), node('5')].map((source) => ({ ...source, agreementMarkdown: `约定 ${source.uuid}` }))
     const target = node('6', { parentId: '1', mergedParentIds: ['2', '3', '4', '5'], referenceAgreements: [
       { sourceId: '1', complies: true },
       { sourceId: '3', complies: false, exceptionReason: '本人换锅' },

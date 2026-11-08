@@ -1,14 +1,14 @@
-import { getGraphActivity } from '../../../entities/project/lib/activity'
-import type { GraphActivity, Project } from '../../../entities/project/model/types'
+import { getGraphActivity } from '../../../entities/graph/lib/activity'
+import type { GraphActivity, Graph } from '../../../entities/graph/model/types'
 import type { ActionNode } from '../../../entities/action/model/types'
 import { findSearchMatch } from '../../../shared/lib/search'
 
 /** Searches every public graph by name or introduction, ordered by real activity then creation. */
-export function searchPublicGraphs(projects: Project[], actions: ActionNode[], keyword: string): GraphActivity[] {
+export function searchPublicGraphs(graphs: Graph[], actions: ActionNode[], keyword: string): GraphActivity[] {
   const query = keyword.trim()
   if (!query) return []
-  return projects.filter((project) => findSearchMatch(project.title, query) !== -1 || findSearchMatch(project.description, query) !== -1)
-    .map((project) => getGraphActivity(project, actions))
-    .sort((left, right) => Date.parse(right.lastActionAt ?? right.project.createdAt) - Date.parse(left.lastActionAt ?? left.project.createdAt)
-      || left.project.id.localeCompare(right.project.id))
+  return graphs.filter((graph) => findSearchMatch(graph.title, query) !== -1 || findSearchMatch(graph.description, query) !== -1)
+    .map((graph) => getGraphActivity(graph, actions))
+    .sort((left, right) => Date.parse(right.lastActionAt ?? right.graph.createdAt) - Date.parse(left.lastActionAt ?? left.graph.createdAt)
+      || left.graph.uuid.localeCompare(right.graph.uuid))
 }

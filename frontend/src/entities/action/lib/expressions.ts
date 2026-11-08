@@ -29,7 +29,7 @@ export function updateActionExpressionFromConversation(nodes: ActionNode[], node
   if (last?.speaker !== 'ai' || !messages.some((message) => message.speaker === 'user')) return nodes
   const updated = updateActionExpression(nodes, nodeId, markdown, editor)
   if (updated === nodes) return nodes
-  return updated.map((node) => node.id === nodeId ? { ...node, expressionConversation: messages } : node)
+  return updated.map((node) => node.uuid === nodeId ? { ...node, expressionConversation: messages } : node)
 }
 
 /** 找到未被其他节点引用的路线终点，包含孤立起点，按发布时间倒序排列。 */
@@ -38,7 +38,7 @@ export function getActionExpressionNodes(nodes: ActionNode[]): ActionNode[] {
     ...(node.parentId ? [node.parentId] : []),
     ...(node.mergedParentIds ?? []),
   ]))
-  return sortActionsNewestFirst(nodes.filter((node) => !referenced.has(node.id)))
+  return sortActionsNewestFirst(nodes.filter((node) => !referenced.has(node.uuid)))
 }
 
 /** 按发布时间倒序；同一时间用稳定节点编号兜底，不修改传入数组。 */

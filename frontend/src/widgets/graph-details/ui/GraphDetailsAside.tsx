@@ -43,7 +43,7 @@ export function GraphDetailsAside({ description, createdAt, actionCount, lastAct
         <h4 className="text-xs font-normal leading-5 text-muted">参与者</h4>
         <ul className="mt-2 flex flex-wrap gap-1">
           {participantIds.slice(0, participantPreviewLimit).map((id) => {
-            const profile = users.find((user) => user.id === id)
+            const profile = users.find((user) => user.uuid === id)
             const name = profile?.name || id
             return (
               <li key={id} className="flex">

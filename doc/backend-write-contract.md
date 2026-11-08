@@ -109,4 +109,4 @@ type DocumentUpdate =
 
 生成确认测试使用带 `integration-fixture` 标记的服务端夹具，不构成真实 AI 验证，也没有运行时生成后门。所有测试库和会话前缀随机隔离；测试完成删除自己的库及会话。
 
-前端在读取边界把 `graphId` 映射为 UI 的 `projectId`，关注模型使用 `graphIds`。真实登录生命周期、资产上传及 UUID 引用、AI 生成／确认 DTO 已接入；导入资源返回显式 `legacyId`，兼容旧链接与草稿键。请求失败不回退到演示数据。
+前端统一使用 `graphId`，关注模型使用 `graphIds`。真实登录生命周期、资产上传及 UUID 引用、AI 生成／确认 DTO 已接入；导入资源返回显式 `legacyId`，兼容旧链接与草稿键。请求失败不回退到演示数据。

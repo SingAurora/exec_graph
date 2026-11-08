@@ -4,7 +4,7 @@ import { getActionParentIds } from './graph'
 
 /** 一条真实引用箭头的展示模型：source 是被引用节点，target 是后续回应节点。 */
 export type ActionReference = {
-  id: string
+  uuid: string
   source: ActionNode
   target: ActionNode
   /** 决定同作者实线／跨作者虚线，与当前浏览者是谁无关。 */
@@ -18,37 +18,37 @@ export type ActionReference = {
 
 /** 从节点来源还原箭头，独立读取核对结果；有约定正文不代表本次引用已满足。 */
 export function getActionReferences(actions: ActionNode[]): ActionReference[] {
-  const byId = new Map(actions.map((node) => [node.id, node]))
+  const byId = new Map(actions.map((node) => [node.uuid, node]))
   const agreements = getActionAgreements(actions)
   return actions.flatMap((target) => getActionParentIds(target).flatMap((sourceId): ActionReference[] => {
     const source = byId.get(sourceId)
-    if (!source || source.projectId !== target.projectId) return []
+    if (!source || source.graphId !== target.graphId) return []
     const assessment = target.referenceAgreements?.find((item) => item.sourceId === sourceId)
-    const agreement = source.agreementStatus !== undefined ? { markdown: source.agreementMarkdown ?? '' } : agreements.get(source.id)!
+    const agreement = source.agreementStatus !== undefined ? { markdown: source.agreementMarkdown ?? '' } : agreements.get(source.uuid)!
     // 四种状态分别是无约定、未核对、已满足和不满足；只有不满足显示叉号。
     const agreementStatus = !agreement.markdown.trim() ? 'unrestricted'
       : !assessment ? 'unreviewed' : assessment.complies ? 'satisfied' : 'exception'
     const sameAuthor = source.authorId === target.authorId
-    return [{ id: `${source.id}:${target.id}`, source, target, sameAuthor,
-      incorporated: source.id !== target.parentId, agreement, agreementStatus,
+    return [{ uuid: `${source.uuid}:${target.uuid}`, source, target, sameAuthor,
+      incorporated: source.uuid !== target.parentId, agreement, agreementStatus,
       exceptionReason: assessment?.exceptionReason }]
   }))
 }
 
 /** 本次各直接来源只使用自己节点的约定，不沿祖先继承。 */
 export function getActionSourceAgreements(actions: ActionNode[], nodeId: string): ActionReference[] {
-  const byId = new Map(actions.map((node) => [node.id, node]))
-  return actions.filter((node) => node.id === nodeId).flatMap((target) => getActionParentIds(target).flatMap((sourceId): ActionReference[] => {
+  const byId = new Map(actions.map((node) => [node.uuid, node]))
+  return actions.filter((node) => node.uuid === nodeId).flatMap((target) => getActionParentIds(target).flatMap((sourceId): ActionReference[] => {
     const source = byId.get(sourceId)
-    if (!source || source.projectId !== target.projectId) return []
+    if (!source || source.graphId !== target.graphId) return []
     // 约定只存在于不同用户之间；自己的来源只承接行动，不显示约定核对。
     if (source.authorId === target.authorId) return []
     const assessment = target.referenceAgreements?.find((item) => item.sourceId === sourceId)
     const agreement = { markdown: source.agreementMarkdown ?? '' }
     const agreementStatus = !agreement.markdown.trim() ? 'unrestricted'
       : !assessment ? 'unreviewed' : assessment.complies ? 'satisfied' : 'exception'
-    return [{ id: `${source.id}:${target.id}`, source, target, sameAuthor: false,
-      incorporated: source.id !== target.parentId, agreement, agreementStatus, exceptionReason: assessment?.exceptionReason }]
+    return [{ uuid: `${source.uuid}:${target.uuid}`, source, target, sameAuthor: false,
+      incorporated: source.uuid !== target.parentId, agreement, agreementStatus, exceptionReason: assessment?.exceptionReason }]
   })).filter((reference) => reference.agreementStatus !== 'unrestricted')
 }
 

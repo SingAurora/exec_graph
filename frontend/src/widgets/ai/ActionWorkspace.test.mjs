@@ -78,16 +78,16 @@ describe('action workspace', () => {
   })
 
   test('shows the agreement summary only for another user\'s inherited node', () => {
-    const parent = { id: 'p', projectId: 'graph', number: 8, title: '先盛蛋', markdown: '实际行动', authorId: 'lin', agreementMarkdown: '记录实际用时' }
-    const html = render({ profile: { id: 'jo', name: '乔' }, actions: [parent], hasParent: true, sourceNodeId: 'p', sourceNodeNumber: 8, inheritedAgreement: '记录实际用时' })
+    const parent = { uuid: 'p', id: 'p', graphId: 'graph', number: 8, title: '先盛蛋', markdown: '实际行动', authorId: 'lin', agreementMarkdown: '记录实际用时' }
+    const html = render({ profile: { uuid: 'jo', id: 'jo', name: '乔' }, actions: [parent], hasParent: true, sourceNodeId: 'p', sourceNodeNumber: 8, inheritedAgreement: '记录实际用时' })
     expect(html).toContain('约定 0/1 满足')
     expect(html).toContain('1 未知')
     expect(html).toContain('title="查看约定核对详情"')
   })
 
   test('does not offer merge background or treat own source as a review', () => {
-    const parent = { id: 'p', projectId: 'graph', number: 2, title: '先盛蛋', markdown: '实际行动', authorId: 'jo', agreementMarkdown: '记录锅温' }
-    const props = { profile: { id: 'jo', name: '乔' }, actions: [parent], sourceNodeId: 'p', sourceNodeNumber: 2, inheritedAgreement: '记录锅温' }
+    const parent = { uuid: 'p', id: 'p', graphId: 'graph', number: 2, title: '先盛蛋', markdown: '实际行动', authorId: 'jo', agreementMarkdown: '记录锅温' }
+    const props = { profile: { uuid: 'jo', id: 'jo', name: '乔' }, actions: [parent], sourceNodeId: 'p', sourceNodeNumber: 2, inheritedAgreement: '记录锅温' }
     const html = render({ ...props, hasParent: true })
     expect(html).not.toContain('合入节点')
     expect(html).toContain('承接 #2')

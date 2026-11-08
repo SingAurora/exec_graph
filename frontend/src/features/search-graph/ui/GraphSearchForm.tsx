@@ -20,7 +20,7 @@ const placeholders: Record<GraphSearchScope, string> = {
 
 /** Renders category-specific criteria without sharing drafts or submitting on filter changes. */
 export function GraphSearchForm({ scope, criteria, users, onChange, onSubmit, onReset }: Props) {
-  const options = [{ value: '', label: '全部' }, ...users.map((user) => ({ value: user.id, label: user.name }))]
+  const options = [{ value: '', label: '全部' }, ...users.map((user) => ({ value: user.uuid, label: user.name }))]
   const filters = scope === 'agreements'
     ? [{ field: 'participantId' as const, label: '参与者一' }, { field: 'otherParticipantId' as const, label: '参与者二' }]
     : scope === 'users' ? [] : [{ field: 'authorId' as const, label: '作者' }]

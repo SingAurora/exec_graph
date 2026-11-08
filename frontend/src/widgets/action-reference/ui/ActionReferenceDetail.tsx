@@ -30,8 +30,8 @@ const agreementLabels: Record<ActionReference['agreementStatus'], string> = {
 export function ActionReferenceDetail({ reference, actions, users, onSelectNode, onHide }: Props) {
   const { source, target, incorporated, agreementStatus } = reference
   const levels = getActionLevels(actions)
-  const userById = new Map(users.map((user) => [user.id, user]))
-  const historyCount = getActionContextIds(actions, source.id).size
+  const userById = new Map(users.map((user) => [user.uuid, user]))
+  const historyCount = getActionContextIds(actions, source.uuid).size
   const exception = agreementStatus === 'exception'
 
   return (
@@ -53,15 +53,15 @@ export function ActionReferenceDetail({ reference, actions, users, onSelectNode,
       </header>
 
       <section className="px-6 py-4">
-        <ReferenceNode label="来源" node={source} author={userById.get(source.authorId)} level={levels.get(source.id)} onSelect={onSelectNode} />
+        <ReferenceNode label="来源" node={source} author={userById.get(source.authorId)} level={levels.get(source.uuid)} onSelect={onSelectNode} />
         <div className="my-2 ml-4 h-5 border-l border-line" />
-        <ReferenceNode label="引用行动" node={target} author={userById.get(target.authorId)} level={levels.get(target.id)} onSelect={onSelectNode} />
+        <ReferenceNode label="引用行动" node={target} author={userById.get(target.authorId)} level={levels.get(target.uuid)} onSelect={onSelectNode} />
       </section>
 
       <section className="action-reading-document px-6 py-4">
         <h4 className="text-sm font-medium">来源约定</h4>
         <div className="mt-3">
-          <AgreementContent agreement={reference.agreement} origin={getActionAgreementOrigin(actions, source.id)} onSelectSource={onSelectNode} />
+          <AgreementContent agreement={reference.agreement} origin={getActionAgreementOrigin(actions, source.uuid)} onSelectSource={onSelectNode} />
         </div>
       </section>
 
@@ -98,7 +98,7 @@ function ReferenceNode({ label, node, author, level, onSelect }: {
       </div>
       <div className="flex w-full items-center gap-3 rounded-md bg-soft p-3">
         <ProfilePreview profile={author} userId={node.authorId} className="inline-flex shrink-0 rounded-lg focus-visible:outline-2 focus-visible:outline-signal"><Avatar profile={author} label={author?.name ?? node.authorId} size="small" /></ProfilePreview>
-        <button className="group flex min-w-0 flex-1 items-center gap-3 rounded-sm border-0 bg-transparent p-0 text-left hover:text-signal" type="button" onClick={() => onSelect(node.id)}>
+        <button className="group flex min-w-0 flex-1 items-center gap-3 rounded-sm border-0 bg-transparent p-0 text-left hover:text-signal" type="button" onClick={() => onSelect(node.uuid)}>
           <span className="min-w-0 flex-1"><strong className="block text-sm font-medium leading-[1.7] group-hover:text-signal">{node.title}</strong><span className="mt-1 block text-sm text-muted">{author?.name ?? node.authorId}</span></span>
           <ArrowUpRight size={15} className="shrink-0 text-muted group-hover:text-signal" />
         </button>

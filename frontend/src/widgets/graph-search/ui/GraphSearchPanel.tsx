@@ -13,7 +13,7 @@ import { UserSearchResults } from './UserSearchResults'
 
 type Props = {
   scope: GraphSearchScope
-  projectId: string
+  graphId: string
   active: boolean
   actions: ActionNode[]
   users: UserProfile[]
@@ -26,7 +26,7 @@ const pageSize = 6
 const labels: Record<GraphSearchScope, string> = { expressions: '表达', agreements: '约定', actions: '行动', users: '用户' }
 
 /** Owns one category's draft, submitted criteria, pagination and retained result components. */
-export function GraphSearchPanel({ scope, projectId, active, actions, users, filterUsers, onExplore, onExploreReference }: Props) {
+export function GraphSearchPanel({ scope, graphId, active, actions, users, filterUsers, onExplore, onExploreReference }: Props) {
   const [draft, setDraft] = useState<GraphSearchCriteria>({ keyword: '' })
   const [submitted, setSubmitted] = useState<GraphSearchCriteria | null>(null)
   const [page, setPage] = useState(1)
@@ -34,16 +34,16 @@ export function GraphSearchPanel({ scope, projectId, active, actions, users, fil
   const pendingFocus = useRef(false)
   const mode = scope === 'expressions' ? 'expression' : 'objective'
   const documents = useMemo(() => submitted && (scope === 'expressions' || scope === 'actions')
-    ? searchGraphDocuments(actions, projectId, submitted.keyword, mode, submitted.authorId) : [], [actions, projectId, submitted, mode, scope])
+    ? searchGraphDocuments(actions, graphId, submitted.keyword, mode, submitted.authorId) : [], [actions, graphId, submitted, mode, scope])
   const agreements = useMemo(() => submitted && scope === 'agreements'
-    ? searchGraphAgreementResponses(actions, projectId, submitted) : [], [actions, projectId, submitted, scope])
+    ? searchGraphAgreementResponses(actions, graphId, submitted) : [], [actions, graphId, submitted, scope])
   const participants = useMemo(() => submitted && scope === 'users'
-    ? searchGraphParticipants(actions, users, projectId, submitted.keyword) : [], [actions, users, projectId, submitted, scope])
+    ? searchGraphParticipants(actions, users, graphId, submitted.keyword) : [], [actions, users, graphId, submitted, scope])
   const actionCounts = useMemo(() => {
     const counts = new Map<string, number>()
-    for (const action of actions) if (action.projectId === projectId) counts.set(action.authorId, (counts.get(action.authorId) ?? 0) + 1)
+    for (const action of actions) if (action.graphId === graphId) counts.set(action.authorId, (counts.get(action.authorId) ?? 0) + 1)
     return counts
-  }, [actions, projectId])
+  }, [actions, graphId])
   const count = scope === 'users' ? participants.length : scope === 'agreements' ? agreements.length : documents.length
   const pageCount = Math.max(1, Math.ceil(count / pageSize))
   const currentPage = Math.min(page, pageCount)
@@ -82,7 +82,7 @@ export function GraphSearchPanel({ scope, projectId, active, actions, users, fil
         <p ref={resultsRef} tabIndex={-1} className="mt-5 text-xs leading-5 text-muted outline-none">找到 {count} {scope === 'users' ? '位参与用户' : `条${labels[scope]}`}</p>
         {!count ? <ListEmptyState />
           : scope === 'agreements' ? <AgreementResponseList references={agreements.slice(startIndex, startIndex + pageSize)} users={users} infinite={false} active={active} searchQuery={submitted.keyword} onExplore={onExploreReference} showEnd={currentPage === pageCount} />
-            : scope === 'users' ? <UserSearchResults users={participants.slice(startIndex, startIndex + pageSize)} projectId={projectId} actionCounts={actionCounts} query={submitted.keyword} showEnd={currentPage === pageCount} />
+            : scope === 'users' ? <UserSearchResults users={participants.slice(startIndex, startIndex + pageSize)} graphId={graphId} actionCounts={actionCounts} query={submitted.keyword} showEnd={currentPage === pageCount} />
               : <ActionPostList nodes={documents.slice(startIndex, startIndex + pageSize)} actions={actions} users={users} mode={mode} onExplore={onExplore} searchQuery={submitted.keyword} showEnd={currentPage === pageCount} />}
         {pageCount > 1 && <Pagination currentPage={currentPage} pageCount={pageCount} onChange={changePage} />}
       </>}

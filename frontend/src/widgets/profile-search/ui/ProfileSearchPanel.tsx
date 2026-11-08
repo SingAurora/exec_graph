@@ -3,11 +3,11 @@ import { filterAgreementParticipants, getReferenceAgreementAuthorId } from '../.
 import { searchActions, searchAgreementResponses, searchExpressions } from '../../../entities/action/lib/search'
 import type { ActionReference } from '../../../entities/action/lib/references'
 import type { ActionDocumentMode, ActionNode } from '../../../entities/action/model/types'
-import { getGraphActivity } from '../../../entities/project/lib/activity'
-import { searchProjects } from '../../../entities/project/lib/search'
+import { getGraphActivity } from '../../../entities/graph/lib/activity'
+import { searchGraphs } from '../../../entities/graph/lib/search'
 import type { ProfileSearchCriteria, ProfileSearchScope } from '../../../features/search-profile/model/types'
 import { ProfileSearchForm } from '../../../features/search-profile/ui/ProfileSearchForm'
-import type { Project } from '../../../entities/project/model/types'
+import type { Graph } from '../../../entities/graph/model/types'
 import type { UserProfile } from '../../../entities/profile/model/types'
 import { Pagination } from '../../../shared/ui/Pagination'
 import { ListEmptyState } from '../../../shared/ui/empty-state/EmptyState'
@@ -22,12 +22,12 @@ type Props = {
   actions: ActionNode[]
   allActions: ActionNode[]
   references?: ActionReference[]
-  graphs?: Project[]
+  graphs?: Graph[]
   users: UserProfile[]
   profileId?: string
   onOpenNode: (node: ActionNode, mode: ActionDocumentMode) => void
   onOpenReference?: (reference: ActionReference) => void
-  onOpenProject: (id: string) => void
+  onOpenGraph: (id: string) => void
   renderContext: (node: ActionNode) => ReactNode
 }
 const pageSize = 6
@@ -35,7 +35,7 @@ const labels: Record<ProfileSearchScope, string> = { expressions: '表达', agre
 const emptyCriteria: ProfileSearchCriteria = { keyword: '', counterpartId: '' }
 
 /** Retains one category's draft, submitted results and page without filtering the normal profile lists. */
-export function ProfileSearchPanel({ scope, active, expressions, actions, allActions, references, graphs, users, profileId, onOpenNode, onOpenReference, onOpenProject, renderContext }: Props) {
+export function ProfileSearchPanel({ scope, active, expressions, actions, allActions, references, graphs, users, profileId, onOpenNode, onOpenReference, onOpenGraph, renderContext }: Props) {
   const [draft, setDraft] = useState(emptyCriteria)
   const [submitted, setSubmitted] = useState<ProfileSearchCriteria | null>(null)
   const [page, setPage] = useState(1)
@@ -46,10 +46,10 @@ export function ProfileSearchPanel({ scope, active, expressions, actions, allAct
     : scope === 'actions' ? searchActions(actions, users, submitted.keyword) : [], [scope, submitted, expressions, actions, allActions, users])
   const agreements = useMemo(() => submitted && scope === 'agreements'
     ? searchAgreementResponses(filterAgreementParticipants(references ?? [], profileId, submitted.counterpartId), users, submitted.keyword) : [], [submitted, scope, references, profileId, users])
-  const graphMatches = useMemo(() => submitted && scope === 'graphs' ? searchProjects(graphs ?? [], submitted.keyword) : [], [submitted, scope, graphs])
+  const graphMatches = useMemo(() => submitted && scope === 'graphs' ? searchGraphs(graphs ?? [], submitted.keyword) : [], [submitted, scope, graphs])
   const counterpartOptions = useMemo(() => [...new Set((references ?? []).flatMap((reference) => [reference.target.authorId, getReferenceAgreementAuthorId(reference)]))]
     .filter((id) => id !== profileId)
-    .map((id) => ({ value: id, label: users.find((user) => user.id === id)?.name ?? id }))
+    .map((id) => ({ value: id, label: users.find((user) => user.uuid === id)?.name ?? id }))
     .sort((a, b) => a.label.localeCompare(b.label, 'zh-CN')), [references, profileId, users])
   const count = scope === 'graphs' ? graphMatches.length : scope === 'agreements' ? agreements.length : documents.length
   const pageCount = Math.max(1, Math.ceil(count / pageSize))
@@ -74,7 +74,7 @@ export function ProfileSearchPanel({ scope, active, expressions, actions, allAct
       {submitted && <>
         <p ref={resultsRef} tabIndex={-1} className="mt-5 text-xs leading-5 text-muted outline-none">找到 {count} {scope === 'graphs' ? '个' : '条'}{labels[scope]}</p>
         {!count ? <ListEmptyState />
-          : scope === 'graphs' ? <GraphList items={graphMatches.slice(start, start + pageSize).map((project) => getGraphActivity(project, allActions))} searchQuery={submitted.keyword} onOpen={onOpenProject} dividers={false} showEnd={currentPage === pageCount} />
+          : scope === 'graphs' ? <GraphList items={graphMatches.slice(start, start + pageSize).map((graph) => getGraphActivity(graph, allActions))} searchQuery={submitted.keyword} onOpen={onOpenGraph} dividers={false} showEnd={currentPage === pageCount} />
             : scope === 'agreements' && onOpenReference ? <AgreementResponseList references={agreements.slice(start, start + pageSize)} users={users} active={active} infinite={false} presentation="feed" searchQuery={submitted.keyword} onExplore={onOpenReference} renderContext={(reference) => renderContext(reference.target)} showEnd={currentPage === pageCount} />
               : <ActionPostList nodes={documents.slice(start, start + pageSize)} actions={allActions} users={users} mode={scope === 'expressions' ? 'expression' : 'objective'} presentation={scope === 'expressions' ? 'feed' : 'default'} searchQuery={submitted.keyword} onExplore={onOpenNode} renderContext={renderContext} showEnd={currentPage === pageCount} />}
         {pageCount > 1 && <Pagination currentPage={currentPage} pageCount={pageCount} onChange={(next) => { pendingFocus.current = true; setPage(next) }} />}

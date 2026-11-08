@@ -4,20 +4,20 @@ import type { ActionDocumentMode, ActionNode } from '../../entities/action/model
 import { getProfileHighlightCandidates } from '../../entities/action/lib/profile-highlights'
 import type { UserProfile } from '../../entities/profile/model/types'
 import { profileHighlightLimit } from '../../entities/profile/model/highlights'
-import type { Project } from '../../entities/project/model/types'
+import type { Graph } from '../../entities/graph/model/types'
 import { ChooseProfileHighlights } from '../../features/profile-highlights/ui/ChooseProfileHighlights'
 import { ProfileHighlightItem } from './ProfileHighlightItem'
 
 /** 主页最多展示五个自主排序的表达；约定来自各自选中分支，不单独精选。 */
-export function ProfileHighlights({ profile, self, actions, projects, users, onOpenNode }: {
-  profile: UserProfile; self: boolean; actions: ActionNode[]; projects: Project[]; users: UserProfile[]
+export function ProfileHighlights({ profile, self, actions, graphs, users, onOpenNode }: {
+  profile: UserProfile; self: boolean; actions: ActionNode[]; graphs: Graph[]; users: UserProfile[]
   onOpenNode: (node: ActionNode, mode: ActionDocumentMode) => void
 }) {
   const [editing, setEditing] = useState(false)
   const editRef = useRef<HTMLButtonElement>(null)
-  const candidates = getProfileHighlightCandidates(actions, profile.id)
+  const candidates = getProfileHighlightCandidates(actions, profile.uuid)
   const entries = [...new Set(profile.highlights?.expressionNodeIds ?? [])].slice(0, profileHighlightLimit)
-    .flatMap((id) => candidates.filter(({ node }) => node.id === id))
+    .flatMap((id) => candidates.filter(({ node }) => node.uuid === id))
   if (!self && !entries.length) return null
 
   return (
@@ -26,10 +26,10 @@ export function ProfileHighlights({ profile, self, actions, projects, users, onO
         {self && <button ref={editRef} type="button" className="text-button text-xs" onClick={() => setEditing(true)}><Pencil size={13} />编辑精选</button>}
       </div>
       {!entries.length && <p className="py-3 text-sm text-muted">尚未精选表达</p>}
-      <ol className="divide-y divide-line">{entries.map((entry) => <li key={entry.node.id} className="min-w-0">
-        <ProfileHighlightItem entry={entry} actions={actions} projects={projects} users={users} onOpenNode={onOpenNode} />
+      <ol className="divide-y divide-line">{entries.map((entry) => <li key={entry.node.uuid} className="min-w-0">
+        <ProfileHighlightItem entry={entry} actions={actions} graphs={graphs} users={users} onOpenNode={onOpenNode} />
       </li>)}</ol>
-      {editing && <ChooseProfileHighlights userId={profile.id} highlights={profile.highlights} candidates={candidates} projects={projects} returnFocusRef={editRef} onClose={() => setEditing(false)} />}
+      {editing && <ChooseProfileHighlights userId={profile.uuid} highlights={profile.highlights} candidates={candidates} graphs={graphs} returnFocusRef={editRef} onClose={() => setEditing(false)} />}
     </section>
   )
 }

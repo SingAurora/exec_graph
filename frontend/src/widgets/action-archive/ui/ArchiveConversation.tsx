@@ -8,17 +8,17 @@ import { CopyConversationButton } from '../../../shared/ui/CopyConversationButto
 import { formatConversationForCopy } from '../../../shared/lib/format-conversation'
 
 /** 按顺序展示真实保存的对话；行动和表达共用连续消息，不重复成两套生成历史。 */
-export function ArchiveConversation({ label, messages, authorId, projectId, users }: {
+export function ArchiveConversation({ label, messages, authorId, graphId, users }: {
   label: string
   messages: ActionExpressionMessage[]
   authorId: string
-  projectId: string
+  graphId: string
   users: UserProfile[]
 }) {
   const copyText = formatConversationForCopy(messages, {
     resolveUserName: (message) => {
       const participantId = message.authorId ?? authorId
-      return users.find((user) => user.id === participantId)?.name ?? participantId
+      return users.find((user) => user.uuid === participantId)?.name ?? participantId
     },
     fallbackAIName: '引序 AI',
   })
@@ -32,9 +32,9 @@ export function ArchiveConversation({ label, messages, authorId, projectId, user
       <div className="mt-5 grid gap-6">
         {messages.map((message) => {
           const participantId = message.authorId ?? authorId
-          const participant = users.find((user) => user.id === participantId)
+          const participant = users.find((user) => user.uuid === participantId)
           const participantName = participant?.name ?? participantId
-          const participantLink = `#profile?userId=${encodeURIComponent(participantId)}&fromGraph=${encodeURIComponent(projectId)}&fromTab=explore`
+          const participantLink = `#profile?userId=${encodeURIComponent(participantId)}&fromGraph=${encodeURIComponent(graphId)}&fromTab=explore`
           return (
             <article className="flex items-start gap-3" key={message.id}>
               {message.speaker === 'user' ? <ProfilePreview profile={participant} userId={participantId} className="shrink-0 rounded-lg" href={participantLink}><Avatar profile={participant} label={participantName} size="small" /></ProfilePreview>

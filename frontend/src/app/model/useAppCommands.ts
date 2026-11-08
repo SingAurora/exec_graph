@@ -1,10 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRef } from 'react'
 import { actionFromView, actionKeys, type ActionContextNode, type VersionedAction } from '../../entities/action/api/context'
-import { graphKeys, type GraphView } from '../../entities/project/api/graphs'
+import { graphKeys, type GraphView } from '../../entities/graph/api/graphs'
 import { profileKeys, type SessionView } from '../../entities/profile/api/profiles'
 import { followingKeys } from '../../entities/following/api/following'
-import { createGraph, removeGraph, updateGraph } from '../../features/project/api/commands'
+import { createGraph, removeGraph, updateGraph } from '../../features/graph/api/commands'
 import { createAction, deleteAction, reviseAgreement, reviseExpression } from '../../features/action/api/commands'
 import { publishNodeDocument } from '../../features/action-generation/api/generation'
 import { setFollowing } from '../../features/follow/api/commands'
@@ -28,8 +28,8 @@ export function useAppCommands(scope: string, csrfToken: string) {
     const node = actionFromView(view)
     for (const query of client.getQueryCache().findAll({ queryKey: actionKeys.scope(scope) })) {
       const ids = query.queryKey[3]
-      if (!Array.isArray(ids) || !ids.includes(node.projectId)) continue
-      client.setQueryData<VersionedAction[]>(query.queryKey, (nodes) => nodes ? [node, ...nodes.filter((item) => item.id !== node.id)] : nodes)
+      if (!Array.isArray(ids) || !ids.includes(node.graphId)) continue
+      client.setQueryData<VersionedAction[]>(query.queryKey, (nodes) => nodes ? [node, ...nodes.filter((item) => item.uuid !== node.uuid)] : nodes)
     }
     void client.invalidateQueries({ queryKey: actionKeys.scope(scope) })
   }
@@ -39,14 +39,14 @@ export function useAppCommands(scope: string, csrfToken: string) {
     return createGraph(input, { ...options, idempotencyKey: graphSubmission.current.key })
   }, onSuccess(graph) {
     graphSubmission.current = undefined
-    client.setQueryData<GraphView[]>(graphKeys.catalogue(scope), (graphs) => [graph, ...(graphs ?? []).filter((item) => item.id !== graph.id)])
+    client.setQueryData<GraphView[]>(graphKeys.catalogue(scope), (graphs) => [graph, ...(graphs ?? []).filter((item) => item.uuid !== graph.uuid)])
   } })
   const graphUpdate = useMutation({ mutationFn: (input: Parameters<typeof updateGraph>[0]) => updateGraph(input, options), onSuccess(graph) {
-    client.setQueryData<GraphView[]>(graphKeys.catalogue(scope), (graphs) => graphs?.map((item) => item.id === graph.id ? graph : item))
+    client.setQueryData<GraphView[]>(graphKeys.catalogue(scope), (graphs) => graphs?.map((item) => item.uuid === graph.uuid ? graph : item))
   } })
   const graphDelete = useMutation({ mutationFn: (input: Parameters<typeof removeGraph>[0]) => removeGraph(input, options), onSuccess(_data, input) {
-    client.setQueryData<GraphView[]>(graphKeys.catalogue(scope), (graphs) => graphs?.filter((item) => item.id !== input.graphId))
-    client.setQueriesData<VersionedAction[]>({ queryKey: actionKeys.scope(scope) }, (nodes) => nodes?.filter((node) => node.projectId !== input.graphId))
+    client.setQueryData<GraphView[]>(graphKeys.catalogue(scope), (graphs) => graphs?.filter((item) => item.uuid !== input.graphId))
+    client.setQueriesData<VersionedAction[]>({ queryKey: actionKeys.scope(scope) }, (nodes) => nodes?.filter((node) => node.graphId !== input.graphId))
     void client.invalidateQueries({ queryKey: followingKeys.sources(scope) })
   } })
   const actionCreate = useMutation({ mutationFn: (input: Parameters<typeof createAction>[0]) => {
@@ -56,7 +56,7 @@ export function useAppCommands(scope: string, csrfToken: string) {
   const expressionUpdate = useMutation({ mutationFn: (input: Parameters<typeof reviseExpression>[0]) => reviseExpression(input, options), onSuccess: updateNode })
   const agreementUpdate = useMutation({ mutationFn: (input: Parameters<typeof reviseAgreement>[0]) => reviseAgreement(input, options), onSuccess: updateNode })
   const actionDelete = useMutation({ mutationFn: (input: { nodeId: string; expectedVersion: number }) => deleteAction(input, options), onSuccess(_data, input) {
-    client.setQueriesData<VersionedAction[]>({ queryKey: actionKeys.scope(scope) }, (nodes) => nodes?.filter((node) => node.id !== input.nodeId))
+    client.setQueriesData<VersionedAction[]>({ queryKey: actionKeys.scope(scope) }, (nodes) => nodes?.filter((node) => node.uuid !== input.nodeId))
     void client.invalidateQueries({ queryKey: actionKeys.scope(scope) })
   } })
   const nodeDocumentPublish = useMutation({ mutationFn: (input: { nodeId: string; expectedVersion: number; kind: 'expression' | 'agreement' }) => publishNodeDocument(input.nodeId, input.expectedVersion, input.kind, csrfToken), onSuccess: updateNode })

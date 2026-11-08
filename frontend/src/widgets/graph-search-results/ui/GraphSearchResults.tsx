@@ -2,25 +2,25 @@ import { useMemo, useState } from 'react'
 import type { ActionNode } from '../../../entities/action/model/types'
 import { searchPublicGraphs } from '../../../features/search-graphs/lib/search'
 import { DiscoverySearch } from '../../../features/search-discovery/ui/DiscoverySearch'
-import type { Project } from '../../../entities/project/model/types'
+import type { Graph } from '../../../entities/graph/model/types'
 import { Pagination } from '../../../shared/ui/Pagination'
 import { GraphList } from '../../graphs/GraphList'
 
 type Props = {
-  projects: Project[]
+  graphs: Graph[]
   actions: ActionNode[]
   keyword: string
   page: number
   onSearch: (keyword: string) => void
   onPageChange: (page: number) => void
-  onOpenProject: (id: string) => void
+  onOpenGraph: (id: string) => void
 }
 const pageSize = 10
 
 /** Full graph search with shareable keywords and pagination, reached from the discovery sidebar. */
-export function GraphSearchResults({ projects, actions, keyword, page, onSearch, onPageChange, onOpenProject }: Props) {
+export function GraphSearchResults({ graphs, actions, keyword, page, onSearch, onPageChange, onOpenGraph }: Props) {
   const [draft, setDraft] = useState(keyword)
-  const items = useMemo(() => searchPublicGraphs(projects, actions, keyword), [projects, actions, keyword])
+  const items = useMemo(() => searchPublicGraphs(graphs, actions, keyword), [graphs, actions, keyword])
   const pageCount = Math.max(1, Math.ceil(items.length / pageSize))
   const currentPage = Math.min(page, pageCount)
   return (
@@ -30,7 +30,7 @@ export function GraphSearchResults({ projects, actions, keyword, page, onSearch,
         <button type="submit" className="quiet-button h-10">搜索</button>
       </form>
       {keyword && <p className="mt-4 text-xs leading-5 text-muted">找到 {items.length} 个图</p>}
-      <GraphList items={items.slice((currentPage - 1) * pageSize, currentPage * pageSize)} searchQuery={keyword} onOpen={onOpenProject} dividers={false} showEnd={currentPage === pageCount} />
+      <GraphList items={items.slice((currentPage - 1) * pageSize, currentPage * pageSize)} searchQuery={keyword} onOpen={onOpenGraph} dividers={false} showEnd={currentPage === pageCount} />
       {items.length > pageSize && <Pagination currentPage={currentPage} pageCount={pageCount} onChange={onPageChange} />}
     </section>
   )

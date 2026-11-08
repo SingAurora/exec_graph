@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { canEditActionAgreement, getActionAgreement, getActionAgreementOrigin, updateActionAgreement } from './agreements.ts'
 import { getActionReferences } from './references.ts'
 
-const node = (id, extra = {}) => ({ id, projectId: 'graph', number: Number(id), authorId: 'jo', ...extra })
+const node = (id, extra = {}) => ({ uuid: id, id, graphId: 'graph', number: Number(id), authorId: 'jo', ...extra })
 
 describe('agreement versions along a continuation', () => {
   test('inherits over multiple authors and unchanged nodes, then revises without rewriting earlier versions', () => {
@@ -30,7 +30,7 @@ describe('agreement versions along a continuation', () => {
     expect(getActionAgreement([node('1')], '1')).toEqual({ markdown: '' })
     expect(getActionAgreement([], 'missing')).toEqual({ markdown: '' })
     expect(getActionAgreement([node('1', { parentId: '2' }), node('2', { parentId: '1' })], '1')).toEqual({ markdown: '' })
-    expect(getActionAgreement([node('1', { parentId: '2' }), node('2', { projectId: 'other', agreementMarkdown: '其他图' })], '1')).toEqual({ markdown: '' })
+    expect(getActionAgreement([node('1', { parentId: '2' }), node('2', { graphId: 'other', agreementMarkdown: '其他图' })], '1')).toEqual({ markdown: '' })
     expect(getActionAgreement([node('1', { parentId: 'missing' })], '1')).toEqual({ markdown: '' })
     expect(getActionAgreement([node('1', { agreementMarkdown: '旧约定' }), node('2', { parentId: '1', agreementMarkdown: '  ' })], '2').markdown.trim()).toBe('')
   })
@@ -40,13 +40,13 @@ describe('agreement versions along a continuation', () => {
       node('3', { parentId: '2', agreementMarkdown: '', referenceAgreements: [{ sourceId: '2', complies: false }] }),
       node('4', { parentId: '3' }), node('5', { parentId: '2', agreementMarkdown: '只记录热时' })]
     const references = getActionReferences(nodes)
-    const incoming = references.find((reference) => reference.target.id === '3')
+    const incoming = references.find((reference) => reference.target.uuid === '3')
     expect(incoming.agreement.markdown).toBe('十分钟观察')
-    expect(incoming.agreement.sourceNode.id).toBe('1')
+    expect(incoming.agreement.sourceNode.uuid).toBe('1')
     expect(incoming.agreementStatus).toBe('exception')
     expect(incoming).not.toHaveProperty('authorization')
-    expect(references.find((reference) => reference.target.id === '4').agreementStatus).toBe('unrestricted')
-    expect(references.find((reference) => reference.target.id === '5').agreementStatus).toBe('unreviewed')
+    expect(references.find((reference) => reference.target.uuid === '4').agreementStatus).toBe('unrestricted')
+    expect(references.find((reference) => reference.target.uuid === '5').agreementStatus).toBe('unreviewed')
   })
 })
 
@@ -64,7 +64,7 @@ describe('editing an endpoint agreement', () => {
     expect(canEditActionAgreement([node('1'), node('2', { parentId: '1' })], '1')).toBe(false)
     const merge = node('2', { mergedParentIds: ['1'] })
     expect(canEditActionAgreement([node('1'), merge], '1')).toBe(false)
-    expect(canEditActionAgreement([node('1'), { ...merge, projectId: 'other' }], '1')).toBe(true)
+    expect(canEditActionAgreement([node('1'), { ...merge, graphId: 'other' }], '1')).toBe(true)
   })
 
   test('saves on the same node without changing expression, facts, conversation or incoming agreement handling', () => {

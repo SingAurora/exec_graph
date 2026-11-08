@@ -6,7 +6,7 @@ import { ProfileTimelineItem } from './ProfileTimelineItem.tsx'
 describe('compact profile timeline', () => {
   test('shows the action summary below its title, keeping expressions and images out of the log', () => {
     const html = renderToStaticMarkup(createElement(ProfileTimelineItem, {
-      node: { id: 'a', title: '做了第一盘番茄炒蛋', createdAt: new Date(2026, 9, 21, 19, 30).toISOString(),
+      node: { uuid: 'a', id: 'a', title: '做了第一盘番茄炒蛋', createdAt: new Date(2026, 9, 21, 19, 30).toISOString(),
         markdown: '不应该显示的旧记录', objectiveMarkdown: '# 做了第一盘番茄炒蛋\n\n**番茄切小块**，鸡蛋炒好先盛出。\n![成品](/food.jpg)', expressionMarkdown: '不应该显示的表达', images: [{ url: '/food.jpg', alt: '成品' }] },
       onOpenNode() {},
     }))

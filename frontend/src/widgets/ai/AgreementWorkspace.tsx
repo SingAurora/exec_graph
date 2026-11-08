@@ -40,19 +40,19 @@ export function AgreementWorkspace({ node, csrfToken, draftKey, actions, profile
   useEffect(() => {
     if (node.authorId !== profileId) return
     let active = true
-    void getNodeDocuments(node.id).then((documents) => {
+    void getNodeDocuments(node.uuid).then((documents) => {
       const document = documents.find((item) => item.kind === 'agreement')
       const draft = document?.status === 'draft' ? document.draftMarkdown?.trim() : undefined
       if (active && draft) setInitialDraft(draft)
     }).catch(() => undefined)
     return () => { active = false }
-  }, [node.id, node.authorId, profileId])
+  }, [node.uuid, node.authorId, profileId])
   const agreement = { markdown: initialDraft || node.agreementMarkdown || '' }
-  const expressionContext = useMemo(() => getActionExpressionContext(actions, node.id), [actions, node.id])
-  const signature = JSON.stringify({ node: node.id, version: node.version, guide: contextGuide, agreement: node.agreementMarkdown ?? '',
+  const expressionContext = useMemo(() => getActionExpressionContext(actions, node.uuid), [actions, node.uuid])
+  const signature = JSON.stringify({ node: node.uuid, version: node.version, guide: contextGuide, agreement: node.agreementMarkdown ?? '',
     facts: expressionContext?.facts })
   const local = useLocalDraft<ExpressionWorkspaceDraft>({
-    draftKey: draftKey ?? getActionDraftKey(profileId, node.projectId, 'agreement', node.id),
+    draftKey: draftKey ?? getActionDraftKey(profileId, node.graphId, 'agreement', node.uuid),
     initialValue: { messages: node.agreementConversation ?? [], input: '', generated: false, contextSignature: signature, view: createWorkspaceView() },
     validate: isExpressionWorkspaceDraft,
     restore: (saved) => reconcileWorkspaceDraft({ ...saved, generationRequest: normalizeGenerationRequest(saved.generationRequest) }, signature),
@@ -65,7 +65,7 @@ export function AgreementWorkspace({ node, csrfToken, draftKey, actions, profile
   const [sending, setSending] = useState(false)
   const [saving, setSaving] = useState(false)
   const { showToast } = useToast()
-  const canEdit = canEditActionAgreement(actions, node.id)
+  const canEdit = canEditActionAgreement(actions, node.uuid)
   const canPublishExistingDraft = local.ready && canEdit && Boolean(initialDraft) && Boolean(onPublishDraft) && !sending && !saving && markdown.trim() === agreement.markdown.trim()
   const canSave = canPublishExistingDraft || (local.ready && canEdit && generated && Boolean(generation?.updateAgreement)
     && local.value.contextSignature === signature && !sending && !saving && markdown.trim() !== agreement.markdown.trim())
@@ -103,7 +103,7 @@ export function AgreementWorkspace({ node, csrfToken, draftKey, actions, profile
     const clean = input.trim()
     if (!local.ready || !clean || sending || saving || !canEdit) return
     const next = [...messages.filter(isConversationMessage), { id: `agreement-user-${Date.now()}`, speaker: 'user' as const, body: clean, authorId: profileId }]
-    const requestInput: GenerateInput = { mode: 'agreement', graphId: node.projectId, nodeId: node.id, expectedVersion: node.version, messages: [clean],
+    const requestInput: GenerateInput = { mode: 'agreement', graphId: node.graphId, nodeId: node.uuid, expectedVersion: node.version, messages: [clean],
       conversationId: generation?.conversationId, mergedParentIds: [], sourceVersions: [], agreement: documentUpdate(node.agreementMarkdown ?? ''), currentDocument: markdown }
     const request: GenerationRequest = !generated && generationRequest && generation?.status !== 'failed' && JSON.stringify(generationRequest.input) === JSON.stringify(requestInput)
       ? generationRequest : { key: crypto.randomUUID(), input: requestInput }

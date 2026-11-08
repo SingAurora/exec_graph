@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { getActionExpressionContext } from './expression-context.ts'
 import { updateActionExpressionFromConversation } from './expressions.ts'
 
-const node = (number, extra = {}) => ({ id: String(number), number, projectId: 'graph', authorId: 'jo', title: `行动 ${number}`, markdown: `事实 ${number}`, conversation: [], ...extra })
+const node = (number, extra = {}) => ({ uuid: String(number), id: String(number), number, graphId: 'graph', authorId: 'jo', title: `行动 ${number}`, markdown: `事实 ${number}`, conversation: [], ...extra })
 const editor = { authorId: 'lin', createdAt: '2026-10-18T12:00:00+08:00' }
 const conversation = [
   { id: 'expression-user', speaker: 'user', body: '保留个人偏好，不推断别人', authorId: 'lin' },
@@ -13,7 +13,7 @@ describe('expression dialogue context and confirmation', () => {
   test('includes current and all cited facts once, excluding unrelated branches and cross-graph references', () => {
     const nodes = [node(1), node(2, { parentId: '1', expressionMarkdown: '看法不是事实' }), node(3, { parentId: '1' }),
       node(4, { parentId: '2', mergedParentIds: ['3', '99'], objectiveMarkdown: '本次事实', markdown: '旧版兼容正文' }),
-      node(5, { parentId: '1' }), node(99, { projectId: 'other' })]
+      node(5, { parentId: '1' }), node(99, { graphId: 'other' })]
     const context = getActionExpressionContext(nodes, '4')
     expect(context.nodeNumber).toBe(4)
     expect(context.facts.map((fact) => fact.number)).toEqual([1, 2, 3, 4])

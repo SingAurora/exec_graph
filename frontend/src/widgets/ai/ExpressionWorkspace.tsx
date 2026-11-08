@@ -40,22 +40,22 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
   useEffect(() => {
     if (node.authorId !== profileId) return
     let active = true
-    void getNodeDocuments(node.id).then((documents) => {
+    void getNodeDocuments(node.uuid).then((documents) => {
       const document = documents.find((item) => item.kind === 'expression')
       const draft = document?.status === 'draft' ? document.draftMarkdown?.trim() : undefined
       if (active && draft) setInitialDraft(draft)
     }).catch(() => undefined)
     return () => { active = false }
-  }, [node.id, node.authorId, profileId])
+  }, [node.uuid, node.authorId, profileId])
   const expression = { markdown: initialDraft || node.expressionMarkdown || '' }
-  const context = useMemo(() => getActionExpressionContext(actions, node.id), [actions, node.id])
+  const context = useMemo(() => getActionExpressionContext(actions, node.uuid), [actions, node.uuid])
   // 当前事实、文档或对话变化都会让旧生成结果失效；草稿保留，但需再对话才能保存。
   const contextSignature = JSON.stringify({ context, version: node.version, guide: contextGuide, expression: node.expressionMarkdown ?? '',
-    sourceAgreements: getActionSourceAgreements(actions, node.id).map((reference) => [reference.source.id, reference.agreement.markdown]),
+    sourceAgreements: getActionSourceAgreements(actions, node.uuid).map((reference) => [reference.source.uuid, reference.agreement.markdown]),
     downstreamAgreement: node.agreementMarkdown ?? '' })
   const initialMessages: ActionExpressionMessage[] = node.expressionConversation ?? []
   const local = useLocalDraft<ExpressionWorkspaceDraft>({
-    draftKey: draftKey ?? getActionDraftKey(profileId, node.projectId, 'expression', node.id),
+    draftKey: draftKey ?? getActionDraftKey(profileId, node.graphId, 'expression', node.uuid),
     initialValue: { messages: initialMessages, input: '', generated: false, contextSignature, view: createWorkspaceView() },
     validate: isExpressionWorkspaceDraft,
     restore: (saved) => reconcileWorkspaceDraft({ ...saved, generationRequest: normalizeGenerationRequest(saved.generationRequest) }, contextSignature),
@@ -69,7 +69,7 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
   const [sending, setSending] = useState(false)
   const [saving, setSaving] = useState(false)
   const { showToast } = useToast()
-  const canEdit = canEditActionExpression(actions, node.id)
+  const canEdit = canEditActionExpression(actions, node.uuid)
   const canPublishExistingDraft = local.ready && canEdit && Boolean(initialDraft) && Boolean(onPublishDraft) && !sending && !saving && document.trim() === expression.markdown.trim()
   const canSave = canPublishExistingDraft || (local.ready && canEdit && generated && Boolean(generation?.updateExpression) && local.value.contextSignature === contextSignature && !sending && !saving && document.trim() !== expression.markdown.trim())
   const expressionStatus = !document.trim() ? '尚未发布表达' : draftDocument !== undefined ? '本次对话更新' : undefined
@@ -117,7 +117,7 @@ export function ExpressionWorkspace({ node, csrfToken, draftKey, actions, profil
     if (!local.ready || !clean || sending || saving || !canEdit || !context) return
     const savedMessages = messages.filter(isConversationMessage)
     const next = [...savedMessages, { id: `expression-user-${Date.now()}`, speaker: 'user' as const, body: clean, authorId: profileId }]
-    const requestInput: GenerateInput = { mode: 'expression', graphId: node.projectId, nodeId: node.id, expectedVersion: node.version, messages: [clean],
+    const requestInput: GenerateInput = { mode: 'expression', graphId: node.graphId, nodeId: node.uuid, expectedVersion: node.version, messages: [clean],
       conversationId: generation?.conversationId, mergedParentIds: [], sourceVersions: [], agreement: { mode: 'inherit' }, currentDocument: document }
     const request: GenerationRequest = !generated && generationRequest && generation?.status !== 'failed' && JSON.stringify(generationRequest.input) === JSON.stringify(requestInput)
       ? generationRequest : { key: crypto.randomUUID(), input: requestInput }

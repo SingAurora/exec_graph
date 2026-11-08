@@ -8,11 +8,11 @@ import { HelpPopover } from '../../../shared/ui/help/HelpPopover'
 
 /** 本次来源约定：逐条展示直接引用的条件及核对结果，与本节点的后续约定独立。 */
 export function ActionSourceAgreements({ node, actions, users, onSelect }: { node: ActionNode; actions: ActionNode[]; users: UserProfile[]; onSelect: (id: string) => void }) {
-  const references = getActionSourceAgreements(actions, node.id)
+  const references = getActionSourceAgreements(actions, node.uuid)
   if (!references.length) return null
   const unreviewed = getUnreviewedAgreementCount(references)
   return (
-    <details key={node.id} className="group/agreements rounded-lg border border-line bg-soft/40">
+    <details key={node.uuid} className="group/agreements rounded-lg border border-line bg-soft/40">
       <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-xs leading-5 [&::-webkit-details-marker]:hidden">
         <ScrollText size={14} className="shrink-0 text-muted" />
         <span className="font-medium">来源约定 <span className="ml-1 font-normal tabular-nums text-muted">{references.length}</span></span>
@@ -26,12 +26,12 @@ export function ActionSourceAgreements({ node, actions, users, onSelect }: { nod
           <p>不逐层叠加已被修改或清空的旧版本。修改本节点向后传递的约定，不会改变这次引用的核对结果。</p>
         </HelpPopover></div>
         <div className="divide-y divide-line">{references.map((reference) => {
-          const sourceAuthor = users.find((user) => user.id === reference.source.authorId)?.name ?? reference.source.authorId
+          const sourceAuthor = users.find((user) => user.uuid === reference.source.authorId)?.name ?? reference.source.authorId
           const exception = reference.agreementStatus === 'exception'
           return (
-            <section className="py-3" key={reference.id}>
+            <section className="py-3" key={reference.uuid}>
               <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs leading-5">
-                <button className="border-0 bg-transparent p-0 text-xs text-signal hover:underline" type="button" title={reference.source.title} onClick={() => onSelect(reference.source.id)}>{reference.incorporated ? '合入' : '承接'} #{reference.source.number}</button>
+                <button className="border-0 bg-transparent p-0 text-xs text-signal hover:underline" type="button" title={reference.source.title} onClick={() => onSelect(reference.source.uuid)}>{reference.incorporated ? '合入' : '承接'} #{reference.source.number}</button>
                 <span className="text-muted">{sourceAuthor}</span>
               </div>
               <p className={`mt-1.5 text-xs leading-5 ${exception ? 'text-coral' : reference.agreementStatus === 'satisfied' ? 'text-signal' : 'text-muted'}`}>

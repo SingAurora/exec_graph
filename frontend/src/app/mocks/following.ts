@@ -11,7 +11,7 @@ export function followingHandlers(db: MockDatabase) {
     http.post('*/api/commands/following/set', mockResponse(db, async (request) => {
       const body = await readBody(request, ['kind', 'targetId', 'following'])
       requireInput((body.kind === 'user' || body.kind === 'graph') && typeof body.targetId === 'string' && typeof body.following === 'boolean')
-      if (body.following && (body.kind === 'graph' ? !canFollowGraph(body.targetId, db.graphs, db.actions) : body.targetId === mockAccount(db).id || !db.users.some((user) => user.id === body.targetId))) {
+      if (body.following && (body.kind === 'graph' ? !canFollowGraph(body.targetId, db.graphs, db.actions) : body.targetId === mockAccount(db).uuid || !db.users.some((user) => user.uuid === body.targetId))) {
         throw new MockFailure('对象已不可关注', API_ERROR_CODES.conflict, 409)
       }
       const key = body.kind === 'user' ? 'userIds' : 'graphIds'

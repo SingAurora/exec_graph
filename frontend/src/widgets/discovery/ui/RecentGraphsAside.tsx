@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import { ArrowRight } from 'lucide-react'
 import type { ActionNode } from '../../../entities/action/model/types'
-import type { GraphActivity, Project } from '../../../entities/project/model/types'
-import { ProjectAvatar } from '../../../entities/project/ui/ProjectAvatar'
+import type { GraphActivity, Graph } from '../../../entities/graph/model/types'
+import { GraphAvatar } from '../../../entities/graph/ui/GraphAvatar'
 import { searchPublicGraphs } from '../../../features/search-graphs/lib/search'
 import { DiscoverySearch } from '../../../features/search-discovery/ui/DiscoverySearch'
 import { formatFullPublicationTime, formatPublicationTime } from '../../../shared/lib/date'
@@ -12,17 +12,17 @@ import { ListEmptyState } from '../../../shared/ui/empty-state/EmptyState'
 
 type Props = {
   items: GraphActivity[]
-  projects: Project[]
+  graphs: Graph[]
   actions: ActionNode[]
   onOpen: (id: string) => void
   onSearchAll: (keyword: string) => void
 }
 
 /** Keeps graph search independent of the main feed, defaulting to three recently active graphs. */
-export function RecentGraphsAside({ items, projects, actions, onOpen, onSearchAll }: Props) {
+export function RecentGraphsAside({ items, graphs, actions, onOpen, onSearchAll }: Props) {
   const [keyword, setKeyword] = useState('')
   const query = keyword.trim()
-  const results = useMemo(() => searchPublicGraphs(projects, actions, query), [projects, actions, query])
+  const results = useMemo(() => searchPublicGraphs(graphs, actions, query), [graphs, actions, query])
   const visibleItems = query ? results : items
   return (
     <aside className="sticky top-16 mt-4 min-w-0 rounded-lg bg-soft p-4">
@@ -30,11 +30,11 @@ export function RecentGraphsAside({ items, projects, actions, onOpen, onSearchAl
       <div className="mt-3"><DiscoverySearch label="图" value={keyword} onChange={setKeyword} size="sidebar" clearLabel="清除图搜索" /></div>
       {query && <p className="mt-2 text-xs leading-5 text-muted">找到 {results.length} 个图</p>}
       {visibleItems.length ? <div className="mt-4 grid gap-5">
-        {visibleItems.slice(0, 3).map(({ project, participantCount, lastActionAt }) => <button className="group flex min-w-0 items-start gap-2.5 rounded-md border-0 bg-transparent p-0 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal" type="button" key={project.id} onClick={() => onOpen(project.id)}>
-          <ProjectAvatar project={project} size="compact" />
+        {visibleItems.slice(0, 3).map(({ graph, participantCount, lastActionAt }) => <button className="group flex min-w-0 items-start gap-2.5 rounded-md border-0 bg-transparent p-0 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal" type="button" key={graph.uuid} onClick={() => onOpen(graph.uuid)}>
+          <GraphAvatar graph={graph} size="compact" />
           <span className="grid min-w-0 flex-1 gap-1">
-            <strong className="line-clamp-2 text-[13px] font-medium leading-5 group-hover:text-signal"><HighlightedText text={project.title} query={query} /></strong>
-            {query && project.description && <span className="line-clamp-2 text-xs leading-5 text-copy"><HighlightedText text={getSearchExcerpt(project.description, query)} query={query} /></span>}
+            <strong className="line-clamp-2 text-[13px] font-medium leading-5 group-hover:text-signal"><HighlightedText text={graph.title} query={query} /></strong>
+            {query && graph.description && <span className="line-clamp-2 text-xs leading-5 text-copy"><HighlightedText text={getSearchExcerpt(graph.description, query)} query={query} /></span>}
             <span className="text-xs leading-5 text-muted">{participantCount} 人参与</span>
             {!query && lastActionAt && <time className="text-[11px] leading-5 text-muted" dateTime={lastActionAt} title={formatFullPublicationTime(lastActionAt)}>最近行动 {formatPublicationTime(lastActionAt)}</time>}
           </span>

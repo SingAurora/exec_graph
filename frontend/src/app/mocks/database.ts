@@ -1,9 +1,9 @@
 import { demoActions } from '../demo/actions'
-import { currentUser, initialProjects, lin, miao } from '../demo/catalog'
+import { currentUser, initialGraphs, lin, miao } from '../demo/catalog'
 import { cookingParticipants } from '../demo/cooking/participants'
 import { initialFollowing } from '../demo/following'
 import type { ActionNode } from '../../entities/action/model/types'
-import type { GraphView } from '../../entities/project/api/graphs'
+import type { GraphView } from '../../entities/graph/api/graphs'
 import type { AccountProfile } from '../../entities/profile/api/profiles'
 import type { FollowedSources } from '../../entities/following/model/types'
 import type { GenerateInput, GenerationView } from '../../features/action-generation/api/generation'
@@ -28,7 +28,7 @@ export type MockDatabase = {
 export function createMockDatabase(): MockDatabase {
   return {
     generations: new Map(),
-    graphs: structuredClone(initialProjects).map((graph) => ({ ...graph, version: 1 })),
+    graphs: structuredClone(initialGraphs).map((graph) => ({ ...graph, version: 1 })),
     actions: structuredClone(demoActions).map((node) => ({ ...node, version: 1 })),
     users: structuredClone([currentUser, lin, miao, ...cookingParticipants]).map((user) => ({ ...user, version: 1 })),
     following: structuredClone(initialFollowing), csrfToken: crypto.randomUUID(), submissions: new Map(),

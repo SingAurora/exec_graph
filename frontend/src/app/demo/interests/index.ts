@@ -1,5 +1,5 @@
 import type { ActionNode } from '../../../entities/action/model/types'
-import type { Project } from '../../../entities/project/model/types'
+import type { Graph } from '../../../entities/graph/model/types'
 import { interestImages } from './images'
 import { interestScenarios } from './records'
 
@@ -7,8 +7,8 @@ import { interestScenarios } from './records'
 export const interestHighlightNodeIds = interestScenarios.map((scenario) => `${scenario.id}-3`)
 
 /** 兴趣图由应用层注入，进入精选后仍可打开完整行动和来源。 */
-export const interestProjects: Project[] = interestScenarios.map((scenario) => ({
-  id: scenario.id,
+export const interestGraphs: Graph[] = interestScenarios.map((scenario) => ({
+  uuid: scenario.id,
   ownerId: 'jo',
   participantIds: [...new Set(scenario.records.map((record) => record.authorId).filter((id) => id !== 'jo'))],
   title: scenario.title,
@@ -25,8 +25,8 @@ export const interestActions: ActionNode[] = interestScenarios.flatMap((scenario
   const parentId = index > 0 ? `${scenario.id}-${index}` : undefined
   return {
     ...record,
-    id,
-    projectId: scenario.id,
+    uuid: id,
+    graphId: scenario.id,
     number: index + 1,
     parentId,
     objectiveMarkdown: record.markdown,

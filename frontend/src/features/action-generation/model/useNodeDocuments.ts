@@ -19,7 +19,7 @@ export function useNodeDocuments({ node, csrfToken, enabled, onPublished }: {
   const load = useCallback(async () => {
     if (!node || !enabled) { setDocuments([]); return }
     try {
-      const next = await getNodeDocuments(node.id)
+      const next = await getNodeDocuments(node.uuid)
       setDocuments(next)
       setError('')
     } catch (cause) {
@@ -34,7 +34,7 @@ export function useNodeDocuments({ node, csrfToken, enabled, onPublished }: {
     setLoading(true)
     const run = async () => {
       try {
-        const next = await getNodeDocuments(node.id)
+        const next = await getNodeDocuments(node.uuid)
         if (!active) return
         setDocuments(next)
         setError('')
@@ -50,7 +50,7 @@ export function useNodeDocuments({ node, csrfToken, enabled, onPublished }: {
   const retry = async () => {
     if (!node) return
     setWorking('generate'); setError('')
-    try { setDocuments(await generateNodeDocuments(node.id, csrfToken)) }
+    try { setDocuments(await generateNodeDocuments(node.uuid, csrfToken)) }
     catch (cause) { setError(cause instanceof Error ? cause.message : '生成失败，请重试') }
     finally { setWorking('') }
   }
@@ -58,8 +58,8 @@ export function useNodeDocuments({ node, csrfToken, enabled, onPublished }: {
     if (!node) return
     setWorking(kind); setError('')
     try {
-      if (onPublished) await onPublished(node.id, node.version ?? 0, kind)
-      else await publishNodeDocument(node.id, node.version ?? 0, kind, csrfToken)
+      if (onPublished) await onPublished(node.uuid, node.version ?? 0, kind)
+      else await publishNodeDocument(node.uuid, node.version ?? 0, kind, csrfToken)
       await load()
     } catch (cause) { setError(cause instanceof Error ? cause.message : '发布失败，请重试') }
     finally { setWorking('') }

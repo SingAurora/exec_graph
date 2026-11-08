@@ -5,44 +5,44 @@ import { getActionReferences } from '../../../entities/action/lib/references.ts'
 import { getActionLevels } from '../../../entities/action/lib/levels.ts'
 import { createActionLayout, GRAPH_WIDTH } from './layout.ts'
 
-const actions = demoActions.filter((node) => node.projectId === 'cooking')
+const actions = demoActions.filter((node) => node.graphId === 'cooking')
 const mainPath = getPreferredPath(actions)
 
 describe('action graph reference semantics', () => {
   test('separates authorship from continuation and incorporation', () => {
     const references = getActionReferences(actions)
     expect(references).toHaveLength(19)
-    expect(references.find((edge) => edge.id === 'cooking-10:cooking-13').sameAuthor).toBe(true)
-    expect(references.find((edge) => edge.id === 'cooking-4:cooking-13').sameAuthor).toBe(true)
-    expect(references.find((edge) => edge.id === 'cooking-1:cooking-2').sameAuthor).toBe(false)
-    expect(references.filter((edge) => edge.incorporated).map((edge) => edge.id).sort())
+    expect(references.find((edge) => edge.uuid === 'cooking-10:cooking-13').sameAuthor).toBe(true)
+    expect(references.find((edge) => edge.uuid === 'cooking-4:cooking-13').sameAuthor).toBe(true)
+    expect(references.find((edge) => edge.uuid === 'cooking-1:cooking-2').sameAuthor).toBe(false)
+    expect(references.filter((edge) => edge.incorporated).map((edge) => edge.uuid).sort())
       .toEqual(['cooking-4:cooking-13', 'cooking-7:cooking-14'])
   })
 
   test('marks noncompliance independently of authorship without authorization state', () => {
     const references = getActionReferences(actions)
-    expect(references.find((edge) => edge.id === 'cooking-10:cooking-13'))
+    expect(references.find((edge) => edge.uuid === 'cooking-10:cooking-13'))
       .toMatchObject({ sameAuthor: true, agreementStatus: 'exception' })
-    expect(references.find((edge) => edge.id === 'cooking-3:cooking-6'))
+    expect(references.find((edge) => edge.uuid === 'cooking-3:cooking-6'))
       .toMatchObject({ sameAuthor: false, agreementStatus: 'exception' })
-    expect(references.find((edge) => edge.id === 'cooking-4:cooking-13'))
+    expect(references.find((edge) => edge.uuid === 'cooking-4:cooking-13'))
       .toMatchObject({ sameAuthor: true, agreementStatus: 'satisfied' })
-    expect(references.find((edge) => edge.id === 'cooking-4:cooking-7'))
+    expect(references.find((edge) => edge.uuid === 'cooking-4:cooking-7'))
       .toMatchObject({ sameAuthor: false, agreementStatus: 'satisfied' })
     const layout = createActionLayout(actions, [])
     for (const reference of references) {
       expect(reference).not.toHaveProperty('authorization')
-      const edge = layout.elements.find((element) => element.data.id === reference.id)
+      const edge = layout.elements.find((element) => element.data.id === reference.uuid)
       expect(edge.classes.split(' ').includes('exception')).toBe(reference.agreementStatus === 'exception')
       expect(edge.classes.split(' ')).toContain(reference.sameAuthor ? 'same-author' : 'other-author')
     }
   })
 
   test('does not infer compliance when an assessment is missing', () => {
-    const source = actions.find((node) => node.id === 'cooking-3')
-    const target = actions.find((node) => node.id === 'cooking-6')
+    const source = actions.find((node) => node.uuid === 'cooking-3')
+    const target = actions.find((node) => node.uuid === 'cooking-6')
     expect(getActionReferences([source, { ...target, referenceAgreements: [] }])[0].agreementStatus).toBe('unreviewed')
-    const referenceAgreements = [{ sourceId: source.id, complies: false, exceptionReason: '改变份量' }]
+    const referenceAgreements = [{ sourceId: source.uuid, complies: false, exceptionReason: '改变份量' }]
     expect(getActionReferences([source, { ...target, referenceAgreements }])[0]).toMatchObject({ agreementStatus: 'exception', exceptionReason: '改变份量' })
   })
 
@@ -50,12 +50,12 @@ describe('action graph reference semantics', () => {
     expect([...getActionContextIds(actions, 'cooking-13')].sort()).toEqual([
       'cooking-1', 'cooking-10', 'cooking-13', 'cooking-2', 'cooking-4', 'cooking-5', 'cooking-8', 'cooking-9',
     ])
-    expect(actions.find((node) => node.id === 'cooking-13').contextSnapshot.historyNodeCount).toBe(7)
-    expect(actions.find((node) => node.id === 'cooking-14').contextSnapshot.historyNodeCount).toBe(8)
+    expect(actions.find((node) => node.uuid === 'cooking-13').contextSnapshot.historyNodeCount).toBe(7)
+    expect(actions.find((node) => node.uuid === 'cooking-14').contextSnapshot.historyNodeCount).toBe(8)
     const partial = [{ ...actions[0], parentId: 'missing', mergedParentIds: ['cooking-2'] }, actions[1]]
     expect([...getActionContextIds(partial, 'cooking-2')].sort()).toEqual(['cooking-1', 'cooking-2'])
     expect(getActionParentIds({ ...actions[1], mergedParentIds: ['cooking-1', 'cooking-2'] })).toEqual(['cooking-1'])
-    expect(getActionReferences([{ ...actions[0], projectId: 'other' }, actions[1]])).toHaveLength(0)
+    expect(getActionReferences([{ ...actions[0], graphId: 'other' }, actions[1]])).toHaveLength(0)
   })
 })
 
@@ -75,7 +75,7 @@ describe('fixed-width vertical layout', () => {
     const path = getAncestors(actions, 'cooking-13')
     const layout = createActionLayout(actions, path)
     const classOf = (id) => layout.elements.find((element) => element.data.id === id).classes.split(' ')
-    expect(path.map((node) => node.id)).toEqual(['cooking-1', 'cooking-2', 'cooking-5', 'cooking-8', 'cooking-9', 'cooking-10', 'cooking-13'])
+    expect(path.map((node) => node.uuid)).toEqual(['cooking-1', 'cooking-2', 'cooking-5', 'cooking-8', 'cooking-9', 'cooking-10', 'cooking-13'])
     expect(classOf('cooking-4')).toContain('context')
     expect(classOf('cooking-4')).not.toContain('main')
     expect(classOf('cooking-4:cooking-13')).toContain('context')
@@ -93,20 +93,20 @@ describe('fixed-width vertical layout', () => {
   })
 
   test('uses the deepest source even when it is an additional reference and input is unordered', () => {
-    const root = { ...actions[0], id: 'root', number: 800 }
-    const first = { ...root, id: 'first', number: 400, parentId: root.id }
-    const second = { ...root, id: 'second', number: 200, parentId: first.id }
-    const merge = { ...root, id: 'merge', number: 100, parentId: root.id, mergedParentIds: [second.id, second.id] }
+    const root = { ...actions[0], uuid: 'root', id: 'root', number: 800 }
+    const first = { ...root, uuid: 'first', id: 'first', number: 400, parentId: root.uuid }
+    const second = { ...root, uuid: 'second', id: 'second', number: 200, parentId: first.uuid }
+    const merge = { ...root, uuid: 'merge', id: 'merge', number: 100, parentId: root.uuid, mergedParentIds: [second.uuid, second.uuid] }
     const levels = getActionLevels([merge, second, first, root])
-    expect(levels.get(root.id)).toBe(1)
-    expect(levels.get(first.id)).toBe(2)
-    expect(levels.get(second.id)).toBe(3)
-    expect(levels.get(merge.id)).toBe(4)
+    expect(levels.get(root.uuid)).toBe(1)
+    expect(levels.get(first.uuid)).toBe(2)
+    expect(levels.get(second.uuid)).toBe(3)
+    expect(levels.get(merge.uuid)).toBe(4)
   })
 
   test('rejects cyclic references instead of giving them misleading layers', () => {
-    const a = { ...actions[0], id: 'a', parentId: 'b' }
-    const b = { ...actions[0], id: 'b', parentId: 'a' }
+    const a = { ...actions[0], uuid: 'a', id: 'a', parentId: 'b' }
+    const b = { ...actions[0], uuid: 'b', id: 'b', parentId: 'a' }
     expect(() => getActionLevels([a, b])).toThrow('行动引用关系存在循环')
   })
 
@@ -118,22 +118,22 @@ describe('fixed-width vertical layout', () => {
       expect(position.x).toBeLessThanOrEqual(GRAPH_WIDTH - 40)
     }
     for (const reference of layout.references) {
-      expect(layout.positions.get(reference.source.id).y).toBeGreaterThan(layout.positions.get(reference.target.id).y)
-      const edge = layout.elements.find((element) => element.data.id === reference.id)
+      expect(layout.positions.get(reference.source.uuid).y).toBeGreaterThan(layout.positions.get(reference.target.uuid).y)
+      const edge = layout.elements.find((element) => element.data.id === reference.uuid)
       expect(edge.classes.includes('other-author')).toBe(!reference.sameAuthor)
       expect(edge.classes.includes('exception')).toBe(reference.agreementStatus === 'exception')
     }
     expect(new Set([...layout.positions.values()].map((position) => position.y)).size).toBeLessThan(actions.length)
   })
 
-  test('long chains grow vertically and empty or single-node projects remain usable', () => {
-    const chain = Array.from({ length: 100 }, (_, i) => ({ ...actions[0], id: `node-${i}`, number: i + 1,
+  test('long chains grow vertically and empty or single-node graphs remain usable', () => {
+    const chain = Array.from({ length: 100 }, (_, i) => ({ ...actions[0], uuid: `node-${i}`, id: `node-${i}`, number: i + 1,
       parentId: i ? `node-${i - 1}` : undefined, mergedParentIds: [] }))
     const layout = createActionLayout(chain, chain)
     expect(layout.height).toBeGreaterThan(8000)
     expect(layout.positions.get('node-99').x).toBe(GRAPH_WIDTH / 2)
     expect(layout.levels.get('node-99')).toBe(100)
     expect(createActionLayout([], []).positions.size).toBe(0)
-    expect(createActionLayout([actions[0]], [actions[0]]).positions.get(actions[0].id).x).toBe(GRAPH_WIDTH / 2)
+    expect(createActionLayout([actions[0]], [actions[0]]).positions.get(actions[0].uuid).x).toBe(GRAPH_WIDTH / 2)
   })
 })

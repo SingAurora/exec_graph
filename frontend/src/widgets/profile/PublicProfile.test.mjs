@@ -5,10 +5,10 @@ import { PublicProfile } from './PublicProfile.tsx'
 import { ProfileCover } from '../../entities/profile/ui/ProfileCover.tsx'
 import { ToastContext } from '../../shared/ui/toast/ToastContext.ts'
 
-const profile = { id: 'jo', name: '乔', avatar: '', bio: '', gender: 'unknown' }
+const profile = { uuid: 'jo', id: 'jo', name: '乔', avatar: '', bio: '', gender: 'unknown' }
 const render = (patch = {}, props = {}) => renderToStaticMarkup(createElement(ToastContext.Provider, { value: { showToast() {} } }, createElement(PublicProfile, {
-  profile: { ...profile, ...patch }, currentUserId: 'jo', following: false, users: [], projects: [], actions: [],
-  onSetUserFollow() {}, onOpenProject() {}, onOpenNode() {}, onOpenReference() {},
+  profile: { ...profile, ...patch }, currentUserId: 'jo', following: false, users: [], graphs: [], actions: [],
+  onSetUserFollow() {}, onOpenGraph() {}, onOpenNode() {}, onOpenReference() {},
   ...props,
 })))
 
@@ -20,7 +20,7 @@ const highlights = (html) => {
 
 describe('profile header images', () => {
   test('the shared homepage has its content navigation, separate search categories and no retired overview', () => {
-    const html = render({}, { onCreateProject() {} })
+    const html = render({}, { onCreateGraph() {} })
     expect(html).toContain('>首页</span>')
     expect(html).toContain('>过去一年 ')
     expect(html).toContain('>时间线</h3>')
@@ -35,7 +35,7 @@ describe('profile header images', () => {
   })
 
   test('other public profiles use the same homepage without exposing graph creation', () => {
-    const html = render({}, { currentUserId: 'other', onCreateProject() {} })
+    const html = render({}, { currentUserId: 'other', onCreateGraph() {} })
     expect(html).toContain('>过去一年 ')
     expect(html).not.toContain('发起行动图')
     expect(html).not.toContain('编辑精选')
@@ -43,8 +43,8 @@ describe('profile header images', () => {
 
   test('only shows deliberately selected owned documents and hides cleared or deleted versions', () => {
     const actions = [
-      { id: 'own', authorId: 'jo', projectId: 'cooking', number: 1, title: '一次试做', expressionMarkdown: '多花三分钟值得', agreementMarkdown: '请记录锅具', createdAt: '2026-10-01' },
-      { id: 'other', authorId: 'lin', projectId: 'cooking', number: 2, title: '别人的试做', expressionMarkdown: '不应自动精选这条', createdAt: '2026-10-02' },
+      { uuid: 'own', id: 'own', authorId: 'jo', graphId: 'cooking', number: 1, title: '一次试做', expressionMarkdown: '多花三分钟值得', agreementMarkdown: '请记录锅具', createdAt: '2026-10-01' },
+      { uuid: 'other', id: 'other', authorId: 'lin', graphId: 'cooking', number: 2, title: '别人的试做', expressionMarkdown: '不应自动精选这条', createdAt: '2026-10-02' },
     ].map((node) => ({ ...node, markdown: '', images: [], conversation: [] }))
     // 兼容旧资料中的独立约定字段，但不再展示它。
     const highlights = { expressionNodeIds: ['own', 'other', 'deleted'], agreementNodeIds: ['other'] }
@@ -61,11 +61,11 @@ describe('profile header images', () => {
 
   test('keeps saved expression order and attaches the selected branch agreement with its author', () => {
     const actions = [
-      { id: 'source', authorId: 'lin', agreementMarkdown: '请记录实际用时', number: 1 },
-      { id: 'first', authorId: 'jo', parentId: 'source', expressionMarkdown: '表达甲', number: 2 },
-      { id: 'second', authorId: 'jo', expressionMarkdown: '表达乙', agreementMarkdown: '', number: 3 },
-    ].map((node) => ({ projectId: 'cooking', title: node.id, createdAt: '2026-10-01', markdown: '', images: [], conversation: [], ...node }))
-    const html = render({ highlights: { expressionNodeIds: ['second', 'first'] } }, { actions, users: [{ id: 'lin', name: '林', avatar: '' }], currentUserId: 'visitor' })
+      { uuid: 'source', id: 'source', authorId: 'lin', agreementMarkdown: '请记录实际用时', number: 1 },
+      { uuid: 'first', id: 'first', authorId: 'jo', parentId: 'source', expressionMarkdown: '表达甲', number: 2 },
+      { uuid: 'second', id: 'second', authorId: 'jo', expressionMarkdown: '表达乙', agreementMarkdown: '', number: 3 },
+    ].map((node) => ({ graphId: 'cooking', title: node.uuid, createdAt: '2026-10-01', markdown: '', images: [], conversation: [], ...node }))
+    const html = render({ highlights: { expressionNodeIds: ['second', 'first'] } }, { actions, users: [{ uuid: 'lin', id: 'lin', name: '林', avatar: '' }], currentUserId: 'visitor' })
     const selected = highlights(html)
     expect(selected.indexOf('表达乙')).toBeLessThan(selected.indexOf('表达甲'))
     expect(selected).toContain('请记录实际用时')
@@ -75,7 +75,7 @@ describe('profile header images', () => {
   })
 
   test('highlight previews retain feed context and separate expression and agreement image previews', () => {
-    const actions = [{ id: 'own', authorId: 'jo', projectId: 'cooking', number: 1, title: '实际行动标题', expressionMarkdown: '来自行动的表达', agreementMarkdown: '请记录用时\n\n![约定配图](/agreement.jpg)', createdAt: '2026-10-01', markdown: '', images: [{ url: '/expression.jpg', alt: '表达配图' }], conversation: [] }]
+    const actions = [{ uuid: 'own', id: 'own', authorId: 'jo', graphId: 'cooking', number: 1, title: '实际行动标题', expressionMarkdown: '来自行动的表达', agreementMarkdown: '请记录用时\n\n![约定配图](/agreement.jpg)', createdAt: '2026-10-01', markdown: '', images: [{ url: '/expression.jpg', alt: '表达配图' }], conversation: [] }]
     const html = render({ highlights: { expressionNodeIds: ['own'] } }, { actions, currentUserId: 'visitor' })
     const selected = highlights(html)
     expect(selected).toContain('最近行动：')
@@ -99,8 +99,8 @@ describe('profile header images', () => {
     expect(search).not.toContain('找到 ')
   })
 
-  test('shows the account email on the own homepage only', () => {
-    expect(render({ email: 'qiao@example.com' })).toContain('qiao@example.com')
+  test('never shows the account email on a profile page', () => {
+    expect(render({ email: 'qiao@example.com' })).not.toContain('qiao@example.com')
     expect(render({ email: 'qiao@example.com' }, { currentUserId: 'someone-else' })).not.toContain('qiao@example.com')
   })
 

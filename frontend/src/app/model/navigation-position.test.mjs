@@ -8,7 +8,7 @@ test('the personal route and own public profile restore the same reading positio
 })
 
 test('other users and explicit content deep links retain independent reading positions', () => {
-  for (const hash of ['profile?userId=lin', 'profile?userId=jo&tab=actions', 'project?projectId=cooking', 'home']) {
+  for (const hash of ['profile?userId=lin', 'profile?userId=jo&tab=actions', 'graph?graphId=cooking', 'home']) {
     expect(getNavigationPositionKey(hash, 'jo')).toBe(hash)
   }
 })

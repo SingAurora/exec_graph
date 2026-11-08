@@ -28,9 +28,9 @@ export type ActionReferenceAgreement = {
 export type ActionNode = {
   legacyId?: string
   /** 资源身份，用于查找、引用和更新；不能用展示编号代替。 */
-  id: string
-  /** 所属行动图；旧 UI 沿用 projectId，请求 DTO 使用 graphId 并在 API 层显式映射。 */
-  projectId: string
+  uuid: string
+  /** 所属行动图；旧 UI 沿用 graphId，请求 DTO 使用 graphId 并在 API 层显式映射。 */
+  graphId: string
   /** 图内稳定展示编号，和引用深度（第几层）分别计算。 */
   number: number
   /** 行动节点版本；旧演示数据可能缺省。 */

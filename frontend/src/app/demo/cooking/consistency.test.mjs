@@ -4,7 +4,7 @@ import { getActionContextIds, getActionParentIds, getPreferredPath } from '../..
 import { getActionSourceAgreements, getUnreviewedAgreementCount } from '../../../entities/action/lib/references.ts'
 import { getActionAgreement, getActionAgreementOrigin } from '../../../entities/action/lib/agreements.ts'
 
-const byId = new Map(cookingActions.map((node) => [node.id, node]))
+const byId = new Map(cookingActions.map((node) => [node.uuid, node]))
 
 describe('cooking demo provenance', () => {
   test('demonstrates inherited, revised and explicitly cleared agreements without changing incoming obligations', () => {
@@ -40,28 +40,28 @@ describe('cooking demo provenance', () => {
       const sources = getActionParentIds(node)
       for (const sourceId of sources) {
         const source = byId.get(sourceId)
-        expect(source, `${node.id} has a missing source`).toBeDefined()
+        expect(source, `${node.uuid} has a missing source`).toBeDefined()
         expect(Date.parse(source.createdAt)).toBeLessThan(Date.parse(node.createdAt))
       }
       expect(node.contextSnapshot.directNodeIds).toEqual(sources)
-      expect(node.contextSnapshot.historyNodeCount).toBe(getActionContextIds(cookingActions, node.id).size - 1)
+      expect(node.contextSnapshot.historyNodeCount).toBe(getActionContextIds(cookingActions, node.uuid).size - 1)
       for (const assessment of node.referenceAgreements ?? []) {
         expect(sources).toContain(assessment.sourceId)
         const source = byId.get(assessment.sourceId)
-        expect(getActionAgreement(cookingActions, source.id).markdown.trim()).toBeTruthy()
+        expect(getActionAgreement(cookingActions, source.uuid).markdown.trim()).toBeTruthy()
         expect(assessment).not.toHaveProperty('approvedById')
       }
     }
   })
 
-  test('documents and conversations do not borrow facts from uncited project branches', () => {
+  test('documents and conversations do not borrow facts from uncited graph branches', () => {
     for (const node of cookingActions) {
-      const context = getActionContextIds(cookingActions, node.id)
+      const context = getActionContextIds(cookingActions, node.uuid)
       const texts = [node.objectiveMarkdown, node.expressionMarkdown, ...node.conversation.map((message) => message.body)]
       for (const text of texts) {
         if (text === undefined) continue
         for (const match of text.matchAll(/#(\d+)/g)) {
-          expect(context.has(`cooking-${match[1]}`), `${node.id} mentions uncited #${match[1]}`).toBe(true)
+          expect(context.has(`cooking-${match[1]}`), `${node.uuid} mentions uncited #${match[1]}`).toBe(true)
         }
       }
     }
@@ -69,7 +69,7 @@ describe('cooking demo provenance', () => {
 
   test('latest peer routes remain independently readable without treating publication order as context', () => {
     const main = getPreferredPath(cookingActions)
-    expect(main.at(-1).id).toBe('cooking-13')
+    expect(main.at(-1).uuid).toBe('cooking-13')
     const joContext = getActionContextIds(cookingActions, 'cooking-13')
     const miaoContext = getActionContextIds(cookingActions, 'cooking-14')
     expect(joContext.has('cooking-11')).toBe(false)

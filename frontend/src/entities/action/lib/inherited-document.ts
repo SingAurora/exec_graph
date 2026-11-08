@@ -6,9 +6,9 @@ type InheritedDocument = { markdown: string; sourceNode?: ActionNode }
 
 /** 只有尚未被承接或合入的节点可编辑文档，避免改写后来行动已引用的内容。 */
 export function canEditActionDocument(nodes: ActionNode[], nodeId: string): boolean {
-  const node = nodes.find((item) => item.id === nodeId)
+  const node = nodes.find((item) => item.uuid === nodeId)
   return Boolean(node
-    && !nodes.some((item) => item.projectId === node.projectId && getActionParentIds(item).includes(nodeId)))
+    && !nodes.some((item) => item.graphId === node.graphId && getActionParentIds(item).includes(nodeId)))
 }
 
 /** 返回更新后的节点数组：修改本节点的文档及编辑信息，不回写继承来源。 */
@@ -19,7 +19,7 @@ export function updateActionDocument(nodes: ActionNode[], nodeId: string, field:
   if (next === previous) return nodes
   const revision: ActionDocumentRevision = { ...editor, kind: !next ? 'clear' : previous ? 'modify' : 'supplement' }
   const revisionField = field === 'expressionMarkdown' ? 'expressionSupplement' : 'agreementSupplement'
-  return nodes.map((node) => node.id === nodeId ? { ...node, [field]: next, [revisionField]: revision } : node)
+  return nodes.map((node) => node.uuid === nodeId ? { ...node, [field]: next, [revisionField]: revision } : node)
 }
 
 /** 沿主要承接链查找有效文档；遇到主动清空或图边界就停止。 */
@@ -30,20 +30,20 @@ export function getInheritedActionDocument(nodes: ActionNode[], nodeId: string, 
 /** 批量解析有效文档，共用已遍历链路的缓存，避免每个节点重复追溯祖先。 */
 export function getInheritedActionDocuments(nodes: ActionNode[], field: InheritedDocumentField): Map<string, InheritedDocument> {
   const resolve = createDocumentResolver(nodes, field)
-  return new Map(nodes.map((node) => [node.id, resolve(node.id)]))
+  return new Map(nodes.map((node) => [node.uuid, resolve(node.uuid)]))
 }
 
 function createDocumentResolver(nodes: ActionNode[], field: InheritedDocumentField): (nodeId: string) => InheritedDocument {
-  const byId = new Map(nodes.map((node) => [node.id, node]))
+  const byId = new Map(nodes.map((node) => [node.uuid, node]))
   const resolved = new Map<string, InheritedDocument>()
   return (nodeId) => {
     let current = byId.get(nodeId)
-    const projectId = current?.projectId
+    const graphId = current?.graphId
     const visited = new Set<string>()
     let document: InheritedDocument = { markdown: '' }
-    while (current && current.projectId === projectId && !visited.has(current.id)) {
-      visited.add(current.id)
-      const cached = resolved.get(current.id)
+    while (current && current.graphId === graphId && !visited.has(current.uuid)) {
+      visited.add(current.uuid)
+      const cached = resolved.get(current.uuid)
       if (cached) { document = cached; break }
       // 新节点有自己的文档状态，绝不再沿祖先继承；只有旧夹具没有状态字段时才走旧回退。
       const statusField = field === 'expressionMarkdown' ? 'expressionStatus' : 'agreementStatus'
@@ -64,14 +64,14 @@ function createDocumentResolver(nodes: ActionNode[], field: InheritedDocumentFie
 
 /** 查找非空文档实际继承的版本，或本次修改替换的上一版本，供来源说明使用。 */
 export function getInheritedActionDocumentOrigin(nodes: ActionNode[], nodeId: string, field: InheritedDocumentField): { kind: 'modified' | 'inherited'; node: ActionNode } | undefined {
-  const node = nodes.find((item) => item.id === nodeId)
+  const node = nodes.find((item) => item.uuid === nodeId)
   if (node && (field === 'expressionMarkdown' ? node.expressionStatus : node.agreementStatus) !== undefined) return undefined
   const document = getInheritedActionDocument(nodes, nodeId, field)
   if (!node || !document.markdown.trim() || !document.sourceNode) return undefined
-  if (document.sourceNode.id !== nodeId) return { kind: 'inherited', node: document.sourceNode }
-  const parent = nodes.find((item) => item.id === node.parentId && item.projectId === node.projectId)
+  if (document.sourceNode.uuid !== nodeId) return { kind: 'inherited', node: document.sourceNode }
+  const parent = nodes.find((item) => item.uuid === node.parentId && item.graphId === node.graphId)
   if (!parent) return undefined
-  const previous = getInheritedActionDocument(nodes, parent.id, field)
-  if (!previous.markdown.trim() || !previous.sourceNode || previous.sourceNode.id === nodeId) return undefined
+  const previous = getInheritedActionDocument(nodes, parent.uuid, field)
+  if (!previous.markdown.trim() || !previous.sourceNode || previous.sourceNode.uuid === nodeId) return undefined
   return { kind: 'modified', node: previous.sourceNode }
 }

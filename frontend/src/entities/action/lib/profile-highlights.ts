@@ -11,12 +11,12 @@ export type ProfileHighlightEntry = { node: ActionNode; markdown: string; agreem
  */
 export function getProfileHighlightCandidates(actions: ActionNode[], userId: string): ProfileHighlightEntry[] {
   return sortActionsNewestFirst(actions).flatMap((node) => {
-    const expression = getActionExpression(actions, node.id)
+    const expression = getActionExpression(actions, node.uuid)
     const source = expression.sourceNode
     const authorId = source?.expressionSupplement?.authorId ?? source?.authorId
     const ownsBranch = node.authorId === userId || node.expressionSupplement?.authorId === userId
     return ownsBranch && authorId === userId && expression.markdown.trim()
-      ? [{ node, markdown: expression.markdown, agreement: getActionAgreement(actions, node.id) }]
+      ? [{ node, markdown: expression.markdown, agreement: getActionAgreement(actions, node.uuid) }]
       : []
   })
 }

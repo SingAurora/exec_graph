@@ -123,8 +123,8 @@ export function WorkspaceFrame({ title, tabs = ['conversation', 'objective', 'ex
   const copiedModel = fallbackAIName?.trim() || [...messages].reverse().find((message) => message.speaker === 'ai' && message.model?.trim())?.model?.trim()
   const copyText = formatConversationForCopy(messages.filter((message) => message.id !== 'welcome'), {
     resolveUserName: (message) => {
-      const authorId = message.authorId ?? defaultAuthorId ?? profile?.id
-      const author = users.find((user) => user.id === authorId) ?? (authorId === profile?.id ? profile : undefined)
+      const authorId = message.authorId ?? defaultAuthorId ?? profile?.uuid
+      const author = users.find((user) => user.uuid === authorId) ?? (authorId === profile?.uuid ? profile : undefined)
       return author?.name ?? authorId ?? profileName
     },
     fallbackAIName: copiedModel || '引序 AI',

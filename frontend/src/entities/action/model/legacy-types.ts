@@ -5,7 +5,7 @@ import type { ChatMessage, PostImage } from '../../../shared/model/content'
 /** Legacy topic grouping retained for reading earlier prototype records. */
 export type ActionTopic = {
   id: string
-  projectId: string
+  graphId: string
   title: string
   description: string
   createdAt: string

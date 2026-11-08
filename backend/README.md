@@ -24,7 +24,7 @@ EXEC_GRAPH_DATABASE_SCHEMA=exec_graph go run ./cmd/manage verify
 
 ## Go 同时提供前端与 API
 
-部署后只运行一个 Go 进程：`/` 提供前端首页，构建资源从 `frontend/dist` 读取，`/api/commands/...` 继续提供业务接口。不需要运行 Vite，也不需要 Nginx。原有 `/#my`、`/#project?...` 等 hash 路由保持不变。
+部署后只运行一个 Go 进程：`/` 提供前端首页，构建资源从 `frontend/dist` 读取，`/api/commands/...` 继续提供业务接口。不需要运行 Vite，也不需要 Nginx。路由使用 `/#my`、`/#graph?graphId=...` 等 hash 地址。
 
 从仓库根目录构建（服务器需安装 Bun 和 Go）：
 
@@ -166,7 +166,7 @@ EXEC_GRAPH_DATABASE_SCHEMA=exec_graph EXEC_GRAPH_ADDR=127.0.0.1:8080 EXEC_GRAPH_
 
 使用 Bearer token 和 Redis 会话；客户端需携带 `Authorization: Bearer <token>`。每次会话读取检查数据库停用状态及认证版本。密码采用 Argon2id，不提供明文或可逆密码读取。
 
-读取兼容导入数据的旧短 ID，但响应资源 ID 一律为 UUID；写入只接受 UUID。行动 DTO 使用 `graphId`，前端已显式映射为 UI 的 `projectId`；关注模型已使用 `graphIds`。未确认的 AI 对话不会公开。
+读取兼容导入数据的旧短 ID，但响应资源 ID 一律为 UUID；写入只接受 UUID。行动 DTO 和前端都使用 `graphId`，资源标识字段为 `uuid`；关注模型使用 `graphIds`。未确认的 AI 对话不会公开。
 
 写入的准确 DTO、权限和事务行为见 [真实后端写入契约](../doc/backend-write-contract.md)。创建带 `Idempotency-Key`，全部业务写入需要会话，修改带 `expectedVersion`。图和资料图片接受已上传的资产 UUID；行动及表达确认使用 `generationId`，不接受浏览器直接伪造的 AI 文稿／对话。
 

@@ -26,19 +26,19 @@ export function createActionLayout(actions: ActionNode[], mainPath: ActionNode[]
   const references = getActionReferences(actions)
   const levels = getActionLevels(actions)
   if (!actions.length) return { elements: [], positions: new Map(), levels, references, height: 460 }
-  const mainIds = new Set(mainPath.map((node) => node.id))
+  const mainIds = new Set(mainPath.map((node) => node.uuid))
   const tip = mainPath.at(-1)
-  const contextIds = tip ? getActionContextIds(actions, tip.id) : new Set<string>()
+  const contextIds = tip ? getActionContextIds(actions, tip.uuid) : new Set<string>()
   const elements: ElementDefinition[] = [...actions].sort((a, b) => b.number - a.number).map((node) => ({
-    data: { id: node.id, level: String(levels.get(node.id)) }, classes: mainIds.has(node.id) ? 'main' : contextIds.has(node.id) ? 'context' : 'branch',
+    data: { id: node.uuid, level: String(levels.get(node.uuid)) }, classes: mainIds.has(node.uuid) ? 'main' : contextIds.has(node.uuid) ? 'context' : 'branch',
   }))
   for (const reference of references) {
     elements.push({
-      data: { id: reference.id, source: reference.source.id, target: reference.target.id },
+      data: { id: reference.uuid, source: reference.source.uuid, target: reference.target.uuid },
       classes: [reference.sameAuthor ? 'same-author' : 'other-author',
         reference.incorporated ? 'incorporated' : 'continuation',
-        mainIds.has(reference.source.id) && mainIds.has(reference.target.id) && !reference.incorporated ? 'main'
-          : contextIds.has(reference.source.id) && contextIds.has(reference.target.id) ? 'context' : 'branch',
+        mainIds.has(reference.source.uuid) && mainIds.has(reference.target.uuid) && !reference.incorporated ? 'main'
+          : contextIds.has(reference.source.uuid) && contextIds.has(reference.target.uuid) ? 'context' : 'branch',
         reference.agreementStatus === 'exception' ? 'exception' : ''].join(' '),
     })
   }

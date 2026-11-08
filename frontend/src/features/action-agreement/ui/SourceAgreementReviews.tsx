@@ -13,7 +13,7 @@ export function SourceAgreementReviews({ sources, reviews }: { sources: ActionCo
         const unrestricted = !agreement.markdown.trim()
         const status = unrestricted ? '无约定' : review?.complies === false ? '× 不满足约定' : review?.complies === true ? '满足约定' : '尚未核对'
         return (
-          <details className="group/source border-b border-line py-3 last:border-0" key={node.id}>
+          <details className="group/source border-b border-line py-3 last:border-0" key={node.uuid}>
             <summary className="flex cursor-pointer list-none items-center gap-2 text-xs leading-5 [&::-webkit-details-marker]:hidden">
               <span className="shrink-0 text-muted">{kind === 'primary' ? '承接' : '合入'} #{node.number}</span>
               <span className="min-w-0 flex-1 truncate" title={node.title}>{node.title}</span>
@@ -21,7 +21,7 @@ export function SourceAgreementReviews({ sources, reviews }: { sources: ActionCo
               <ChevronDown size={13} className="shrink-0 text-muted transition-transform group-open/source:rotate-180" />
             </summary>
             <div className="pt-3">
-              {agreement.sourceNode && agreement.sourceNode.id !== node.id && <p className="mb-3 text-xs text-muted">约定继承自 节点 #{agreement.sourceNode.number}</p>}
+              {agreement.sourceNode && agreement.sourceNode.uuid !== node.uuid && <p className="mb-3 text-xs text-muted">约定继承自 节点 #{agreement.sourceNode.number}</p>}
               {!unrestricted && review?.reason && <p className={`mb-3 text-xs leading-6 ${review.complies === false ? 'text-coral' : 'text-muted'}`}>{review.complies === false ? '不符合原因：' : '核对说明：'}{review.reason}</p>}
               {unrestricted ? <p className="text-xs text-muted">无约定</p> : <MarkdownContent markdown={agreement.markdown} />}
             </div>

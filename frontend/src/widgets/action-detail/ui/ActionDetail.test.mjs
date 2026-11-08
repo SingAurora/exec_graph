@@ -5,10 +5,10 @@ import { ToastContext } from '../../../shared/ui/toast/ToastContext.ts'
 import { ActionDetail } from './ActionDetail.tsx'
 
 const noop = () => {}
-const node = (number, parentId, expressionMarkdown, extra = {}) => ({ id: String(number), projectId: 'graph', number, parentId, expressionMarkdown, nodeReady: true, authorId: 'jo', title: `行动 ${number}`, markdown: '这次发生的事情', images: [], conversation: [], createdAt: '2026-10-18T12:00:00+08:00', ...extra })
+const node = (number, parentId, expressionMarkdown, extra = {}) => ({ uuid: String(number), id: String(number), graphId: 'graph', number, parentId, expressionMarkdown, nodeReady: true, authorId: 'jo', title: `行动 ${number}`, markdown: '这次发生的事情', images: [], conversation: [], createdAt: '2026-10-18T12:00:00+08:00', ...extra })
 function render(actions, id, props = {}) {
   return renderToStaticMarkup(createElement(ToastContext.Provider, { value: { showToast: noop } }, createElement(ActionDetail, {
-    node: actions.find((item) => item.id === id), actions, users: [], recordMode: 'objective', isHighlightTip: false,
+    node: actions.find((item) => item.uuid === id), actions, users: [], recordMode: 'objective', isHighlightTip: false,
     onHighlight: noop, onHide: noop, onLocate: noop, onModeChange: noop, onOpenArchive: noop, onContinue: noop, onSelect: noop, onEditExpression: () => true, onEditAgreement: noop,
     ...props,
   })))

@@ -6,9 +6,9 @@ import { MarkdownContent } from '../../shared/ui/MarkdownContent'
 
 /** Reads the existing node and source agreements while only its expression is being revised. */
 export function ExpressionAgreements({ node, actions }: { node: ActionNode; actions: ActionNode[] }) {
-  const agreement = getActionAgreement(actions, node.id)
-  const origin = getActionAgreementOrigin(actions, node.id)
-  const sources = getActionSourceAgreements(actions, node.id)
+  const agreement = getActionAgreement(actions, node.uuid)
+  const origin = getActionAgreementOrigin(actions, node.uuid)
+  const sources = getActionSourceAgreements(actions, node.uuid)
   return (
     <>
       <section className="px-6 pb-5">
@@ -19,7 +19,7 @@ export function ExpressionAgreements({ node, actions }: { node: ActionNode; acti
       {sources.length > 0 && <details className="group/source-agreement border-t border-line">
         <summary className="flex cursor-pointer list-none items-center gap-2 px-6 py-3 text-xs leading-5 text-muted [&::-webkit-details-marker]:hidden"><ScrollText size={14} />来源约定 {sources.length}<ChevronDown size={13} className="ml-auto transition-transform group-open/source-agreement:rotate-180" /></summary>
         <div className="space-y-5 px-6 pb-5">
-          {sources.map((source) => <section key={source.id}>
+          {sources.map((source) => <section key={source.uuid}>
             <div className="mb-3 flex items-center justify-between gap-3 text-xs"><span>节点 #{source.source.number}</span><span className={source.agreementStatus === 'exception' ? 'text-coral' : source.agreementStatus === 'satisfied' ? 'text-signal' : 'text-muted'}>{source.agreementStatus === 'exception' ? '× 不满足约定' : source.agreementStatus === 'satisfied' ? '满足约定' : '尚未核对'}</span></div>
             {source.exceptionReason && <p className="mb-3 text-xs leading-6 text-coral">不符合原因：{source.exceptionReason}</p>}
             <MarkdownContent markdown={source.agreement.markdown} />

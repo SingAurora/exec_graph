@@ -5,8 +5,8 @@ import type { ActionReference } from '../../../entities/action/lib/references'
 import { getFollowedActivity, getFollowedAgreementRecipient } from '../../../entities/following/lib/activity'
 import { ProfilePreview } from '../../../entities/profile/ui/ProfilePreview'
 import type { FollowedSources } from '../../../entities/following/model/types'
-import { GraphContextLink } from '../../../entities/project/ui/GraphContextLink'
-import type { Project } from '../../../entities/project/model/types'
+import { GraphContextLink } from '../../../entities/graph/ui/GraphContextLink'
+import type { Graph } from '../../../entities/graph/model/types'
 import type { UserProfile } from '../../../entities/profile/model/types'
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from '../../../shared/ui/tabs/Tabs'
 import { ActionPostList } from '../../action-posts/ui/ActionPostList'
@@ -16,11 +16,11 @@ import { FollowedDirectory } from './FollowedDirectory'
 type FollowingTab = 'expressions' | 'agreements' | 'graphs' | 'users'
 type Props = {
   actions: ActionNode[]
-  projects: Project[]
+  graphs: Graph[]
   users: UserProfile[]
   sources: FollowedSources
   active: boolean
-  onOpenProject: (id: string) => void
+  onOpenGraph: (id: string) => void
   onOpenNode: (node: ActionNode, mode: ActionDocumentMode) => void
   onOpenReference: (reference: ActionReference) => void
   onSetGraphFollow: (id: string, following: boolean) => boolean | Promise<boolean>
@@ -28,12 +28,12 @@ type Props = {
 }
 
 /** 关注动态及图／用户目录；往返页面保留各栏目的阅读和筛选状态。 */
-export function Following({ sources, actions, projects, users, active, onOpenProject, onOpenNode, onOpenReference, onSetGraphFollow, onSetUserFollow }: Props) {
+export function Following({ sources, actions, graphs, users, active, onOpenGraph, onOpenNode, onOpenReference, onSetGraphFollow, onSetUserFollow }: Props) {
   const [tab, setTab] = useState<FollowingTab>('expressions')
   const scrollPositions = useRef<Partial<Record<FollowingTab, number>>>({})
   const pendingScroll = useRef<number | undefined>(undefined)
-  const followedGraphs = projects.filter((project) => sources.graphIds.includes(project.id))
-  const followedUsers = [...new Map(users.filter((user) => sources.userIds.includes(user.id)).map((user) => [user.id, user])).values()]
+  const followedGraphs = graphs.filter((graph) => sources.graphIds.includes(graph.uuid))
+  const followedUsers = [...new Map(users.filter((user) => sources.userIds.includes(user.uuid)).map((user) => [user.uuid, user])).values()]
   const activity = useMemo(() => getFollowedActivity(actions, sources), [actions, sources])
   useLayoutEffect(() => {
     if (!active || pendingScroll.current === undefined) return
@@ -48,11 +48,11 @@ export function Following({ sources, actions, projects, users, active, onOpenPro
     pendingScroll.current = scrollPositions.current[next] ?? 0
     setTab(next)
   }
-  const directoryProps = { projects: followedGraphs, users: followedUsers, actions, onOpenProject, onSetGraphFollow, onSetUserFollow }
-  const context = (node: ActionNode) => <GraphContextLink id={node.projectId} title={projects.find((project) => project.id === node.projectId)?.title} onOpen={onOpenProject} />
+  const directoryProps = { graphs: followedGraphs, users: followedUsers, actions, onOpenGraph, onSetGraphFollow, onSetUserFollow }
+  const context = (node: ActionNode) => <GraphContextLink id={node.graphId} title={graphs.find((graph) => graph.uuid === node.graphId)?.title} onOpen={onOpenGraph} />
   const agreementContext = (reference: ActionReference) => {
     const recipientId = getFollowedAgreementRecipient(reference, sources)
-    const recipient = users.find((user) => user.id === recipientId)
+    const recipient = users.find((user) => user.uuid === recipientId)
     if (!recipientId) return context(reference.target)
     return (
       <div className="grid gap-1.5">{context(reference.target)}<p className="text-xs leading-5 text-muted">回应了你关注的 <ProfilePreview profile={recipient} userId={recipientId} className="rounded-sm text-xs hover:text-signal">{recipient?.name ?? recipientId}</ProfilePreview></p></div>

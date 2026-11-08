@@ -57,7 +57,7 @@ export function mockResponse(db: MockDatabase, handler: (request: Request) => un
 export function idempotent<T>(db: MockDatabase, request: Request, input: unknown, create: () => T): T {
   const key = request.headers.get('Idempotency-Key')
   requireInput(key && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(key), '缺少有效的提交标识')
-  const scope = db.users[0].id + ':' + new URL(request.url).pathname + ':' + key
+  const scope = db.users[0].uuid + ':' + new URL(request.url).pathname + ':' + key
   const fingerprint = JSON.stringify(input)
   const previous = db.submissions.get(scope)
   if (previous && Date.now() - previous.createdAt < 86_400_000) {

@@ -4,13 +4,13 @@ import { getActionReferences } from './references.ts'
 import { getProfileAgreementResponses } from './agreement-responses.ts'
 import { searchActions, searchAgreementResponses, searchExpressions } from './search.ts'
 
-const base = { projectId: 'cooking', images: [], conversation: [], createdAt: '2026-10-21T12:00:00+08:00' }
-const source = { ...base, id: 'source', number: 1, authorId: 'lin', title: '第一次尝试', markdown: '切番茄', expressionMarkdown: '火候比调味更重要', agreementMarkdown: '请记录用时 ![过程](https://example.com/image-only.jpg)' }
-const mine = { ...base, id: 'mine', number: 2, authorId: 'jo', parentId: 'source', title: '第二次尝试', markdown: '旧记录', objectiveMarkdown: '三分钟炒好鸡蛋 ![过程](https://example.com/image-only.jpg)', referenceAgreements: [{ sourceId: 'source', complies: true }], conversation: [{ id: 'chat', speaker: 'user', text: '对话私有词' }] }
-const other = { ...base, id: 'other', number: 3, authorId: 'lin', title: '别人行动', markdown: '三分钟也可以', expressionMarkdown: '这是别人的表达' }
+const base = { graphId: 'cooking', images: [], conversation: [], createdAt: '2026-10-21T12:00:00+08:00' }
+const source = { ...base, uuid: 'source', id: 'source', number: 1, authorId: 'lin', title: '第一次尝试', markdown: '切番茄', expressionMarkdown: '火候比调味更重要', agreementMarkdown: '请记录用时 ![过程](https://example.com/image-only.jpg)' }
+const mine = { ...base, uuid: 'mine', id: 'mine', number: 2, authorId: 'jo', parentId: 'source', title: '第二次尝试', markdown: '旧记录', objectiveMarkdown: '三分钟炒好鸡蛋 ![过程](https://example.com/image-only.jpg)', referenceAgreements: [{ sourceId: 'source', complies: true }], conversation: [{ id: 'chat', speaker: 'user', text: '对话私有词' }] }
+const other = { ...base, uuid: 'other', id: 'other', number: 3, authorId: 'lin', title: '别人行动', markdown: '三分钟也可以', expressionMarkdown: '这是别人的表达' }
 const actions = [source, mine, other]
-const users = [{ id: 'jo', name: 'Jo' }, { id: 'lin', name: '林岚' }]
-const ids = (items) => items.map((item) => item.id)
+const users = [{ uuid: 'jo', id: 'jo', name: 'Jo' }, { uuid: 'lin', id: 'lin', name: '林岚' }]
+const ids = (items) => items.map((item) => item.uuid)
 
 describe('profile content search', () => {
   test('effective inherited expressions can use full context without expanding the profile scope', () => {

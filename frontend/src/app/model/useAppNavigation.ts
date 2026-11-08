@@ -16,7 +16,7 @@ export function useAppNavigation(currentUserId: string) {
   const [revision, setRevision] = useState(0)
   // state 驱动画面更新；ref 让事件回调拿到最新地址，并保存不需要直接渲染的阅读记录。
   const currentHash = useRef(hash)
-  const graphBackHash = useRef('projects')
+  const graphBackHash = useRef('graphs')
   const profileBackHash = useRef('my')
   const positions = useRef(new Map<string, number>())
   useLayoutEffect(() => {
@@ -26,7 +26,7 @@ export function useAppNavigation(currentUserId: string) {
       positions.current.set(getNavigationPositionKey(previous, currentUserId), window.scrollY)
       const previousView = viewOf(previous)
       const nextView = viewOf(next)
-      if (nextView === 'project' && !['project', 'publish', 'action-archive'].includes(previousView) && !(previousView === 'profile' && previous.includes('fromGraph='))) graphBackHash.current = previous
+      if (nextView === 'graph' && !['graph', 'publish', 'action-archive'].includes(previousView) && !(previousView === 'profile' && previous.includes('fromGraph='))) graphBackHash.current = previous
       if (nextView === 'profile' && previousView !== 'profile') profileBackHash.current = previous
       currentHash.current = next
       setHash(next)
@@ -41,7 +41,7 @@ export function useAppNavigation(currentUserId: string) {
   const authRoute = isAuthView(rawView) ? rawView : undefined
   useLayoutEffect(() => {
     // 图详情自行恢复各 Tab 的阅读状态，避免全局恢复再次覆盖它的定位。
-    if (route === 'project') return
+    if (route === 'graph') return
     const frame = window.requestAnimationFrame(() => window.scrollTo({ top: positions.current.get(getNavigationPositionKey(hash, currentUserId)) ?? 0, behavior: 'instant' }))
     return () => window.cancelAnimationFrame(frame)
   }, [hash, route, currentUserId])

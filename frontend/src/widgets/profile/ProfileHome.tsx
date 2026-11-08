@@ -56,7 +56,7 @@ export function ProfileHome({ userId, actions, active, onOpenNode }: {
         <div ref={timelineRef} className="h-[420px] overflow-y-auto overscroll-contain rounded-lg border border-line px-4 py-4 [scrollbar-gutter:stable]" tabIndex={0}
           onScroll={(event) => { if (active) scrollTop.current = event.currentTarget.scrollTop }}>
           {!filtered.length && (selectedDate ? <p className="py-12 text-center text-sm text-muted">这一天没有行动</p> : <ListEmptyState compact />)}
-          <div>{visibleActivity.map((item, index) => <ProfileTimelineItem key={item.node.id} node={item.node} last={index === visibleActivity.length - 1} onOpenNode={onOpenNode} />)}</div>
+          <div>{visibleActivity.map((item, index) => <ProfileTimelineItem key={item.node.uuid} node={item.node} last={index === visibleActivity.length - 1} onOpenNode={onOpenNode} />)}</div>
           {filtered.length > 0 && <ListEnd ref={endRef} hasMore={hasMore} className="py-6" />}
         </div>
       </section>

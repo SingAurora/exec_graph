@@ -4,11 +4,11 @@ import { getSatisfiedAgreementResponses } from '../../../entities/action/lib/agr
 import { getPublishedExpressions } from '../../../entities/action/lib/published'
 import { getActionReferences, type ActionReference } from '../../../entities/action/lib/references'
 import type { ActionDocumentMode, ActionNode } from '../../../entities/action/model/types'
-import { getActiveGraphActivities } from '../../../entities/project/lib/activity'
-import { GraphContextLink } from '../../../entities/project/ui/GraphContextLink'
+import { getActiveGraphActivities } from '../../../entities/graph/lib/activity'
+import { GraphContextLink } from '../../../entities/graph/ui/GraphContextLink'
 import { searchDiscoveryAgreements, searchDiscoveryExpressions } from '../../../features/search-discovery/lib/search'
 import { DiscoverySearch } from '../../../features/search-discovery/ui/DiscoverySearch'
-import type { Project } from '../../../entities/project/model/types'
+import type { Graph } from '../../../entities/graph/model/types'
 import type { UserProfile } from '../../../entities/profile/model/types'
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from '../../../shared/ui/tabs/Tabs'
 import { ActionPostList } from '../../action-posts/ui/ActionPostList'
@@ -19,27 +19,27 @@ type DiscoveryTab = 'expressions' | 'agreements'
 const tabLabels: Record<DiscoveryTab, string> = { expressions: '表达', agreements: '约定' }
 type Props = {
   actions: ActionNode[]
-  projects: Project[]
+  graphs: Graph[]
   users: UserProfile[]
   active: boolean
   onOpenNode: (node: ActionNode, mode: ActionDocumentMode) => void
   onOpenReference: (reference: ActionReference) => void
-  onOpenProject: (id: string) => void
+  onOpenGraph: (id: string) => void
   onSearchGraphs: (keyword: string) => void
 }
 
 /** 跨图发现表达与约定回应，两个栏目分别保留搜索内容、加载数量和阅读位置。 */
-export function Discovery({ actions, projects, users, active, onOpenNode, onOpenReference, onOpenProject, onSearchGraphs }: Props) {
+export function Discovery({ actions, graphs, users, active, onOpenNode, onOpenReference, onOpenGraph, onSearchGraphs }: Props) {
   const [tab, setTab] = useState<DiscoveryTab>('expressions')
   const [queries, setQueries] = useState<Record<DiscoveryTab, string>>({ expressions: '', agreements: '' })
   const query = queries[tab].trim()
   const scrollPositions = useRef<Partial<Record<DiscoveryTab, number>>>({})
   const pendingScroll = useRef<number | undefined>(undefined)
-  const projectsById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects])
-  const publicActions = useMemo(() => actions.filter((node) => projectsById.has(node.projectId)), [actions, projectsById])
+  const graphsById = useMemo(() => new Map(graphs.map((graph) => [graph.uuid, graph])), [graphs])
+  const publicActions = useMemo(() => actions.filter((node) => graphsById.has(node.graphId)), [actions, graphsById])
   const expressions = useMemo(() => getPublishedExpressions(publicActions), [publicActions])
   const agreements = useMemo(() => getSatisfiedAgreementResponses(getActionReferences(publicActions)), [publicActions])
-  const graphs = useMemo(() => getActiveGraphActivities(projects, publicActions), [projects, publicActions])
+  const graphActivities = useMemo(() => getActiveGraphActivities(graphs, publicActions), [graphs, publicActions])
   const visibleExpressions = useMemo(() => searchDiscoveryExpressions(expressions, publicActions, users, queries.expressions), [expressions, publicActions, users, queries.expressions])
   const visibleAgreements = useMemo(() => searchDiscoveryAgreements(agreements, users, queries.agreements), [agreements, users, queries.agreements])
   const resultCounts: Record<DiscoveryTab, number> = { expressions: visibleExpressions.length, agreements: visibleAgreements.length }
@@ -64,7 +64,7 @@ export function Discovery({ actions, projects, users, active, onOpenNode, onOpen
     }
     setQueries((previous) => ({ ...previous, [tab]: value }))
   }
-  const context = (node: ActionNode) => <GraphContextLink id={node.projectId} title={projectsById.get(node.projectId)?.title} onOpen={onOpenProject} />
+  const context = (node: ActionNode) => <GraphContextLink id={node.graphId} title={graphsById.get(node.graphId)?.title} onOpen={onOpenGraph} />
 
   return (
     <section>
@@ -82,7 +82,7 @@ export function Discovery({ actions, projects, users, active, onOpenNode, onOpen
             <TabsContent value="expressions" keepMounted><ActionPostList key={queries.expressions.trim()} nodes={visibleExpressions} actions={publicActions} users={users} mode="expression" presentation="feed" searchQuery={queries.expressions.trim()} infinite active={active && tab === 'expressions'} onExplore={onOpenNode} renderContext={context} /></TabsContent>
             <TabsContent value="agreements" keepMounted><AgreementResponseList key={queries.agreements.trim()} references={visibleAgreements} users={users} presentation="feed" searchQuery={queries.agreements.trim()} active={active && tab === 'agreements'} onExplore={onOpenReference} renderContext={(reference) => context(reference.target)} /></TabsContent>
           </div>
-          <RecentGraphsAside items={graphs} projects={projects} actions={publicActions} onOpen={onOpenProject} onSearchAll={onSearchGraphs} />
+          <RecentGraphsAside items={graphActivities} graphs={graphs} actions={publicActions} onOpen={onOpenGraph} onSearchAll={onSearchGraphs} />
         </div>
       </TabsRoot>
     </section>

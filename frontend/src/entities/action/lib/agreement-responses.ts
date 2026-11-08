@@ -16,7 +16,7 @@ export function getSatisfiedAgreementResponses(references: ActionReference[]): A
     && !reference.sameAuthor
     && reference.target.authorId !== getReferenceAgreementAuthorId(reference))
     .sort((a, b) => Date.parse(b.target.createdAt) - Date.parse(a.target.createdAt)
-      || b.target.number - a.target.number || a.id.localeCompare(b.id))
+      || b.target.number - a.target.number || a.uuid.localeCompare(b.uuid))
 }
 
 /** 个人约定记录同时包含“我回应别人”和“别人回应我”，一条引用只计一次。 */

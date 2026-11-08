@@ -20,7 +20,7 @@ type TopicPageProps = {
 
 export function TopicPage({ topic, plans, completions, users, reactions, onBack, onReaction, onParallel, onContinuePlan }: TopicPageProps) {
   const firstPlan = plans[0]
-  const userById = new Map(users.map((user) => [user.id, user]))
+  const userById = new Map(users.map((user) => [user.uuid, user]))
   return (
     <section className="max-w-[800px] pt-[38px] max-[700px]:pt-7">
       <button className="inline-flex items-center gap-1.5 border-0 bg-transparent p-0 text-xs font-semibold text-muted hover:text-signal" type="button" onClick={onBack}><ArrowLeft size={16} />回到首页</button>

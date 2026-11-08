@@ -1,6 +1,6 @@
 import type { ProfileHighlightEntry } from '../../entities/action/lib/profile-highlights'
 import type { ActionDocumentMode, ActionNode } from '../../entities/action/model/types'
-import type { Project } from '../../entities/project/model/types'
+import type { Graph } from '../../entities/graph/model/types'
 import type { UserProfile } from '../../entities/profile/model/types'
 import { ProfilePreview } from '../../entities/profile/ui/ProfilePreview'
 import { Avatar } from '../../shared/ui/Avatar'
@@ -11,22 +11,22 @@ import { formatFullPublicationTime, formatPublicationTime } from '../../shared/l
 import { ActionPostList } from '../action-posts/ui/ActionPostList'
 
 /** 精选沿用表达流条目；附带约定采用约定流的引用摘要，人物、配图与正文各自交互。 */
-export function ProfileHighlightItem({ entry: { node, agreement }, actions, projects, users, onOpenNode }: {
+export function ProfileHighlightItem({ entry: { node, agreement }, actions, graphs, users, onOpenNode }: {
   entry: ProfileHighlightEntry
   actions: ActionNode[]
-  projects: Project[]
+  graphs: Graph[]
   users: UserProfile[]
   onOpenNode: (node: ActionNode, mode: ActionDocumentMode) => void
 }) {
   const source = agreement.sourceNode
   const authorId = source?.agreementSupplement?.authorId ?? source?.authorId
-  const author = users.find((user) => user.id === authorId)
+  const author = users.find((user) => user.uuid === authorId)
   const publishedAt = source?.agreementSupplement?.createdAt ?? source?.createdAt
   return (
     <>
       <ActionPostList nodes={[node]} actions={actions} users={users} mode="expression" presentation="feed" onExplore={onOpenNode}
         renderContext={() => <button type="button" className="max-w-full truncate border-0 bg-transparent p-0 text-left text-xs text-muted hover:text-signal" onClick={() => onOpenNode(node, 'expression')} title={`查看表达的行动背景：${node.title}`}>
-          {projects.find((project) => project.id === node.projectId)?.title ?? node.title} · #{node.number}
+          {graphs.find((graph) => graph.uuid === node.graphId)?.title ?? node.title} · #{node.number}
         </button>} />
       {agreement.markdown.trim() && <section className="group relative isolate min-w-0 px-1 pb-4">
         <button type="button" className="absolute inset-0 z-0 w-full rounded-lg border-0 bg-transparent p-0 text-left transition hover:bg-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal" title={`查看分支约定的行动背景：${node.title}`} onClick={() => onOpenNode(node, 'objective')} />

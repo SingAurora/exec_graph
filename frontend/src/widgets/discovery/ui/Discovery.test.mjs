@@ -3,23 +3,23 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { Discovery } from './Discovery.tsx'
 import { RecentGraphsAside } from './RecentGraphsAside.tsx'
-import { getActiveGraphActivities } from '../../../entities/project/lib/activity.ts'
+import { getActiveGraphActivities } from '../../../entities/graph/lib/activity.ts'
 
-const projects = Array.from({ length: 8 }, (_, index) => ({
-  id: `g-${index}`, ownerId: 'jo', title: `图 ${index}`, description: '公开空间', createdAt: '2026-10-01T12:00:00+08:00',
+const graphs = Array.from({ length: 8 }, (_, index) => ({
+  uuid: `g-${index}`, id: `g-${index}`, ownerId: 'jo', title: `图 ${index}`, description: '公开空间', createdAt: '2026-10-01T12:00:00+08:00',
 }))
-const actions = projects.flatMap((project, index) => {
-  const base = { projectId: project.id, createdAt: `2026-10-${String(index + 1).padStart(2, '0')}T12:00:00+08:00`, images: [], conversation: [] }
-  return [{ ...base, id: `source-${index}`, number: 1, authorId: 'lin', title: '来源行动', markdown: '真实行动', expressionMarkdown: '原来的表达', agreementMarkdown: '记录用时' },
-    { ...base, id: `response-${index}`, number: 2, authorId: 'jo', title: `回应 ${index}`, markdown: '本次行动', expressionMarkdown: '目前的表达', parentId: `source-${index}`, referenceAgreements: [{ sourceId: `source-${index}`, complies: true }] }]
+const actions = graphs.flatMap((graph, index) => {
+  const base = { graphId: graph.uuid, createdAt: `2026-10-${String(index + 1).padStart(2, '0')}T12:00:00+08:00`, images: [], conversation: [] }
+  return [{ ...base, uuid: `source-${index}`, id: `source-${index}`, number: 1, authorId: 'lin', title: '来源行动', markdown: '真实行动', expressionMarkdown: '原来的表达', agreementMarkdown: '记录用时' },
+    { ...base, uuid: `response-${index}`, id: `response-${index}`, number: 2, authorId: 'jo', title: `回应 ${index}`, markdown: '本次行动', expressionMarkdown: '目前的表达', parentId: `source-${index}`, referenceAgreements: [{ sourceId: `source-${index}`, complies: true }] }]
 })
 const render = (overrides = {}) => renderToStaticMarkup(createElement(Discovery, {
-  projects, actions, users: [], active: true, onOpenProject() {}, onOpenNode() {}, onOpenReference() {}, onSearchGraphs() {}, ...overrides,
+  graphs, actions, users: [], active: true, onOpenGraph() {}, onOpenNode() {}, onOpenReference() {}, onSearchGraphs() {}, ...overrides,
 }))
 
 describe('public discovery', () => {
   test('resolves current endpoints and satisfied exchanges with full context while excluding unknown graphs', () => {
-    const html = render({ actions: [...actions, { ...actions[0], id: 'orphan', projectId: 'removed', expressionMarkdown: '不可见表达' }] })
+    const html = render({ actions: [...actions, { ...actions[0], uuid: 'orphan', id: 'orphan', graphId: 'removed', expressionMarkdown: '不可见表达' }] })
     expect(html).toContain('trigger-expressions')
     expect(html).toContain('trigger-agreements')
     expect(html).not.toContain('trigger-graphs')
@@ -36,8 +36,8 @@ describe('public discovery', () => {
   })
 
   test('side directory shows only three recent graphs', () => {
-    const items = getActiveGraphActivities(projects, actions)
-    const aside = renderToStaticMarkup(createElement(RecentGraphsAside, { items, projects, actions, onOpen() {}, onSearchAll() {} }))
+    const items = getActiveGraphActivities(graphs, actions)
+    const aside = renderToStaticMarkup(createElement(RecentGraphsAside, { items, graphs, actions, onOpen() {}, onSearchAll() {} }))
     expect(aside.match(/<button /g)).toHaveLength(3)
     expect(aside).toContain('图 7')
     expect(aside).not.toContain('图 4')
@@ -45,7 +45,7 @@ describe('public discovery', () => {
   })
 
   test('empty discovery keeps every category with empty states and no invented activity', () => {
-    const html = render({ projects: [], actions: [] })
+    const html = render({ graphs: [], actions: [] })
     expect(html).toContain('暂无数据')
     expect(html).toMatch(/class="empty-state[^"]*"[\s\S]*?<svg/)
     expect(html).not.toContain('>暂无行动<')

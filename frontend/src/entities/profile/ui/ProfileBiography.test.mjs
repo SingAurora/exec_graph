@@ -7,7 +7,7 @@ const render = (biography, compact = false) => renderToStaticMarkup(createElemen
 
 describe('Markdown biographies', () => {
   test('renders emoji, emphasis and pictures while keeping text links inert', () => {
-    const html = render('🍅 **认真做饭** [一起做饭](#project?projectId=cooking)\n\n第二段经历。\n\n![晚饭](/dinner.jpg)')
+    const html = render('🍅 **认真做饭** [一起做饭](#graph?graphId=cooking)\n\n第二段经历。\n\n![晚饭](/dinner.jpg)')
     expect(html).toContain('🍅 <strong>认真做饭</strong>')
     expect(html).toContain('一起做饭')
     expect(html).not.toContain('<a ')
@@ -17,7 +17,7 @@ describe('Markdown biographies', () => {
   })
 
   test('compact biographies keep the first text block and one image, including reference-style content', () => {
-    const html = render('![封面][cover]\n\n🍅 **乔** [一起做饭][graph] ![配图](/extra.jpg)\n\n第二段不进卡片。\n\n[cover]: /cover.jpg\n[graph]: #project?projectId=cooking', true)
+    const html = render('![封面][cover]\n\n🍅 **乔** [一起做饭][graph] ![配图](/extra.jpg)\n\n第二段不进卡片。\n\n[cover]: /cover.jpg\n[graph]: #graph?graphId=cooking', true)
     expect(html).toContain('<strong>乔</strong>')
     expect(html).toContain('一起做饭')
     expect(html).not.toContain('<a ')

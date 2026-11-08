@@ -34,7 +34,7 @@ type ActionPostListProps = {
 export function ActionPostList({ nodes, actions, users, mode, searchQuery, infinite = false, active = true, presentation = 'default', showEnd, onExplore, renderContext }: ActionPostListProps) {
   const levels = useMemo(() => getActionLevels(actions), [actions])
   const contextCounts = useMemo(() => presentation === 'feed' && mode === 'expression'
-    ? new Map(nodes.map((node) => [node.id, getActionContextIds(actions.filter((action) => action.projectId === node.projectId), node.id).size]))
+    ? new Map(nodes.map((node) => [node.uuid, getActionContextIds(actions.filter((action) => action.graphId === node.graphId), node.uuid).size]))
     : new Map<string, number>(), [actions, nodes, mode, presentation])
   const { visibleCount, endRef, hasMore } = useInfiniteList({ itemCount: nodes.length, infinite, active })
 
@@ -42,7 +42,7 @@ export function ActionPostList({ nodes, actions, users, mode, searchQuery, infin
   return (
     <div className="min-w-0">
       <section>
-        {(infinite ? nodes.slice(0, visibleCount) : nodes).map((node) => <ActionPostItem key={node.id} node={node} level={levels.get(node.id)} contextCount={contextCounts.get(node.id)} actions={actions} users={users} mode={mode} searchQuery={searchQuery} presentation={presentation} onExplore={onExplore} renderContext={renderContext} />)}
+        {(infinite ? nodes.slice(0, visibleCount) : nodes).map((node) => <ActionPostItem key={node.uuid} node={node} level={levels.get(node.uuid)} contextCount={contextCounts.get(node.uuid)} actions={actions} users={users} mode={mode} searchQuery={searchQuery} presentation={presentation} onExplore={onExplore} renderContext={renderContext} />)}
       </section>
       {(showEnd ?? infinite) && <ListEnd ref={endRef} hasMore={infinite && hasMore} className="py-8" />}
     </div>
@@ -51,10 +51,10 @@ export function ActionPostList({ nodes, actions, users, mode, searchQuery, infin
 
 function ActionPostItem({ node, level, contextCount, actions, users, mode, searchQuery, presentation, onExplore, renderContext }: Omit<ActionPostListProps, 'nodes' | 'infinite' | 'active'> & { node: ActionNode; level: number | undefined; contextCount?: number }) {
   const feed = presentation === 'feed'
-  const author = users.find((user) => user.id === node.authorId)
-  const expression = mode === 'expression' ? getActionExpression(actions, node.id) : undefined
+  const author = users.find((user) => user.uuid === node.authorId)
+  const expression = mode === 'expression' ? getActionExpression(actions, node.uuid) : undefined
   const sourceAuthorId = expression?.sourceNode?.expressionSupplement?.authorId ?? expression?.sourceNode?.authorId
-  const sourceAuthor = users.find((user) => user.id === sourceAuthorId)
+  const sourceAuthor = users.find((user) => user.uuid === sourceAuthorId)
   const previewImages = expression ? (expression.markdown.trim() ? expression.sourceNode?.images ?? [] : []) : node.images
   const markdown = expression?.markdown ?? node.objectiveMarkdown ?? node.markdown
   const summary = getMarkdownSummary(markdown, node.title)
@@ -62,7 +62,7 @@ function ActionPostItem({ node, level, contextCount, actions, users, mode, searc
   const openDocument = () => onExplore(node, mode)
   const documentLabel = mode === 'expression' ? '表达' : '行动'
   return (
-    <article className={`group relative isolate min-w-0 px-1 ${feed ? 'py-4' : 'py-5'}`} data-node-id={node.id}>
+    <article className={`group relative isolate min-w-0 px-1 ${feed ? 'py-4' : 'py-5'}`} data-node-id={node.uuid}>
       <button className="absolute inset-0 z-0 w-full cursor-pointer rounded-lg border-0 bg-transparent p-0 text-left transition hover:bg-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal" type="button" title={`阅读全文：${documentLabel} · ${node.title}`} onClick={openDocument} />
       <div className="pointer-events-none relative">
         {!feed && renderContext && <div className="pointer-events-auto relative z-10 mb-2 w-fit">{renderContext(node)}</div>}
@@ -75,7 +75,7 @@ function ActionPostItem({ node, level, contextCount, actions, users, mode, searc
         </div>
         <div className="mt-3">
           {feed && mode === 'objective' && <h3 className="mb-1.5 truncate text-base font-semibold leading-[1.6] group-hover:text-signal" title={node.title}><HighlightedText text={node.title} query={searchQuery} /></h3>}
-          {!feed && expression && <ExpressionSource origin={getActionExpressionOrigin(actions, node.id)} />}
+          {!feed && expression && <ExpressionSource origin={getActionExpressionOrigin(actions, node.uuid)} />}
           <p className={`post-summary-clamp leading-[1.85] ${feed && expression ? 'text-base font-medium text-ink group-hover:text-signal' : `text-sm ${summary ? 'text-copy' : 'text-muted'}`}`}><HighlightedText text={excerpt || `暂无${documentLabel}`} query={searchQuery} /></p>
           <RecordThumbnails images={previewImages} />
         </div>

@@ -24,7 +24,7 @@ export function ProfilePage({ followingIds, ...props }: ProfilePageProps) {
       const nextView = window.location.hash.split('?')[0]
       if (nextView === '#profile' || nextView === '#my') {
         const next = readProfileRoute(props.currentUserId)
-        const returningFromGraph = ['#project', '#publish', '#action-archive'].includes(previousView) && lastProfileHash.current === window.location.hash
+        const returningFromGraph = ['#graph', '#publish', '#action-archive'].includes(previousView) && lastProfileHash.current === window.location.hash
         setProfileRoute(next)
         setVisited((current) => {
           if (current.has(next.userId) && (returningFromGraph || !next.activityTabRequest)) return current
@@ -41,12 +41,12 @@ export function ProfilePage({ followingIds, ...props }: ProfilePageProps) {
   return (
     <>
       {[...visited].map(([userId, request]) => {
-        const profile = props.users.find((user) => user.id === resourceId(props.users, userId))
+        const profile = props.users.find((user) => user.uuid === resourceId(props.users, userId))
         return (
-          profile && <div hidden={userId !== profileRoute.userId} key={userId}><PublicProfile {...props} profile={profile} active={Boolean(props.active && userId === profileRoute.userId)} activityTabRequest={request} following={followingIds.includes(profile.id)} /></div>
+          profile && <div hidden={userId !== profileRoute.userId} key={userId}><PublicProfile {...props} profile={profile} active={Boolean(props.active && userId === profileRoute.userId)} activityTabRequest={request} following={followingIds.includes(profile.uuid)} /></div>
         )
       })}
-      {!props.users.some((user) => user.id === resourceId(props.users, profileRoute.userId)) && <p className="empty-state">用户不存在</p>}
+      {!props.users.some((user) => user.uuid === resourceId(props.users, profileRoute.userId)) && <p className="empty-state">用户不存在</p>}
     </>
   )
 }

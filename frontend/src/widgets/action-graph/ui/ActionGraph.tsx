@@ -46,10 +46,10 @@ export function ActionGraph({ actions, highlightedPath, users, selectedId, selec
   // 高亮和选择只改样式；布局仅随行动数据变化，避免点击节点时整个图重新排列。
   const layout = useMemo(() => createActionLayout(actions, []), [actions])
   const highlightTip = highlightedPath.at(-1)
-  const userById = useMemo(() => new Map(users.map((user) => [user.id, user])), [users])
-  const referenceById = useMemo(() => new Map(layout.references.map((reference) => [reference.id, reference])), [layout])
+  const userById = useMemo(() => new Map(users.map((user) => [user.uuid, user])), [users])
+  const referenceById = useMemo(() => new Map(layout.references.map((reference) => [reference.uuid, reference])), [layout])
   const palette = useGraphPalette()
-  const hoveredNode = hover?.kind === 'node' ? actions.find((node) => node.id === hover.id) : undefined
+  const hoveredNode = hover?.kind === 'node' ? actions.find((node) => node.uuid === hover.id) : undefined
   const hoveredReference = hover?.kind === 'reference' ? referenceById.get(hover.id) : undefined
 
   useEffect(() => {
@@ -82,11 +82,11 @@ export function ActionGraph({ actions, highlightedPath, users, selectedId, selec
     const graph = graphRef.current
     if (!graph || !active) return
     const reference = selectedReferenceId ? referenceById.get(selectedReferenceId) : undefined
-    const contextId = highlightedPath.at(-1)?.id
+    const contextId = highlightedPath.at(-1)?.uuid
     const context = contextId ? getActionContextIds(actions, contextId) : new Set<string>()
-    const pathIds = new Set(highlightedPath.map((node) => node.id))
-    const selected = actions.find((node) => node.id === selectedId)
-    const sources = new Set(reference ? [reference.source.id, reference.target.id] : selected ? getActionParentIds(selected) : [])
+    const pathIds = new Set(highlightedPath.map((node) => node.uuid))
+    const selected = actions.find((node) => node.uuid === selectedId)
+    const sources = new Set(reference ? [reference.source.uuid, reference.target.uuid] : selected ? getActionParentIds(selected) : [])
     // 批量更新视觉类；承接主链、合入背景、来源和当前选择各自独立，颜色不表示路线优劣。
     graph.batch(() => {
       graph.elements().removeClass('active source outside main context')
@@ -103,7 +103,7 @@ export function ActionGraph({ actions, highlightedPath, users, selectedId, selec
         else if (context.has(sourceId) && context.has(targetId)) edge.addClass('context')
         if (contextId && (!context.has(sourceId) || !context.has(targetId))) edge.addClass('outside')
       })
-      const activeId = reference?.id ?? selectedId
+      const activeId = reference?.uuid ?? selectedId
       if (activeId) graph.getElementById(activeId).addClass('active')
     })
   }, [selectedId, selectedReferenceId, referenceById, actions, layout, palette, active, highlightedPath])
@@ -153,7 +153,7 @@ export function ActionGraph({ actions, highlightedPath, users, selectedId, selec
       {highlightTip ? <div className="action-graph-highlight">
         <span className="inline-flex min-w-0 items-center gap-1.5" title={highlightTip.title}><GitBranch size={14} />链路 #{highlightTip.number}</span>
         <div className="flex items-center gap-1">
-          <button className="action-graph-icon-button border-0 text-signal" type="button" title="定位链路终点" onClick={() => locateNode(highlightTip.id)}><LocateFixed size={15} /></button>
+          <button className="action-graph-icon-button border-0 text-signal" type="button" title="定位链路终点" onClick={() => locateNode(highlightTip.uuid)}><LocateFixed size={15} /></button>
           <button className="action-graph-icon-button border-0 text-signal" type="button" title="取消链路高亮" onClick={() => { setHover(null); onClearHighlight() }}><X size={15} /></button>
         </div>
       </div> : <span className="text-xs text-muted">{actions.length} 个节点</span>}
@@ -193,13 +193,13 @@ export function ActionGraph({ actions, highlightedPath, users, selectedId, selec
             })}
           </svg>
           {[...actions].sort((a, b) => b.number - a.number).map((node) => {
-            const position = layout.positions.get(node.id)!
+            const position = layout.positions.get(node.uuid)!
             return (
-              <button key={node.id} className="action-graph-node-target" style={{ left: position.x, top: position.y }} type="button"
-                title={`第 ${layout.levels.get(node.id)} 层，节点 #${node.number}：${node.title}`}
-                data-action-id={node.id}
-                onClick={() => selectNode(node.id)} onMouseEnter={(event) => showHover('node', node.id, event)} onMouseLeave={() => setHover(null)}
-                onFocus={(event) => showHover('node', node.id, event)} onBlur={() => setHover(null)} />
+              <button key={node.uuid} className="action-graph-node-target" style={{ left: position.x, top: position.y }} type="button"
+                title={`第 ${layout.levels.get(node.uuid)} 层，节点 #${node.number}：${node.title}`}
+                data-action-id={node.uuid}
+                onClick={() => selectNode(node.uuid)} onMouseEnter={(event) => showHover('node', node.uuid, event)} onMouseLeave={() => setHover(null)}
+                onFocus={(event) => showHover('node', node.uuid, event)} onBlur={() => setHover(null)} />
             )
           })}
         </div>

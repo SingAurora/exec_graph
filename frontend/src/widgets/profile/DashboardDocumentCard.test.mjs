@@ -5,17 +5,17 @@ import { DashboardDocumentCard } from './DashboardDocumentCard.tsx'
 import { RecordThumbnails } from '../../shared/ui/RecordThumbnails.tsx'
 
 const source = {
-  id: 'source', projectId: 'graph', number: 1, authorId: 'jo', title: '先试了一次',
+  uuid: 'source', id: 'source', graphId: 'graph', number: 1, authorId: 'jo', title: '先试了一次',
   markdown: '第一次的行动', expressionMarkdown: '复做以后再判断是否适合自己。',
   images: [{ url: '/source.jpg', alt: '表达来源的图片' }], conversation: [], createdAt: '2026-10-01T12:00:00+08:00',
 }
 const current = {
-  ...source, id: 'current', number: 2, parentId: 'source', title: '第二次复做',
+  ...source, uuid: 'current', id: 'current', number: 2, parentId: 'source', title: '第二次复做',
   objectiveMarkdown: '这次换了锅，番茄炒软后再回蛋。', expressionMarkdown: undefined,
   images: [{ url: '/current.jpg', alt: '本次行动的图片' }],
 }
 const render = (mode) => renderToStaticMarkup(createElement(DashboardDocumentCard, {
-  node: current, actions: [source, current], users: [], mode, onOpenNode() {}, onOpenProject() {},
+  node: current, actions: [source, current], users: [], mode, onOpenNode() {}, onOpenGraph() {},
 }))
 
 describe('dashboard document previews', () => {

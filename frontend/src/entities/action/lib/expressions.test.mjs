@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { canEditActionExpression, getActionExpression, getActionExpressionNodes, getActionExpressionOrigin, sortActionsNewestFirst, updateActionExpression } from './expressions.ts'
 
 function node(id, parentId, expressionMarkdown, extra = {}) {
-  return { id, projectId: 'graph', number: Number(id) || 1, parentId, expressionMarkdown, authorId: id, title: id, markdown: '事实不是表达', images: [], conversation: [], createdAt: `2026-10-${id.padStart(2, '0')}T12:00:00+08:00`, ...extra }
+  return { uuid: id, id, graphId: 'graph', number: Number(id) || 1, parentId, expressionMarkdown, authorId: id, title: id, markdown: '事实不是表达', images: [], conversation: [], createdAt: `2026-10-${id.padStart(2, '0')}T12:00:00+08:00`, ...extra }
 }
 
 const supplement = { authorId: 'jo', createdAt: '2026-10-18T15:00:00+08:00' }
@@ -40,13 +40,13 @@ describe('effective action expressions', () => {
     actions[0] = node('1', undefined, '主承接观点')
     expect(getActionExpression(actions, '3').markdown).toBe('主承接观点')
     actions[0] = node('1', undefined, '')
-    expect(getActionExpression(actions, '3').sourceNode.id).toBe('1')
+    expect(getActionExpression(actions, '3').sourceNode.uuid).toBe('1')
     expect(getActionExpression(actions, '3').markdown).toBe('')
   })
 
   test('does not borrow facts or unrelated expressions across missing sources, graphs, or cycles', () => {
     expect(getActionExpression([node('1', 'missing'), node('2', undefined, '无关观点')], '1')).toEqual({ markdown: '' })
-    expect(getActionExpression([node('1', '2'), node('2', undefined, '其他图', { projectId: 'other' })], '1')).toEqual({ markdown: '' })
+    expect(getActionExpression([node('1', '2'), node('2', undefined, '其他图', { graphId: 'other' })], '1')).toEqual({ markdown: '' })
     expect(getActionExpression([node('1', '2'), node('2', '1')], '1')).toEqual({ markdown: '' })
     expect(getActionExpression([], 'missing')).toEqual({ markdown: '' })
   })
@@ -55,16 +55,16 @@ describe('effective action expressions', () => {
 describe('expression and fact lists', () => {
   test('moves a route to its new endpoint while keeping other branches separate', () => {
     const actions = [node('1'), node('2', '1'), node('3', '1'), node('4', '2')]
-    expect(getActionExpressionNodes(actions).map((item) => item.id)).toEqual(['4', '3'])
-    expect(getActionExpressionNodes([...actions, node('5', '4', undefined, { mergedParentIds: ['3'] })]).map((item) => item.id)).toEqual(['5'])
-    expect(getActionExpressionNodes([node('1')]).map((item) => item.id)).toEqual(['1'])
+    expect(getActionExpressionNodes(actions).map((item) => item.uuid)).toEqual(['4', '3'])
+    expect(getActionExpressionNodes([...actions, node('5', '4', undefined, { mergedParentIds: ['3'] })]).map((item) => item.uuid)).toEqual(['5'])
+    expect(getActionExpressionNodes([node('1')]).map((item) => item.uuid)).toEqual(['1'])
     expect(getActionExpressionNodes([])).toEqual([])
   })
 
   test('sorts by publication time rather than node number, without mutating facts', () => {
     const actions = [node('1', undefined, '', { createdAt: '2026-10-18T12:00:00+08:00' }), node('2', '1')]
-    expect(sortActionsNewestFirst(actions).map((item) => item.id)).toEqual(['1', '2'])
-    expect(actions.map((item) => item.id)).toEqual(['1', '2'])
+    expect(sortActionsNewestFirst(actions).map((item) => item.uuid)).toEqual(['1', '2'])
+    expect(actions.map((item) => item.uuid)).toEqual(['1', '2'])
     expect(sortActionsNewestFirst(actions)).toHaveLength(2)
   })
 })
@@ -99,7 +99,7 @@ describe('editing an endpoint expression', () => {
     const empty = node('1', undefined, '')
     const merge = node('2', undefined, undefined, { mergedParentIds: ['1'] })
     expect(canEditActionExpression([empty, merge], '1')).toBe(false)
-    expect(canEditActionExpression([empty, { ...merge, projectId: 'other' }], '1')).toBe(true)
+    expect(canEditActionExpression([empty, { ...merge, graphId: 'other' }], '1')).toBe(true)
     expect(canEditActionExpression([node('1', undefined, '上游表达'), node('2', '1')], '2')).toBe(true)
   })
 

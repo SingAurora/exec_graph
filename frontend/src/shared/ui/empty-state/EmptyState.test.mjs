@@ -8,7 +8,7 @@ describe('shared empty state', () => {
     const html = renderToStaticMarkup(createElement(EmptyState, {
       title: '暂无表达',
       description: '路线终点还没有可展示的表达。',
-      action: createElement('a', { href: '#projects' }, '去看看'),
+      action: createElement('a', { href: '#graphs' }, '去看看'),
     }))
     expect(html).toContain('<svg')
     expect(html).toContain('暂无表达')
