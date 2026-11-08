@@ -4,6 +4,7 @@
 
 | 文档 | 用途 | 维护方式 |
 | --- | --- | --- |
+| [product-positioning.md](product-positioning.md) | 产品定位、目标用户、核心循环和取舍原则 | 产品方向变化时同步 |
 | [api-request-contract.md](api-request-contract.md) | 前后端请求边界、路由、查询和客户端约定 | 接口或交互变化时同步 |
 | [backend-write-contract.md](backend-write-contract.md) | 发布、图、行动、表达和约定的写入规则 | 事务、权限、DTO 变化时同步 |
 | [backend-external-contract.md](backend-external-contract.md) | 认证、图片、平台 AI、核验和外部能力 | 外部能力或 AI 流程变化时同步 |
