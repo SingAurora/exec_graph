@@ -144,7 +144,7 @@ GET `/ai/generation?generationUuid=UUID` 只返回本人发起的任务。pendin
 
 ## 前端与部署边界
 
-前端只连接真实后端，Vite 只将 `/api` 转发到 `API_PROXY_TARGET`。密钥保存在被 Git 忽略的服务端配置或 `DEEPSEEK_API_KEY` 环境变量中，没有个人 key 配置，也不注入前端构建。服务端 AI 配置使用 `ai.draft_model` 和 `ai.analysis_model`，分别控制行动整理和表达／约定／来源约定核验；未设置时均使用 `deepseek-flash`，行动整理关闭 thinking，分析和核验开启 thinking。旧配置中的 `ai.model` 仍可读取，但不会覆盖新的默认模型。
+前端只连接真实后端，Vite 开发服务器固定将 `/api` 转发到 `http://127.0.0.1:8080`。密钥保存在被 Git 忽略的服务端配置或 `DEEPSEEK_API_KEY` 环境变量中，没有个人 key 配置，也不注入前端构建。服务端 AI 配置使用 `ai.draft_model` 和 `ai.analysis_model`，分别控制行动整理和表达／约定／来源约定核验；未设置时均使用 `deepseek-flash`，行动整理关闭 thinking，分析和核验开启 thinking。旧配置中的 `ai.model` 仍可读取，但不会覆盖新的默认模型。
 
 登录、退出、账户安全成功及统一 401 边界清理旧账号查询；保留活跃会话查询订阅。网络／数据库错误不能被视为匿名或退回模拟数据。真实响应 ID 为 UUID；不再接受或返回旧短 ID、`legacyId` 或别名映射。
 
