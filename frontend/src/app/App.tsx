@@ -40,6 +40,7 @@ import { GraphPage } from '../pages/GraphPage'
 import { GraphsPage } from '../pages/GraphsPage'
 import { AuthScreen } from '../widgets/auth/AuthScreen'
 import { GuestApp } from './GuestApp'
+import { NotFoundScreen } from './NotFoundScreen'
 import { AppShell } from '../widgets/layout/AppShell'
 import { SettingsPanel } from '../widgets/settings/SettingsPanel'
 import { ActionWorkspace } from '../widgets/ai/ActionWorkspace'
@@ -64,6 +65,7 @@ export function App() {
   const loadingView = isAppView(rawView) && rawView !== 'topic' ? rawView : 'home'
   const loadingAuth = isAuthView(rawView)
   const authView = isAuthView(rawView) ? rawView : 'login'
+  const knownRoute = rawView === '' || isAppView(rawView) || isAuthView(rawView)
   const { showToast } = useToast()
   const enter = async (session: SessionView) => {
     if (session.token) writeAuthToken(session.token)
@@ -87,6 +89,7 @@ export function App() {
       window.location.hash = 'login'
     }
   }
+  if (!knownRoute) return <NotFoundScreen />
   if (resources.anonymous) {
     if (isAuthView(rawView)) return (
       <AuthScreen key={authView} view={authView} onEnter={enter} />
