@@ -1,11 +1,11 @@
 # 真实后端写入契约
 
-状态：当前已实现的业务写入规则。认证、图片和 AI 的 DTO 见 [外部能力契约](backend-external-contract.md)，请求边界见 [请求契约](api-request-contract.md)。前端只提交确认参数，不能直接伪造 AI 文稿、对话或作者身份。
+状态：当前已实现的业务写入规则。认证、响应外壳和错误码见 [请求契约](api-request-contract.md)，图片和 AI 的 DTO 见 [外部能力契约](backend-external-contract.md)。前端只提交确认参数，不能直接伪造 AI 文稿、对话或作者身份。
 
 ## 通用规则
 
-- 路径以 `/api/commands` 开头，使用 POST 和 JSON，响应沿用 `{code, msg, data}`；未知字段拒绝。
-- 所有业务写入携带 `Authorization: Bearer <token>`。不使用 Cookie，业务写入不依赖 CSRF token；请求不能指定操作者，事务内重新检查账户状态和认证版本。
+- 写入使用 POST 和 JSON；认证、响应外壳、错误码见 [请求契约](api-request-contract.md)。
+- 请求不能指定操作者；事务内重新检查账户状态和认证版本。
 - 图、节点、资产和生成任务使用小写 UUID；不接受短 ID、别名或非 UUID 资源标识。
 - `graphs/create`、`actions/create` 和 `ai/generate` 携带 UUID 格式的 `Idempotency-Key`。服务端按账号 + 操作 + key 隔离；同键同内容重放第一次结果，同键不同内容返回 409／10005。结果至少保留 24 小时。
 - 更新必须携带 `expectedVersion`；版本不符返回 409／10005。资料和精选共用账户版本，图资料独立版本，表达和约定共用节点版本；发布行动不增加图资料版本。
