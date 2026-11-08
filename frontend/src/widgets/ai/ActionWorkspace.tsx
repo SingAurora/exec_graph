@@ -1,5 +1,5 @@
 import { Check } from 'lucide-react'
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type SubmitEvent } from 'react'
 import type { ActionExpressionContext, ActionNode } from '../../entities/action/model/types'
 import { getActionContinuationContext } from '../../entities/action/lib/continuation'
 import { useGeneration } from '../../features/action-generation/model/useGeneration'
@@ -175,7 +175,7 @@ export function ActionWorkspace({ graphUuid, profileName, profile, draftKey, has
       localUpdateRef.current((current) => ({ ...current, generationRequest: business ? undefined : current.generationRequest, verificationStatus: 'unverified', messages: append(current.messages, prefix + (error instanceof Error ? error.message : '请求失败，请稍后重试。')) }))
     }).finally(() => { setSending(false) })
   }, [contextValid, generated, generation?.status, generationRequest, local.ready, publishing, sending])
-  const send = async (event: FormEvent) => {
+  const send = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
     const clean = input.trim()
     if (!local.ready || !clean || sending || publishing || uploading || !contextValid) return

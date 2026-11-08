@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type SubmitEvent } from 'react'
 import { ArrowRight } from 'lucide-react'
 import { guessTitle, inferFocusPoints } from '../../features/action/lib/planning'
 import type { Action } from '../../entities/action/model/legacy-types'
@@ -9,7 +9,7 @@ export function ActionComposer({ onCreate }: ActionComposerProps) {
   const [text, setText] = useState('')
   const [draft, setDraft] = useState<{ title: string; points: string[] } | null>(null)
 
-  const review = (event: FormEvent) => {
+  const review = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!text.trim()) return
     setDraft({ title: guessTitle(text), points: inferFocusPoints(text) })

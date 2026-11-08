@@ -1,4 +1,4 @@
-import {type FocusEvent, type FormEvent, useEffect, useRef, useState} from 'react'
+import {type ChangeEvent, type FocusEvent, type SubmitEvent, useEffect, useRef, useState} from 'react'
 import {CircleAlert, Eye, EyeOff} from 'lucide-react'
 import accessImage from '../../../assets/auth-mountain-walk.jpg'
 import registerImage from '../../../assets/auth-valley-hike.jpg'
@@ -39,7 +39,7 @@ export function AuthScreen({view, onEnter}: AuthScreenProps) {
     const isRegister = view === 'register'
     const isLogin = view === 'login'
     const content = copy[view]
-    const submit = async (event: FormEvent<HTMLFormElement>) => {
+    const submit = async (event: SubmitEvent<HTMLFormElement>) => {
         event.preventDefault()
         if (pending) return
         const fields = new FormData(event.currentTarget)
@@ -95,7 +95,7 @@ export function AuthScreen({view, onEnter}: AuthScreenProps) {
             setCodeSending(false)
         }
     }
-    const updateError = (event: FormEvent<HTMLFormElement> | FocusEvent<HTMLFormElement>) => {
+    const updateError = (event: ChangeEvent<HTMLFormElement> | FocusEvent<HTMLFormElement>) => {
         const input = event.target
         if (!(input instanceof HTMLInputElement)) return
         const name = input.name as AuthFieldName

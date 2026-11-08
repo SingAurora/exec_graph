@@ -1,4 +1,4 @@
-import { useRef, useState, type FocusEvent, type FormEvent } from 'react'
+import { useRef, useState, type ChangeEvent, type FocusEvent, type SubmitEvent } from 'react'
 import { useToast } from '../../../shared/ui/toast/useToast'
 import { SecurityField } from './SecurityField'
 import { sendCode as requestCode } from '../../auth/api/account'
@@ -31,7 +31,7 @@ export function SecurityForm({ kind, email, countdown, onRequestCode, onCancel }
     const input = formRef.current?.elements.namedItem(name)
     if (input instanceof HTMLInputElement) input.focus()
   }
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
+  const submit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (pending || codeSending) return
     const fields = new FormData(event.currentTarget)
@@ -69,7 +69,7 @@ export function SecurityForm({ kind, email, countdown, onRequestCode, onCancel }
     } catch (error) { showToast({ kind: 'error', message: error instanceof Error ? error.message : '发送失败，请重试' }) }
     finally { setCodeSending(false) }
   }
-  const updateErrors = (event: FormEvent<HTMLFormElement> | FocusEvent<HTMLFormElement>) => {
+  const updateErrors = (event: ChangeEvent<HTMLFormElement> | FocusEvent<HTMLFormElement>) => {
     const input = event.target
     if (!(input instanceof HTMLInputElement)) return
     const name = input.name as SecurityFieldName

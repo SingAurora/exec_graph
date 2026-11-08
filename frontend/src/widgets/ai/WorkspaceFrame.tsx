@@ -1,5 +1,5 @@
 import { ArrowLeft, BookOpen, ChevronDown, Footprints, LoaderCircle, MessageCircle, ScrollText, SendHorizontal, Sparkles } from 'lucide-react'
-import { useLayoutEffect, useRef, useState, type FormEvent, type ReactNode, type UIEvent } from 'react'
+import { useLayoutEffect, useRef, useState, type ReactNode, type SubmitEvent, type UIEvent } from 'react'
 import type { ActionExpressionContext, ActionExpressionMessage } from '../../entities/action/model/types'
 import { ACTION_CONTENT_LIMIT, ACTION_TITLE_LIMIT } from '../../entities/action/model/limits'
 import type { PostImage } from '../../shared/model/content'
@@ -59,7 +59,7 @@ type WorkspaceFrameProps = {
   fallbackAIName?: string
   disabled?: boolean
   onInputChange: (value: string) => void
-  onSend: (event: FormEvent) => void
+  onSend: (event: SubmitEvent<HTMLFormElement>) => void
   onBack: () => void
   action: DocumentPreview
   actionControls?: ReactNode

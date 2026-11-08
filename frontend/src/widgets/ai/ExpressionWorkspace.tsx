@@ -1,5 +1,5 @@
 import { Check } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type SubmitEvent } from 'react'
 import type { ActionExpressionMessage, ActionNode } from '../../entities/action/model/types'
 import type { ChatMessage } from '../../shared/model/content'
 import type { UserProfile } from '../../entities/profile/model/types'
@@ -110,7 +110,7 @@ export function ExpressionWorkspace({ node, draftKey, actions, profileName, prof
       updateRef.current((current) => ({ ...current, generationRequest: business ? undefined : current.generationRequest, messages: append(current.messages, '暂时无法更新表达：' + (error instanceof Error ? error.message : '请求失败，请稍后重试。')) }))
     }).finally(() => { setSending(false) })
   }, [canEdit, generated, generation?.status, generationRequest, local.ready, saving, sending])
-  const send = async (event: FormEvent) => {
+  const send = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
     const clean = input.trim()
     if (!local.ready || !clean || sending || saving || !canEdit || !context) return

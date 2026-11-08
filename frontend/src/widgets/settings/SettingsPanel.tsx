@@ -1,5 +1,5 @@
 import { LockKeyhole, Palette, PanelsTopLeft, UserRound } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { useState, type SubmitEvent } from 'react'
 import { AvatarEditor } from '../../features/profile/ui/AvatarEditor'
 import { ProfileBackgroundEditor } from '../../features/profile/ui/ProfileBackgroundEditor'
 import { MainlandLocationSelect } from '../../features/profile/ui/MainlandLocationSelect'
@@ -48,7 +48,7 @@ export function SettingsPanel({ profile, darkMode, showActionGraphLegend, graphB
   const bioError = validateBiography(draft.bio)
   const bioLength = [...draft.bio.trim()].length
   const update = <K extends keyof UserProfile>(key: K, value: UserProfile[K]) => setDraft((current) => ({ ...current, [key]: value }))
-  const saveProfile = async (event: FormEvent) => {
+  const saveProfile = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (nameError || bioError || backgroundLoading || saving) return
     setSaving(true)
