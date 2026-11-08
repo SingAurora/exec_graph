@@ -96,62 +96,11 @@ type DocumentUpdate =
 - `ai/chat` 的“核验”意图由模型判断，不依赖前端关键词；生成和核验由服务端读取事实与固定提示词。
 - 当前读取使用完整图上下文，没有远端分页和搜索分页；数据量增长前再新增分页契约。
 
-## 7. 当前接入的接口
+## 7. 端点以路由为准
 
-认证：
+当前已接入端点由 `backend/internal/http/router/router.go` 唯一维护。本契约只规定请求方式、参数、响应外壳、认证和状态边界，不在文档里复制会过期的端点清单。
 
-```text
-POST auth/login
-POST auth/logout
-POST auth/code-send
-POST auth/register
-POST auth/password-reset
-POST auth/password-change
-POST auth/email-change
-POST auth/demo-login（仅开发配置）
-GET  auth/session
-```
-
-读取：
-
-```text
-GET system/health
-GET profiles/catalogue
-GET graphs/catalogue
-GET graphs/detail
-GET actions/context
-GET actions/detail
-GET following/sources
-GET media/file
-GET actions/node-documents
-GET ai/generation
-GET ai/prompt-defaults
-```
-
-写入：
-
-```text
-POST profiles/update
-POST profiles/highlights-set
-POST following/set
-POST graphs/create
-POST graphs/update
-POST graphs/delete
-POST actions/create
-POST actions/delete
-POST actions/publish-document
-POST expressions/update
-POST agreements/update
-POST media/upload
-POST media/retain
-POST ai/generate
-POST ai/chat
-POST ai/verify
-POST ai/node-documents
-POST ai/place-images
-```
-
-`GET actions/context?graphId=...` 返回图内完整行动数组；`actions/detail?nodeId=...` 返回单节点。`graphs/detail?graphId=...` 和 `actions/detail?nodeId=...` 的 ID 都在 query，不使用路径参数。
+新增或删除端点时，以路由、endpoint DTO 和对应测试为准；只有影响通用请求规则的改动才需要同步本文。
 
 ## 8. 前端状态与 Query
 
