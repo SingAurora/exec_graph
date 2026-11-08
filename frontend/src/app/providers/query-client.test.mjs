@@ -17,18 +17,18 @@ describe('application Query cache and retry policy', () => {
       expect(client.getQueryData(graphKeys.catalogue('jo'))).toBeUndefined()
     } finally { client.clear() }
   })
-  test('deduplicates reads, keeps fresh data and isolates account scopes', async () => {
+  test('deduplicates in-flight reads, does not retain stale data and isolates account scopes', async () => {
     const client = createQueryClient()
     let reads = 0
     const options = { queryKey: graphKeys.catalogue('jo'), queryFn: async () => { reads++; await Promise.resolve(); return ['jo-graph'] } }
     try {
       expect(await Promise.all([client.fetchQuery(options), client.fetchQuery(options)])).toEqual([['jo-graph'], ['jo-graph']])
       await client.fetchQuery(options)
-      expect(reads).toBe(1)
+      expect(reads).toBe(2)
       expect(client.getQueryData(graphKeys.catalogue('lin'))).toBeUndefined()
       await client.invalidateQueries({ queryKey: options.queryKey })
       await client.fetchQuery(options)
-      expect(reads).toBe(2)
+      expect(reads).toBe(3)
     } finally { client.clear() }
   })
 

@@ -104,8 +104,8 @@ type DocumentUpdate =
 
 ## 8. 前端状态与 Query
 
-- TanStack Query 是远端事实的唯一客户端缓存；不把图、节点、用户资料再复制到 Zustand 或组件 state。
-- query key 包含资源、当前账号作用域、影响结果的已提交筛选和排序；不把 token、AbortSignal 或整个表单放进 key。
+- TanStack Query 只管理当前请求状态和同一时刻的请求去重，不保留长期缓存；每次挂载重新读取。不把图、节点、用户资料再复制到 Zustand 或组件 state。
+- query key 用于区分当前请求和账号作用域；不把 token、AbortSignal 或整个表单放进 key。
 - 写入成功后按领域失效关联查询；发布和删除不做默认乐观更新。失败保留输入，成功后清除对应草稿。
 - IndexedDB 草稿与已发布事实分开管理；恢复草稿前校验账号、图、操作和目标节点。
 - 切换账号或退出时取消并清理旧账号私有查询；未激活页面不主动发起自动查询。

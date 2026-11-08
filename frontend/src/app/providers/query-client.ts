@@ -9,7 +9,7 @@ export function retryBusinessQuery(failureCount: number, error: unknown): boolea
     || (error.kind === 'business' && [502, 503, 504].includes(error.status)))
 }
 
-/** 创建全局请求缓存；30 秒内视为新鲜，无订阅保留 10 分钟，写入失败不自动重试。 */
+/** 创建全局请求状态；不保留长期缓存，每次挂载重新读取，写入失败不自动重试。 */
 export function createQueryClient(): QueryClient {
   const expired = (error: unknown) => {
     if (!(error instanceof BusinessRequestError) || error.code !== API_ERROR_CODES.unauthenticated) return
@@ -20,7 +20,7 @@ export function createQueryClient(): QueryClient {
     })
   }
   const client = new QueryClient({ queryCache: new QueryCache({ onError: expired }), mutationCache: new MutationCache({ onError: expired }), defaultOptions: {
-    queries: { staleTime: 30_000, gcTime: 600_000, refetchOnWindowFocus: false, retry: retryBusinessQuery },
+    queries: { staleTime: 0, gcTime: 0, refetchOnMount: 'always', refetchOnWindowFocus: false, retry: retryBusinessQuery },
     mutations: { retry: false },
   } })
   return client
