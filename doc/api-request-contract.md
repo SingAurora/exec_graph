@@ -1,74 +1,51 @@
 # 前后端请求契约
 
-状态：统一客户端、TanStack Query 和真实后端已接入，前端默认关闭 MSW。认证、图、行动、用户资料、关注、上传与平台 AI 通过请求边界读写；远端分页尚未实现。下面未列入“当前接入范围”的端点仍是后续接口设计。
+状态：当前已接入功能的请求约定。未实现的远端分页、搜索、引用详情等设计不写入本契约；新增接口先实现，再补文档。代码、测试和后端 DTO 是最终依据。
 
-正式写入的 DTO 和验收边界见 [真实后端写入契约](backend-write-contract.md)，认证、图片和生成见 [外部能力契约](backend-external-contract.md)。发布／表达确认使用服务端 `generationId`，图片使用资产 UUID；MSW 沿用同一确认协议，不能直接发布浏览器生成的文稿。
+正式写入 DTO 见 [真实后端写入契约](backend-write-contract.md)，认证、图片和平台 AI 见 [外部能力契约](backend-external-contract.md)。
 
-## 1. 请求边界与命名
+## 1. 请求边界
 
-- 业务请求统一经过 `frontend/src/shared/api/client.ts`，领域请求函数放在所属 entity/feature 的 `api/`。组件和 Query 配置不直接调用 `fetch`，不自行拼接接口路径。
-- 路径固定为 `/api/commands/<领域>/<动作>`，领域与动作使用英文小写；多词用 `kebab-case`。资源 ID 放在 query 或 JSON，不放路径，不新增通配入口。
-- 仅使用 GET 和 POST。GET 读取数据且不产生业务写入；POST 创建、修改、删除或执行有副作用的操作。上传使用 POST multipart，不手动填写 multipart boundary。
-- 普通 POST 使用 `Content-Type: application/json`。JSON 字段和 query 参数用 camelCase；枚举值使用稳定英文标识，不用界面中文文案。
-- 业务接口默认同源，统一客户端基于 `VITE_API_BASE_URL` 解析目标地址；默认值为空。该变量仅为服务根地址，不包含 `/api/commands`，不能包含凭据。
-- 后端接入时行动图领域统一命名为 `graphs`、关联字段为 `graphId`。当前静态模型的 `Project`／`projectId` 暂时保留；迁移时通过明确 DTO 映射过渡，不能仅靠类型断言把两种字段当作相同数据。
-
-接口命名示例，供实现对应功能时遵循：
-
-| 方法 | 路径 | 用途 |
-| --- | --- | --- |
-| GET | `/api/commands/graphs/detail?graphId=UUID` | 图资料 |
-| GET | `/api/commands/actions/detail?nodeId=UUID` | 节点详情 |
-| GET | `/api/commands/references/detail?referenceId=UUID` | 引用箭头详情 |
-| GET | `/api/commands/expressions/list?graphId=UUID&limit=6` | 图内表达流 |
-| GET | `/api/commands/agreements/list?graphId=UUID&limit=6` | 图内跨用户约定回应流 |
-| GET | `/api/commands/actions/search?graphId=UUID&keyword=番茄&page=1&pageSize=6` | 行动搜索 |
-| POST | `/api/commands/graphs/create` | 创建图 |
-| POST | `/api/commands/actions/create` | 发布行动 |
-| POST | `/api/commands/expressions/update` | 保存 AI 对话形成的表达修改 |
-| POST | `/api/commands/agreements/update` | 保存节点的后续约定 |
-| POST | `/api/commands/graphs/delete` | 删除符合条件的图 |
-
-`agreements/list` 对应当前约定栏目：谁以行动满足了谁的约定，列表项定位到具体引用；不是把所有节点的后续约定文档平铺成列表。普通列表与搜索使用不同端点，避免 GET 参数隐式切换分页协议。
+- 业务请求统一经过 `frontend/src/shared/api/client.ts`；领域请求函数放在所属 entity/feature 的 `api/`。组件和 Query 不直接调用 `fetch`，不拼接接口路径。
+- 路径固定为 `/api/commands/<领域>/<动作>`，领域和动作用英文小写，多词用 `kebab-case`。资源 ID 放在 query 或 JSON，不放路径。
+- 仅使用 `GET` 和 `POST`。GET 读取，POST 创建、修改、删除或执行有副作用的操作。图片上传使用 POST multipart。
+- 普通 POST 使用 `Content-Type: application/json`。JSON 字段和 query 参数用 camelCase；枚举值使用稳定英文标识。
+- 统一客户端基于 `VITE_API_BASE_URL` 解析服务根地址，默认值为空；该变量不包含 `/api/commands`，不能包含凭据。
+- 当前 UI 仍使用 `projectId` 表示图，接口传输统一使用 `graphId`；实体 API 负责显式映射，不能让两种字段靠类型断言互相替代。
 
 ## 2. 参数与资源身份
 
-- UUID 是资源标识，图、节点、用户、引用关系均使用稳定 UUID。数据库自增主键不对外暴露。静态演示数据现有短 ID 只在迁移适配中处理，不成为正式接口规范。
-- 节点的 `number` 是图内稳定展示编号；`level` 是引用深度；二者都不能代替节点 UUID 发起更新。编号由后端分配，不能由客户端用列表长度或最大编号加一生成。
-- 时间用带时区的 ISO 8601 字符串，服务端输出统一使用 UTC，例如 `2026-10-22T03:30:00.000Z`；前端按用户本地时区显示。时间不使用中文展示文本或无时区字符串传输。
-- query 通过 URLSearchParams 编码一次。未选择的筛选条件省略，不发送字符串 `undefined`／`null`；布尔值用 `true`／`false`，数组用重复的同名参数，不用逗号拼接。
-- 搜索关键词去除首尾空白；正文、Markdown 和对话内容不由通用客户端擅自裁剪、改写或清除空值。
-- 缺省、`null`、空字符串是不同语义，客户端不得全局互相转换。JSON 不支持 `undefined`，表达与约定更新必须用显式模式，见第 7 节。
-- 每个端点明确输入 DTO，未知字段由后端拒绝；筛选条件不能靠任意对象透传。公共用户摘要不包含邮箱，当前账户的邮箱由账户接口返回。
+- 图、节点、用户、引用、图片和 AI 生成任务使用稳定 UUID；数据库自增主键不对外暴露。
+- 节点的 `number` 是图内稳定展示编号，`level` 是引用深度；二者都不能代替节点 UUID 发起更新。编号由后端分配，客户端不能用列表长度或最大编号加一生成。
+- 时间使用带时区的 ISO 8601 字符串，服务端输出 UTC，例如 `2026-10-22T03:30:00.000Z`；前端按本地时区展示。
+- query 通过 `URLSearchParams` 编码一次；未选择的筛选条件省略，不发送 `"undefined"`／`"null"`。布尔值用 `true`／`false`。
+- 搜索关键词去除首尾空白；正文、Markdown 和对话内容不由通用客户端擅自裁剪、改写或清空。
+- 缺省、`null`、空字符串语义不同，客户端不得全局互相转换。表达和约定的更新必须使用显式模式，见第 6 节。
+- 每个端点只接收明确 DTO；未知字段由后端拒绝。公共用户摘要不包含邮箱。
 
 ## 3. 统一 JSON 响应
 
-业务 JSON 成功返回 HTTP 200，使用统一结构：
+业务成功返回 HTTP 200，使用统一结构：
 
 ```json
 {
   "code": 0,
   "msg": "",
-  "data": {
-    "id": "42ca87c1-6a52-4c4b-84fd-4e199b03893b",
-    "title": "一盘番茄炒蛋"
-  }
+  "data": {}
 }
 ```
 
-- `code` 是整数；仅 `0` 表示业务成功。`msg` 始终为字符串，成功为空；失败为可展示的中文说明。
-- `data` 必须存在。成功时按端点 DTO 返回对象、列表容器或 `null`；失败固定为 `null`。空列表为 `items: []`，不能用 `null` 代替。
-- 当前协议不返回 204；没有返回内容的成功操作也用 `{ "code": 0, "msg": "", "data": null }`。
-- 统一客户端校验响应外壳，再向领域 API 返回 `data`；组件与 Query 不重复读取 `code` 或解包 `data`。领域 API 对需要校验的 DTO 字段继续做相应校验，TypeScript 泛型不等于运行时校验。
-- 仅 HTTP 成功且 `code === 0` 才算成功。无论 HTTP 200 内出现非零 code，还是非 2xx 响应，都必须进入错误处理；后端不以 HTTP 200 包装业务失败。
-- 成功的业务响应必须为合法 JSON；空响应、HTML 代理错误页或不符合外壳的响应作为协议错误处理，不得转为空数据或演示数据。
-- 服务端响应附带 `X-Request-Id`；客户端保留请求追踪 ID 供诊断，不把服务端堆栈或 SQL 暴露给用户。
+- `code` 是整数，只有 `0` 表示业务成功；成功 `msg` 为空，失败为可展示的中文说明。
+- `data` 必须存在。成功时返回端点 DTO、数组或 `null`；失败固定为 `null`。空列表用 `[]`，不能用 `null` 代替。
+- 当前不返回 204；没有返回内容的成功操作也返回 `{ "code": 0, "msg": "", "data": null }`。
+- 只有 HTTP 成功且 `code === 0` 才算成功；HTTP 200 内的非零 code 和所有非 2xx 响应都进入错误处理。
+- 成功响应必须是合法 JSON；HTML 代理错误页、空响应不能转成空数据或演示数据。
+- 响应带 `X-Request-Id`；客户端保留用于诊断，不把服务端堆栈或 SQL 暴露给用户。
+- 文件下载和图片读取保持二进制协议，不使用此 JSON 外壳。
 
-文件原始下载和未来明确约定的事件流不使用此 JSON 外壳。`getBlob` 下载图片保持二进制协议；图片上传的 JSON 回执和平台 AI 生成均使用业务外壳。真实应用不再经 Vite 转发第三方 AI 请求，旧原始响应客户端仅保留兼容读取，不能用于新发布流程。
+## 4. 错误码
 
-## 4. 错误与 HTTP 状态
-
-`frontend/src/shared/api/contracts.ts` 定义首版通用错误码。前后端、MSW 使用同一份编号含义；后续增加领域错误码需要同步端点契约与调用方，不能复用已有编号表达其他错误。
+`frontend/src/shared/api/contracts.ts` 定义通用错误码。
 
 | code | HTTP | 含义 |
 | --- | --- | --- |
@@ -76,89 +53,34 @@
 | `10002` | 401 | 尚未登录或会话已失效 |
 | `10003` | 403 | 无操作权限 |
 | `10004` | 404 | 资源不存在 |
-| `10005` | 409 | 状态冲突，包括编辑版本过期、来源已不可合入 |
+| `10005` | 409 | 状态冲突，包括版本过期、来源已变化 |
 | `10006` | 429 | 请求过于频繁 |
 | `10007` | 500 | 服务内部错误 |
 | `10008` | 503 | 服务暂不可用 |
 | `10009` | 502 | 上游服务失败 |
 
-示例：
+- 客户端按 code 或明确的错误类别判断，不比较中文 `msg`；未知非零 code 也按失败处理。
+- 401 由应用层集中清理旧账号缓存并回到登录页；403、404、409 在当前功能中提示，不统一跳首页。
+- 通用客户端不弹 toast；表单错误由表单展示，查询错误由当前内容区展示。
 
-```json
-{
-  "code": 10005,
-  "msg": "这个节点已被后续行动引用，请刷新后查看。",
-  "data": null
-}
-```
+## 5. 认证、会话与安全
 
-- 通用客户端保留 HTTP 状态、业务 code、msg 和 requestId，并区分业务失败、网络失败、超时、协议错误与主动取消。网络失败或取消不能伪造为某个后端业务 code。
-- 前端按 code 或明确的错误类别做逻辑判断，不比较中文 msg。未知非零 code 也按失败处理，保留原始 code；不强转为成功。
-- 401 的会话失效处理由应用层集中协调，清理旧账号缓存并回到登录页，避免多个失败请求重复跳转、重复提示。公开读取接口允许匿名请求，当前应用入口仍要求登录。403／404／409 在当前功能中提示，不统一跳回首页。
-- 通用客户端不弹 toast。表单错误由表单展示，查询错误由当前内容区展示；需要全局处理的错误由应用层负责，避免同一失败提示两次。
+- 业务接口使用 `Authorization: Bearer <token>`，token 可保存在浏览器 localStorage，不写入 Zustand 或 Query 缓存。
+- `GET /api/commands/auth/session` 返回已认证账户；无有效 token 返回 401／10002。只有该错误视为匿名，网络错误和服务端错误不能转成退出状态。
+- 当前使用 Bearer token，不使用 Cookie；业务写入已关闭 CSRF 校验，前端不依赖 CSRF token。
+- 登录、注册、找回密码、修改密码和邮箱变更会在成功后撤销旧会话；客户端需要清理旧账号缓存并重新登录。
+- CORS 允许配置明确来源，也允许 `*` 回显任意来源；鉴权由 token 和权限校验负责，不使用 Cookie 凭据。
+- `auth/demo-login` 只在显式开发配置下可用，生产环境关闭。
+- 普通 JSON 查询默认超时 15 秒；图片上传 60 秒；AI 生成 110 秒。前端请求函数接收 AbortSignal；主动取消不弹失败提示，也不代表服务端写入已撤销。
 
-## 5. 列表与搜索分页
+## 6. 写入、版本与 AI 确认
 
-第一版默认每次 6 条，上限 50 条。非法分页参数返回 10001，不静默修改页码或容量。
-
-### 普通内容流：游标加载
-
-```text
-GET /api/commands/expressions/list?graphId=UUID&limit=6
-GET /api/commands/expressions/list?graphId=UUID&limit=6&cursor=OPAQUE_CURSOR
-```
-
-```json
-{
-  "code": 0,
-  "msg": "",
-  "data": {
-    "items": [],
-    "nextCursor": null
-  }
-}
-```
-
-- `cursor` 是服务端生成的不透明字符串，客户端仅保存、回传。不能把节点编号、数组下标或展示日期自行编码成游标。
-- `nextCursor: null` 表示结束；不另传可能矛盾的 `hasMore`。初次空列表也使用此结构。
-- 返回顺序由端点明确，包含唯一的稳定排序字段作为并列兜底。游标绑定筛选与排序条件，换条件要从第一页开始；无效或条件不匹配的游标返回 10001。
-- 行动按发布时间倒序，约定回应按回应行动发布时间倒序。表达列表保持现有链路终点语义，具体端点明确其发布时间／更新时间排序含义，不能把继承文档的祖先时间冒充当前行动时间。约定的参与者一／二筛选为双向关系，实际提出者按有效约定版本归属。
-- 分页基于当前查询视图连续读取；刷新后重建首批数据。可变表达列表的后续页面不因同一表达更新而重复插入同一条目，服务端需以查询视图或等效机制保证续页稳定；新变化通过刷新体现。
-- `useInfiniteQuery` 负责已获取的远端页面。现有 `useInfiniteList` 仅适合已完整在内存中的数组；接入远端分页后不能用本地切片假装已经请求后续页面。
-
-### 搜索结果：页码分页
-
-```text
-GET /api/commands/actions/search?graphId=UUID&keyword=番茄&page=1&pageSize=6
-```
-
-```json
-{
-  "code": 0,
-  "msg": "",
-  "data": { "items": [], "page": 1, "pageSize": 6, "total": 0 }
-}
-```
-
-- `page` 从 1 开始，`pageSize` 与 `total` 是整数；`total` 为相同筛选条件下的匹配总数。页数由前端计算，不重复传总页数。
-- 超出最后一页仍返回成功和空 items，不当作资源不存在；前端根据 total 调整分页展示。搜索期间新增／修改数据可能影响后续页，以新请求结果为准。
-- 表达、约定、行动、用户和图搜索各自定义 DTO 与相关筛选参数。输入草稿不直接驱动请求，回车或点击搜索后才提交；切换分类保留各自已提交条件、结果和页码。
-- 列表响应只包含摘要需要的字段、缩略图及身份信息；完整文档、AI 对话和图拓扑按专用读取接口获取，不能在每条摘要中夹带整个图的全部行动。
-
-## 6. 会话、取消、重试与写入
-
-- 正式账户采用服务端会话与 Bearer token，业务客户端统一携带 `Authorization: Bearer <token>`；token 可保存在浏览器本地存储，但不写入 Zustand 或 Query 缓存。
-- `GET /api/commands/auth/session` 返回已认证的当前账户，无有效 token 时返回 HTTP 401／10002；只有该错误视为匿名，网络和服务端错误不能转换为退出状态。真实登录、退出、验证码注册和账户安全已接入。认证前的登录、注册、找回密码及其验证码请求不需要 CSRF；当前 demo 阶段已关闭业务写入的 CSRF 校验，前端仍可发送 `X-CSRF-Token`。登录响应返回 token，前端保存后在后续请求的 Authorization 头中携带。跨源部署可配置明确来源，也可配置 `*` 回显任意来源；鉴权由会话和权限校验负责，使用 `*` 时需自行评估浏览器跨源风险。
-- 普通 JSON 查询默认超时 15 秒；图片上传客户端为 60 秒，AI 生成为 110 秒。服务端单次对象操作 20 秒、模型网络调用 60 秒、生成用例 100 秒，详见外部能力契约。
-- 请求函数接收 AbortSignal，Query 的 signal 透传至 fetch。主动取消不弹失败提示、不触发重试。客户端超时或取消不代表服务端写入已撤销。
-- Query 读取只对网络错误、超时或 502／503／504 最多重试一次；参数、认证、权限、资源不存在、状态冲突、限流及协议错误不自动重试。统一 HTTP 客户端不再内置第二层重试。
-- Mutation 默认不自动重试。创建图、发布行动和 AI 生成使用 `Idempotency-Key` UUID：同一逻辑提交及其不确定结果重试复用同一键；内容变更代表新提交，生成新键。服务端将键按账号、操作隔离，至少保留 24 小时；相同键与相同请求重放原结果，相同键不同请求返回 10005。生成重复请求读取原任务，不再次调用模型；pending 时轮询私有状态，明确失败后新一轮使用新键。
-- 可编辑资源返回 `version`，更新请求带 `expectedVersion`；版本不符返回 10005，不能静默覆盖。发布行动还必须由后端在同一用例中重新检查来源有效性、编辑资格、引用背景与节点编号分配，不能依赖前端先查后写来保证一致性。
-- 删除也使用 POST，由后端重新检查参与者与节点数量等条件。失败时保留页面状态；不能先在本地永久移除再忽略服务端结果。
-
-## 7. 表达、约定和来源版本
-
-表达与约定使用独立生成会话；行动生成仅整理行动及来源核对。行动创建沿承接关系继承表达和后续约定，首次行动为空，不在行动对话中生成它们。表达和约定各自生成处理意图，不把缺省字段当作清空。最终发布只确认服务端生成身份，不再接收浏览器文稿：
+- 创建图、发布行动和 AI 生成使用 `Idempotency-Key` UUID。同一逻辑提交的不确定结果重试复用同一个键；同一键不同内容返回 10005。服务端按账号和操作隔离，至少保留 24 小时。
+- 可编辑资源返回 `version`，更新请求带 `expectedVersion`；版本不符返回 10005，不能静默覆盖。
+- 发布行动由后端在同一用例中重新校验来源版本、作者身份、引用背景和节点编号，不依赖前端先查后写。
+- 删除使用 POST，由后端重新检查作者、参与者和节点数量；失败时保留页面状态。
+- 图片使用已上传资产 UUID，不接收 data URL、第三方 URL 或浏览器生成的文稿。
+- 表达和约定使用显式更新模式：
 
 ```ts
 type DocumentUpdate =
@@ -167,46 +89,85 @@ type DocumentUpdate =
   | { mode: 'clear' }
 ```
 
-- 更新必须提供非空 Markdown；主动留空／清空用 clear。首次行动没有上级，不能 inherit；默认表达为空。合入来源不会自动拼接表达或约定，继承只沿主要承接关系。
-- 明确指定承接节点 ID、合入节点 ID 列表和直接来源的版本。后端基于实际来源计算历史事实并去重，不接受客户端任意声明历史数量或混入未引用行动；来源版本变化返回 10005，要求重新核对背景。
-- 每条直接引用独立记录约定核对状态：`complies: true | false | null`，null 明确表示尚未核对。不满足须带说明；不满足和未知均不自动阻止发布，不引入申请或批准流程。
-- 引用记录固定本次采用的来源约定版本。后续修改本节点向后传递的约定，不回写原有引用核对或历史版本。
-- 领域响应明确当前有效文档、原始处理模式和实际来源，前端不能仅凭正文相同推断继承；可编辑版本、来源版本等正式 DTO 在对应功能接入时落入实体类型。
-- 修改表达仍通过当前节点的连续 AI 对话形成，不新增行动，不覆盖原始事实。生成中间结果先留在工作区和本地草稿，用户确认后的 mutation 才发布业务事实。
+- 新行动默认继承主要来源已发布的表达和约定；某一种没有可继承版本时，只把该种创建为待生成。自己的来源不参与来源约定核对。
+- 每条直接引用独立记录 `complies: true | false | null`；`null` 表示尚未核对。不满足时带说明；不满足和未知都不自动阻止发布，不引入申请或批准流程。
+- 发布行动和确认文档只使用服务端 `generationId` 及返回的确认参数，不接受浏览器直接提交 AI 正文。
+- AI 相关接口：`ai/generate` 生成草稿，`ai/generation` 读取任务，`ai/chat` 由模型判断继续生成或核验，`ai/verify` 显式核验，`ai/node-documents` 生成节点文档草案，`ai/place-images` 放置图片。
+- `ai/chat` 的“核验”意图由模型判断，不依赖前端关键词；生成和核验由服务端读取事实与固定提示词。
+- 当前读取使用完整图上下文，没有远端分页和搜索分页；数据量增长前再新增分页契约。
 
-## 8. TanStack Query 与 MSW 的接入约束
+## 7. 当前接入的接口
 
-- QueryClientProvider 在 `app` 层创建和装配；读取 API 与 query-key 工厂属于对应 entity，明确的写入用例与 mutation 属于对应 feature。依赖方向遵循 AGENTS.md。
-- query key 使用稳定数组，包含资源、当前账号／匿名作用域、所有影响结果的已提交筛选及排序；分页搜索包含 page/pageSize，无限流的 cursor 通过 pageParam 传递。不能把整个表单实例、访问令牌或 AbortSignal 放进 key。
-- Query 是远端事实的唯一客户端缓存，不把返回的图、节点、用户资料再复制到 Zustand 或组件 state。组件 state 保留临时交互；已有 IndexedDB 草稿单独保留，不伪装成已发布数据。
-- 首版普通读取采用 `staleTime: 30_000`、`gcTime: 600_000`、`refetchOnWindowFocus: false`；不启用持久化查询缓存。各领域可以明确覆盖，但不能在组件中各自散写策略。
-- 保持挂载但隐藏的页面不主动发起自动查询，Query 配置根据激活状态控制；未激活期间发生的写入可标记缓存失效，返回页面时再更新。`enabled: false` 不等于取消已发出的请求；离开时是否取消由请求生命周期明确控制，同一 key 仍有其他活跃订阅时不能因一个面板隐藏而取消共享请求。
-- 写入成功后按领域失效关联查询；先采用成功后更新／刷新，不默认对发布和删除做乐观更新。失败保留输入；成功返回服务端确认的数据后才清除相应草稿。退出或切换账号时取消并清理旧账号私有查询。
-- Query 保留数据不等于保留阅读状态。图画布位置、节点选择、Tab 和列表滚动仍由已有机制管理；后台数据刷新不能重建工作区或替换未发布草稿。
-- MSW 是开发依赖，handler 和可写的演示会话状态放在 `app/mocks`，固定种子来源于 `app/demo`。模拟接口必须使用同样的路径、参数、HTTP 状态、错误码和 DTO，不直接绕过领域 API 填充 Query 缓存。
-- 模拟仅在开发构建且显式设置 `VITE_ENABLE_API_MOCKS=true` 时启用，通过动态导入启动；启动完成后再渲染需要接口的应用。生产构建不启动 worker；请求失败绝不自动切换模拟数据。
-- 启用模拟的模块由 MSW 明确拥有，不以“漏了 handler 就请求真实写接口”作为联调方式。未覆盖的 `/api/commands/` 请求报错；内嵌演示图片按声明放行。生成使用固定测试替身，真实邮件、安全和对象上传不模拟。切换到真实后端时关闭模拟；分领域混合联调须另行列出路由归属。
-- 模拟支持延迟、空数据、错误和既有演示写入，但不扩展成离线数据库。刷新重置模拟会话与本地持久草稿是两种不同生命周期，不能把前者描述为已经云端保存。远端分页须在对应列表迁移时按第 5 节实现。
+认证：
 
-## 9. 实施与验证
+```text
+POST auth/login
+POST auth/logout
+POST auth/code-send
+POST auth/register
+POST auth/password-reset
+POST auth/password-change
+POST auth/email-change
+POST auth/demo-login（仅开发配置）
+GET  auth/session
+```
 
-公共协议类型位于 `shared/api/contracts.ts`。当前生成请求通过业务 JSON 解包；MSW 固定生成替身也返回相同的生成及确认 DTO，不能冒充真实模型验收。
+读取：
 
-后续至少覆盖：HTTP 成功但 code 非零、HTTP 错误的 JSON／非 JSON、空 data 与空列表、无效游标、搜索分页、取消／超时、重复提交、版本冲突、账号切换隔离，以及 MSW 和真实 API 的契约一致性。已有浏览器阅读位置、图片预览和本地草稿回归继续保留。
+```text
+GET system/health
+GET profiles/catalogue
+GET graphs/catalogue
+GET graphs/detail
+GET actions/context
+GET actions/detail
+GET following/sources
+GET media/file
+GET actions/node-documents
+GET ai/generation
+GET ai/prompt-defaults
+```
 
-## 10. 当前接入范围与过渡接口
+写入：
 
-当前读取接口：`auth/session`、`profiles/catalogue`、`graphs/catalogue`、`graphs/detail`、`actions/context`、`actions/detail`、`following/sources`。写入接口：`profiles/update`、`profiles/highlights-set`、`graphs/create`、`graphs/update`、`graphs/delete`、`actions/create`、`expressions/update`、`agreements/update`、`following/set`。领域 API 内的 TypeScript 输入和输出是这些已实现接口的 DTO。
+```text
+POST profiles/update
+POST profiles/highlights-set
+POST following/set
+POST graphs/create
+POST graphs/update
+POST graphs/delete
+POST actions/create
+POST actions/delete
+POST actions/publish-document
+POST expressions/update
+POST agreements/update
+POST media/upload
+POST media/retain
+POST ai/generate
+POST ai/chat
+POST ai/verify
+POST ai/node-documents
+POST ai/place-images
+```
 
-认证还包括 `auth/login`、`auth/logout`、`auth/code-send`、`auth/register`、`auth/password-reset`、`auth/password-change`、`auth/email-change`，测试号登录为显式开发开关控制的 `auth/demo-login`。图片使用 `media/upload`、`media/retain`、`media/file`；AI 使用 `ai/generate`、`ai/generation`、`ai/node-documents` 和独立的 `ai/place-images`；节点文档使用 `actions/node-documents`、`actions/publish-document`、`actions/document-history` 和 `actions/delete`。
+`GET actions/context?graphId=...` 返回图内完整行动数组；`actions/detail?nodeId=...` 返回单节点。`graphs/detail?graphId=...` 和 `actions/detail?nodeId=...` 的 ID 都在 query，不使用路径参数。
 
-- `POST profiles/highlights-set` 单独保存当前账户的主页精选：仅传 `expressionNodeIds`，最多 5 个，允许空数组，并携带 `expectedVersion`。数组顺序就是展示顺序；只接收本人分支上的非空本人表达，沿用本人表达的节点也可以选择，以保留具体分支及约定的身份。拒绝重复、越权、空内容及版本冲突，不改动其他资料。账户和公开用户 DTO 的 `highlights` 返回表达节点 ID，旧资料缺少时按未精选处理，旧独立约定字段不再参与展示。约定不存精选副本，由各选中节点沿承接链读取有效约定，尊重主动清空及图边界，不混入合入分支；继承他人约定保留来源作者。同节点修改后随事实刷新，下游新增或分叉不自动替换所选节点；被删除或有效表达已清空的所选记录不再展示。
+## 8. 前端状态与 Query
 
-- `GET actions/context?graphId=...` 返回该图完整行动数组，使用传输字段 `graphId`，由实体 API 显式映射为既有 UI 的 `projectId`；节点与可编辑资料都带 `version`。创建图与行动返回服务端分配的 UUID、版本、时间和编号。
-- 现有列表、搜索、图布局与继承选择器仍以完整上下文计算，不假装已经实现服务端游标或搜索分页。当前应用启动会读取目录及全部图上下文，Query 统一缓存；这是为保留原型交互采用的过渡方案，数据量增长前必须拆成摘要流、分页搜索与按需详情／拓扑读取。
-- 创建请求携带 `Idempotency-Key`；同一提交在模拟会话内保留 24 小时重放结果，相同 key 不能换内容。修改携带 `expectedVersion`，发布行动携带直接来源的版本，删除还校验确认过的节点数量；不满足约定只记录结果，不进入申请流程。未评估的直接来源显式发送 `complies: null`。
-- MSW 固定种子继续使用原短 ID；新增资源使用 UUID。真实后端资源 ID 为 UUID，导入记录另有显式 `legacyId`，应用统一解析旧 hash 参数及本地草稿身份，不依赖客户端推算别名。写入只提交 UUID。
-- Query 缓存不持久化；真实业务写入由数据库保存，刷新后重新读取。只有显式启用 MSW 的模拟会话才在刷新后重置。公开目录不返回邮箱；邮箱只来自当前账户接口。AI 使用平台默认服务，密钥只在后端配置或环境变量，不进入浏览器、Query、模拟数据库或草稿；不提供个人密钥配置。
-- 登录、退出、账户安全成功和 401 统一清理旧账号查询并更新会话；取消在途请求不能保证服务端写入撤销。清理缓存保留活跃会话 observer，不使用全量 clear 后写入会话导致订阅断开。
+- TanStack Query 是远端事实的唯一客户端缓存；不把图、节点、用户资料再复制到 Zustand 或组件 state。
+- query key 包含资源、当前账号作用域、影响结果的已提交筛选和排序；不把 token、AbortSignal 或整个表单放进 key。
+- 写入成功后按领域失效关联查询；发布和删除不做默认乐观更新。失败保留输入，成功后清除对应草稿。
+- IndexedDB 草稿与已发布事实分开管理；恢复草稿前校验账号、图、操作和目标节点。
+- 切换账号或退出时取消并清理旧账号私有查询；未激活页面不主动发起自动查询。
+- MSW 只在显式设置 `VITE_ENABLE_API_MOCKS=true` 的开发构建启用；生产不启动 worker，真实请求失败不自动回退模拟数据。
+- 模拟接口必须使用相同路径、参数、错误码和 DTO，不绕过领域 API 填充 Query 缓存。
 
-开发启动、模拟开关和故障验证见 [前端接入说明](../frontend/README.md)。
+## 9. 验证重点
+
+- HTTP 成功但 code 非零、HTTP 错误、非 JSON、空 data；
+- 认证失效、权限、版本冲突和重复提交；
+- 取消、超时、重试边界；
+- 账号切换后的查询隔离；
+- 表达/约定继承、清空和来源版本变化；
+- 本地草稿恢复、失败保留和成功清理。
