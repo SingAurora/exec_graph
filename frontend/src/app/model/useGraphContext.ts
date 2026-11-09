@@ -15,5 +15,5 @@ export function useGraphContext(scope: string, graphUuid: string, enabled: boole
     for (const node of actions) if (node.author && !byId.has(node.author.uuid)) byId.set(node.author.uuid, node.author)
     return [...byId.values()]
   }, [actions])
-  return { graph: graph.data, graphs, actions, users, error: graph.error ?? context.error, loading: !graph.data || !context.data }
+  return { graph: graph.data, graphs, actions, users, error: graph.error ?? context.error, loading: enabled && (!graph.data || !context.data) }
 }

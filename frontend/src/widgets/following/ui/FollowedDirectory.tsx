@@ -32,9 +32,10 @@ export function FollowedDirectory({ kind, graphs, users, actions, onOpenGraph, o
     .sort((a, b) => Date.parse(b.lastActionAt ?? b.graph.createdAt) - Date.parse(a.lastActionAt ?? a.graph.createdAt)), [graphs, actions])
   const recentByUser = useMemo(() => {
     const latest = new Map<string, string>()
+    for (const user of users) if (user.recentActionAt) latest.set(user.uuid, user.recentActionAt)
     for (const node of sortActionsNewestFirst(actions)) if (!latest.has(node.authorUuid)) latest.set(node.authorUuid, node.createdAt)
     return latest
-  }, [actions])
+  }, [actions, users])
   const people = [...users].sort((a, b) => Date.parse(recentByUser.get(b.uuid) ?? '1970-01-01') - Date.parse(recentByUser.get(a.uuid) ?? '1970-01-01') || a.name.localeCompare(b.name, 'zh-CN'))
   const items = kind === 'graphs' ? activities.filter(({ graph }) => matches(graph.title)) : people.filter((user) => matches(user.name))
   const total = kind === 'graphs' ? activities.length : users.length

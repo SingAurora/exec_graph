@@ -32,6 +32,7 @@ type ProfileView struct {
 	AvatarAssetID     *string       `json:"avatarAssetUuid"`
 	BackgroundAssetID *string       `json:"backgroundAssetUuid"`
 	ActiveDays        int           `json:"activeDays"`
+	RecentActionAt    *time.Time    `json:"recentActionAt,omitempty"`
 	Highlights        Highlights    `json:"highlights"`
 }
 

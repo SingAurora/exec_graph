@@ -29,4 +29,5 @@ export type UserProfile = {
   activeDays: number
   isTestAccount?: boolean
   highlights?: ProfileHighlights
+  recentActionAt?: string
 }
