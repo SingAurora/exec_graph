@@ -44,6 +44,22 @@ func New(auth *identity.Handler, read *catalogue.Handler, graphs *graph.Handler,
 	group.POST("/auth/password-change", accounts.ChangePassword)
 	// 校验当前密码和新邮箱后更换绑定邮箱。
 	group.POST("/auth/email-change", accounts.ChangeEmail)
+	// 用户主页资源。
+	group.GET("/profiles/getInfo", read.ProfileInfo)
+	group.GET("/profiles/expression/getList", read.ProfileExpressionList)
+	group.GET("/profiles/agreement/getList", read.ProfileAgreementList)
+	group.GET("/profiles/action/getList", read.ProfileActionList)
+	group.GET("/profiles/graph/getList", read.ProfileGraphList)
+	group.GET("/profiles/stats/getInfo", read.ProfileStats)
+	// 关注页资源。
+	group.GET("/following/source/getList", read.FollowingSourceList)
+	group.GET("/following/expression/getList", read.FollowingExpressionList)
+	group.GET("/following/agreement/getList", read.FollowingAgreementList)
+	group.GET("/following/graph/getList", read.FollowingGraphList)
+	group.GET("/following/user/getList", read.FollowingUserList)
+	// 首页内容流。
+	group.GET("/feed/expression/getList", read.FeedExpressionList)
+	group.GET("/feed/agreement/getList", read.FeedAgreementList)
 	// 读取单个用户主页所需内容。
 	group.GET("/profiles/content", read.ProfileContent)
 	// 读取当前账号侧栏统计。
