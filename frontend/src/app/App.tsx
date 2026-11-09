@@ -49,6 +49,7 @@ const legendPreferenceKey = 'execg.actionGraph.showLegend'
 
 /** 应用的数据入口：认证状态由 Zustand 提供，业务数据由 Query 提供。 */
 export function App() {
+  // ── 认证状态与业务数据 ──
   const status = useAuthStore((state) => state.status)
   const user = useAuthStore((state) => state.user)
   const authError = useAuthStore((state) => state.error)
@@ -59,6 +60,7 @@ export function App() {
   const client = useQueryClient()
   const [darkMode, toggleTheme] = useAppearance()
   const [hash, setHash] = useState(() => window.location.hash)
+  // ── 启动认证检查与 URL 同步 ──
   useEffect(() => {
     void bootstrap()
   }, [bootstrap])
@@ -67,7 +69,8 @@ export function App() {
     window.addEventListener('hashchange', sync)
     return () => window.removeEventListener('hashchange', sync)
   }, [])
-  // 账号变化后清空 Query 业务缓存；公开数据和旧账号数据不能混用。
+  // ── 账号切换时清理业务缓存 ──
+  // 公开数据、游客数据和旧账号数据不能混用。
   const previousUser = useRef<string | null | undefined>(undefined)
   useEffect(() => {
     const current = user?.uuid ?? null
@@ -80,11 +83,13 @@ export function App() {
     void client.cancelQueries()
     client.removeQueries()
   }, [client, user?.uuid])
+  // ── 路由解析 ──
   const rawView = hash.slice(1).split('?')[0]
   const loadingView = isAppView(rawView) && rawView !== 'topic' ? rawView : 'home'
   const loadingAuth = isAuthView(rawView)
   const authView = isAuthView(rawView) ? rawView : 'login'
   const knownRoute = rawView === '' || isAppView(rawView) || isAuthView(rawView)
+  // 登录成功后离开登录/注册地址，避免刷新后又回到认证页。
   useEffect(() => {
     if (status === 'signed-in' && isAuthView(rawView)) window.location.hash = 'my'
   }, [rawView, status])
@@ -92,18 +97,23 @@ export function App() {
     await logout()
     window.location.hash = 'login'
   }
+  // ── 认证分支渲染 ──
+  // 未知 hash 不静默回退首页。
   if (!knownRoute) return <NotFoundScreen />
+  // 会话读取失败时保留错误，允许重试；不能误判成未登录。
   if (status === 'error') return (
     <main className="grid min-h-dvh place-content-center gap-4 bg-paper p-8 text-center text-sm text-copy">
       <p>{authError ?? '无法读取登录状态，请重试'}</p>
       <button className="quiet-button" type="button" onClick={() => { void retryAuth() }}>重试</button>
     </main>
   )
+  // 启动检查期间还没有可信的登录状态。
   if (status === 'booting' || (status === 'signed-in' && !user)) return (
     <main className="mx-auto w-[min(1200px,calc(100%-72px))] pt-[30px] max-[1000px]:w-[min(920px,calc(100%-48px))]">
       <div className="pt-6"><ListSkeleton rows={5} /></div>
     </main>
   )
+  // 未登录：认证页走 AuthScreen，其余走公开浏览。
   if (status === 'signed-out') {
     if (isAuthView(rawView)) return (
       <AuthScreen key={authView} view={authView} />
@@ -127,6 +137,7 @@ export function App() {
       />
     )
   }
+  // 已登录：等待图、用户、关注和行动上下文全部就绪。
   if (
     !user ||
     !resources.ready ||
@@ -158,6 +169,7 @@ export function App() {
     )
   }
 
+  // 认证和业务数据都就绪，挂载完整应用。
   return (
     <>
       <AppContent
@@ -188,6 +200,7 @@ function AppContent({ profile, graphs, actions, allUsers, sources, darkMode, tog
   profile: AccountProfile; graphs: GraphView[]; actions: VersionedAction[]; allUsers: UserProfile[]; sources: FollowedSources
   darkMode: boolean; toggleTheme: () => void; onLogout: () => Promise<void>
 }) {
+  // ── 数据、路由和本地界面状态 ──
   const commands = useAppCommands(profile.uuid)
   const imageAsset = useImageAssets()
   const { hash, revision, route, graphBackHash, profileBackHash, navigate } = useAppNavigation(profile.uuid)
@@ -199,6 +212,7 @@ function AppContent({ profile, graphs, actions, allUsers, sources, darkMode, tog
   const [showActionGraphLegend, setShowActionGraphLegend] = useState(() => {
     try { return window.localStorage.getItem(legendPreferenceKey) === 'true' } catch { return false }
   })
+  // ── 当前图、节点和工作区 ──
   // 离开图进入编辑器或形成过程时，仍保留最近一张图，供返回后恢复阅读。
   const [lastGraphUuid, setLastGraphUuid] = useState(query.get('graphUuid') ?? graphs[0]?.uuid ?? '')
   const workspaceRoute = route === 'publish' ? readActionWorkspaceRoute(query) : undefined
@@ -214,6 +228,7 @@ function AppContent({ profile, graphs, actions, allUsers, sources, darkMode, tog
   const expressionAction = actions.find((node) => node.uuid === workspaceActionUuid && node.graphUuid === workspaceGraphUuid)
   const workspaceGraph = graphs.find((graph) => graph.uuid === workspaceGraphUuid)
   const archiveAction = actions.find((action) => action.uuid === archiveActionId)
+  // ── 主页统计与深链接定位 ──
   // 表达数按路线终点计算；约定数按已满足的跨用户引用计算，都不是简单数 Markdown 字段。
   const profileStats = useMemo(() => ({
     actions: actions.filter((node) => node.authorUuid === profile.uuid).length,
@@ -243,7 +258,8 @@ function AppContent({ profile, graphs, actions, allUsers, sources, darkMode, tog
     }
   }, [route, query])
 
-  // 这些导航函数只描述目标地址；节点、文档和引用的实际选中状态由图详情组件接手。
+  // ── 导航函数 ──
+  // 这些函数只改目标 hash；节点、文档和引用的实际选中状态由图详情组件接手。
   const openGraph = (graphUuid: string) => {
     setLastGraphUuid(graphUuid)
     navigate('graph?graphUuid=' + encodeURIComponent(graphUuid))
@@ -279,6 +295,7 @@ function AppContent({ profile, graphs, actions, allUsers, sources, darkMode, tog
     if (!canEditActionAgreement(actions, node.uuid)) return
     navigate(actionWorkspaceHash({ mode: 'agreement', graphUuid: node.graphUuid, nodeUuid: node.uuid }))
   }
+  // ── 写操作 ──
   // mutateAsync 等待服务确认后才返回成功；expectedVersion 防止覆盖已被别人修改的版本。
   const confirmExpression = async (input: NonNullable<GenerationView['updateExpression']>) => {
     if (!workspaceActionUuid || !workspaceGraphUuid) {
@@ -362,6 +379,8 @@ function AppContent({ profile, graphs, actions, allUsers, sources, darkMode, tog
   const viewingOwnProfile = route === 'profile' && query.get('userUuid') === profile.uuid
   const personalAreaActive = route === 'my' || route === 'profile'
 
+  // ── 页面渲染 ──
+  // hidden 而非卸载，保留各 Tab 的列表、筛选和阅读位置。
   return (
     <AppShell
       profile={profile}
