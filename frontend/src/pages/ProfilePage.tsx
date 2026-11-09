@@ -25,7 +25,7 @@ function ProfileSlot({ userUuid, followingIds, request, active, ...props }: Prof
   const content = useQuery({
     queryKey: profileContentKey(userUuid),
     queryFn: ({ signal }) => readProfileContent(userUuid, signal),
-    enabled: Boolean(userUuid),
+    enabled: active && Boolean(userUuid),
   })
   if (content.isLoading) return <p className="empty-state">加载中…</p>
   if (!content.data) return <p className="empty-state">用户不存在</p>

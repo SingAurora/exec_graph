@@ -404,7 +404,7 @@ function AppContent({ profile, graphs, actions, users, sources, profileStats, re
       </div>
       <div hidden={route !== 'graphs'}>
         <GraphsPage
-          currentUserUuid={profile.uuid}
+          currentUserUuid={profile.uuid} active={route === 'graphs'}
           onCreateGraph={createGraph} onOpenGraph={openGraph}
         />
       </div>

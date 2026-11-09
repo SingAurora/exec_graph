@@ -16,10 +16,11 @@ const graphPageSize = 10
 const groups = [{ id: 'all', label: '全部', icon: Network }, { id: 'joined', label: '我参与的', icon: UsersRound }, { id: 'owned', label: '我发起的', icon: UserRound }] as const
 
 /** Browses public graphs without introducing a join gate or a planned-action state. */
-export function GraphDirectory({ currentUserUuid, onCreateGraph, onOpenGraph, readOnly = false }: {
+export function GraphDirectory({ currentUserUuid, onCreateGraph, onOpenGraph, readOnly = false, active = true }: {
   currentUserUuid: string
   onCreateGraph: (input: CreateGraphInput) => void | Promise<void>; onOpenGraph: (id: string) => void
   readOnly?: boolean
+  active?: boolean
 }) {
   const [group, setGroup] = useState<GraphGroup>('all')
   const [keyword, setKeyword] = useState('')
@@ -28,7 +29,7 @@ export function GraphDirectory({ currentUserUuid, onCreateGraph, onOpenGraph, re
   const visibleGroups = readOnly ? groups.filter(({ id }) => id === 'all') : groups
   const deferredKeyword = useDeferredValue(keyword)
   const params: GraphListParams = { page, pageSize: graphPageSize, filter: group, keyword: deferredKeyword.trim(), sort: sort as GraphListParams['sort'] }
-  const result = useQuery({ queryKey: graphListKey(currentUserUuid, params), queryFn: ({ signal }) => readGraphPage(params, signal) })
+  const result = useQuery({ queryKey: graphListKey(currentUserUuid, params), queryFn: ({ signal }) => readGraphPage(params, signal), enabled: active })
   const summaries = (result.data?.items ?? []).map((graph) => getGraphActivity(graph, []))
   const currentPage = result.data?.page ?? page
   const pageCount = Math.max(1, Math.ceil((result.data?.total ?? 0) / graphPageSize))
