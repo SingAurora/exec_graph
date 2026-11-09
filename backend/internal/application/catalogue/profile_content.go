@@ -15,7 +15,7 @@ func (s *Service) ProfileContent(ctx context.Context, userUUID string) (ProfileC
 	if err != nil {
 		return ProfileContentView{}, err
 	}
-	graphs, err := s.repository.Graphs(ctx)
+	graphs, err := s.repository.GraphsForAuthor(ctx, userUUID)
 	if err != nil {
 		return ProfileContentView{}, err
 	}

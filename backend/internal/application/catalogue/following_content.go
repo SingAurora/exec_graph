@@ -23,7 +23,7 @@ func (s *Service) FollowingContent(ctx context.Context, userUUID string) (Follow
 	for _, uuid := range sources.UserIDs {
 		followedUsers[uuid] = true
 	}
-	graphs, err := s.repository.Graphs(ctx)
+	graphs, err := s.repository.GraphsForFollowing(ctx, userUUID)
 	if err != nil {
 		return FollowingContentView{}, err
 	}

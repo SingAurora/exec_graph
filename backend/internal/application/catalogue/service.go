@@ -5,6 +5,9 @@ import "context"
 // Repository 只暴露读取能力，不向 application 泄露 ORM。
 type Repository interface {
 	Graphs(context.Context) ([]GraphView, error)
+	GraphsPage(context.Context, string, string, string, string, int, int) ([]GraphView, int, error)
+	GraphsForAuthor(context.Context, string) ([]GraphView, error)
+	GraphsForFollowing(context.Context, string) ([]GraphView, error)
 	Graph(context.Context, string) (GraphView, error)
 	Profile(context.Context, string) (ProfileView, error)
 	Actions(context.Context, string) ([]ActionView, error)

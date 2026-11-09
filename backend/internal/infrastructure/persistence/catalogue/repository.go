@@ -115,6 +115,60 @@ func (r *Repository) profiles(ctx context.Context, users []model.User) ([]app.Pr
 }
 
 // Graphs 从实际行动作者推导参与人，过滤已删除图。
+// GraphsPage 在数据库层筛选、排序和分页图目录。
+func (r *Repository) GraphsPage(ctx context.Context, filter, keyword, order, userUUID string, offset, limit int) ([]app.GraphView, int, error) {
+	query := r.db.WithContext(ctx).Model(&model.Graph{}).Where("graphs.deleted_at IS NULL")
+	switch filter {
+	case "owned":
+		query = query.Where("graphs.owner_uuid = ?", userUUID)
+	case "joined":
+		query = query.Where("EXISTS (SELECT 1 FROM action_nodes n WHERE n.graph_uuid = graphs.uuid AND n.author_uuid = ?)", userUUID)
+	}
+	if keyword != "" {
+		like := "%" + keyword + "%"
+		query = query.Where("(graphs.title LIKE ? OR graphs.description LIKE ?)", like, like)
+	}
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	activity := "COALESCE((SELECT MAX(n.created_at) FROM action_nodes n WHERE n.graph_uuid = graphs.uuid), graphs.created_at)"
+	switch order {
+	case "created":
+		query = query.Order("graphs.created_at DESC, graphs.uuid DESC")
+	case "name":
+		query = query.Order("graphs.title ASC, graphs.uuid ASC")
+	default:
+		query = query.Order(activity + " DESC, graphs.uuid DESC")
+	}
+	var rows []model.Graph
+	if err := query.Offset(offset).Limit(limit).Find(&rows).Error; err != nil {
+		return nil, 0, err
+	}
+	views, err := r.graphs(ctx, rows)
+	return views, int(total), err
+}
+
+// GraphsForAuthor 只读取某用户实际参与过的图。
+func (r *Repository) GraphsForAuthor(ctx context.Context, userUUID string) ([]app.GraphView, error) {
+	var rows []model.Graph
+	err := r.db.WithContext(ctx).Where("deleted_at IS NULL AND EXISTS (SELECT 1 FROM action_nodes n WHERE n.graph_uuid = graphs.uuid AND n.author_uuid = ?)", userUUID).Order("created_at DESC, uuid DESC").Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	return r.graphs(ctx, rows)
+}
+
+// GraphsForFollowing 只读取关注图或关注用户参与过的图。
+func (r *Repository) GraphsForFollowing(ctx context.Context, userUUID string) ([]app.GraphView, error) {
+	var rows []model.Graph
+	err := r.db.WithContext(ctx).Where("deleted_at IS NULL AND (EXISTS (SELECT 1 FROM graph_follows f WHERE f.graph_uuid = graphs.uuid AND f.user_uuid = ?) OR EXISTS (SELECT 1 FROM action_nodes n JOIN user_follows uf ON uf.followed_user_uuid = n.author_uuid AND uf.follower_uuid = ? WHERE n.graph_uuid = graphs.uuid))", userUUID, userUUID).Order("created_at DESC, uuid DESC").Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	return r.graphs(ctx, rows)
+}
+
 func (r *Repository) Graphs(ctx context.Context) ([]app.GraphView, error) {
 	var graphs []model.Graph
 	if err := r.db.WithContext(ctx).Where("deleted_at IS NULL").Order("created_at DESC, uuid DESC").Find(&graphs).Error; err != nil {

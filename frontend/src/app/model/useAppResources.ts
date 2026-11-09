@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import { graphKeys, readGraphCatalogue, readGraphDetail } from '../../entities/graph/api/graphs'
+import { graphKeys, readGraphDetail } from '../../entities/graph/api/graphs'
 import { actionKeys, readActionContexts } from '../../entities/action/api/context'
 import { profileStatsKey, readProfileStats, type AccountProfile } from '../../entities/profile/api/profiles'
 import type { UserProfile } from '../../entities/profile/model/types'
@@ -16,10 +16,8 @@ export function useAppResources(user: AccountProfile | null, authStatus: AuthSta
   const profileRoute = route === 'profile' || route === 'my'
   const followingRoute = route === 'following'
   const settingsRoute = route === 'settings'
-  const fullData = route !== 'home' && !graphRoute && !graphListRoute && !profileRoute && !followingRoute && !settingsRoute
   const scope = user?.uuid ?? 'public'
 
-  const catalogue = useQuery({ queryKey: graphKeys.catalogue(scope), queryFn: ({ signal }) => readGraphCatalogue(signal), enabled: publicEnabled && fullData })
   const selectedGraph = useQuery({
     queryKey: graphKeys.detail(scope, graphUuid),
     queryFn: ({ signal }) => readGraphDetail(graphUuid, signal),
@@ -29,21 +27,14 @@ export function useAppResources(user: AccountProfile | null, authStatus: AuthSta
   const followingContent = useQuery({ queryKey: followingContentKey(scope), queryFn: ({ signal }) => readFollowingContent(signal), enabled: signedIn && followingRoute })
   const profileStats = useQuery({ queryKey: profileStatsKey(user?.uuid ?? ''), queryFn: ({ signal }) => readProfileStats(user!.uuid, signal), enabled: signedIn })
 
-  const catalogueUuids = catalogue.data?.map((graph) => graph.uuid) ?? []
-  const catalogueContexts = useQuery({
-    queryKey: actionKeys.contexts(scope, catalogueUuids),
-    queryFn: ({ signal }) => readActionContexts(catalogueUuids, signal),
-    enabled: publicEnabled && fullData && Boolean(catalogue.data),
-    placeholderData: (previous, query) => query?.queryKey[1] === scope ? previous : undefined,
-  })
   const selectedContext = useQuery({
     queryKey: actionKeys.contexts(scope, graphUuid ? [graphUuid] : []),
     queryFn: ({ signal }) => readActionContexts([graphUuid], signal),
     enabled: publicEnabled && graphRoute && Boolean(graphUuid),
   })
 
-  const graphs = useMemo(() => followingRoute ? (followingContent.data?.graphs ?? []) : graphRoute ? (selectedGraph.data ? [selectedGraph.data] : []) : (catalogue.data ?? []), [catalogue.data, followingContent.data?.graphs, followingRoute, graphRoute, selectedGraph.data])
-  const actions = useMemo(() => followingRoute ? (followingContent.data?.actions ?? []) : graphRoute ? (selectedContext.data ?? []) : (catalogueContexts.data ?? []), [catalogueContexts.data, followingContent.data?.actions, followingRoute, graphRoute, selectedContext.data])
+  const graphs = useMemo(() => followingRoute ? (followingContent.data?.graphs ?? []) : graphRoute ? (selectedGraph.data ? [selectedGraph.data] : []) : [], [followingContent.data?.graphs, followingRoute, graphRoute, selectedGraph.data])
+  const actions = useMemo(() => followingRoute ? (followingContent.data?.actions ?? []) : graphRoute ? (selectedContext.data ?? []) : [], [followingContent.data?.actions, followingRoute, graphRoute, selectedContext.data])
 
   // 用户资料跟着行动和关注集合返回；这里只组装展示所需的查找表。
   const users = useMemo(() => {
@@ -54,7 +45,7 @@ export function useAppResources(user: AccountProfile | null, authStatus: AuthSta
     return [...byId.values()]
   }, [actions, following.data?.users, user])
   const sources = followingRoute ? (followingContent.data?.sources ?? { userUuids: [], graphUuids: [], users: [] }) : signedIn && following.data ? following.data : { userUuids: [], graphUuids: [], users: [] }
-  const error = followingRoute ? (followingContent.error ?? profileStats.error) : graphRoute ? (selectedGraph.error ?? selectedContext.error ?? profileStats.error) : (catalogue.error ?? catalogueContexts.error ?? following.error ?? profileStats.error)
+  const error = followingRoute ? (followingContent.error ?? profileStats.error) : graphRoute ? (selectedGraph.error ?? selectedContext.error ?? profileStats.error) : (following.error ?? profileStats.error)
   const statsReady = !signedIn || Boolean(profileStats.data)
   const ready = graphListRoute
     ? Boolean(statsReady && (!signedIn || following.data))
@@ -62,21 +53,14 @@ export function useAppResources(user: AccountProfile | null, authStatus: AuthSta
       ? Boolean(followingContent.data && statsReady)
       : profileRoute || settingsRoute
         ? Boolean(statsReady && (!signedIn || following.data))
-      : !fullData && !graphRoute
-        ? statsReady
-    : graphRoute
-      ? Boolean(selectedGraph.data && selectedContext.data && statsReady && (!signedIn || following.data))
-      : Boolean(catalogue.data && catalogueContexts.data && statsReady && (!signedIn || following.data))
+        : graphRoute
+          ? Boolean(selectedGraph.data && selectedContext.data && statsReady && (!signedIn || following.data))
+          : Boolean(statsReady && (!signedIn || following.data))
   const retry = () => {
     if (!publicEnabled) return
     if (graphRoute) {
       void selectedGraph.refetch()
       void selectedContext.refetch()
-    } else if (settingsRoute || profileRoute) {
-      // 设置页只需要账号统计和关注资料。
-    } else if (fullData) {
-      void catalogue.refetch()
-      if (catalogue.data) void catalogueContexts.refetch()
     }
     if (followingRoute) void followingContent.refetch()
     if (signedIn) { void following.refetch(); void profileStats.refetch() }
