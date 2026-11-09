@@ -4,7 +4,7 @@ import { SecurityField } from './SecurityField'
 import { sendCode as requestCode } from '../../auth/api/account'
 import { changeCredentials } from '../api/commands'
 import { useQueryClient } from '@tanstack/react-query'
-import { profileKeys } from '../../../entities/profile/api/profiles'
+import { useAuthStore } from '../../auth/model/auth-store'
 import { passwordMaxCharacters } from '../../../entities/account/lib/validation'
 import { validateNewEmail, validateSecurityForm, type SecurityFieldErrors, type SecurityFieldName, type SecurityFormKind } from '../lib/validation'
 
@@ -44,8 +44,8 @@ export function SecurityForm({ kind, email, countdown, onRequestCode, onCancel }
       await changeCredentials(kind, { currentPassword: String(fields.get('currentPassword')), code: String(fields.get('code')).trim(),
         ...(isEmail ? { email: String(fields.get('email')).trim().toLowerCase() } : { password: String(fields.get('password')) }) })
       await client.cancelQueries()
-      client.removeQueries({ predicate: (query) => query.queryKey[0] !== 'session' })
-      client.setQueryData(profileKeys.session, null)
+      client.removeQueries()
+      useAuthStore.getState().expire()
       window.location.hash = 'login'
       showToast({ kind: 'info', message: `${isEmail ? '邮箱' : '密码'}已更新，请重新登录` })
     } catch (error) { showToast({ kind: 'error', message: error instanceof Error ? error.message : '修改失败，请重试' }) }

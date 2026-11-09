@@ -3,17 +3,18 @@ import { createQueryClient } from './query-client.ts'
 import { BusinessRequestError } from '../../shared/api/errors.ts'
 import { graphKeys } from '../../entities/graph/api/graphs.ts'
 import { QueryObserver } from '@tanstack/react-query'
+import { useAuthStore } from '../../features/auth/model/auth-store.ts'
 
 describe('application Query cache and retry policy', () => {
   test('an expired write cancels account reads and removes private caches without retrying', async () => {
     const client = createQueryClient()
     try {
-      client.setQueryData(['session'], { user: { uuid: 'jo', id: 'jo' } })
+      useAuthStore.setState({ status: 'signed-in', user: { uuid: 'jo' } })
       client.setQueryData(graphKeys.catalogue('jo'), ['private-graph'])
       const mutation = client.getMutationCache().build(client, { mutationFn: async () => { throw new BusinessRequestError('请重新登录', 'business', 401, 10002) } })
       await expect(mutation.execute({})).rejects.toMatchObject({ code: 10002 })
       await Promise.resolve()
-      expect(client.getQueryData(['session'])).toBeNull()
+      expect(useAuthStore.getState().status).toBe('signed-out')
       expect(client.getQueryData(graphKeys.catalogue('jo'))).toBeUndefined()
     } finally { client.clear() }
   })

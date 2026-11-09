@@ -5,6 +5,8 @@ import type { SessionView } from '../../../entities/profile/api/profiles'
 export type CodePurpose = 'register' | 'reset-password' | 'change-password' | 'change-email'
 /** 邮件服务只返回有效期与重发间隔。 */
 export type CodeView = { expiresIn: number; retryAfter: number }
+/** 注册表单提交的明确字段。 */
+export type RegisterInput = { email: string; code: string; password: string; name: string }
 
 /** 密码登录，服务端返回 Bearer token。 */
 export function login(email: string, password: string): Promise<SessionView> {
@@ -18,7 +20,7 @@ export function sendCode(purpose: CodePurpose, email: string, options: BusinessR
   return postAPI('/api/commands/auth/code-send', { purpose, email }, { ...options, timeoutMs: 30_000 })
 }
 /** 验证邮箱并创建普通账号，不接受测试账号标记。 */
-export function register(input: { email: string; code: string; password: string; name: string }): Promise<SessionView> {
+export function register(input: RegisterInput): Promise<SessionView> {
   return postAPI('/api/commands/auth/register', input)
 }
 /** 验证绑定邮箱后重设密码，撤销旧会话。 */

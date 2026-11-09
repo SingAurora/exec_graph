@@ -9,12 +9,11 @@ import {type AuthFieldErrors, type AuthFieldName, validateAuthField, validateAut
 import {Brand} from '../../shared/ui/Brand'
 import {useToast} from '../../shared/ui/toast/useToast'
 import './auth-screen.css'
-import {login, register, resetPassword, sendCode as requestCode} from '../../features/auth/api/account'
-import type {SessionView} from '../../entities/profile/api/profiles'
+import {resetPassword, sendCode as requestCode} from '../../features/auth/api/account'
+import {useAuthStore} from '../../features/auth/model/auth-store'
 
 type AuthScreenProps = {
     view: AuthView
-    onEnter: (session: SessionView) => void | Promise<void>
 }
 
 const copy = {
@@ -24,7 +23,9 @@ const copy = {
 } satisfies Record<AuthView, { title: string; intro: string; submit: string }>
 
 /** Account entry with a photographic scene and the shared application theme. */
-export function AuthScreen({view, onEnter}: AuthScreenProps) {
+export function AuthScreen({view}: AuthScreenProps) {
+    const login = useAuthStore((state) => state.login)
+    const register = useAuthStore((state) => state.register)
     const [showPassword, setShowPassword] = useState(false)
     const [errors, setErrors] = useState<AuthFieldErrors>({})
     const formRef = useRef<HTMLFormElement>(null)
@@ -61,13 +62,13 @@ export function AuthScreen({view, onEnter}: AuthScreenProps) {
                 showToast({kind: 'info', message: '密码已重设，请重新登录'})
                 window.location.hash = 'login'
             } else {
-                const session = isLogin ? await login(email, password) : await register({
+                if (isLogin) await login(email, password)
+                else await register({
                     email,
                     password,
                     code: String(fields.get('code')).trim(),
                     name: String(fields.get('nickname')).trim()
                 })
-                await onEnter(session)
             }
         } catch (error) {
             showToast({kind: 'error', message: error instanceof Error ? error.message : '操作失败，请重试'})

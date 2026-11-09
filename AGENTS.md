@@ -54,7 +54,7 @@
 - 固定格式的 UI 组件（头像、图标按钮、缩略图、节点图标等）必须通过组件内部明确的尺寸映射控制宽高；不要把 `size-fit`、`w-fit` 等自适应尺寸类与固定尺寸类同时使用，避免内容尺寸覆盖组件尺寸。
 - 使用 Tailwind 时，全局 reset 和原生控件继承规则放入 `@layer base`；不要在 utility 层之后用普通选择器覆盖字号、行高或控件尺寸。
 - 所有 HTTP 请求通过 `shared/api/client.ts`。页面、UI 组件和 store 不直接调用 `fetch`，也不直接拼接 API URL；领域 API 放在对应 feature/entity 的 `api/` 内。
-- 当前没有全局客户端 store。服务端事实由 TanStack Query 管理；工作区、项目、节点等服务端数据必须由 API 刷新，组件的弹窗、筛选和表单草稿优先使用局部状态。只有确实存在跨页面客户端状态需求时才考虑引入 Zustand，并且只保存会话和必要的跨页面状态；不得加入运行时假数据、离线写入或持久化明文密码。
+- 认证状态由 `features/auth/model/auth-store.ts` 的 Zustand store 管理，只保存当前用户和登录状态；服务端业务事实由 TanStack Query 管理。工作区、项目、节点等数据必须由 API 刷新，组件的弹窗、筛选和表单草稿优先使用局部状态；不得加入运行时假数据、离线写入或持久化明文密码。
 - 保持前端类型与后端公开 DTO 的字段语义一致。修改 API 时同步检查调用点；稳定的 API 输入和输出必须定义 TypeScript 类型，避免 `any` 和无语义的对象字面量。
 - 远端业务数据由 TanStack Query 管理，不再复制到额外的全局 store 或组件 state；读取请求透传 AbortSignal，mutation 成功后按领域更新／失效缓存。Query 缓存、本地草稿和阅读状态保持各自职责。
 

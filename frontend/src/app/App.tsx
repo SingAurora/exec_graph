@@ -1,13 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAppResources } from './model/useAppResources'
 import { useAppCommands } from './model/useAppCommands'
 import { useAppearance } from './model/useAppearance'
 import { isAppView, isAuthView } from '../shared/lib/navigation'
-import { profileKeys, type SessionView } from '../entities/profile/api/profiles'
-import { logout } from '../features/auth/api/account'
-import { clearAuthToken, readAuthToken, writeAuthToken } from '../shared/api/auth-token'
-import { useToast } from '../shared/ui/toast/useToast'
 import { ListSkeleton } from '../shared/ui/ListSkeleton'
 import { useImageAssets } from '../features/media-upload/model/useImageAssets'
 import { useAppNavigation } from './model/useAppNavigation'
@@ -40,6 +36,7 @@ import { GraphPage } from '../pages/GraphPage'
 import { GraphsPage } from '../pages/GraphsPage'
 import { AuthScreen } from '../widgets/auth/AuthScreen'
 import { GuestApp } from './GuestApp'
+import { useAuthStore } from '../features/auth/model/auth-store'
 import { NotFoundScreen } from './NotFoundScreen'
 import { AppShell } from '../widgets/layout/AppShell'
 import { SettingsPanel } from '../widgets/settings/SettingsPanel'
@@ -50,49 +47,66 @@ import { ActionArchivePage } from '../pages/ActionArchivePage'
 
 const legendPreferenceKey = 'execg.actionGraph.showLegend'
 
-/** 应用的数据入口：先加载业务资料，再挂载页面；加载失败展示重试入口，不回退演示数据。 */
+/** 应用的数据入口：认证状态由 Zustand 提供，业务数据由 Query 提供。 */
 export function App() {
-  const resources = useAppResources()
+  const status = useAuthStore((state) => state.status)
+  const user = useAuthStore((state) => state.user)
+  const authError = useAuthStore((state) => state.error)
+  const bootstrap = useAuthStore((state) => state.bootstrap)
+  const retryAuth = useAuthStore((state) => state.retry)
+  const logout = useAuthStore((state) => state.logout)
+  const resources = useAppResources(user, status)
   const client = useQueryClient()
   const [darkMode, toggleTheme] = useAppearance()
   const [hash, setHash] = useState(() => window.location.hash)
+  useEffect(() => {
+    void bootstrap()
+  }, [bootstrap])
   useEffect(() => {
     const sync = () => setHash(window.location.hash)
     window.addEventListener('hashchange', sync)
     return () => window.removeEventListener('hashchange', sync)
   }, [])
+  // 账号变化后清空 Query 业务缓存；公开数据和旧账号数据不能混用。
+  const previousUser = useRef<string | null | undefined>(undefined)
+  useEffect(() => {
+    const current = user?.uuid ?? null
+    if (previousUser.current === undefined) {
+      previousUser.current = current
+      return
+    }
+    if (previousUser.current === current) return
+    previousUser.current = current
+    void client.cancelQueries()
+    client.removeQueries()
+  }, [client, user?.uuid])
   const rawView = hash.slice(1).split('?')[0]
   const loadingView = isAppView(rawView) && rawView !== 'topic' ? rawView : 'home'
   const loadingAuth = isAuthView(rawView)
   const authView = isAuthView(rawView) ? rawView : 'login'
   const knownRoute = rawView === '' || isAppView(rawView) || isAuthView(rawView)
-  const { showToast } = useToast()
-  const enter = async (session: SessionView) => {
-    if (session.token) writeAuthToken(session.token)
-    const view = { user: session.user }
-    await client.cancelQueries()
-    client.removeQueries({ predicate: (query) => query.queryKey[0] !== 'session' })
-    client.setQueryData(profileKeys.session, view)
-    if (isAuthView(window.location.hash.slice(1).split('?')[0])) window.location.hash = 'my'
-  }
+  useEffect(() => {
+    if (status === 'signed-in' && isAuthView(rawView)) window.location.hash = 'my'
+  }, [rawView, status])
   const exit = async () => {
-    if (!readAuthToken()) return
-    try {
-      await logout()
-    } catch (error) {
-      showToast({ kind: 'error', message: error instanceof Error ? error.message : '退出失败，请重试' })
-    } finally {
-      clearAuthToken()
-      await client.cancelQueries()
-      client.removeQueries({ predicate: (query) => query.queryKey[0] !== 'session' })
-      client.setQueryData(profileKeys.session, null)
-      window.location.hash = 'login'
-    }
+    await logout()
+    window.location.hash = 'login'
   }
   if (!knownRoute) return <NotFoundScreen />
-  if (resources.anonymous) {
+  if (status === 'error') return (
+    <main className="grid min-h-dvh place-content-center gap-4 bg-paper p-8 text-center text-sm text-copy">
+      <p>{authError ?? '无法读取登录状态，请重试'}</p>
+      <button className="quiet-button" type="button" onClick={() => { void retryAuth() }}>重试</button>
+    </main>
+  )
+  if (status === 'booting' || (status === 'signed-in' && !user)) return (
+    <main className="mx-auto w-[min(1200px,calc(100%-72px))] pt-[30px] max-[1000px]:w-[min(920px,calc(100%-48px))]">
+      <div className="pt-6"><ListSkeleton rows={5} /></div>
+    </main>
+  )
+  if (status === 'signed-out') {
     if (isAuthView(rawView)) return (
-      <AuthScreen key={authView} view={authView} onEnter={enter} />
+      <AuthScreen key={authView} view={authView} />
     )
     if (resources.error) return (
       <main className="grid min-h-dvh place-content-center gap-4 bg-paper p-8 text-center text-sm text-copy">
@@ -114,8 +128,8 @@ export function App() {
     )
   }
   if (
+    !user ||
     !resources.ready ||
-    !resources.profile ||
     !resources.graphs ||
     !resources.actions ||
     !resources.sources
@@ -147,9 +161,9 @@ export function App() {
   return (
     <>
       <AppContent
-        key={resources.profile.uuid}
+        key={user.uuid}
         darkMode={darkMode} toggleTheme={toggleTheme} onLogout={exit}
-        profile={resources.profile}
+        profile={user}
         graphs={resources.graphs}
         actions={resources.actions}
         allUsers={resources.allUsers}

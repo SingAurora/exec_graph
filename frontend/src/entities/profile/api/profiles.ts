@@ -13,9 +13,8 @@ export type PublicProfileView = Omit<UserProfile, 'isTestAccount'>
 /** 当前会话资料；认证使用 localStorage 中的 Bearer token。 */
 export type SessionView = { user: AccountProfile; token?: string }
 
-/** 会话与公开用户目录的缓存键；公开目录按当前账号作用域隔离。 */
+/** 公开用户目录的缓存键；按当前账号作用域隔离。 */
 export const profileKeys = {
-  session: ['session'] as const,
   catalogue: (scope: string) => ['profiles', scope, 'catalogue'] as const,
 }
 

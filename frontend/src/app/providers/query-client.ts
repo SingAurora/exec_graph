@@ -1,7 +1,7 @@
 import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query'
 import { BusinessRequestError } from '../../shared/api/errors'
 import { API_ERROR_CODES } from '../../shared/api/contracts'
-import { profileKeys } from '../../entities/profile/api/profiles'
+import { useAuthStore } from '../../features/auth/model/auth-store'
 
 /** 读取仅对网络、超时及部分临时服务错误重试一次；取消和可预期业务错误不重试。 */
 export function retryBusinessQuery(failureCount: number, error: unknown): boolean {
@@ -13,10 +13,10 @@ export function retryBusinessQuery(failureCount: number, error: unknown): boolea
 export function createQueryClient(): QueryClient {
   const expired = (error: unknown) => {
     if (!(error instanceof BusinessRequestError) || error.code !== API_ERROR_CODES.unauthenticated) return
-    // 先取消旧账号读取，再切换匿名；本地草稿由账号隔离，不在会话失效时删除。
+    // 先取消旧账号读取并清空业务缓存，再让 AuthStore 回到未登录状态。
     void client.cancelQueries().then(() => {
-      client.removeQueries({ predicate: (query) => query.queryKey[0] !== 'session' })
-      client.setQueryData(profileKeys.session, null)
+      client.removeQueries()
+      useAuthStore.getState().expire()
     })
   }
   const client = new QueryClient({ queryCache: new QueryCache({ onError: expired }), mutationCache: new MutationCache({ onError: expired }), defaultOptions: {

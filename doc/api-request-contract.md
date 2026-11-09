@@ -65,7 +65,7 @@
 
 ## 5. 认证、会话与安全
 
-- 业务接口使用 `Authorization: Bearer <token>`，token 可保存在浏览器 localStorage，不写入额外的全局 store 或 Query 缓存。
+- 业务接口使用 `Authorization: Bearer <token>`，token 可保存在浏览器 localStorage；当前用户由 Zustand auth store 提供，token 不写入 Query 缓存。
 - `GET /api/commands/auth/session` 返回已认证账户；无有效 token 返回 401／10002。只有该错误视为匿名，网络错误和服务端错误不能转成退出状态。
 - 当前使用 Bearer token，不使用 Cookie，也不使用 CSRF token；公开读取端点不要求 token，业务写入只校验会话、权限和资源版本。
 - 登录、注册、找回密码、修改密码和邮箱变更会在成功后撤销旧会话；客户端需要清理旧账号缓存并重新登录。

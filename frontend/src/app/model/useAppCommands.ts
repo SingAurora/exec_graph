@@ -2,7 +2,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRef } from 'react'
 import { actionFromView, actionKeys, type ActionContextNode, type VersionedAction } from '../../entities/action/api/context'
 import { graphKeys, type GraphView } from '../../entities/graph/api/graphs'
-import { profileKeys, type SessionView } from '../../entities/profile/api/profiles'
+import { profileKeys } from '../../entities/profile/api/profiles'
+import { useAuthStore } from '../../features/auth/model/auth-store'
 import { followingKeys } from '../../entities/following/api/following'
 import { createGraph, removeGraph, updateGraph } from '../../features/graph/api/commands'
 import { createAction, deleteAction, reviseAgreement, reviseExpression } from '../../features/action/api/commands'
@@ -61,7 +62,7 @@ export function useAppCommands(scope: string) {
   const nodeDocumentPublish = useMutation({ mutationFn: (input: { nodeUuid: string; expectedVersion: number; kind: 'expression' | 'agreement' }) => publishNodeDocument(input.nodeUuid, input.expectedVersion, input.kind), onSuccess: updateNode })
   const followUpdate = useMutation({ mutationFn: (input: Parameters<typeof setFollowing>[0]) => setFollowing(input, {}), onSuccess(sources) { client.setQueryData(followingKeys.sources(scope), sources) } })
   const profileUpdate = useMutation({ mutationFn: (input: Parameters<typeof updateProfile>[0]) => updateProfile(input, {}), onSuccess(user) {
-    client.setQueryData<SessionView>(profileKeys.session, (session) => session ? { ...session, user } : session)
+    useAuthStore.getState().setUser(user)
     void client.invalidateQueries({ queryKey: profileKeys.catalogue(scope) })
   } })
   return { graphCreate, graphUpdate, graphDelete, actionCreate, actionDelete, expressionUpdate, agreementUpdate, nodeDocumentPublish, followUpdate, profileUpdate }

@@ -1,7 +1,8 @@
 import { ArrowDown, ArrowLeft, ArrowUp, Plus, Trash2 } from 'lucide-react'
 import { useRef, useState, type RefObject } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { profileKeys, readSession, type SessionView } from '../../../entities/profile/api/profiles'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { profileKeys } from '../../../entities/profile/api/profiles'
+import { useAuthStore } from '../../auth/model/auth-store'
 import type { ProfileHighlights } from '../../../entities/profile/model/types'
 import { profileHighlightLimit } from '../../../entities/profile/model/highlights'
 import type { ProfileHighlightEntry } from '../../../entities/action/lib/profile-highlights'
@@ -28,21 +29,20 @@ export function ChooseProfileHighlights({ userUuid, highlights, candidates, grap
   const scrollRef = useRef<HTMLElement>(null)
   const selected = draft.flatMap((id) => candidates.filter(({ node }) => node.uuid === id))
   const available = candidates.filter(({ node }) => !draft.includes(node.uuid))
-  const session = useQuery({ queryKey: profileKeys.session, queryFn: ({ signal }) => readSession(signal) })
+  const currentUser = useAuthStore((state) => state.user)
   const client = useQueryClient()
   const save = useMutation({
     mutationFn: async () => {
-      if (!session.data || session.data.user.uuid !== userUuid) throw new Error('当前账户已变化，请重新打开主页')
-      return setProfileHighlights({ expressionNodeUuids: draft, expectedVersion: session.data.user.version }, {})
+      if (!currentUser || currentUser.uuid !== userUuid) throw new Error('当前账户已变化，请重新打开主页')
+      return setProfileHighlights({ expressionNodeUuids: draft, expectedVersion: currentUser.version }, {})
     },
     onSuccess(user) {
-      client.setQueryData<SessionView>(profileKeys.session, (current) => current?.user.uuid === user.uuid ? { ...current, user } : current)
+      useAuthStore.getState().setUser(user)
       void client.invalidateQueries({ queryKey: profileKeys.catalogue(userUuid) })
       onClose()
     },
     onError() {
-      // 保留本次选择；刷新版本后可重试，不能用旧账户版本静默覆盖资料。
-      if (client.getQueryData<SessionView>(profileKeys.session)?.user.uuid === userUuid) void client.invalidateQueries({ queryKey: profileKeys.session })
+      // 保留本次选择；账户变化后重新打开主页，不能用旧版本静默覆盖资料。
     },
   })
   const move = (id: string, offset: number) => setDraft((current) => {
@@ -83,9 +83,9 @@ export function ChooseProfileHighlights({ userUuid, highlights, candidates, grap
             </li>)}</ol>
           </section>
           <HighlightCandidates active={adding} candidates={available} graphs={graphs} full={draft.length >= profileHighlightLimit} renderEntry={describe} onAdd={(id) => { setDraft((current) => current.length < profileHighlightLimit && !current.includes(id) ? [...current, id] : current); addRef.current?.focus() }} />
-          <div className="mt-5 flex justify-end gap-2"><button type="button" className="quiet-button" onClick={onClose}>取消</button><button type="button" className="primary-button" disabled={!session.data || session.data.user.uuid !== userUuid || session.isFetching} onClick={() => { if (!save.isPending && !session.isFetching && session.data?.user.uuid === userUuid) save.mutate() }}>{save.isPending ? '保存中…' : '保存精选'}</button></div>
+          <div className="mt-5 flex justify-end gap-2"><button type="button" className="quiet-button" onClick={onClose}>取消</button><button type="button" className="primary-button" disabled={!currentUser || currentUser.uuid !== userUuid || save.isPending} onClick={() => { if (!save.isPending && currentUser?.uuid === userUuid) save.mutate() }}>{save.isPending ? '保存中…' : '保存精选'}</button></div>
         </fieldset>
-        {(save.error || session.error) && <p className="mt-3 text-xs text-coral">{save.error?.message ?? session.error?.message}</p>}
+        {save.error && <p className="mt-3 text-xs text-coral">{save.error.message}</p>}
       </div>
     </Dialog>
   )
