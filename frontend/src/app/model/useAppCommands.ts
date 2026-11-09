@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRef } from 'react'
 import { actionFromView, actionKeys, type ActionContextNode, type VersionedAction } from '../../entities/action/api/context'
-import { graphKeys, type GraphView } from '../../entities/graph/api/graphs'
 import { useAuthStore } from '../../features/auth/model/auth-store'
 import { followingKeys } from '../../entities/following/api/following'
 import { createGraph, removeGraph, updateGraph } from '../../features/graph/api/commands'
@@ -36,15 +35,15 @@ export function useAppCommands(scope: string) {
   const graphCreate = useMutation({ mutationFn: (input: Parameters<typeof createGraph>[0]) => {
     graphSubmission.current = submissionKey(graphSubmission.current, input)
     return createGraph(input, { idempotencyKey: graphSubmission.current.key })
-  }, onSuccess(graph) {
+  }, onSuccess() {
     graphSubmission.current = undefined
-    client.setQueryData<GraphView[]>(graphKeys.catalogue(scope), (graphs) => [graph, ...(graphs ?? []).filter((item) => item.uuid !== graph.uuid)])
+    void client.invalidateQueries({ queryKey: ['graphs', scope] })
   } })
-  const graphUpdate = useMutation({ mutationFn: (input: Parameters<typeof updateGraph>[0]) => updateGraph(input, {}), onSuccess(graph) {
-    client.setQueryData<GraphView[]>(graphKeys.catalogue(scope), (graphs) => graphs?.map((item) => item.uuid === graph.uuid ? graph : item))
+  const graphUpdate = useMutation({ mutationFn: (input: Parameters<typeof updateGraph>[0]) => updateGraph(input, {}), onSuccess() {
+    void client.invalidateQueries({ queryKey: ['graphs', scope] })
   } })
   const graphDelete = useMutation({ mutationFn: (input: Parameters<typeof removeGraph>[0]) => removeGraph(input, {}), onSuccess(_data, input) {
-    client.setQueryData<GraphView[]>(graphKeys.catalogue(scope), (graphs) => graphs?.filter((item) => item.uuid !== input.graphUuid))
+    void client.invalidateQueries({ queryKey: ['graphs', scope] })
     client.setQueriesData<VersionedAction[]>({ queryKey: actionKeys.scope(scope) }, (nodes) => nodes?.filter((node) => node.graphUuid !== input.graphUuid))
     void client.invalidateQueries({ queryKey: followingKeys.sources(scope) })
   } })
