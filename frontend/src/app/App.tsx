@@ -86,7 +86,6 @@ export function App() {
   const sources = signedIn && following.data ? following.data : { userUuids: [], graphUuids: [], users: [] }
   const accountProfileStats = profileStats.data
   const accountError = following.error ?? profileStats.error
-  const accountReady = !signedIn || Boolean(following.data && profileStats.data)
   const accountRetry = () => { if (signedIn) { void following.refetch(); void profileStats.refetch() } }
   const authView = isAuthView(rawView) ? rawView : 'login'
   const knownRoute = rawView === '' || isAppView(rawView) || isAuthView(rawView)
@@ -119,33 +118,11 @@ export function App() {
     if (isAuthView(rawView)) return (
       <AuthScreen key={authView} view={authView} />
     )
-    if (accountError) return (
-      <main className="grid min-h-dvh place-content-center gap-4 bg-paper p-8 text-center text-sm text-copy">
-        <p>{accountError.message}</p>
-        <button className="quiet-button" type="button" onClick={accountRetry}>重试</button>
-      </main>
-    )
-    if (!accountReady) return (
-      <main className="mx-auto w-[min(1200px,calc(100%-72px))] pt-[30px] max-[1000px]:w-[min(920px,calc(100%-48px))]">
-        <div className="pt-6"><ListSkeleton rows={5} /></div>
-      </main>
-    )
     return (
       <GuestApp remoteFeed />
     )
   }
   if (!user) return null
-  // 已登录：认证通过即渲染应用壳；页面自己负责业务数据加载和错误状态。
-  if (accountError && !accountReady) {
-    return (
-      <main className="grid min-h-dvh place-content-center gap-4 bg-paper p-8 text-center text-sm text-copy">
-        <p>{accountError.message}</p>
-        <button className="quiet-button" type="button" onClick={accountRetry}>
-          重试
-        </button>
-      </main>
-    )
-  }
 
   // 认证和业务数据都就绪，挂载完整应用。
   return (
