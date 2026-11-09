@@ -1,5 +1,5 @@
 import { MessageCircle, ScrollText } from 'lucide-react'
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery } from '@tanstack/react-query'
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { getSatisfiedAgreementResponses } from '../../../entities/action/lib/agreement-responses'
 import { getPublishedExpressions } from '../../../entities/action/lib/published'
@@ -41,13 +41,25 @@ export function Discovery({ actions, graphs, users, active, onOpenNode, onOpenRe
   const query = queries[tab].trim()
   const scrollPositions = useRef<Partial<Record<DiscoveryTab, number>>>({})
   const pendingScroll = useRef<number | undefined>(undefined)
-  const feed = useQuery({
-    queryKey: feedKeys.page(tab),
-    queryFn: ({ signal }) => readFeed(tab, 1, signal),
+  const feed = useInfiniteQuery({
+    queryKey: feedKeys.feed(tab),
+    queryFn: ({ pageParam, signal }) => readFeed(tab, pageParam, signal),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) => lastPage.hasMore ? allPages.length + 1 : undefined,
     enabled: remoteFeed && active,
   })
-  const sourceActions = useMemo(() => remoteFeed ? (feed.data?.actions ?? []) : actions, [actions, feed.data?.actions, remoteFeed])
-  const sourceGraphs = useMemo(() => remoteFeed ? (feed.data?.graphs ?? []) : graphs, [feed.data?.graphs, graphs, remoteFeed])
+  const feedActions = useMemo(() => {
+    const byId = new Map<string, ActionNode>()
+    for (const page of feed.data?.pages ?? []) for (const node of page.actions) byId.set(node.uuid, node)
+    return [...byId.values()]
+  }, [feed.data?.pages])
+  const feedGraphs = useMemo(() => {
+    const byId = new Map<string, Graph>()
+    for (const page of feed.data?.pages ?? []) for (const graph of page.graphs) byId.set(graph.uuid, graph)
+    return [...byId.values()]
+  }, [feed.data?.pages])
+  const sourceActions = useMemo(() => remoteFeed ? feedActions : actions, [actions, feedActions, remoteFeed])
+  const sourceGraphs = useMemo(() => remoteFeed ? feedGraphs : graphs, [feedGraphs, graphs, remoteFeed])
   const graphsById = useMemo(() => new Map(sourceGraphs.map((graph) => [graph.uuid, graph])), [sourceGraphs])
   const publicActions = useMemo(() => sourceActions.filter((node) => graphsById.has(node.graphUuid)), [sourceActions, graphsById])
   const sourceUsers = useMemo(() => {
@@ -100,11 +112,12 @@ export function Discovery({ actions, graphs, users, active, onOpenNode, onOpenRe
         {remoteFeed && feed.error && <p className="mt-4 px-1 text-sm text-coral">{feed.error.message}</p>}
         {(!remoteFeed || !feed.isLoading) && <div className={showRecentGraphs ? "mt-1 grid grid-cols-[minmax(0,1fr)_220px] items-start gap-7 max-[800px]:grid-cols-1" : "mt-1 grid grid-cols-1"}>
           <div className="min-w-0">
-            <TabsContent value="expressions" keepMounted><ActionPostList key={queries.expressions.trim()} nodes={visibleExpressions} actions={publicActions} users={sourceUsers} mode="expression" presentation="feed" searchQuery={queries.expressions.trim()} infinite active={active && tab === 'expressions'} onExplore={onOpenNode} renderContext={context} /></TabsContent>
-            <TabsContent value="agreements" keepMounted><AgreementResponseList key={queries.agreements.trim()} references={visibleAgreements} users={sourceUsers} presentation="feed" searchQuery={queries.agreements.trim()} active={active && tab === 'agreements'} onExplore={onOpenReference} renderContext={(reference) => context(reference.target)} /></TabsContent>
+            <TabsContent value="expressions" keepMounted><ActionPostList key={queries.expressions.trim()} nodes={visibleExpressions} actions={publicActions} users={sourceUsers} mode="expression" presentation="feed" searchQuery={queries.expressions.trim()} infinite={!remoteFeed} showEnd={!remoteFeed} active={active && tab === 'expressions'} onExplore={onOpenNode} renderContext={context} /></TabsContent>
+            <TabsContent value="agreements" keepMounted><AgreementResponseList key={queries.agreements.trim()} references={visibleAgreements} users={sourceUsers} presentation="feed" searchQuery={queries.agreements.trim()} infinite={!remoteFeed} showEnd={!remoteFeed} active={active && tab === 'agreements'} onExplore={onOpenReference} renderContext={(reference) => context(reference.target)} /></TabsContent>
           </div>
           {showRecentGraphs && <RecentGraphsAside items={graphActivities} graphs={sourceGraphs} actions={publicActions} onOpen={onOpenGraph} onSearchAll={onSearchGraphs} />}
         </div>}
+        {remoteFeed && feed.hasNextPage && <div className="pt-4 text-center"><button className="quiet-button" type="button" disabled={feed.isFetchingNextPage} onClick={() => { void feed.fetchNextPage() }}>{feed.isFetchingNextPage ? '加载中…' : '加载更多'}</button></div>}
       </TabsRoot>
     </section>
   )

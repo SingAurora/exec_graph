@@ -21,7 +21,7 @@ type FeedResponse = {
 
 /** 首页内容流缓存键；不同 tab 和页码互不覆盖。 */
 export const feedKeys = {
-  page: (kind: FeedKind) => ['feed', kind] as const,
+  feed: (kind: FeedKind) => ['feed', kind] as const,
 }
 
 /** 读取表达或约定内容流；服务端负责分页和祖先子图。 */
