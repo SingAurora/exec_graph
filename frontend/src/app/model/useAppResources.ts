@@ -7,7 +7,7 @@ import type { UserProfile } from '../../entities/profile/model/types'
 import { followingContentKey, followingKeys, readFollowing, readFollowingContent } from '../../entities/following/api/following'
 import type { AuthStatus } from '../../features/auth/model/auth-store'
 
-/** 按路由读取业务数据：首页用 feed，图详情只读单图，其余页面暂保持全量读取。 */
+/** 按路由读取业务数据：首页用 feed，图详情只读单图，主页/关注各用独立子图。 */
 export function useAppResources(user: AccountProfile | null, authStatus: AuthStatus, route: string, graphUuid: string) {
   const signedIn = Boolean(user)
   const publicEnabled = authStatus === 'signed-in' || authStatus === 'signed-out'

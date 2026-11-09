@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { ActionNode } from '../../../entities/action/model/types'
 import { searchPublicGraphs } from '../../../features/search-graphs/lib/search'
@@ -28,6 +28,7 @@ export function GraphSearchResults({ graphs, actions, keyword, page, onSearch, o
   const items = useMemo(() => server ? (result.data?.items ?? []).map((graph) => getGraphActivity(graph, [])) : searchPublicGraphs(graphs, actions ?? [], keyword), [actions, graphs, keyword, result.data?.items, server])
   const pageCount = Math.max(1, Math.ceil((server ? result.data?.total ?? 0 : items.length) / pageSize))
   const currentPage = Math.min(page, pageCount)
+  useEffect(() => { if (server && result.data && page > pageCount) onPageChange(pageCount) }, [onPageChange, page, pageCount, result.data, server])
   return (
     <section className="pt-6">
       <form className="flex items-center gap-3" onSubmit={(event) => { event.preventDefault(); onSearch(draft.trim()) }}>
@@ -36,6 +37,7 @@ export function GraphSearchResults({ graphs, actions, keyword, page, onSearch, o
       </form>
       {keyword && <p className="mt-4 text-xs leading-5 text-muted">找到 {server ? result.data?.total ?? 0 : items.length} 个图</p>}
       {server && result.isLoading && <p className="empty-state">加载中…</p>}
+      {server && result.error && <p className="empty-state">{result.error.message}</p>}
       <GraphList items={server ? items : items.slice((currentPage - 1) * pageSize, currentPage * pageSize)} searchQuery={keyword} onOpen={onOpenGraph} dividers={false} showEnd={currentPage === pageCount} />
       {((server ? (result.data?.total ?? 0) : items.length) > pageSize) && <Pagination currentPage={currentPage} pageCount={pageCount} onChange={onPageChange} />}
     </section>

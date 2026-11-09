@@ -1,5 +1,5 @@
 import { ArrowUpDown, Network, Search, UserRound, UsersRound } from 'lucide-react'
-import { useDeferredValue, useState } from 'react'
+import { useDeferredValue, useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getGraphActivity } from '../../entities/graph/lib/activity'
 import { graphListKey, readGraphPage, type GraphListParams } from '../../entities/graph/api/graphs'
@@ -8,6 +8,7 @@ import { CreateGraphButton } from '../../features/graph/ui/CreateGraphButton'
 import { Select } from '../../shared/ui/select/Select'
 import { TabsRoot, TabsList, TabsTrigger, TabsContent } from '../../shared/ui/tabs/Tabs'
 import { Pagination } from '../../shared/ui/Pagination'
+import { ListSkeleton } from '../../shared/ui/ListSkeleton'
 import { GraphList } from './GraphList'
 
 type GraphGroup = 'all' | 'joined' | 'owned'
@@ -31,6 +32,7 @@ export function GraphDirectory({ currentUserUuid, onCreateGraph, onOpenGraph, re
   const summaries = (result.data?.items ?? []).map((graph) => getGraphActivity(graph, []))
   const currentPage = result.data?.page ?? page
   const pageCount = Math.max(1, Math.ceil((result.data?.total ?? 0) / graphPageSize))
+  useEffect(() => { if (result.data && page > pageCount) setPage(pageCount) }, [page, pageCount, result.data])
   return (
     <section className="pt-6">
       <div className="flex items-center justify-between gap-5"><span className="text-sm text-muted">{result.data?.total ?? 0} 个公开行动图</span>{!readOnly && <CreateGraphButton onCreate={onCreateGraph} />}</div>
@@ -40,7 +42,9 @@ export function GraphDirectory({ currentUserUuid, onCreateGraph, onOpenGraph, re
           <label className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-md border border-line bg-surface px-3 text-muted focus-within:border-signal"><Search size={16} /><input className="min-w-0 flex-1 border-0 bg-transparent text-sm text-ink outline-none" type="search" title="搜索行动图" placeholder="搜索图名称或简介" value={keyword} onChange={(event) => { setKeyword(event.target.value); setPage(1) }} /></label>
           <span className="flex items-center rounded-md border border-line bg-surface pl-3 text-muted"><ArrowUpDown size={15} /><Select label="行动图排序" value={sort} onValueChange={(value) => { setSort(value); setPage(1) }} options={[{ value: 'activity', label: '最近行动' }, { value: 'created', label: '最近创建' }, { value: 'name', label: '名称排序' }]} /></span>
         </div>
-        {visibleGroups.map(({ id }) => <TabsContent key={id} value={id}><GraphList items={summaries} onOpen={onOpenGraph} showEnd={currentPage === pageCount} searchQuery={deferredKeyword.trim()} /></TabsContent>)}
+        {visibleGroups.map(({ id }) => <TabsContent key={id} value={id}>
+          {result.isLoading ? <ListSkeleton rows={3} /> : result.error ? <p className="empty-state">{result.error.message}</p> : <GraphList items={summaries} onOpen={onOpenGraph} showEnd={currentPage === pageCount} searchQuery={deferredKeyword.trim()} />}
+        </TabsContent>)}
       </TabsRoot>
       {result.data && pageCount > 1 && <Pagination currentPage={currentPage} pageCount={pageCount} onChange={setPage} />}
     </section>
