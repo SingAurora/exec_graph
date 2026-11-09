@@ -79,7 +79,9 @@ export function App() {
   }, [client, user?.uuid])
   // ── 路由解析 ──
   const rawView = hash.slice(1).split('?')[0]
-  const resources = useAppResources(user, status, isAppView(rawView) ? rawView : 'home')
+  const route = isAppView(rawView) ? rawView : 'home'
+  const graphUuid = new URLSearchParams(hash.split('?')[1]).get('graphUuid') ?? ''
+  const resources = useAppResources(user, status, route, graphUuid)
   const loadingView = isAppView(rawView) ? rawView : 'home'
   const loadingAuth = isAuthView(rawView)
   const authView = isAuthView(rawView) ? rawView : 'login'
