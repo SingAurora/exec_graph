@@ -46,6 +46,8 @@ func New(auth *identity.Handler, read *catalogue.Handler, graphs *graph.Handler,
 	group.POST("/auth/email-change", accounts.ChangeEmail)
 	// 读取所有可见图的过渡目录。
 	group.GET("/graphs/catalogue", read.Graphs)
+	// 读取表达/约定内容流的一页及其祖先子图。
+	group.GET("/feed", read.Feed)
 	// 读取单张图的公开资料。
 	group.GET("/graphs/detail", read.Graph)
 	// 读取图内已确认的行动、表达、约定和形成过程。

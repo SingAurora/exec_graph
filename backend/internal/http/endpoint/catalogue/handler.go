@@ -3,6 +3,8 @@ package catalogue
 
 import (
 	"context"
+	"strconv"
+
 	"github.com/gin-gonic/gin"
 	app "github.com/singaurora/exec-graph/backend/internal/application/catalogue"
 	"github.com/singaurora/exec-graph/backend/internal/application/identity"
@@ -21,6 +23,19 @@ type Handler struct {
 // New 注入读取和依赖探测能力。
 func New(service *app.Service, identity *identity.Service, ready func(context.Context) error) *Handler {
 	return &Handler{service, identity, ready}
+}
+
+// Feed 返回表达或约定内容流的一页，以及该页需要的祖先子图。
+func (h *Handler) Feed(c *gin.Context) {
+	kind := c.Query("kind")
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	out, err := h.service.Feed(c.Request.Context(), kind, page, limit)
+	if err != nil {
+		common.Fail(c, err)
+		return
+	}
+	common.Reply(c, out)
 }
 
 // Graphs 返回行动图目录。
