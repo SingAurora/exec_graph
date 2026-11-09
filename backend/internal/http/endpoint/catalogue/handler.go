@@ -68,6 +68,18 @@ func (h *Handler) ProfileStats(c *gin.Context) {
 	common.Reply(c, out)
 }
 
+// GraphsPage 返回图目录的一页。
+func (h *Handler) GraphsPage(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	size, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
+	out, err := h.service.GraphsPage(c.Request.Context(), page, size)
+	if err != nil {
+		common.Fail(c, err)
+		return
+	}
+	common.Reply(c, out)
+}
+
 // Graphs 返回行动图目录。
 func (h *Handler) Graphs(c *gin.Context) {
 	out, err := h.service.Graphs(c.Request.Context())

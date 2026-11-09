@@ -50,6 +50,8 @@ func New(auth *identity.Handler, read *catalogue.Handler, graphs *graph.Handler,
 	group.GET("/profiles/stats", read.ProfileStats)
 	// 读取所有可见图的过渡目录。
 	group.GET("/graphs/catalogue", read.Graphs)
+	// 读取图目录的一页。
+	group.GET("/graphs/list", read.GraphsPage)
 	// 读取表达/约定内容流的一页及其祖先子图。
 	group.GET("/actions/feed", read.Feed)
 	// 读取单张图的公开资料。
