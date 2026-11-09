@@ -3,6 +3,11 @@ export type Graph = {
   uuid: string
   ownerUuid: string
   participantUuids: string[]
+  /** 图目录统计；图详情读取同样返回，旧夹具可缺省。 */
+  actionCount?: number
+  expressionCount?: number
+  participantCount?: number
+  lastActionAt?: string
   title: string
   description: string
   avatar?: string

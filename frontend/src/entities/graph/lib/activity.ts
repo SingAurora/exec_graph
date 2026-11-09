@@ -13,10 +13,10 @@ export function getGraphActivity(graph: Graph, actions: ActionNode[]): GraphActi
   const nodes = actions.filter((node) => node.graphUuid === graph.uuid)
   return {
     graph,
-    actionCount: nodes.length,
-    expressionCount: getPublishedExpressions(nodes).length,
-    participantCount: new Set(nodes.map((node) => node.authorUuid)).size,
-    lastActionAt: sortActionsNewestFirst(nodes)[0]?.createdAt,
+    actionCount: graph.actionCount ?? nodes.length,
+    expressionCount: graph.expressionCount ?? getPublishedExpressions(nodes).length,
+    participantCount: graph.participantCount ?? new Set(nodes.map((node) => node.authorUuid)).size,
+    lastActionAt: graph.lastActionAt ?? sortActionsNewestFirst(nodes)[0]?.createdAt,
   }
 }
 

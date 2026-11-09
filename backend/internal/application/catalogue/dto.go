@@ -37,19 +37,23 @@ type ProfileView struct {
 
 // GraphView 对应前端的行动图模型。
 type GraphView struct {
-	ID                string    `json:"uuid"`
-	OwnerID           string    `json:"ownerUuid"`
-	ParticipantIDs    []string  `json:"participantUuids"`
-	Title             string    `json:"title"`
-	Description       string    `json:"description"`
-	Avatar            *string   `json:"avatar,omitempty"`
-	BackgroundImage   *string   `json:"backgroundImage,omitempty"`
-	AvatarAssetID     *string   `json:"avatarAssetUuid"`
-	BackgroundAssetID *string   `json:"backgroundAssetUuid"`
-	ContextGuide      string    `json:"contextGuide,omitempty"`
-	Version           uint32    `json:"version"`
-	CreatedAt         time.Time `json:"createdAt"`
-	UpdatedAt         time.Time `json:"updatedAt"`
+	ID                string     `json:"uuid"`
+	OwnerID           string     `json:"ownerUuid"`
+	ParticipantIDs    []string   `json:"participantUuids"`
+	ActionCount       int        `json:"actionCount"`
+	ExpressionCount   int        `json:"expressionCount"`
+	ParticipantCount  int        `json:"participantCount"`
+	LastActionAt      *time.Time `json:"lastActionAt,omitempty"`
+	Title             string     `json:"title"`
+	Description       string     `json:"description"`
+	Avatar            *string    `json:"avatar,omitempty"`
+	BackgroundImage   *string    `json:"backgroundImage,omitempty"`
+	AvatarAssetID     *string    `json:"avatarAssetUuid"`
+	BackgroundAssetID *string    `json:"backgroundAssetUuid"`
+	ContextGuide      string     `json:"contextGuide,omitempty"`
+	Version           uint32     `json:"version"`
+	CreatedAt         time.Time  `json:"createdAt"`
+	UpdatedAt         time.Time  `json:"updatedAt"`
 }
 
 // Image 是附图展示结构。

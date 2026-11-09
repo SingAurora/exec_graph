@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"time"
 
 	app "github.com/singaurora/exec-graph/backend/internal/application/catalogue"
 	"github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/model"
@@ -160,12 +161,49 @@ func (r *Repository) graphs(ctx context.Context, graphs []model.Graph) ([]app.Gr
 	for _, m := range members {
 		participants[m.GraphUUID] = append(participants[m.GraphUUID], m.AuthorUUID)
 	}
+	type graphStat struct {
+		GraphUUID    string
+		ActionCount  int
+		LastActionAt *time.Time
+	}
+	var stats []graphStat
+	if err := r.db.WithContext(ctx).Table("action_nodes").Select("graph_uuid, COUNT(*) AS action_count, MAX(created_at) AS last_action_at").Where("graph_uuid IN ?", ids).Group("graph_uuid").Scan(&stats).Error; err != nil {
+		return nil, err
+	}
+	actionCounts, lastActions := map[string]int{}, map[string]*time.Time{}
+	for _, stat := range stats {
+		actionCounts[stat.GraphUUID] = stat.ActionCount
+		lastActions[stat.GraphUUID] = stat.LastActionAt
+	}
+	type expressionStat struct {
+		GraphUUID       string
+		ExpressionCount int
+	}
+	var expressions []expressionStat
+	if err := r.db.WithContext(ctx).Table("action_nodes AS n").
+		Select("n.graph_uuid, COUNT(*) AS expression_count").
+		Joins("JOIN action_document_states s ON s.node_uuid = n.uuid AND s.kind = 'expression'").
+		Joins("JOIN action_document_versions v ON v.uuid = s.effective_version_uuid").
+		Where("n.graph_uuid IN ? AND TRIM(v.markdown) <> ''", ids).
+		Where("NOT EXISTS (SELECT 1 FROM action_references r WHERE r.graph_uuid = n.graph_uuid AND r.source_node_uuid = n.uuid)").
+		Group("n.graph_uuid").Scan(&expressions).Error; err != nil {
+		return nil, err
+	}
+	expressionCounts := map[string]int{}
+	for _, stat := range expressions {
+		expressionCounts[stat.GraphUUID] = stat.ExpressionCount
+	}
 	for _, g := range graphs {
 		people := participants[g.UUID]
 		if people == nil {
 			people = []string{}
 		}
-		result = append(result, app.GraphView{ID: g.UUID, OwnerID: g.OwnerUUID, ParticipantIDs: people, Title: g.Title, Description: g.Description, Avatar: MediaURL(g.AvatarAssetUUID), BackgroundImage: MediaURL(g.CoverAssetUUID), AvatarAssetID: g.AvatarAssetUUID, BackgroundAssetID: g.CoverAssetUUID, ContextGuide: g.ContextGuide, Version: g.Version, CreatedAt: timezone.InChina(g.CreatedAt), UpdatedAt: timezone.InChina(g.UpdatedAt)})
+		var lastActionAt *time.Time
+		if value := lastActions[g.UUID]; value != nil {
+			china := timezone.InChina(*value)
+			lastActionAt = &china
+		}
+		result = append(result, app.GraphView{ID: g.UUID, OwnerID: g.OwnerUUID, ParticipantIDs: people, ActionCount: actionCounts[g.UUID], ExpressionCount: expressionCounts[g.UUID], ParticipantCount: len(people), LastActionAt: lastActionAt, Title: g.Title, Description: g.Description, Avatar: MediaURL(g.AvatarAssetUUID), BackgroundImage: MediaURL(g.CoverAssetUUID), AvatarAssetID: g.AvatarAssetUUID, BackgroundAssetID: g.CoverAssetUUID, ContextGuide: g.ContextGuide, Version: g.Version, CreatedAt: timezone.InChina(g.CreatedAt), UpdatedAt: timezone.InChina(g.UpdatedAt)})
 	}
 	return result, nil
 }
