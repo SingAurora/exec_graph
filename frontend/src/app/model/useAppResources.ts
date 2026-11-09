@@ -11,11 +11,12 @@ import type { AuthStatus } from '../../features/auth/model/auth-store'
 export function useAppResources(user: AccountProfile | null, authStatus: AuthStatus, route: string, graphUuid: string) {
   const signedIn = Boolean(user)
   const publicEnabled = authStatus === 'signed-in' || authStatus === 'signed-out'
-  const graphRoute = route === 'graph'
+  const graphRoute = route === 'graph' || route === 'publish' || route === 'action-archive'
   const graphListRoute = route === 'graphs' || route === 'graph-search'
   const profileRoute = route === 'profile' || route === 'my'
   const followingRoute = route === 'following'
-  const fullData = route !== 'home' && !graphRoute && !graphListRoute && !profileRoute && !followingRoute
+  const settingsRoute = route === 'settings'
+  const fullData = route !== 'home' && !graphRoute && !graphListRoute && !profileRoute && !followingRoute && !settingsRoute
   const scope = user?.uuid ?? 'public'
 
   const catalogue = useQuery({ queryKey: graphKeys.catalogue(scope), queryFn: ({ signal }) => readGraphCatalogue(signal), enabled: publicEnabled && (fullData || graphListRoute) })
@@ -59,7 +60,7 @@ export function useAppResources(user: AccountProfile | null, authStatus: AuthSta
     ? Boolean(catalogue.data && statsReady && (!signedIn || following.data))
     : followingRoute
       ? Boolean(followingContent.data && statsReady)
-      : profileRoute
+      : profileRoute || settingsRoute
         ? Boolean(statsReady && (!signedIn || following.data))
       : !fullData && !graphRoute
         ? statsReady
@@ -71,6 +72,8 @@ export function useAppResources(user: AccountProfile | null, authStatus: AuthSta
     if (graphRoute) {
       void selectedGraph.refetch()
       void selectedContext.refetch()
+    } else if (settingsRoute || profileRoute) {
+      // 设置页只需要账号统计和关注资料。
     } else if (fullData || graphListRoute) {
       void catalogue.refetch()
       if (fullData && catalogue.data) void catalogueContexts.refetch()
