@@ -6,7 +6,6 @@ export type GraphView = Graph & { version: number }
 
 /** 按账号隔离的完整图目录缓存键，属于当前过渡读取方案。 */
 export const graphKeys = {
-  catalogue: (scope: string) => ['graphs', scope, 'catalogue'] as const,
   detail: (scope: string, graphUuid: string) => ['graphs', scope, 'detail', graphUuid] as const,
 }
 

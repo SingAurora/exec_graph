@@ -169,14 +169,6 @@ func (r *Repository) GraphsForFollowing(ctx context.Context, userUUID string) ([
 	return r.graphs(ctx, rows)
 }
 
-func (r *Repository) Graphs(ctx context.Context) ([]app.GraphView, error) {
-	var graphs []model.Graph
-	if err := r.db.WithContext(ctx).Where("deleted_at IS NULL").Order("created_at DESC, uuid DESC").Find(&graphs).Error; err != nil {
-		return nil, err
-	}
-	return r.graphs(ctx, graphs)
-}
-
 // Graph 支持显式演示 alias 到 UUID 映射。
 func (r *Repository) Graph(ctx context.Context, value string) (app.GraphView, error) {
 	uuid, err := r.resolve(ctx, "graph", value)

@@ -10,23 +10,23 @@ describe('application Query cache and retry policy', () => {
     const client = createQueryClient()
     try {
       useAuthStore.setState({ status: 'signed-in', user: { uuid: 'jo' } })
-      client.setQueryData(graphKeys.catalogue('jo'), ['private-graph'])
+      client.setQueryData(graphKeys.detail('jo', 'g'), ['private-graph'])
       const mutation = client.getMutationCache().build(client, { mutationFn: async () => { throw new BusinessRequestError('请重新登录', 'business', 401, 10002) } })
       await expect(mutation.execute({})).rejects.toMatchObject({ code: 10002 })
       await Promise.resolve()
       expect(useAuthStore.getState().status).toBe('signed-out')
-      expect(client.getQueryData(graphKeys.catalogue('jo'))).toBeUndefined()
+      expect(client.getQueryData(graphKeys.detail('jo', 'g'))).toBeUndefined()
     } finally { client.clear() }
   })
   test('deduplicates in-flight reads, does not retain stale data and isolates account scopes', async () => {
     const client = createQueryClient()
     let reads = 0
-    const options = { queryKey: graphKeys.catalogue('jo'), queryFn: async () => { reads++; await Promise.resolve(); return ['jo-graph'] } }
+    const options = { queryKey: graphKeys.detail('jo', 'g'), queryFn: async () => { reads++; await Promise.resolve(); return ['jo-graph'] } }
     try {
       expect(await Promise.all([client.fetchQuery(options), client.fetchQuery(options)])).toEqual([['jo-graph'], ['jo-graph']])
       await client.fetchQuery(options)
       expect(reads).toBe(2)
-      expect(client.getQueryData(graphKeys.catalogue('lin'))).toBeUndefined()
+      expect(client.getQueryData(graphKeys.detail('lin', 'g'))).toBeUndefined()
       await client.invalidateQueries({ queryKey: options.queryKey })
       await client.fetchQuery(options)
       expect(reads).toBe(3)
@@ -68,7 +68,7 @@ describe('application Query cache and retry policy', () => {
 
   test('resetting an observed session removes old data without disconnecting later writes', async () => {
     const client = createQueryClient()
-    const queryKey = graphKeys.catalogue('jo')
+    const queryKey = graphKeys.detail('jo', 'g')
     const observer = new QueryObserver(client, { queryKey, queryFn: async () => ['server-graph'] })
     const seen = []
     const unsubscribe = observer.subscribe((result) => seen.push(result.data))

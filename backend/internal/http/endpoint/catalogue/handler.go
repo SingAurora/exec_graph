@@ -84,16 +84,6 @@ func (h *Handler) GraphsPage(c *gin.Context) {
 	common.Reply(c, out)
 }
 
-// Graphs 返回行动图目录。
-func (h *Handler) Graphs(c *gin.Context) {
-	out, err := h.service.Graphs(c.Request.Context())
-	if err != nil {
-		common.Fail(c, err)
-		return
-	}
-	common.Reply(c, out)
-}
-
 // Graph 返回单图资料。
 func (h *Handler) Graph(c *gin.Context) {
 	uuid, err := common.Query(c, "graphUuid")

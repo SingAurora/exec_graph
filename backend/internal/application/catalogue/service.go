@@ -4,7 +4,6 @@ import "context"
 
 // Repository 只暴露读取能力，不向 application 泄露 ORM。
 type Repository interface {
-	Graphs(context.Context) ([]GraphView, error)
 	GraphsPage(context.Context, string, string, string, string, int, int) ([]GraphView, int, error)
 	GraphsForAuthor(context.Context, string) ([]GraphView, error)
 	GraphsForFollowing(context.Context, string) ([]GraphView, error)
@@ -28,7 +27,6 @@ func New(repository Repository) *Service {
 }
 
 // Graphs 读取可见行动图目录。
-func (s *Service) Graphs(ctx context.Context) ([]GraphView, error) { return s.repository.Graphs(ctx) }
 
 // Graph 读取图资料，允许显式演示 alias 映射。
 func (s *Service) Graph(ctx context.Context, uuid string) (GraphView, error) {

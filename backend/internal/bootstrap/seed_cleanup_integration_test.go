@@ -49,7 +49,8 @@ func TestRealDemoCleanupPreservesCredentialsAndAllowsFreshGraph(t *testing.T) {
 	}
 	client := s.as(t, id.Demo("user", "jo"))
 	client.call(t, "GET", "auth/session", nil, 200, "")
-	graphs := decode[[]catalogue.GraphView](t, client.call(t, "GET", "graphs/catalogue", nil, 200, ""))
+	page := decode[catalogue.GraphPageView](t, client.call(t, "GET", "graphs/list?page=1&pageSize=100", nil, 200, ""))
+	graphs := page.Items
 	if len(graphs) != 0 {
 		t.Fatal("清理后目录应为空")
 	}
