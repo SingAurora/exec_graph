@@ -19,3 +19,32 @@ export function readGraphCatalogue(signal?: AbortSignal): Promise<GraphView[]> {
 export function readGraphDetail(graphUuid: string, signal?: AbortSignal): Promise<GraphView> {
   return getAPI('/api/commands/graphs/detail', { graphUuid }, { signal })
 }
+
+export type GraphListParams = {
+  page: number
+  pageSize: number
+  filter: 'all' | 'owned' | 'joined'
+  keyword: string
+  sort: 'activity' | 'created' | 'name'
+}
+
+export type GraphPage = {
+  items: GraphView[]
+  page: number
+  pageSize: number
+  total: number
+  hasMore: boolean
+}
+
+export const graphListKey = (scope: string, params: GraphListParams) => ['graphs', scope, 'list', params] as const
+
+/** 图目录服务端筛选、搜索、排序分页。 */
+export function readGraphPage(params: GraphListParams, signal?: AbortSignal): Promise<GraphPage> {
+  return getAPI('/api/commands/graphs/list', {
+    page: params.page,
+    pageSize: params.pageSize,
+    filter: params.filter,
+    keyword: params.keyword,
+    sort: params.sort,
+  }, { signal })
+}

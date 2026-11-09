@@ -12,14 +12,14 @@ export function useAppResources(user: AccountProfile | null, authStatus: AuthSta
   const signedIn = Boolean(user)
   const publicEnabled = authStatus === 'signed-in' || authStatus === 'signed-out'
   const graphRoute = route === 'graph' || route === 'publish' || route === 'action-archive'
-  const graphListRoute = route === 'graphs' || route === 'graph-search'
+  const graphListRoute = route === 'graphs'
   const profileRoute = route === 'profile' || route === 'my'
   const followingRoute = route === 'following'
   const settingsRoute = route === 'settings'
   const fullData = route !== 'home' && !graphRoute && !graphListRoute && !profileRoute && !followingRoute && !settingsRoute
   const scope = user?.uuid ?? 'public'
 
-  const catalogue = useQuery({ queryKey: graphKeys.catalogue(scope), queryFn: ({ signal }) => readGraphCatalogue(signal), enabled: publicEnabled && (fullData || graphListRoute) })
+  const catalogue = useQuery({ queryKey: graphKeys.catalogue(scope), queryFn: ({ signal }) => readGraphCatalogue(signal), enabled: publicEnabled && fullData })
   const selectedGraph = useQuery({
     queryKey: graphKeys.detail(scope, graphUuid),
     queryFn: ({ signal }) => readGraphDetail(graphUuid, signal),
@@ -57,7 +57,7 @@ export function useAppResources(user: AccountProfile | null, authStatus: AuthSta
   const error = followingRoute ? (followingContent.error ?? profileStats.error) : graphRoute ? (selectedGraph.error ?? selectedContext.error ?? profileStats.error) : (catalogue.error ?? catalogueContexts.error ?? following.error ?? profileStats.error)
   const statsReady = !signedIn || Boolean(profileStats.data)
   const ready = graphListRoute
-    ? Boolean(catalogue.data && statsReady && (!signedIn || following.data))
+    ? Boolean(statsReady && (!signedIn || following.data))
     : followingRoute
       ? Boolean(followingContent.data && statsReady)
       : profileRoute || settingsRoute
@@ -74,9 +74,9 @@ export function useAppResources(user: AccountProfile | null, authStatus: AuthSta
       void selectedContext.refetch()
     } else if (settingsRoute || profileRoute) {
       // 设置页只需要账号统计和关注资料。
-    } else if (fullData || graphListRoute) {
+    } else if (fullData) {
       void catalogue.refetch()
-      if (fullData && catalogue.data) void catalogueContexts.refetch()
+      if (catalogue.data) void catalogueContexts.refetch()
     }
     if (followingRoute) void followingContent.refetch()
     if (signedIn) { void following.refetch(); void profileStats.refetch() }
