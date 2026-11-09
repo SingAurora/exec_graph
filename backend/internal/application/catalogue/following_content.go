@@ -33,20 +33,24 @@ func (s *Service) FollowingContent(ctx context.Context, userUUID string) (Follow
 		if err != nil {
 			return FollowingContentView{}, err
 		}
-		include := followedGraphs[graph.ID]
-		if !include {
-			for _, action := range actions {
-				if followedUsers[action.AuthorID] {
-					include = true
-					break
-				}
+		if followedGraphs[graph.ID] {
+			out.Graphs = append(out.Graphs, graph)
+			out.Actions = append(out.Actions, actions...)
+			continue
+		}
+		seeds := make([]ActionView, 0)
+		byID := make(map[string]ActionView, len(actions))
+		for _, action := range actions {
+			byID[action.ID] = action
+			if followedUsers[action.AuthorID] {
+				seeds = append(seeds, action)
 			}
 		}
-		if !include {
+		if len(seeds) == 0 {
 			continue
 		}
 		out.Graphs = append(out.Graphs, graph)
-		out.Actions = append(out.Actions, actions...)
+		out.Actions = append(out.Actions, withAncestors(seeds, byID)...)
 	}
 	return out, nil
 }

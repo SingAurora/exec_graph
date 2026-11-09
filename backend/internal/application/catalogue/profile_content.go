@@ -25,18 +25,19 @@ func (s *Service) ProfileContent(ctx context.Context, userUUID string) (ProfileC
 		if err != nil {
 			return ProfileContentView{}, err
 		}
-		participates := false
+		seeds := make([]ActionView, 0)
+		byID := make(map[string]ActionView, len(actions))
 		for _, action := range actions {
+			byID[action.ID] = action
 			if action.AuthorID == userUUID {
-				participates = true
-				break
+				seeds = append(seeds, action)
 			}
 		}
-		if !participates {
+		if len(seeds) == 0 {
 			continue
 		}
 		out.Graphs = append(out.Graphs, graph)
-		out.Actions = append(out.Actions, actions...)
+		out.Actions = append(out.Actions, withAncestors(seeds, byID)...)
 	}
 	return out, nil
 }
