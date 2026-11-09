@@ -60,6 +60,8 @@ func New(auth *identity.Handler, read *catalogue.Handler, graphs *graph.Handler,
 	group.GET("/actions/detail", read.Action)
 	// 读取当前账号的关注对象。
 	group.GET("/following/sources", read.Following)
+	// 读取关注页需要的关注集合和图/行动子图。
+	group.GET("/following/content", read.FollowingContent)
 	// 读取已公开引用的配图，未保存图片仅允许上传者读取。
 	group.GET("/media/file", images.File)
 	// 上传单张图片并登记一天的未保存保留期。

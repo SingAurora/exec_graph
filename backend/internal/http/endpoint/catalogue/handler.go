@@ -138,6 +138,21 @@ func (h *Handler) Following(c *gin.Context) {
 	common.Reply(c, out)
 }
 
+// FollowingContent 返回当前账号关注页所需的图和行动子图。
+func (h *Handler) FollowingContent(c *gin.Context) {
+	session, err := h.identity.Session(c.Request.Context(), auth.Token(c))
+	if err != nil {
+		common.Fail(c, err)
+		return
+	}
+	out, err := h.service.FollowingContent(c.Request.Context(), session.User.ID)
+	if err != nil {
+		common.Fail(c, err)
+		return
+	}
+	common.Reply(c, out)
+}
+
 // Ready 只有真实依赖可用时才返回就绪。
 func (h *Handler) Ready(c *gin.Context) {
 	if err := h.ready(c.Request.Context()); err != nil {

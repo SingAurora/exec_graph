@@ -154,6 +154,7 @@ EXEC_GRAPH_DATABASE_SCHEMA=exec_graph EXEC_GRAPH_ADDR=127.0.0.1:8080 EXEC_GRAPH_
 | GET | `/actions/context?graphUuid=...` | 图内完整确认上下文 |
 | GET | `/actions/detail?nodeUuid=...` | 单个行动 |
 | GET | `/following/sources` | 当前登录账号的关注集合 |
+| GET | `/following/content` | 关注页所需的关注集合、图和行动子图 |
 | GET | `/media/file?assetUuid=...` | 已就绪图片；成功时返回二进制，不套 JSON |
 | POST | `/media/upload`、`/media/retain` | 上传登记与草稿图片续期 |
 | POST | `/ai/generate` | 平台 AI 生成私有草稿，需要提交键 |
