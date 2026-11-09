@@ -1,7 +1,9 @@
-import { useLayoutEffect, useRef, useState, type ComponentProps } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState, type ComponentProps } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { PublicProfile } from '../widgets/profile/PublicProfile'
-import { profileContentKey, readProfileContent } from '../entities/profile/api/profiles'
+import type { ActivityTab } from '../widgets/feed/ActivityFeed'
+import { profileStatsKey, profileTabKeys, readProfileActions, readProfileAgreements, readProfileExpressions, readProfileGraphs, readProfileInfo, readProfileStats } from '../entities/profile/api/profiles'
+import { ListSkeleton } from '../shared/ui/ListSkeleton'
 
 // “我的”和用户主页共用界面；URL 可指定用户及直接打开的栏目。
 function readProfileRoute(currentUserUuid: string) {
@@ -12,35 +14,51 @@ function readProfileRoute(currentUserUuid: string) {
   return { userUuid: view === '#profile' ? query.get('userUuid') ?? '' : currentUserUuid, activityTabRequest }
 }
 
-type ProfilePageProps = Omit<ComponentProps<typeof PublicProfile>, 'profile' | 'following' | 'activityTabRequest'> & { followingIds: string[] }
-type ProfileSlotProps = Omit<ProfilePageProps, 'users' | 'graphs' | 'actions'> & {
+type ProfilePageProps = Omit<ComponentProps<typeof PublicProfile>, 'profile' | 'following' | 'activityTabRequest' | 'tab' | 'onTabChange' | 'stats' | 'graphCount' | 'users' | 'graphs' | 'actions'> & { followingIds: string[] }
+type ProfileSlotProps = ProfilePageProps & {
   userUuid: string
   followingIds: string[]
   request: ComponentProps<typeof PublicProfile>['activityTabRequest']
   active: boolean
 }
 
-/** 每个已访问主页独立读取自己的行动子图，切换时不会互相覆盖。 */
+/** 每个已访问主页独立读取资料，并按当前 Tab 懒加载对应资源。 */
 function ProfileSlot({ userUuid, followingIds, request, active, ...props }: ProfileSlotProps) {
-  const content = useQuery({
-    queryKey: profileContentKey(userUuid),
-    queryFn: ({ signal }) => readProfileContent(userUuid, signal),
-    enabled: active && Boolean(userUuid),
-  })
-  if (content.isLoading) return <p className="empty-state">加载中…</p>
-  if (!content.data) return <p className="empty-state">用户不存在</p>
-  const users = content.data.profile
-    ? [content.data.profile, ...content.data.actions.flatMap((action) => action.author ? [action.author] : []).filter((user, index, list) => user.uuid !== content.data!.profile.uuid && list.findIndex((item) => item.uuid === user.uuid) === index)]
-    : []
+  const [tab, setTab] = useState<ActivityTab>(request?.value ?? 'home')
+  const info = useQuery({ queryKey: ['profiles', userUuid, 'info'], queryFn: ({ signal }) => readProfileInfo(userUuid, signal), enabled: active && Boolean(userUuid) })
+  const stats = useQuery({ queryKey: profileStatsKey(userUuid), queryFn: ({ signal }) => readProfileStats(userUuid, signal), enabled: active && Boolean(userUuid) })
+  const graphCount = useQuery({ queryKey: profileTabKeys.graphCount(userUuid), queryFn: ({ signal }) => readProfileGraphs(userUuid, 1, signal), enabled: active && Boolean(userUuid) })
+  const graphList = useQuery({ queryKey: profileTabKeys.graphs(userUuid), queryFn: ({ signal }) => readProfileGraphs(userUuid, 50, signal), enabled: active && Boolean(userUuid) && tab === 'graphs' })
+  const expressions = useQuery({ queryKey: profileTabKeys.expressions(userUuid), queryFn: ({ signal }) => readProfileExpressions(userUuid, signal), enabled: active && Boolean(userUuid) && tab === 'expressions' })
+  const agreements = useQuery({ queryKey: profileTabKeys.agreements(userUuid), queryFn: ({ signal }) => readProfileAgreements(userUuid, signal), enabled: active && Boolean(userUuid) && tab === 'agreements' })
+  const actions = useQuery({ queryKey: profileTabKeys.actions(userUuid), queryFn: ({ signal }) => readProfileActions(userUuid, signal), enabled: active && Boolean(userUuid) && (tab === 'home' || tab === 'actions' || tab === 'search') })
+
+  const tabData = tab === 'expressions' ? expressions.data : tab === 'agreements' ? agreements.data : actions.data
+  const tabActions = useMemo(() => tab === 'graphs' ? [] : (tabData?.actions ?? []), [tab, tabData])
+  const tabGraphs = useMemo(() => tab === 'graphs' ? (graphList.data?.items ?? []) : (tabData?.graphs ?? []), [tab, tabData, graphList.data?.items])
+  const users = useMemo(() => {
+    if (!info.data) return []
+    const byId = new Map([[info.data.uuid, info.data]])
+    for (const node of tabActions) if (node.author && !byId.has(node.author.uuid)) byId.set(node.author.uuid, node.author)
+    return [...byId.values()]
+  }, [info.data, tabActions])
+
+  if (!active) return <div className="pt-6"><ListSkeleton rows={4} /></div>
+  if (info.isLoading) return <div className="pt-6"><ListSkeleton rows={4} /></div>
+  if (info.isError || !info.data) return <p className="empty-state">用户不存在</p>
   return (
     <PublicProfile
       {...props}
-      profile={content.data.profile}
+      profile={info.data}
       users={users}
-      graphs={content.data.graphs}
-      actions={content.data.actions}
+      graphs={tabGraphs}
+      actions={tabActions}
+      stats={stats.data}
+      graphCount={graphCount.data?.total}
       active={active}
       activityTabRequest={request}
+      tab={tab}
+      onTabChange={setTab}
       following={followingIds.includes(userUuid)}
     />
   )
@@ -70,7 +88,6 @@ export function ProfilePage({ followingIds, ...props }: ProfilePageProps) {
     window.addEventListener('hashchange', syncProfile)
     return () => window.removeEventListener('hashchange', syncProfile)
   }, [props.currentUserUuid])
-  // hidden 只隐藏而不卸载；active 再通知内部滚动监听等 effect 暂停，避免后台面板继续工作。
   return (
     <>
       {[...visited].map(([userUuid, request]) => (

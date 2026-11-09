@@ -1,25 +1,26 @@
 import { Bookmark, MessageCircle, ScrollText, UsersRound } from 'lucide-react'
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import type { ActionNode, ActionDocumentMode } from '../../../entities/action/model/types'
 import type { ActionReference } from '../../../entities/action/lib/references'
-import { getFollowedActivity, getFollowedAgreementRecipient } from '../../../entities/following/lib/activity'
+import { getActionReferences } from '../../../entities/action/lib/references'
+import { getSatisfiedAgreementResponses } from '../../../entities/action/lib/agreement-responses'
+import { getFollowedAgreementRecipient } from '../../../entities/following/lib/activity'
 import { ProfilePreview } from '../../../entities/profile/ui/ProfilePreview'
-import type { FollowedSources } from '../../../entities/following/model/types'
-import { GraphContextLink } from '../../../entities/graph/ui/GraphContextLink'
 import type { Graph } from '../../../entities/graph/model/types'
-import type { UserProfile } from '../../../entities/profile/model/types'
+import { GraphContextLink } from '../../../entities/graph/ui/GraphContextLink'
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from '../../../shared/ui/tabs/Tabs'
 import { ActionPostList } from '../../action-posts/ui/ActionPostList'
 import { AgreementResponseList } from '../../agreement-responses/ui/AgreementResponseList'
 import { FollowedDirectory } from './FollowedDirectory'
+import { ListSkeleton } from '../../../shared/ui/ListSkeleton'
+import { followingKeys, followingTabKeys, readFollowing, readFollowingAgreements, readFollowingExpressions, readFollowingGraphs, readFollowingUsers } from '../../../entities/following/api/following'
 
 type FollowingTab = 'expressions' | 'agreements' | 'graphs' | 'users'
 type Props = {
-  actions: ActionNode[]
-  graphs: Graph[]
-  users: UserProfile[]
-  sources: FollowedSources
+  scope: string
   active: boolean
+  initialTab?: FollowingTab
   onOpenGraph: (id: string) => void
   onOpenNode: (node: ActionNode, mode: ActionDocumentMode) => void
   onOpenReference: (reference: ActionReference) => void
@@ -27,14 +28,32 @@ type Props = {
   onSetUserFollow: (id: string, following: boolean) => boolean | Promise<boolean>
 }
 
-/** 关注动态及图／用户目录；往返页面保留各栏目的阅读和筛选状态。 */
-export function Following({ sources, actions, graphs, users, active, onOpenGraph, onOpenNode, onOpenReference, onSetGraphFollow, onSetUserFollow }: Props) {
-  const [tab, setTab] = useState<FollowingTab>('expressions')
+/** 关注页按 Tab 懒加载：每个栏目只在自己激活时请求对应资源。 */
+export function Following({ scope, active, initialTab = 'expressions', onOpenGraph, onOpenNode, onOpenReference, onSetGraphFollow, onSetUserFollow }: Props) {
+  const [tab, setTab] = useState<FollowingTab>(initialTab)
   const scrollPositions = useRef<Partial<Record<FollowingTab, number>>>({})
   const pendingScroll = useRef<number | undefined>(undefined)
-  const followedGraphs = graphs.filter((graph) => sources.graphUuids.includes(graph.uuid))
-  const followedUsers = [...new Map(users.filter((user) => sources.userUuids.includes(user.uuid)).map((user) => [user.uuid, user])).values()]
-  const activity = useMemo(() => getFollowedActivity(actions, sources), [actions, sources])
+
+  const sources = useQuery({ queryKey: followingKeys.sources(scope), queryFn: ({ signal }) => readFollowing(signal), enabled: active })
+  const expressions = useQuery({ queryKey: followingTabKeys.expressions(scope), queryFn: ({ signal }) => readFollowingExpressions(signal), enabled: active && tab === 'expressions' })
+  const agreements = useQuery({ queryKey: followingTabKeys.agreements(scope), queryFn: ({ signal }) => readFollowingAgreements(signal), enabled: active && tab === 'agreements' })
+  const graphsQuery = useQuery({ queryKey: followingTabKeys.graphs(scope), queryFn: ({ signal }) => readFollowingGraphs(signal), enabled: active && tab === 'graphs' })
+  const usersQuery = useQuery({ queryKey: followingTabKeys.users(scope), queryFn: ({ signal }) => readFollowingUsers(signal), enabled: active && tab === 'users' })
+
+  const source = sources.data ?? { userUuids: [], graphUuids: [], users: [] }
+  const followedUsers = useMemo(() => [...new Map([...source.users, ...(usersQuery.data?.items ?? [])].map((user) => [user.uuid, user])).values()], [source.users, usersQuery.data?.items])
+
+  const expressionActions = useMemo(() => expressions.data?.actions ?? [], [expressions.data?.actions])
+  const expressionNodes = useMemo(() => (expressions.data?.items ?? []).flatMap((id) => { const node = expressionActions.find((item) => item.uuid === id); return node ? [node] : [] }), [expressionActions, expressions.data?.items])
+  const agreementActions = useMemo(() => agreements.data?.actions ?? [], [agreements.data?.actions])
+  const agreementReferences = useMemo(() => {
+    const selected = new Set(agreements.data?.items ?? [])
+    return getSatisfiedAgreementResponses(getActionReferences(agreementActions)).filter((reference) => selected.has(reference.target.uuid))
+  }, [agreementActions, agreements.data?.items])
+
+  const activeGraphs = useMemo<Graph[]>(() => tab === 'graphs' ? graphsQuery.data?.items ?? [] : tab === 'agreements' ? agreements.data?.graphs ?? [] : expressions.data?.graphs ?? [], [tab, graphsQuery.data?.items, expressions.data?.graphs, agreements.data?.graphs])
+  const graphsById = useMemo(() => new Map(activeGraphs.map((graph) => [graph.uuid, graph])), [activeGraphs])
+
   useLayoutEffect(() => {
     if (!active || pendingScroll.current === undefined) return
     const top = pendingScroll.current
@@ -48,30 +67,35 @@ export function Following({ sources, actions, graphs, users, active, onOpenGraph
     pendingScroll.current = scrollPositions.current[next] ?? 0
     setTab(next)
   }
-  const directoryProps = { graphs: followedGraphs, users: followedUsers, actions, onOpenGraph, onSetGraphFollow, onSetUserFollow }
-  const context = (node: ActionNode) => <GraphContextLink id={node.graphUuid} title={graphs.find((graph) => graph.uuid === node.graphUuid)?.title} onOpen={onOpenGraph} />
+
+  const context = (node: ActionNode) => <GraphContextLink id={node.graphUuid} title={graphsById.get(node.graphUuid)?.title} onOpen={onOpenGraph} />
   const agreementContext = (reference: ActionReference) => {
-    const recipientUuid = getFollowedAgreementRecipient(reference, sources)
-    const recipient = users.find((user) => user.uuid === recipientUuid)
+    const recipientUuid = getFollowedAgreementRecipient(reference, source)
+    const recipient = followedUsers.find((user) => user.uuid === recipientUuid)
     if (!recipientUuid) return context(reference.target)
     return (
       <div className="grid gap-1.5">{context(reference.target)}<p className="text-xs leading-5 text-muted">回应了你关注的 <ProfilePreview profile={recipient} userUuid={recipientUuid} className="rounded-sm text-xs hover:text-signal">{recipient?.name ?? recipientUuid}</ProfilePreview></p></div>
     )
   }
+
+  const loading = (state: { isLoading: boolean; isError: boolean; error: unknown }) => state.isLoading
+    ? <ListSkeleton rows={4} />
+    : state.isError ? <p className="empty-state">{(state.error as Error)?.message ?? '加载失败'}</p> : null
+
   return (
     <TabsRoot value={tab} onValueChange={(value) => switchTab(value as FollowingTab)}>
       <div className="sticky top-0 z-20 mt-[23px] bg-paper">
         <TabsList showDivider={false} compact>
           <TabsTrigger value="expressions"><span className="inline-flex items-center gap-1.5"><MessageCircle size={16} />表达</span></TabsTrigger>
           <TabsTrigger value="agreements"><span className="inline-flex items-center gap-1.5"><ScrollText size={16} />约定</span></TabsTrigger>
-          <TabsTrigger value="graphs" className="ml-5"><span className="inline-flex items-center gap-1.5"><Bookmark size={16} />图<span className="ml-0.5 text-xs tabular-nums text-muted">{followedGraphs.length}</span></span></TabsTrigger>
-          <TabsTrigger value="users"><span className="inline-flex items-center gap-1.5"><UsersRound size={16} />用户<span className="ml-0.5 text-xs tabular-nums text-muted">{followedUsers.length}</span></span></TabsTrigger>
+          <TabsTrigger value="graphs" className="ml-5"><span className="inline-flex items-center gap-1.5"><Bookmark size={16} />图<span className="ml-0.5 text-xs tabular-nums text-muted">{source.graphUuids.length}</span></span></TabsTrigger>
+          <TabsTrigger value="users"><span className="inline-flex items-center gap-1.5"><UsersRound size={16} />用户<span className="ml-0.5 text-xs tabular-nums text-muted">{source.userUuids.length}</span></span></TabsTrigger>
         </TabsList>
       </div>
-      <TabsContent value="expressions" keepMounted className="pt-2"><ActionPostList nodes={activity.expressions} actions={actions} users={users} mode="expression" presentation="feed" infinite active={active && tab === 'expressions'} onExplore={onOpenNode} renderContext={context} /></TabsContent>
-      <TabsContent value="agreements" keepMounted className="pt-2"><AgreementResponseList references={activity.agreementResponses} users={users} presentation="feed" active={active && tab === 'agreements'} onExplore={onOpenReference} renderContext={agreementContext} /></TabsContent>
-      <TabsContent value="graphs" keepMounted><FollowedDirectory {...directoryProps} kind="graphs" /></TabsContent>
-      <TabsContent value="users" keepMounted><FollowedDirectory {...directoryProps} kind="users" /></TabsContent>
+      <TabsContent value="expressions" keepMounted className="pt-2">{loading(expressions) ?? <ActionPostList nodes={expressionNodes} actions={expressionActions} users={followedUsers} mode="expression" presentation="feed" infinite active={active && tab === 'expressions'} onExplore={onOpenNode} renderContext={context} />}</TabsContent>
+      <TabsContent value="agreements" keepMounted className="pt-2">{loading(agreements) ?? <AgreementResponseList references={agreementReferences} users={followedUsers} presentation="feed" active={active && tab === 'agreements'} onExplore={onOpenReference} renderContext={agreementContext} />}</TabsContent>
+      <TabsContent value="graphs" keepMounted>{loading(graphsQuery) ?? <FollowedDirectory kind="graphs" graphs={graphsQuery.data?.items ?? []} users={followedUsers} actions={expressionActions} onOpenGraph={onOpenGraph} onSetGraphFollow={onSetGraphFollow} onSetUserFollow={onSetUserFollow} />}</TabsContent>
+      <TabsContent value="users" keepMounted>{loading(usersQuery) ?? <FollowedDirectory kind="users" graphs={graphsQuery.data?.items ?? []} users={followedUsers} actions={expressionActions} onOpenGraph={onOpenGraph} onSetGraphFollow={onSetGraphFollow} onSetUserFollow={onSetUserFollow} />}</TabsContent>
     </TabsRoot>
   )
 }

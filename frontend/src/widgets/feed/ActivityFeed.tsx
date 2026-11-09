@@ -1,5 +1,5 @@
 import { Footprints, Home, MessageCircle, Network, ScrollText, Search } from 'lucide-react'
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { getGraphActivity } from '../../entities/graph/lib/activity'
 import { GraphContextLink } from '../../entities/graph/ui/GraphContextLink'
 import { getPublishedExpressions } from '../../entities/action/lib/published'
@@ -15,28 +15,32 @@ import { AgreementResponseList } from '../agreement-responses/ui/AgreementRespon
 import { ProfileSearch } from '../profile-search/ui/ProfileSearch'
 import { getRetainedTabScrollTop } from '../../shared/lib/tab-scroll'
 
-type ActivityTab = 'home' | 'expressions' | 'agreements' | 'actions' | 'graphs' | 'search'
+export type ActivityTab = 'home' | 'expressions' | 'agreements' | 'actions' | 'graphs' | 'search'
 
 /** Retains the public profile's document lists and reading positions. */
-export function ActivityFeed({ actions, allActions = actions, users, graphs, authorUuids, graphItems, agreementResponses, active = true, compactTabs = false, tabRequest, home, graphToolbar, onOpenNode, onOpenGraph, onOpenReference }: {
+export function ActivityFeed({ actions, allActions = actions, users, graphs, authorUuids, graphItems, agreementResponses, active = true, compactTabs = false, tabRequest, tab: controlledTab, onTabChange, home, graphToolbar, onOpenNode, onOpenGraph, onOpenReference }: {
   actions: ActionNode[]; allActions?: ActionNode[]; users: UserProfile[]; graphs: Graph[]; authorUuids?: string[]
   graphItems?: Graph[]; active?: boolean; compactTabs?: boolean
   agreementResponses?: ActionReference[]
   tabRequest?: { value: ActivityTab }
+  tab?: ActivityTab
+  onTabChange?: (tab: ActivityTab) => void
   home?: (active: boolean) => ReactNode
   graphToolbar?: ReactNode
   onOpenNode: (node: ActionNode, mode: ActionDocumentMode) => void; onOpenGraph: (id: string) => void
   onOpenReference?: (reference: ActionReference) => void
 }) {
-  const [tab, setTab] = useState<ActivityTab>(home ? 'home' : 'expressions')
+  const [internalTab, setInternalTab] = useState<ActivityTab>(home ? 'home' : 'expressions')
+  const tab = controlledTab ?? internalTab
+  const changeTab = useCallback((next: ActivityTab) => { if (controlledTab === undefined) setInternalTab(next); onTabChange?.(next) }, [controlledTab, onTabChange])
   const contentRef = useRef<HTMLDivElement>(null)
   const navigationRef = useRef<HTMLDivElement>(null)
   const pendingScroll = useRef<number | undefined>(undefined)
   useLayoutEffect(() => {
     if (!tabRequest) return
     pendingScroll.current = undefined
-    setTab(tabRequest.value)
-  }, [tabRequest])
+    changeTab(tabRequest.value)
+  }, [tabRequest, changeTab])
   const scrollPositions = useRef<Partial<Record<ActivityTab, number>>>({})
   useLayoutEffect(() => {
     if (!active || pendingScroll.current === undefined) return
@@ -57,7 +61,7 @@ export function ActivityFeed({ actions, allActions = actions, users, graphs, aut
     const currentTop = window.scrollY
     scrollPositions.current[tab] = currentTop
     pendingScroll.current = getRetainedTabScrollTop(scrollPositions.current[next], currentTop, navigationTop())
-    setTab(next)
+    changeTab(next)
   }
   const include = (node: ActionNode) => !authorUuids || authorUuids.includes(node.authorUuid)
   const expressions = getPublishedExpressions(allActions, authorUuids).filter((node) => actions.some((action) => action.uuid === node.uuid))

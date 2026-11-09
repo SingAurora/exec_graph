@@ -1,5 +1,8 @@
 import { getAPI } from '../../../shared/api/client'
 import type { FollowedSources } from '../model/types'
+import type { GraphView } from '../../graph/api/graphs'
+import type { UserProfile } from '../../profile/model/types'
+import { actionFromView, type ActionContextNode, type VersionedAction } from '../../action/api/context'
 
 /** Account-scoped subscription cache identity. */
 export const followingKeys = { sources: (scope: string) => ['following', scope] as const }
@@ -9,44 +12,41 @@ export function readFollowing(signal?: AbortSignal): Promise<FollowedSources> {
   return getAPI('/api/commands/following/source/getList', {}, { signal })
 }
 
-/** 关注页数据：关注集合与相关图和行动子图。 */
-export type FollowingContent = {
-  sources: FollowedSources
-  graphs: import('../../graph/api/graphs').GraphView[]
-  actions: import('../../action/api/context').VersionedAction[]
-}
-
-export const followingContentKey = (scope: string) => ['following', scope, 'content'] as const
-
-type ActionPageResponse = {
-  actions: import('../../action/api/context').ActionContextNode[]
-  graphs: import('../../graph/api/graphs').GraphView[]
+export type FollowingActionPage = {
+  items: string[]
+  actions: VersionedAction[]
+  graphs: GraphView[]
   total: number
+  hasMore: boolean
 }
 
-type GraphPageResponse = { items: import('../../graph/api/graphs').GraphView[] }
-type ProfilePageResponse = { items: import('../../profile/model/types').UserProfile[] }
+export type FollowingGraphPage = { items: GraphView[]; total: number }
+export type FollowingUserPage = { items: UserProfile[]; total: number }
 
-async function followingActionPage(path: `/api/commands/${string}/${string}`, signal?: AbortSignal) {
-  return getAPI<ActionPageResponse>(path, { page: 1, pageSize: 50 }, { signal })
+export const followingTabKeys = {
+  expressions: (scope: string) => ['following', scope, 'expressions'] as const,
+  agreements: (scope: string) => ['following', scope, 'agreements'] as const,
+  graphs: (scope: string) => ['following', scope, 'graphs'] as const,
+  users: (scope: string) => ['following', scope, 'users'] as const,
 }
 
-export async function readFollowingContent(signal?: AbortSignal): Promise<FollowingContent> {
-  const [sources, expressions, agreements, graphs, users] = await Promise.all([
-    getAPI<FollowedSources>('/api/commands/following/source/getList', {}, { signal }),
-    followingActionPage('/api/commands/following/expression/getList', signal),
-    followingActionPage('/api/commands/following/agreement/getList', signal),
-    getAPI<GraphPageResponse>('/api/commands/following/graph/getList', { page: 1, pageSize: 50 }, { signal }),
-    getAPI<ProfilePageResponse>('/api/commands/following/user/getList', { page: 1, pageSize: 50 }, { signal }),
-  ])
-  const { actionFromView } = await import('../../action/api/context')
-  const actionById = new Map<string, FollowingContent['actions'][number]>()
-  for (const page of [expressions, agreements]) for (const node of page.actions) actionById.set(node.uuid, actionFromView(node))
-  const graphById = new Map<string, FollowingContent['graphs'][number]>()
-  for (const graph of [...graphs.items, ...expressions.graphs, ...agreements.graphs]) graphById.set(graph.uuid, graph)
-  return {
-    sources: { ...sources, users: [...new Map([...sources.users, ...users.items].map((user) => [user.uuid, user])).values()] },
-    graphs: [...graphById.values()],
-    actions: [...actionById.values()],
-  }
+function actionPage(path: `/api/commands/${string}/${string}`, signal?: AbortSignal) {
+  return getAPI<{ items: string[]; actions: ActionContextNode[]; graphs: GraphView[]; total: number; hasMore: boolean }>(path, { page: 1, pageSize: 50 }, { signal })
+    .then((data) => ({ items: data.items, actions: data.actions.map(actionFromView), graphs: data.graphs, total: data.total, hasMore: data.hasMore }))
+}
+
+export function readFollowingExpressions(signal?: AbortSignal): Promise<FollowingActionPage> {
+  return actionPage('/api/commands/following/expression/getList', signal)
+}
+
+export function readFollowingAgreements(signal?: AbortSignal): Promise<FollowingActionPage> {
+  return actionPage('/api/commands/following/agreement/getList', signal)
+}
+
+export function readFollowingGraphs(signal?: AbortSignal): Promise<FollowingGraphPage> {
+  return getAPI('/api/commands/following/graph/getList', { page: 1, pageSize: 50 }, { signal })
+}
+
+export function readFollowingUsers(signal?: AbortSignal): Promise<FollowingUserPage> {
+  return getAPI('/api/commands/following/user/getList', { page: 1, pageSize: 50 }, { signal })
 }

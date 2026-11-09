@@ -32,42 +32,45 @@ export async function readSession(signal?: AbortSignal): Promise<SessionView | n
   }
 }
 
-/** 单个主页内容的缓存键；按用户独立保存，切回已访问主页不互相覆盖。 */
-export const profileContentKey = (userUuid: string) => ['profiles', userUuid, 'content'] as const
-
-export type ProfileContent = {
-  profile: UserProfile
-  graphs: GraphView[]
-  actions: VersionedAction[]
-}
-
-type ActionPageResponse = {
+export type ProfileActionPage = {
   items: string[]
-  actions: ActionContextNode[]
+  actions: VersionedAction[]
   graphs: GraphView[]
   total: number
+  hasMore: boolean
 }
 
-type GraphPageResponse = { items: GraphView[]; total: number }
+export type ProfileGraphPage = { items: GraphView[]; total: number; hasMore: boolean }
+
+export const profileTabKeys = {
+  expressions: (userUuid: string) => ['profiles', userUuid, 'expressions'] as const,
+  agreements: (userUuid: string) => ['profiles', userUuid, 'agreements'] as const,
+  actions: (userUuid: string) => ['profiles', userUuid, 'actions'] as const,
+  graphs: (userUuid: string) => ['profiles', userUuid, 'graphs'] as const,
+  graphCount: (userUuid: string) => ['profiles', userUuid, 'graphCount'] as const,
+}
 
 function actionPage(path: `/api/commands/${string}/${string}`, userUuid: string, signal?: AbortSignal) {
-  return getAPI<ActionPageResponse>(path, { userUuid, page: 1, pageSize: 50 }, { signal })
+  return getAPI<{ items: string[]; actions: ActionContextNode[]; graphs: GraphView[]; total: number; hasMore: boolean }>(path, { userUuid, page: 1, pageSize: 50 }, { signal })
+    .then((data) => ({ items: data.items, actions: data.actions.map(actionFromView), graphs: data.graphs, total: data.total, hasMore: data.hasMore }))
 }
 
-/** 读取单个主页：资料、图，以及表达/约定/行动三个资源页的上下文。 */
-export async function readProfileContent(userUuid: string, signal?: AbortSignal): Promise<ProfileContent> {
-  const [profile, expressions, agreements, actions, graphs] = await Promise.all([
-    getAPI<UserProfile>('/api/commands/profiles/getInfo', { userUuid }, { signal }),
-    actionPage('/api/commands/profiles/expression/getList', userUuid, signal),
-    actionPage('/api/commands/profiles/agreement/getList', userUuid, signal),
-    actionPage('/api/commands/profiles/action/getList', userUuid, signal),
-    getAPI<GraphPageResponse>('/api/commands/profiles/graph/getList', { userUuid, page: 1, pageSize: 50 }, { signal }),
-  ])
-  const actionById = new Map<string, VersionedAction>()
-  for (const page of [expressions, agreements, actions]) {
-    for (const node of page.actions) actionById.set(node.uuid, actionFromView(node))
-  }
-  const graphById = new Map<string, GraphView>()
-  for (const graph of [...graphs.items, ...expressions.graphs, ...agreements.graphs, ...actions.graphs]) graphById.set(graph.uuid, graph)
-  return { profile, graphs: [...graphById.values()], actions: [...actionById.values()] }
+export function readProfileInfo(userUuid: string, signal?: AbortSignal): Promise<UserProfile> {
+  return getAPI('/api/commands/profiles/getInfo', { userUuid }, { signal })
+}
+
+export function readProfileExpressions(userUuid: string, signal?: AbortSignal): Promise<ProfileActionPage> {
+  return actionPage('/api/commands/profiles/expression/getList', userUuid, signal)
+}
+
+export function readProfileAgreements(userUuid: string, signal?: AbortSignal): Promise<ProfileActionPage> {
+  return actionPage('/api/commands/profiles/agreement/getList', userUuid, signal)
+}
+
+export function readProfileActions(userUuid: string, signal?: AbortSignal): Promise<ProfileActionPage> {
+  return actionPage('/api/commands/profiles/action/getList', userUuid, signal)
+}
+
+export function readProfileGraphs(userUuid: string, pageSize: number, signal?: AbortSignal): Promise<ProfileGraphPage> {
+  return getAPI('/api/commands/profiles/graph/getList', { userUuid, page: 1, pageSize }, { signal })
 }

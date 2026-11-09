@@ -374,7 +374,6 @@ function AppContent({ profile, graphs, actions, users, sources, profileStats, re
     >
       <div hidden={!personalAreaActive}>
         <ProfilePage
-          users={users} graphs={graphs} actions={actions}
           currentUserUuid={profile.uuid} followingIds={followingIds} active={personalAreaActive}
           onCreateGraph={createGraph} onSetUserFollow={setUserFollow}
           onOpenGraph={openGraph} onOpenNode={openNode} onOpenReference={openReference}
@@ -395,12 +394,11 @@ function AppContent({ profile, graphs, actions, users, sources, profileStats, re
         />
       )}
       <div hidden={route !== 'following'}>
-        {resourcesLoading ? <div className="pt-6"><ListSkeleton rows={4} /></div> : <FollowingPage
-          actions={actions} graphs={graphs} users={users}
-          sources={{ userUuids: followingIds, graphUuids: followingGraphUuids, users: sources.users }} active={route === 'following'}
+        <FollowingPage
+          scope={profile.uuid} active={route === 'following'}
           onOpenGraph={openGraph} onOpenNode={openNode} onOpenReference={openReference}
           onSetGraphFollow={setGraphFollow} onSetUserFollow={setUserFollow}
-        />}
+        />
       </div>
       <div hidden={route !== 'graphs'}>
         <GraphsPage

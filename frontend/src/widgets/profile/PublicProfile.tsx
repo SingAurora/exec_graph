@@ -12,7 +12,7 @@ import { formatMainlandLocation } from '../../entities/profile/model/mainland-re
 import { Avatar } from '../../shared/ui/Avatar'
 import { ImagePreviewTrigger } from '../../shared/ui/ImagePreviewTrigger'
 import { GenderMark } from '../../shared/ui/profile/GenderMark'
-import { ActivityFeed } from '../feed/ActivityFeed'
+import { ActivityFeed, type ActivityTab } from '../feed/ActivityFeed'
 import { FollowButton } from '../../features/follow/ui/FollowButton'
 import { CreateGraphButton } from '../../features/graph/ui/CreateGraphButton'
 import type { CreateGraphInput } from '../../features/graph/model/types'
@@ -20,10 +20,14 @@ import { ProfileHome } from './ProfileHome'
 import { ProfileHighlights } from './ProfileHighlights'
 
 /** 本人与他人共用的公开主页，组织热力图、表达、约定回应、行动和图等栏目。 */
-export function PublicProfile({ profile, currentUserUuid, following, users, graphs, actions, active, activityTabRequest, onCreateGraph, onSetUserFollow, onOpenGraph, onOpenNode, onOpenReference }: {
+export function PublicProfile({ profile, currentUserUuid, following, users, graphs, actions, active, activityTabRequest, tab, onTabChange, stats, graphCount, onCreateGraph, onSetUserFollow, onOpenGraph, onOpenNode, onOpenReference }: {
   profile: UserProfile; currentUserUuid: string; following: boolean; users: UserProfile[]
   graphs: Graph[]; actions: ActionNode[]; active?: boolean
   activityTabRequest?: ComponentProps<typeof ActivityFeed>['tabRequest']
+  tab?: ActivityTab
+  onTabChange?: (tab: ActivityTab) => void
+  stats?: { actions: number; expressions: number; agreements: number }
+  graphCount?: number
   onCreateGraph?: (input: CreateGraphInput) => void
   onSetUserFollow: (id: string, following: boolean) => boolean | Promise<boolean>; onOpenGraph: (id: string) => void
   onOpenNode: (node: ActionNode, mode: ActionDocumentMode) => void
@@ -31,7 +35,7 @@ export function PublicProfile({ profile, currentUserUuid, following, users, grap
 }) {
   const authorActions = actions.filter((node) => node.authorUuid === profile.uuid)
   const related = graphs.filter((graph) => graph.ownerUuid === profile.uuid || hasUserContributed(graph.uuid, profile.uuid, actions))
-  const expressionCount = getPublishedExpressions(actions).filter((node) => node.authorUuid === profile.uuid).length
+  const expressionCount = stats?.expressions ?? getPublishedExpressions(actions).filter((node) => node.authorUuid === profile.uuid).length
   const agreementResponses = useMemo(() => getProfileAgreementResponses(getActionReferences(actions), profile.uuid), [actions, profile.uuid])
   const self = profile.uuid === currentUserUuid
   const avatar = <Avatar profile={profile} size="xlarge" shape="circle" />
@@ -47,9 +51,9 @@ export function PublicProfile({ profile, currentUserUuid, following, users, grap
           {profile.location && <p className="text-sm text-muted">{formatMainlandLocation(profile.location.code)}</p>}
         </div>
         <div className="mt-3 px-5"><ProfileBiography biography={profile.bio} /></div>
-        <div className="mt-4 flex flex-wrap gap-x-7 gap-y-2 px-5 text-sm text-muted"><span><strong className="font-semibold text-ink">{expressionCount}</strong> 表达</span><span><strong className="font-semibold text-ink">{agreementResponses.length}</strong> 约定</span><span><strong className="font-semibold text-ink">{authorActions.length}</strong> 行动</span><span><strong className="font-semibold text-ink">{related.length}</strong> 图</span></div>
+        <div className="mt-4 flex flex-wrap gap-x-7 gap-y-2 px-5 text-sm text-muted"><span><strong className="font-semibold text-ink">{expressionCount}</strong> 表达</span><span><strong className="font-semibold text-ink">{stats?.agreements ?? agreementResponses.length}</strong> 约定</span><span><strong className="font-semibold text-ink">{stats?.actions ?? authorActions.length}</strong> 行动</span><span><strong className="font-semibold text-ink">{graphCount ?? related.length}</strong> 图</span></div>
       </header>
-      <ActivityFeed actions={actions} graphs={graphs} users={users} authorUuids={[profile.uuid]} graphItems={related} agreementResponses={agreementResponses} active={active} tabRequest={activityTabRequest}
+      <ActivityFeed actions={actions} graphs={graphs} users={users} authorUuids={[profile.uuid]} graphItems={related} agreementResponses={agreementResponses} active={active} tabRequest={activityTabRequest} tab={tab} onTabChange={onTabChange}
         home={(homeActive) => <><ProfileHighlights profile={profile} self={self} actions={actions} graphs={graphs} users={users} onOpenNode={onOpenNode} /><ProfileHome userUuid={profile.uuid} actions={actions} active={homeActive} onOpenNode={onOpenNode} /></>}
         graphToolbar={self && onCreateGraph && <div className="flex items-center justify-between gap-3 pt-4"><a href="#graphs" className="text-button text-xs">管理行动图</a><CreateGraphButton onCreate={onCreateGraph} compact /></div>}
         onOpenNode={onOpenNode} onOpenGraph={onOpenGraph} onOpenReference={onOpenReference} />
