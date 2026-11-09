@@ -9,7 +9,6 @@ import { useImageAssets } from '../features/media-upload/model/useImageAssets'
 import { useAppNavigation } from './model/useAppNavigation'
 import { actionWorkspaceHash, readActionWorkspaceRoute } from './model/action-workspace-route'
 import { generateNodeDocuments } from '../features/action-generation/api/generation'
-import { getActionDraftKey } from '../entities/action/lib/draft-key'
 import type { FollowedSources } from '../entities/following/model/types'
 import type { GraphView } from '../entities/graph/api/graphs'
 import type { AccountProfile } from '../entities/profile/api/profiles'
@@ -20,12 +19,10 @@ import type { GenerationView } from '../features/action-generation/api/generatio
 import { FollowingPage } from '../pages/FollowingPage'
 import type { ActionDocumentMode, ActionNode } from '../entities/action/model/types'
 import { getActionReferences, type ActionReference } from '../entities/action/lib/references'
-import { getActionExpressionContext } from '../entities/action/lib/expression-context'
 import { getPublishedExpressions } from '../entities/action/lib/published'
 import { getProfileAgreementResponses } from '../entities/action/lib/agreement-responses'
-import { canEditActionExpression, getActionExpression } from '../entities/action/lib/expressions'
+import { canEditActionExpression } from '../entities/action/lib/expressions'
 import { canEditActionAgreement } from '../entities/action/lib/agreements'
-import { getActionAgreement } from '../entities/action/lib/agreements'
 import type { CreateGraphInput } from '../features/graph/model/types'
 import { useGraphBackground } from '../features/graph-appearance/model/useGraphBackground'
 import type { Graph } from '../entities/graph/model/types'
@@ -36,13 +33,11 @@ import { GraphPage } from '../pages/GraphPage'
 import { GraphsPage } from '../pages/GraphsPage'
 import { AuthScreen } from '../widgets/auth/AuthScreen'
 import { GuestApp } from './GuestApp'
+import { WorkspaceOutlet } from './ui/WorkspaceOutlet'
 import { useAuthStore } from '../features/auth/model/auth-store'
 import { NotFoundScreen } from './NotFoundScreen'
 import { AppShell } from '../widgets/layout/AppShell'
 import { SettingsPanel } from '../widgets/settings/SettingsPanel'
-import { ActionWorkspace } from '../widgets/ai/ActionWorkspace'
-import { ExpressionWorkspace } from '../widgets/ai/ExpressionWorkspace'
-import { AgreementWorkspace } from '../widgets/ai/AgreementWorkspace'
 import { ActionArchivePage } from '../pages/ActionArchivePage'
 
 const legendPreferenceKey = 'execg.actionGraph.showLegend'
@@ -458,48 +453,23 @@ function AppContent({ profile, graphs, actions, allUsers, sources, darkMode, tog
         </div>
       )}
       {route === 'publish' && (
-        workspaceMode === 'agreement' && expressionAction ? (
-          <AgreementWorkspace
-            draftKey={getActionDraftKey(profile.uuid, expressionAction.graphUuid, 'agreement', expressionAction.uuid)}
-            key={profile.uuid + ':agreement-' + expressionAction.uuid}
-            node={expressionAction}
-            actions={actions.filter((node) => node.graphUuid === expressionAction.graphUuid)}
-            profileName={profile.name} profileUuid={profile.uuid} profile={profile} users={allUsers}
-            contextGuide={workspaceGraph?.contextGuide}
-            onBack={() => openGraph(expressionAction.graphUuid)} onConfirm={confirmAgreement} onPublishDraft={publishAgreementDraft}
-          />
-        ) : workspaceMode === 'expression' && expressionAction ? (
-          <ExpressionWorkspace
-            draftKey={getActionDraftKey(profile.uuid, expressionAction.graphUuid, 'expression', expressionAction.uuid)}
-            key={profile.uuid + ':expression-' + expressionAction.uuid}
-            node={expressionAction}
-            actions={actions.filter((node) => node.graphUuid === expressionAction.graphUuid)}
-            profileName={profile.name} profileUuid={profile.uuid} profile={profile} users={allUsers}
-            contextGuide={workspaceGraph?.contextGuide}
-            onBack={() => openGraph(expressionAction.graphUuid)} onConfirm={confirmExpression} onPublishDraft={publishExpressionDraft}
-          />
-        ) : workspaceMode === 'action' && workspaceGraph && (!workspaceParentUuid || workspaceParent) && (workspaceParent || !actions.some((node) => node.graphUuid === workspaceGraph.uuid)) ? (
-          <ActionWorkspace
-            graphUuid={workspaceGraph.uuid}
-            key={getActionDraftKey(profile.uuid, workspaceGraph.uuid, 'action', workspaceParentUuid)}
-            draftKey={getActionDraftKey(profile.uuid, workspaceGraph.uuid, 'action', workspaceParentUuid)}
-            profileName={profile.name} profile={profile} hasParent={Boolean(workspaceParent)}
-            contextTitle={workspaceParent?.title} sourceNodeUuid={workspaceParent?.uuid}
-            sourceNodeNumber={workspaceParent?.number}
-            actions={actions.filter((node) => node.graphUuid === workspaceGraph.uuid)}
-            inheritedExpression={workspaceParent ? getActionExpression(actions, workspaceParent.uuid).markdown : ''}
-            inheritedExpressionImages={workspaceParent ? getActionExpression(actions, workspaceParent.uuid).sourceNode?.images : []}
-            historyFacts={workspaceParent ? getActionExpressionContext(actions, workspaceParent.uuid)?.facts : []}
-            inheritedAgreement={workspaceParent && workspaceParent.authorUuid !== profile.uuid ? getActionAgreement(actions, workspaceParent.uuid).markdown : ''}
-            contextGuide={workspaceGraph.contextGuide}
-            onBack={() => openGraph(workspaceGraph.uuid)} onConfirm={confirmAction}
-          />
-        ) : (
-          <div className="empty-state">
-            <p>请先选择行动图和接续节点</p>
-            <a className="quiet-button" href="#graphs">浏览行动图</a>
-          </div>
-        )
+        <WorkspaceOutlet
+          mode={workspaceMode}
+          graph={workspaceGraph}
+          parent={workspaceParent}
+          parentUuid={workspaceParentUuid}
+          node={expressionAction}
+          actions={actions}
+          profile={profile}
+          users={allUsers}
+          contextGuide={workspaceGraph?.contextGuide}
+          onBack={openGraph}
+          onConfirmAction={confirmAction}
+          onConfirmExpression={confirmExpression}
+          onConfirmAgreement={confirmAgreement}
+          onPublishExpressionDraft={publishExpressionDraft}
+          onPublishAgreementDraft={publishAgreementDraft}
+        />
       )}
       {route === 'action-archive' && (
         archiveAction && selectedGraph ? (
