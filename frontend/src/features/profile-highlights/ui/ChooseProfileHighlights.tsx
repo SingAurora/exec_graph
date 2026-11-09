@@ -1,7 +1,6 @@
 import { ArrowDown, ArrowLeft, ArrowUp, Plus, Trash2 } from 'lucide-react'
 import { useRef, useState, type RefObject } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { profileKeys } from '../../../entities/profile/api/profiles'
+import { useMutation } from '@tanstack/react-query'
 import { useAuthStore } from '../../auth/model/auth-store'
 import type { ProfileHighlights } from '../../../entities/profile/model/types'
 import { profileHighlightLimit } from '../../../entities/profile/model/highlights'
@@ -30,7 +29,6 @@ export function ChooseProfileHighlights({ userUuid, highlights, candidates, grap
   const selected = draft.flatMap((id) => candidates.filter(({ node }) => node.uuid === id))
   const available = candidates.filter(({ node }) => !draft.includes(node.uuid))
   const currentUser = useAuthStore((state) => state.user)
-  const client = useQueryClient()
   const save = useMutation({
     mutationFn: async () => {
       if (!currentUser || currentUser.uuid !== userUuid) throw new Error('当前账户已变化，请重新打开主页')
@@ -38,7 +36,6 @@ export function ChooseProfileHighlights({ userUuid, highlights, candidates, grap
     },
     onSuccess(user) {
       useAuthStore.getState().setUser(user)
-      void client.invalidateQueries({ queryKey: profileKeys.catalogue(userUuid) })
       onClose()
     },
     onError() {

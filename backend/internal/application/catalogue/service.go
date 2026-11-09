@@ -4,7 +4,6 @@ import "context"
 
 // Repository 只暴露读取能力，不向 application 泄露 ORM。
 type Repository interface {
-	Profiles(context.Context) ([]ProfileView, error)
 	Graphs(context.Context) ([]GraphView, error)
 	Graph(context.Context, string) (GraphView, error)
 	Actions(context.Context, string) ([]ActionView, error)
@@ -20,11 +19,6 @@ type Service struct {
 // New 注入已创建的仓储和文件客户端。
 func New(repository Repository) *Service {
 	return &Service{repository: repository}
-}
-
-// Profiles 读取公开资料目录。
-func (s *Service) Profiles(ctx context.Context) ([]ProfileView, error) {
-	return s.repository.Profiles(ctx)
 }
 
 // Graphs 读取可见行动图目录。

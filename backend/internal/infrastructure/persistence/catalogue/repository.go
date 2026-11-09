@@ -40,15 +40,6 @@ func MediaURL(uuid *string) *string {
 	return &value
 }
 
-// Profiles 读取公开目录；当前演示阶段同时返回邮箱。
-func (r *Repository) Profiles(ctx context.Context) ([]app.ProfileView, error) {
-	var users []model.User
-	if err := r.db.WithContext(ctx).Where("disabled_at IS NULL").Order("id").Find(&users).Error; err != nil {
-		return nil, fmt.Errorf("读取公开用户: %w", err)
-	}
-	return r.profiles(ctx, users)
-}
-
 // Profile 返回指定用户的公开部分，供账户用例组合私有字段。
 func (r *Repository) Profile(ctx context.Context, uuid string) (app.ProfileView, error) {
 	var user model.User
@@ -181,10 +172,21 @@ func (r *Repository) graphs(ctx context.Context, graphs []model.Graph) ([]app.Gr
 
 // Following 过滤已不可用的用户和图。
 func (r *Repository) Following(ctx context.Context, uuid string) (app.FollowingView, error) {
-	out := app.FollowingView{UserIDs: []string{}, GraphIDs: []string{}}
+	out := app.FollowingView{UserIDs: []string{}, GraphIDs: []string{}, Users: []app.ProfileView{}}
 	if err := r.db.WithContext(ctx).Table("user_follows AS f").Joins("JOIN users u ON u.uuid = f.followed_user_uuid AND u.disabled_at IS NULL").Where("f.follower_uuid = ?", uuid).Order("f.id").Pluck("f.followed_user_uuid", &out.UserIDs).Error; err != nil {
 		return out, err
 	}
 	err := r.db.WithContext(ctx).Table("graph_follows AS f").Joins("JOIN graphs g ON g.uuid = f.graph_uuid AND g.deleted_at IS NULL").Where("f.user_uuid = ?", uuid).Order("f.id").Pluck("f.graph_uuid", &out.GraphIDs).Error
+	if err != nil {
+		return out, err
+	}
+	// 关注页需要的用户资料随关注集合返回，不额外拉全量目录。
+	if len(out.UserIDs) > 0 {
+		var users []model.User
+		if err := r.db.WithContext(ctx).Where("uuid IN ? AND disabled_at IS NULL", out.UserIDs).Find(&users).Error; err != nil {
+			return out, err
+		}
+		out.Users, err = r.profiles(ctx, users)
+	}
 	return out, err
 }

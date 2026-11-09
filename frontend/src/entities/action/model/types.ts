@@ -1,4 +1,5 @@
 import type { ChatMessage, PostImage } from '../../../shared/model/content'
+import type { UserProfile } from '../../profile/model/types'
 
 /** 原型接续入口保留的模式；实际引用关系由 parentUuid 和 mergedParentUuids 表达。 */
 export type BranchMode = 'continue' | 'fork'
@@ -45,6 +46,8 @@ export type ActionNode = {
   /** 本次引用是否满足各直接来源的约定，与本节点向后提出的 agreementMarkdown 分开。 */
   referenceAgreements?: ActionReferenceAgreement[]
   authorUuid: string
+  /** 服务端随行动返回的作者公开资料，列表不再依赖全局用户查询。 */
+  author?: UserProfile
   title: string
   markdown: string
   /** 只记本次实际发生的事实；旧记录缺少此字段时才回退读取 markdown。 */

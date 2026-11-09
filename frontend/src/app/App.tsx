@@ -128,7 +128,7 @@ export function App() {
       <GuestApp
         graphs={resources.graphs ?? []}
         actions={resources.actions ?? []}
-        users={resources.allUsers}
+        users={resources.users}
       />
     )
   }
@@ -173,7 +173,7 @@ export function App() {
         profile={user}
         graphs={resources.graphs}
         actions={resources.actions}
-        allUsers={resources.allUsers}
+        users={resources.users}
         sources={resources.sources}
       />
       {resources.error && (
@@ -191,8 +191,8 @@ export function App() {
 }
 
 /** 应用装配层：把 Query 中的业务数据、路由和写入回调连接到页面及工作区。 */
-function AppContent({ profile, graphs, actions, allUsers, sources, darkMode, toggleTheme, onLogout }: {
-  profile: AccountProfile; graphs: GraphView[]; actions: VersionedAction[]; allUsers: UserProfile[]; sources: FollowedSources
+function AppContent({ profile, graphs, actions, users, sources, darkMode, toggleTheme, onLogout }: {
+  profile: AccountProfile; graphs: GraphView[]; actions: VersionedAction[]; users: UserProfile[]; sources: FollowedSources
   darkMode: boolean; toggleTheme: () => void; onLogout: () => Promise<void>
 }) {
   // ── 数据、路由和本地界面状态 ──
@@ -396,7 +396,7 @@ function AppContent({ profile, graphs, actions, allUsers, sources, darkMode, tog
     >
       <div hidden={!personalAreaActive}>
         <ProfilePage
-          users={allUsers} graphs={graphs} actions={actions}
+          users={users} graphs={graphs} actions={actions}
           currentUserUuid={profile.uuid} followingIds={followingIds} active={personalAreaActive}
           onCreateGraph={createGraph} onSetUserFollow={setUserFollow}
           onOpenGraph={openGraph} onOpenNode={openNode} onOpenReference={openReference}
@@ -404,7 +404,7 @@ function AppContent({ profile, graphs, actions, allUsers, sources, darkMode, tog
       </div>
       <div hidden={route !== 'home'}>
         <FeedPage
-          actions={actions} graphs={graphs} users={allUsers} active={route === 'home'}
+          actions={actions} graphs={graphs} users={users} active={route === 'home'}
           onOpenGraph={openGraph} onOpenNode={openNode}
           onOpenReference={openReference} onSearchGraphs={openGraphSearch}
         />
@@ -418,8 +418,8 @@ function AppContent({ profile, graphs, actions, allUsers, sources, darkMode, tog
       )}
       <div hidden={route !== 'following'}>
         <FollowingPage
-          actions={actions} graphs={graphs} users={allUsers}
-          sources={{ userUuids: followingIds, graphUuids: followingGraphUuids }} active={route === 'following'}
+          actions={actions} graphs={graphs} users={users}
+          sources={{ userUuids: followingIds, graphUuids: followingGraphUuids, users: sources.users }} active={route === 'following'}
           onOpenGraph={openGraph} onOpenNode={openNode} onOpenReference={openReference}
           onSetGraphFollow={setGraphFollow} onSetUserFollow={setUserFollow}
         />
@@ -434,7 +434,7 @@ function AppContent({ profile, graphs, actions, allUsers, sources, darkMode, tog
         <div hidden={route !== 'graph'}>
           <GraphPage
             key={selectedGraph.uuid} active={route === 'graph'} graph={selectedGraph}
-            externalFocus={externalFocus} currentUserUuid={profile.uuid} users={allUsers}
+            externalFocus={externalFocus} currentUserUuid={profile.uuid} users={users}
             actions={selectedGraphActions} showActionGraphLegend={showActionGraphLegend}
             graphBackground={graphBackground}
             onCreateAction={startAction}
@@ -461,7 +461,7 @@ function AppContent({ profile, graphs, actions, allUsers, sources, darkMode, tog
           node={expressionAction}
           actions={actions}
           profile={profile}
-          users={allUsers}
+          users={users}
           contextGuide={workspaceGraph?.contextGuide}
           onBack={openGraph}
           onConfirmAction={confirmAction}
@@ -474,7 +474,7 @@ function AppContent({ profile, graphs, actions, allUsers, sources, darkMode, tog
       {route === 'action-archive' && (
         archiveAction && selectedGraph ? (
           <ActionArchivePage
-            graph={selectedGraph} node={archiveAction} actions={selectedGraphActions} users={allUsers}
+            graph={selectedGraph} node={archiveAction} actions={selectedGraphActions} users={users}
             onBack={() => openGraph(selectedGraph.uuid)}
             onSelectSource={(id) => {
               setArchiveActionId(id)

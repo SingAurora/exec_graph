@@ -3,6 +3,7 @@ package catalogue
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	app "github.com/singaurora/exec-graph/backend/internal/application/catalogue"
 	"github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/model"
@@ -130,9 +131,32 @@ func (r *Repository) actions(ctx context.Context, nodes []model.ActionNode) ([]a
 			}
 		}
 	}
+	// 行动作者资料随行动返回，前端不再为了作者展示加载整份用户目录。
+	authorIDs := make([]string, 0, len(nodes))
+	seenAuthors := map[string]bool{}
+	for _, n := range nodes {
+		if !seenAuthors[n.AuthorUUID] {
+			seenAuthors[n.AuthorUUID] = true
+			authorIDs = append(authorIDs, n.AuthorUUID)
+		}
+	}
+	var authorRows []model.User
+	if len(authorIDs) > 0 {
+		if err := db.Where("uuid IN ?", authorIDs).Find(&authorRows).Error; err != nil {
+			return nil, fmt.Errorf("读取行动作者: %w", err)
+		}
+	}
+	authorProfiles, err := r.profiles(ctx, authorRows)
+	if err != nil {
+		return nil, err
+	}
+	byAuthor := make(map[string]*app.ProfileView, len(authorProfiles))
+	for i := range authorProfiles {
+		byAuthor[authorProfiles[i].ID] = &authorProfiles[i]
+	}
 	byID := map[string]*app.ActionView{}
 	for _, n := range nodes {
-		result = append(result, app.ActionView{ID: n.UUID, GraphID: n.GraphUUID, Number: n.NodeNumber, AuthorID: n.AuthorUUID, Title: n.Title, Markdown: n.ObjectiveMarkdown, ObjectiveMarkdown: n.ObjectiveMarkdown, Version: n.Version, CreatedAt: timezone.InChina(n.CreatedAt), Images: []app.Image{}, Conversation: []app.Message{}, ExpressionConversation: []app.Message{}, AgreementConversation: []app.Message{}, ReferenceAgreements: []app.Assessment{}, ContextSnapshot: &app.ContextSnapshot{DirectNodeIDs: []string{}, HistoryNodeCount: n.HistoryNodeCount, Guide: n.ContextGuideSnapshot}})
+		result = append(result, app.ActionView{ID: n.UUID, GraphID: n.GraphUUID, Number: n.NodeNumber, AuthorID: n.AuthorUUID, Author: byAuthor[n.AuthorUUID], Title: n.Title, Markdown: n.ObjectiveMarkdown, ObjectiveMarkdown: n.ObjectiveMarkdown, Version: n.Version, CreatedAt: timezone.InChina(n.CreatedAt), Images: []app.Image{}, Conversation: []app.Message{}, ExpressionConversation: []app.Message{}, AgreementConversation: []app.Message{}, ReferenceAgreements: []app.Assessment{}, ContextSnapshot: &app.ContextSnapshot{DirectNodeIDs: []string{}, HistoryNodeCount: n.HistoryNodeCount, Guide: n.ContextGuideSnapshot}})
 	}
 	for i := range result {
 		byID[result[i].ID] = &result[i]

@@ -122,16 +122,6 @@ func TestRealDatabaseSeedAndHTTPFlow(t *testing.T) {
 		t.Fatal("测试号会话返回不完整")
 	}
 	token = demo.Data.Token
-	response = request("GET", "/api/commands/profiles/catalogue", "", "")
-	expectStatus(t, response, 200)
-	public, err := io.ReadAll(response.Body)
-	response.Body.Close()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if bytes.Contains(public, []byte(`"email"`)) || bytes.Contains(public, []byte(`"isTestAccount"`)) || bytes.Contains(public, []byte(`"passwordHash"`)) {
-		t.Fatal("公开目录泄露私有字段")
-	}
 	response = request("GET", "/api/commands/graphs/detail?graphUuid=cooking", "", "")
 	graph := readWire[app.GraphView](t, response)
 	if graph.Data.ID != id.Demo("graph", "cooking") {

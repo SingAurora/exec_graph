@@ -19,7 +19,7 @@ type Highlights struct {
 	ExpressionNodeIDs []string `json:"expressionNodeUuids"`
 }
 
-// ProfileView 是不含邮箱和测试管理标记的公开资料。
+// ProfileView 是公开资料；当前 demo 阶段包含邮箱，不包含测试管理标记。
 type ProfileView struct {
 	ID                string        `json:"uuid"`
 	Name              string        `json:"name"`
@@ -97,6 +97,7 @@ type ActionView struct {
 	ParentID               string           `json:"parentUuid,omitempty"`
 	MergedParentIDs        []string         `json:"mergedParentUuids,omitempty"`
 	AuthorID               string           `json:"authorUuid"`
+	Author                 *ProfileView     `json:"author,omitempty"`
 	Title                  string           `json:"title"`
 	Markdown               string           `json:"markdown"`
 	ObjectiveMarkdown      string           `json:"objectiveMarkdown"`
@@ -119,6 +120,7 @@ type ActionView struct {
 
 // FollowingView 是当前账户的显式关注集合。
 type FollowingView struct {
-	UserIDs  []string `json:"userUuids"`
-	GraphIDs []string `json:"graphUuids"`
+	UserIDs  []string      `json:"userUuids"`
+	GraphIDs []string      `json:"graphUuids"`
+	Users    []ProfileView `json:"users"`
 }

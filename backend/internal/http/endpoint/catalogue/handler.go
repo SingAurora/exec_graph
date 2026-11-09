@@ -23,16 +23,6 @@ func New(service *app.Service, identity *identity.Service, ready func(context.Co
 	return &Handler{service, identity, ready}
 }
 
-// Profiles 返回不含私有字段的用户目录。
-func (h *Handler) Profiles(c *gin.Context) {
-	out, err := h.service.Profiles(c.Request.Context())
-	if err != nil {
-		common.Fail(c, err)
-		return
-	}
-	common.Reply(c, out)
-}
-
 // Graphs 返回行动图目录。
 func (h *Handler) Graphs(c *gin.Context) {
 	out, err := h.service.Graphs(c.Request.Context())

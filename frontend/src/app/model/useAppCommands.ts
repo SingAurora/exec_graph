@@ -2,7 +2,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRef } from 'react'
 import { actionFromView, actionKeys, type ActionContextNode, type VersionedAction } from '../../entities/action/api/context'
 import { graphKeys, type GraphView } from '../../entities/graph/api/graphs'
-import { profileKeys } from '../../entities/profile/api/profiles'
 import { useAuthStore } from '../../features/auth/model/auth-store'
 import { followingKeys } from '../../entities/following/api/following'
 import { createGraph, removeGraph, updateGraph } from '../../features/graph/api/commands'
@@ -63,7 +62,8 @@ export function useAppCommands(scope: string) {
   const followUpdate = useMutation({ mutationFn: (input: Parameters<typeof setFollowing>[0]) => setFollowing(input, {}), onSuccess(sources) { client.setQueryData(followingKeys.sources(scope), sources) } })
   const profileUpdate = useMutation({ mutationFn: (input: Parameters<typeof updateProfile>[0]) => updateProfile(input, {}), onSuccess(user) {
     useAuthStore.getState().setUser(user)
-    void client.invalidateQueries({ queryKey: profileKeys.catalogue(scope) })
+    // 作者摘要已经随行动返回；资料变化后重新读取行动上下文。
+    void client.invalidateQueries({ queryKey: actionKeys.scope(scope) })
   } })
   return { graphCreate, graphUpdate, graphDelete, actionCreate, actionDelete, expressionUpdate, agreementUpdate, nodeDocumentPublish, followUpdate, profileUpdate }
 }
