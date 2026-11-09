@@ -21,7 +21,7 @@ const (
 	feedMaxLimit     = 50
 )
 
-// Feed 读取表达或约定内容流；在服务端选出内容页，并带回该页所需的子图。
+// Feed 读取表达或约定内容流；先选出本页图，再只加载这些图的上下文。
 func (s *Service) Feed(ctx context.Context, kind string, page, limit int) (FeedView, error) {
 	if kind != "expressions" && kind != "agreements" {
 		return FeedView{}, fault.New(fault.Invalid, "内容流类型不合法")
@@ -35,43 +35,24 @@ func (s *Service) Feed(ctx context.Context, kind string, page, limit int) (FeedV
 	if limit > feedMaxLimit {
 		limit = feedMaxLimit
 	}
-	graphs, err := s.repository.Graphs(ctx)
+	ids, total, err := s.repository.FeedGraphIDs(ctx, kind, (page-1)*limit, limit)
 	if err != nil {
 		return FeedView{}, err
 	}
-	all := make([]ActionView, 0)
-	byGraph := make(map[string][]ActionView)
-	for _, graph := range graphs {
-		actions, err := s.repository.Actions(ctx, graph.ID)
+	out := FeedView{Actions: []ActionView{}, Graphs: []GraphView{}, Total: total, HasMore: page*limit < total}
+	for _, id := range ids {
+		graph, err := s.repository.Graph(ctx, id)
 		if err != nil {
 			return FeedView{}, err
 		}
-		all = append(all, actions...)
-		byGraph[graph.ID] = actions
+		actions, err := s.repository.Actions(ctx, id)
+		if err != nil {
+			return FeedView{}, err
+		}
+		out.Graphs = append(out.Graphs, graph)
+		out.Actions = append(out.Actions, actions...)
 	}
-	byID := make(map[string]ActionView, len(all))
-	for _, action := range all {
-		byID[action.ID] = action
-	}
-
-	var selected []ActionView
-	if kind == "expressions" {
-		selected = expressionFeed(all, byGraph)
-	} else {
-		selected = agreementFeed(all)
-	}
-	total := len(selected)
-	start := (page - 1) * limit
-	if start > total {
-		start = total
-	}
-	end := start + limit
-	if end > total {
-		end = total
-	}
-	pageItems := selected[start:end]
-	actions := withAncestors(pageItems, byID)
-	return FeedView{Actions: actions, Graphs: feedGraphs(actions, graphs), Total: total, HasMore: end < total}, nil
+	return out, nil
 }
 
 // expressionFeed 找出每张图未被承接的终点，保留有非空有效表达的点，按发布时间倒序。
