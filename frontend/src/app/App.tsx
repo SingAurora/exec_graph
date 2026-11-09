@@ -80,7 +80,7 @@ export function App() {
   }, [client, user?.uuid])
   // ── 路由解析 ──
   const rawView = hash.slice(1).split('?')[0]
-  const loadingView = isAppView(rawView) && rawView !== 'topic' ? rawView : 'home'
+  const loadingView = isAppView(rawView) ? rawView : 'home'
   const loadingAuth = isAuthView(rawView)
   const authView = isAuthView(rawView) ? rawView : 'login'
   const knownRoute = rawView === '' || isAppView(rawView) || isAuthView(rawView)

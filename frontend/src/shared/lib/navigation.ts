@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 
-const appViews = ['home', 'following', 'publish', 'my', 'settings', 'topic', 'graph', 'graphs', 'action-archive', 'profile', 'graph-search'] as const
+const appViews = ['home', 'following', 'publish', 'my', 'settings', 'graph', 'graphs', 'action-archive', 'profile', 'graph-search'] as const
 const authViews = ['login', 'register', 'forgot'] as const
 
 /** Supported hash-route names, inferred from the runtime allowlist. */

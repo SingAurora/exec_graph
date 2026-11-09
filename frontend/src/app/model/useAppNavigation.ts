@@ -37,7 +37,7 @@ export function useAppNavigation(currentUserUuid: string) {
     return () => window.removeEventListener('hashchange', sync)
   }, [currentUserUuid])
   const rawView = viewOf(hash)
-  const route: AppView = isAppView(rawView) && rawView !== 'topic' ? rawView : 'home'
+  const route: AppView = isAppView(rawView) ? rawView : 'home'
   const authRoute = isAuthView(rawView) ? rawView : undefined
   useLayoutEffect(() => {
     // 图详情自行恢复各 Tab 的阅读状态，避免全局恢复再次覆盖它的定位。

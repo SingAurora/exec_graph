@@ -30,7 +30,7 @@ const globalNavigation: { view: AppView; label: string; icon: typeof Home }[] = 
 /** 应用外壳：左侧导航和本人资料、顶部标题与返回入口；children 是当前业务页面。 */
 export function AppShell({ profile, profileStats, activeView, darkMode, loading = false, onLogout, onToggleTheme, backAction, graphTitle, children }: AppShellProps) {
   const globalView = activeView === 'graph-search' ? 'home' : ['graphs', 'publish', 'graph', 'action-archive'].includes(activeView) ? 'my' : activeView
-  const pageTitle: Record<AppView, string> = { my: '我的', following: '关注', home: '发现', settings: '设置', graph: graphTitle ?? '行动图', graphs: '行动图', publish: '记录行动', topic: '发现', 'action-archive': '形成过程', profile: '主页', 'graph-search': '搜索图' }
+  const pageTitle: Record<AppView, string> = { my: '我的', following: '关注', home: '发现', settings: '设置', graph: graphTitle ?? '行动图', graphs: '行动图', publish: '记录行动', 'action-archive': '形成过程', profile: '主页', 'graph-search': '搜索图' }
 
   return (
     <div className="relative isolate mx-auto grid min-h-screen w-[min(1200px,calc(100%-72px))] grid-cols-[224px_minmax(0,880px)] gap-[62px] max-[1000px]:w-[min(920px,calc(100%-48px))] max-[1000px]:grid-cols-[190px_minmax(0,1fr)] max-[1000px]:gap-[38px]">
