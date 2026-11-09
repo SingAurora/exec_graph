@@ -21,7 +21,7 @@ const (
 	feedMaxLimit     = 50
 )
 
-// Feed 读取表达或约定内容流；先选出本页图，再只加载这些图的上下文。
+// Feed 读取表达或约定内容流；先选出本页节点，再只返回节点和所需祖先。
 func (s *Service) Feed(ctx context.Context, kind string, page, limit int) (FeedView, error) {
 	if kind != "expressions" && kind != "agreements" {
 		return FeedView{}, fault.New(fault.Invalid, "内容流类型不合法")
@@ -35,22 +35,52 @@ func (s *Service) Feed(ctx context.Context, kind string, page, limit int) (FeedV
 	if limit > feedMaxLimit {
 		limit = feedMaxLimit
 	}
-	ids, total, err := s.repository.FeedGraphIDs(ctx, kind, (page-1)*limit, limit)
+	nodeIDs, total, err := s.repository.FeedNodeIDs(ctx, kind, (page-1)*limit, limit)
 	if err != nil {
 		return FeedView{}, err
 	}
-	out := FeedView{Actions: []ActionView{}, Graphs: []GraphView{}, Total: total, HasMore: page*limit < total}
-	for _, id := range ids {
-		graph, err := s.repository.Graph(ctx, id)
+	if len(nodeIDs) == 0 {
+		return FeedView{Actions: []ActionView{}, Graphs: []GraphView{}, Total: total, HasMore: false}, nil
+	}
+	byGraph := map[string][]ActionView{}
+	selectedByID := map[string]ActionView{}
+	for _, id := range nodeIDs {
+		node, err := s.repository.Action(ctx, id)
 		if err != nil {
 			return FeedView{}, err
 		}
-		actions, err := s.repository.Actions(ctx, id)
+		selectedByID[id] = node
+		if _, ok := byGraph[node.GraphID]; !ok {
+			actions, err := s.repository.Actions(ctx, node.GraphID)
+			if err != nil {
+				return FeedView{}, err
+			}
+			byGraph[node.GraphID] = actions
+		}
+	}
+	allByID := map[string]ActionView{}
+	for _, actions := range byGraph {
+		for _, action := range actions {
+			allByID[action.ID] = action
+		}
+	}
+	selected := make([]ActionView, 0, len(selectedByID))
+	for _, id := range nodeIDs {
+		selected = append(selected, selectedByID[id])
+	}
+	actions := withAncestors(selected, allByID)
+	out := FeedView{Actions: actions, Graphs: []GraphView{}, Total: total, HasMore: page*limit < total}
+	seen := map[string]bool{}
+	for _, node := range actions {
+		if seen[node.GraphID] {
+			continue
+		}
+		seen[node.GraphID] = true
+		graph, err := s.repository.Graph(ctx, node.GraphID)
 		if err != nil {
 			return FeedView{}, err
 		}
 		out.Graphs = append(out.Graphs, graph)
-		out.Actions = append(out.Actions, actions...)
 	}
 	return out, nil
 }

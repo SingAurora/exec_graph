@@ -6,8 +6,8 @@ import (
 	"github.com/singaurora/exec-graph/backend/internal/shared/fault"
 )
 
-// FeedGraphIDs 只选出内容流一页涉及的图，避免先加载全部图和行动。
-func (r *Repository) FeedGraphIDs(ctx context.Context, kind string, offset, limit int) ([]string, int, error) {
+// FeedNodeIDs 只选出内容流一页的具体节点。
+func (r *Repository) FeedNodeIDs(ctx context.Context, kind string, offset, limit int) ([]string, int, error) {
 	var total int64
 	var ids []string
 	switch kind {
@@ -21,7 +21,7 @@ func (r *Repository) FeedGraphIDs(ctx context.Context, kind string, offset, limi
 		if err := base.Count(&total).Error; err != nil {
 			return nil, 0, err
 		}
-		rows, err := base.Select("n.graph_uuid").Group("n.graph_uuid").Order("MAX(n.created_at) DESC, n.graph_uuid DESC").Offset(offset).Limit(limit).Rows()
+		rows, err := base.Select("n.uuid").Group("n.uuid").Order("MAX(n.created_at) DESC, n.uuid DESC").Offset(offset).Limit(limit).Rows()
 		if err != nil {
 			return nil, 0, err
 		}
@@ -47,7 +47,7 @@ func (r *Repository) FeedGraphIDs(ctx context.Context, kind string, offset, limi
 		if err := base.Distinct("r.target_node_uuid").Count(&total).Error; err != nil {
 			return nil, 0, err
 		}
-		err := base.Select("target.graph_uuid").Group("target.graph_uuid").Order("MAX(target.created_at) DESC, target.graph_uuid DESC").Offset(offset).Limit(limit).Pluck("target.graph_uuid", &ids).Error
+		err := base.Select("target.uuid").Group("target.uuid").Order("MAX(target.created_at) DESC, target.uuid DESC").Offset(offset).Limit(limit).Pluck("target.uuid", &ids).Error
 		return ids, int(total), err
 	default:
 		return nil, 0, fault.New(fault.Invalid, "内容流类型不合法")
