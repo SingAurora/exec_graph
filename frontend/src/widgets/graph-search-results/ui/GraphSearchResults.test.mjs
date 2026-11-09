@@ -2,12 +2,13 @@ import { describe, expect, test } from 'bun:test'
 import { URLSearchParams } from 'node:url'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { GraphSearchResults } from './GraphSearchResults.tsx'
 import { GraphSearchResultsPage } from '../../../pages/GraphSearchResultsPage.tsx'
 
 const graphs = Array.from({ length: 12 }, (_, index) => ({ uuid: `g${index}`, id: `g${index}`, ownerUuid: 'jo', title: `练习 ${String(index).padStart(2, '0')}`, description: '留下经验', createdAt: `2026-10-${String(index + 1).padStart(2, '0')}T12:00:00+08:00` }))
 const props = { graphs, actions: [], keyword: '练习', page: 1, onOpenGraph() {}, onSearch() {}, onPageChange() {} }
-const render = (extra = {}) => renderToStaticMarkup(createElement(GraphSearchResults, { ...props, ...extra }))
+const render = (extra = {}) => renderToStaticMarkup(createElement(QueryClientProvider, { client: new QueryClient() }, createElement(GraphSearchResults, { ...props, ...extra })))
 
 describe('full graph search results', () => {
   test('paginates the complete matching set rather than the sidebar preview', () => {
@@ -33,9 +34,9 @@ describe('full graph search results', () => {
   })
 
   test('reads a shared search route and normalizes invalid or negative pages', () => {
-    const html = renderToStaticMarkup(createElement(GraphSearchResultsPage, { ...props, params: new URLSearchParams('query=练习&page=-4') }))
+    const html = renderToStaticMarkup(createElement(QueryClientProvider, { client: new QueryClient() }, createElement(GraphSearchResultsPage, { ...props, params: new URLSearchParams('query=练习&page=-4') })))
     expect(html).toEqual(render())
-    const invalid = renderToStaticMarkup(createElement(GraphSearchResultsPage, { ...props, params: new URLSearchParams('query=练习&page=oops') }))
+    const invalid = renderToStaticMarkup(createElement(QueryClientProvider, { client: new QueryClient() }, createElement(GraphSearchResultsPage, { ...props, params: new URLSearchParams('query=练习&page=oops') })))
     expect(invalid).toEqual(render())
   })
 })

@@ -12,7 +12,7 @@ export function useAppResources(user: AccountProfile | null, authStatus: AuthSta
   const signedIn = Boolean(user)
   const publicEnabled = authStatus === 'signed-in' || authStatus === 'signed-out'
   const graphRoute = route === 'graph' || route === 'publish' || route === 'action-archive'
-  const graphListRoute = route === 'graphs'
+  const graphListRoute = route === 'graphs' || route === 'graph-search'
   const profileRoute = route === 'profile' || route === 'my'
   const followingRoute = route === 'following'
   const settingsRoute = route === 'settings'

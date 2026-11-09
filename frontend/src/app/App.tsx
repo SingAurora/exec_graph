@@ -409,7 +409,7 @@ function AppContent({ profile, graphs, actions, users, sources, profileStats, da
       </div>
       {route === 'graph-search' && (
         <GraphSearchResultsPage
-          params={query} graphs={graphs} actions={actions}
+          params={query}
           onOpenGraph={openGraph} onSearch={openGraphSearch}
           onPageChange={(page) => openGraphSearch(query.get('query') ?? '', page)}
         />
