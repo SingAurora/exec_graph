@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { useAppResources } from './model/useAppResources'
+import { useQuery } from '@tanstack/react-query'
+import { followingKeys, readFollowing } from '../entities/following/api/following'
+import { profileStatsKey, readProfileStats } from '../entities/profile/api/profiles'
 import { useGraphContext } from './model/useGraphContext'
 import { useAppCommands } from './model/useAppCommands'
 import { useAppearance } from './model/useAppearance'
@@ -77,7 +79,15 @@ export function App() {
   }, [client, user?.uuid])
   // ── 路由解析 ──
   const rawView = hash.slice(1).split('?')[0]
-  const resources = useAppResources(user)
+  const signedIn = Boolean(user)
+  const scope = user?.uuid ?? 'public'
+  const following = useQuery({ queryKey: followingKeys.sources(scope), queryFn: ({ signal }) => readFollowing(signal), enabled: signedIn })
+  const profileStats = useQuery({ queryKey: profileStatsKey(user?.uuid ?? ''), queryFn: ({ signal }) => readProfileStats(user!.uuid, signal), enabled: signedIn })
+  const sources = signedIn && following.data ? following.data : { userUuids: [], graphUuids: [], users: [] }
+  const accountProfileStats = profileStats.data
+  const accountError = following.error ?? profileStats.error
+  const accountReady = !signedIn || Boolean(following.data && profileStats.data)
+  const accountRetry = () => { if (signedIn) { void following.refetch(); void profileStats.refetch() } }
   const authView = isAuthView(rawView) ? rawView : 'login'
   const knownRoute = rawView === '' || isAppView(rawView) || isAuthView(rawView)
   // 登录成功后离开登录/注册地址，避免刷新后又回到认证页。
@@ -109,13 +119,13 @@ export function App() {
     if (isAuthView(rawView)) return (
       <AuthScreen key={authView} view={authView} />
     )
-    if (resources.error) return (
+    if (accountError) return (
       <main className="grid min-h-dvh place-content-center gap-4 bg-paper p-8 text-center text-sm text-copy">
-        <p>{resources.error.message}</p>
-        <button className="quiet-button" type="button" onClick={resources.retry}>重试</button>
+        <p>{accountError.message}</p>
+        <button className="quiet-button" type="button" onClick={accountRetry}>重试</button>
       </main>
     )
-    if (!resources.ready) return (
+    if (!accountReady) return (
       <main className="mx-auto w-[min(1200px,calc(100%-72px))] pt-[30px] max-[1000px]:w-[min(920px,calc(100%-48px))]">
         <div className="pt-6"><ListSkeleton rows={5} /></div>
       </main>
@@ -126,11 +136,11 @@ export function App() {
   }
   if (!user) return null
   // 已登录：认证通过即渲染应用壳；页面自己负责业务数据加载和错误状态。
-  if (resources.error && !resources.ready) {
+  if (accountError && !accountReady) {
     return (
       <main className="grid min-h-dvh place-content-center gap-4 bg-paper p-8 text-center text-sm text-copy">
-        <p>{resources.error.message}</p>
-        <button className="quiet-button" type="button" onClick={resources.retry}>
+        <p>{accountError.message}</p>
+        <button className="quiet-button" type="button" onClick={accountRetry}>
           重试
         </button>
       </main>
@@ -144,15 +154,15 @@ export function App() {
         key={user.uuid}
         darkMode={darkMode} toggleTheme={toggleTheme} onLogout={exit}
         profile={user}
-        sources={resources.sources}
-        profileStats={resources.profileStats ?? emptyProfileStats}
+        sources={sources}
+        profileStats={accountProfileStats ?? emptyProfileStats}
       />
-      {resources.error && (
+      {accountError && (
         <div
           className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-lg border border-line bg-surface px-4 py-3 text-sm text-copy"
         >
-          <span>{resources.error.message}</span>
-          <button className="text-button" type="button" onClick={resources.retry}>
+          <span>{accountError.message}</span>
+          <button className="text-button" type="button" onClick={accountRetry}>
             重试
           </button>
         </div>
