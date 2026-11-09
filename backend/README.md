@@ -149,6 +149,7 @@ EXEC_GRAPH_DATABASE_SCHEMA=exec_graph EXEC_GRAPH_ADDR=127.0.0.1:8080 EXEC_GRAPH_
 | GET | `/profiles/content?userUuid=...` | 单个用户主页的图、行动和作者资料 |
 | GET | `/profiles/stats?userUuid=...` | 当前账号行动/表达/约定统计 |
 | GET | `/graphs/catalogue` | 可见图目录 |
+| GET | `/graphs/list?page=1&pageSize=20&filter=all&keyword=&sort=activity` | 图目录筛选、搜索、排序分页 |
 | GET | `/actions/feed?kind=expressions\|agreements&page=1&limit=20` | 内容流分页，包含本页祖先子图 |
 | GET | `/graphs/detail?graphUuid=...` | 单图资料 |
 | GET | `/actions/context?graphUuid=...` | 图内完整确认上下文 |

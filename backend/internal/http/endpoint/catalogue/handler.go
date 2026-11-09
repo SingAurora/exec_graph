@@ -72,7 +72,11 @@ func (h *Handler) ProfileStats(c *gin.Context) {
 func (h *Handler) GraphsPage(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	size, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
-	out, err := h.service.GraphsPage(c.Request.Context(), page, size)
+	userID := ""
+	if session, err := h.identity.Session(c.Request.Context(), auth.Token(c)); err == nil {
+		userID = session.User.ID
+	}
+	out, err := h.service.GraphsPage(c.Request.Context(), page, size, c.DefaultQuery("filter", "all"), c.Query("keyword"), c.DefaultQuery("sort", "activity"), userID)
 	if err != nil {
 		common.Fail(c, err)
 		return
