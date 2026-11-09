@@ -15,10 +15,11 @@ type GuestAppProps = {
   graphs: GraphView[]
   actions: VersionedAction[]
   users: UserProfile[]
+  remoteFeed?: boolean
 }
 
 /** 未登录入口：只读浏览公开表达和约定，任何写操作都引导登录。 */
-export function GuestApp({ graphs, actions, users }: GuestAppProps) {
+export function GuestApp({ graphs, actions, users, remoteFeed = false }: GuestAppProps) {
   const [route, navigate] = useHashRoute('home', isAppView)
   const [graphBackground] = useGraphBackground()
   const query = new URLSearchParams(window.location.hash.split('?')[1])
@@ -83,6 +84,7 @@ export function GuestApp({ graphs, actions, users }: GuestAppProps) {
             users={users}
             active
             showRecentGraphs={false}
+            remoteFeed={remoteFeed}
             onOpenNode={openNode}
             onOpenReference={openReference}
             onOpenGraph={openGraph}

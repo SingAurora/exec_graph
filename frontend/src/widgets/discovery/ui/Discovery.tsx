@@ -1,10 +1,13 @@
 import { MessageCircle, ScrollText } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { getSatisfiedAgreementResponses } from '../../../entities/action/lib/agreement-responses'
 import { getPublishedExpressions } from '../../../entities/action/lib/published'
 import { getActionReferences, type ActionReference } from '../../../entities/action/lib/references'
 import type { ActionDocumentMode, ActionNode } from '../../../entities/action/model/types'
 import { getActiveGraphActivities } from '../../../entities/graph/lib/activity'
+import { feedKeys, readFeed } from '../../../entities/action/api/feed'
+import { ListSkeleton } from '../../../shared/ui/ListSkeleton'
 import { GraphContextLink } from '../../../entities/graph/ui/GraphContextLink'
 import { searchDiscoveryAgreements, searchDiscoveryExpressions } from '../../../features/search-discovery/lib/search'
 import { DiscoverySearch } from '../../../features/search-discovery/ui/DiscoverySearch'
@@ -27,22 +30,37 @@ type Props = {
   onOpenGraph: (id: string) => void
   onSearchGraphs: (keyword: string) => void
   showRecentGraphs?: boolean
+  /** 首页使用服务端内容流；游客页和已登录首页都可开启。 */
+  remoteFeed?: boolean
 }
 
 /** 跨图发现表达与约定回应，两个栏目分别保留搜索内容、加载数量和阅读位置。 */
-export function Discovery({ actions, graphs, users, active, onOpenNode, onOpenReference, onOpenGraph, onSearchGraphs, showRecentGraphs = true }: Props) {
+export function Discovery({ actions, graphs, users, active, onOpenNode, onOpenReference, onOpenGraph, onSearchGraphs, showRecentGraphs = true, remoteFeed = false }: Props) {
   const [tab, setTab] = useState<DiscoveryTab>('expressions')
   const [queries, setQueries] = useState<Record<DiscoveryTab, string>>({ expressions: '', agreements: '' })
   const query = queries[tab].trim()
   const scrollPositions = useRef<Partial<Record<DiscoveryTab, number>>>({})
   const pendingScroll = useRef<number | undefined>(undefined)
-  const graphsById = useMemo(() => new Map(graphs.map((graph) => [graph.uuid, graph])), [graphs])
-  const publicActions = useMemo(() => actions.filter((node) => graphsById.has(node.graphUuid)), [actions, graphsById])
+  const feed = useQuery({
+    queryKey: feedKeys.page(tab),
+    queryFn: ({ signal }) => readFeed(tab, 1, signal),
+    enabled: remoteFeed && active,
+  })
+  const sourceActions = useMemo(() => remoteFeed ? (feed.data?.actions ?? []) : actions, [actions, feed.data?.actions, remoteFeed])
+  const sourceGraphs = useMemo(() => remoteFeed ? (feed.data?.graphs ?? []) : graphs, [feed.data?.graphs, graphs, remoteFeed])
+  const graphsById = useMemo(() => new Map(sourceGraphs.map((graph) => [graph.uuid, graph])), [sourceGraphs])
+  const publicActions = useMemo(() => sourceActions.filter((node) => graphsById.has(node.graphUuid)), [sourceActions, graphsById])
+  const sourceUsers = useMemo(() => {
+    if (!remoteFeed) return users
+    const byId = new Map(users.map((user) => [user.uuid, user]))
+    for (const node of publicActions) if (node.author && !byId.has(node.author.uuid)) byId.set(node.author.uuid, node.author)
+    return [...byId.values()]
+  }, [publicActions, remoteFeed, users])
   const expressions = useMemo(() => getPublishedExpressions(publicActions), [publicActions])
   const agreements = useMemo(() => getSatisfiedAgreementResponses(getActionReferences(publicActions)), [publicActions])
-  const graphActivities = useMemo(() => getActiveGraphActivities(graphs, publicActions), [graphs, publicActions])
-  const visibleExpressions = useMemo(() => searchDiscoveryExpressions(expressions, publicActions, users, queries.expressions), [expressions, publicActions, users, queries.expressions])
-  const visibleAgreements = useMemo(() => searchDiscoveryAgreements(agreements, users, queries.agreements), [agreements, users, queries.agreements])
+  const graphActivities = useMemo(() => getActiveGraphActivities(sourceGraphs, publicActions), [sourceGraphs, publicActions])
+  const visibleExpressions = useMemo(() => searchDiscoveryExpressions(expressions, publicActions, sourceUsers, queries.expressions), [expressions, publicActions, sourceUsers, queries.expressions])
+  const visibleAgreements = useMemo(() => searchDiscoveryAgreements(agreements, sourceUsers, queries.agreements), [agreements, sourceUsers, queries.agreements])
   const resultCounts: Record<DiscoveryTab, number> = { expressions: visibleExpressions.length, agreements: visibleAgreements.length }
 
   useLayoutEffect(() => {
@@ -78,13 +96,15 @@ export function Discovery({ actions, graphs, users, active, onOpenNode, onOpenRe
           <DiscoverySearch label={tabLabels[tab]} value={queries[tab]} onChange={changeQuery} />
         </div>
         {query && <p className="mt-3 px-1 text-xs leading-5 text-muted">找到 {resultCounts[tab]} 条{tabLabels[tab]}</p>}
-        <div className={showRecentGraphs ? "mt-1 grid grid-cols-[minmax(0,1fr)_220px] items-start gap-7 max-[800px]:grid-cols-1" : "mt-1 grid grid-cols-1"}>
+        {remoteFeed && feed.isLoading && <div className="pt-5"><ListSkeleton rows={3} /></div>}
+        {remoteFeed && feed.error && <p className="mt-4 px-1 text-sm text-coral">{feed.error.message}</p>}
+        {(!remoteFeed || !feed.isLoading) && <div className={showRecentGraphs ? "mt-1 grid grid-cols-[minmax(0,1fr)_220px] items-start gap-7 max-[800px]:grid-cols-1" : "mt-1 grid grid-cols-1"}>
           <div className="min-w-0">
-            <TabsContent value="expressions" keepMounted><ActionPostList key={queries.expressions.trim()} nodes={visibleExpressions} actions={publicActions} users={users} mode="expression" presentation="feed" searchQuery={queries.expressions.trim()} infinite active={active && tab === 'expressions'} onExplore={onOpenNode} renderContext={context} /></TabsContent>
-            <TabsContent value="agreements" keepMounted><AgreementResponseList key={queries.agreements.trim()} references={visibleAgreements} users={users} presentation="feed" searchQuery={queries.agreements.trim()} active={active && tab === 'agreements'} onExplore={onOpenReference} renderContext={(reference) => context(reference.target)} /></TabsContent>
+            <TabsContent value="expressions" keepMounted><ActionPostList key={queries.expressions.trim()} nodes={visibleExpressions} actions={publicActions} users={sourceUsers} mode="expression" presentation="feed" searchQuery={queries.expressions.trim()} infinite active={active && tab === 'expressions'} onExplore={onOpenNode} renderContext={context} /></TabsContent>
+            <TabsContent value="agreements" keepMounted><AgreementResponseList key={queries.agreements.trim()} references={visibleAgreements} users={sourceUsers} presentation="feed" searchQuery={queries.agreements.trim()} active={active && tab === 'agreements'} onExplore={onOpenReference} renderContext={(reference) => context(reference.target)} /></TabsContent>
           </div>
-          {showRecentGraphs && <RecentGraphsAside items={graphActivities} graphs={graphs} actions={publicActions} onOpen={onOpenGraph} onSearchAll={onSearchGraphs} />}
-        </div>
+          {showRecentGraphs && <RecentGraphsAside items={graphActivities} graphs={sourceGraphs} actions={publicActions} onOpen={onOpenGraph} onSearchAll={onSearchGraphs} />}
+        </div>}
       </TabsRoot>
     </section>
   )

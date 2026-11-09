@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Following } from './Following.tsx'
 import { Discovery } from '../../discovery/ui/Discovery.tsx'
 import { TooltipProvider } from '../../../shared/ui/tooltip/Tooltip.tsx'
@@ -54,9 +55,9 @@ describe('following navigation and empty states', () => {
       node(2, { authorUuid: 'miao', parentUuid: '1', referenceAgreements: [{ sourceUuid: '1', complies: true }] }),
     ]
     const following = render({ userUuids: [], graphUuids: ['cooking'] }, actions)
-    const discovery = renderToStaticMarkup(createElement(Discovery, {
+    const discovery = renderToStaticMarkup(createElement(QueryClientProvider, { client: new QueryClient() }, createElement(Discovery, {
       actions, graphs, users, active: true, onOpenNode: noop, onOpenReference: noop, onOpenGraph: noop, onSearchGraphs: noop,
-    }))
+    })))
     const item = (html, attribute, id) => html.match(new RegExp(`<article[^>]*${attribute}="${id}"[\\s\\S]*?</article>`))?.[0].replace(/radix-[^"]+/g, 'popover')
     const expression = item(following, 'data-node-id', '2')
     const agreement = item(following, 'data-reference-id', '1:2')

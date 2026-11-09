@@ -51,7 +51,6 @@ export function App() {
   const bootstrap = useAuthStore((state) => state.bootstrap)
   const retryAuth = useAuthStore((state) => state.retry)
   const logout = useAuthStore((state) => state.logout)
-  const resources = useAppResources(user, status)
   const client = useQueryClient()
   const [darkMode, toggleTheme] = useAppearance()
   const [hash, setHash] = useState(() => window.location.hash)
@@ -80,6 +79,7 @@ export function App() {
   }, [client, user?.uuid])
   // ── 路由解析 ──
   const rawView = hash.slice(1).split('?')[0]
+  const resources = useAppResources(user, status, isAppView(rawView) ? rawView : 'home')
   const loadingView = isAppView(rawView) ? rawView : 'home'
   const loadingAuth = isAuthView(rawView)
   const authView = isAuthView(rawView) ? rawView : 'login'
@@ -129,6 +129,7 @@ export function App() {
         graphs={resources.graphs ?? []}
         actions={resources.actions ?? []}
         users={resources.users}
+        remoteFeed
       />
     )
   }
@@ -404,7 +405,7 @@ function AppContent({ profile, graphs, actions, users, sources, darkMode, toggle
       </div>
       <div hidden={route !== 'home'}>
         <FeedPage
-          actions={actions} graphs={graphs} users={users} active={route === 'home'}
+          actions={actions} graphs={graphs} users={users} active={route === 'home'} remoteFeed
           onOpenGraph={openGraph} onOpenNode={openNode}
           onOpenReference={openReference} onSearchGraphs={openGraphSearch}
         />

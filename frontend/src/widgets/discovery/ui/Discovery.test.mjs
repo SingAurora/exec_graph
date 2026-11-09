@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Discovery } from './Discovery.tsx'
 import { RecentGraphsAside } from './RecentGraphsAside.tsx'
 import { getActiveGraphActivities } from '../../../entities/graph/lib/activity.ts'
@@ -13,9 +14,9 @@ const actions = graphs.flatMap((graph, index) => {
   return [{ ...base, uuid: `source-${index}`, id: `source-${index}`, number: 1, authorUuid: 'lin', title: '来源行动', markdown: '真实行动', expressionMarkdown: '原来的表达', agreementMarkdown: '记录用时' },
     { ...base, uuid: `response-${index}`, id: `response-${index}`, number: 2, authorUuid: 'jo', title: `回应 ${index}`, markdown: '本次行动', expressionMarkdown: '目前的表达', parentUuid: `source-${index}`, referenceAgreements: [{ sourceUuid: `source-${index}`, complies: true }] }]
 })
-const render = (overrides = {}) => renderToStaticMarkup(createElement(Discovery, {
+const render = (overrides = {}) => renderToStaticMarkup(createElement(QueryClientProvider, { client: new QueryClient() }, createElement(Discovery, {
   graphs, actions, users: [], active: true, onOpenGraph() {}, onOpenNode() {}, onOpenReference() {}, onSearchGraphs() {}, ...overrides,
-}))
+})))
 
 describe('public discovery', () => {
   test('resolves current endpoints and satisfied exchanges with full context while excluding unknown graphs', () => {
