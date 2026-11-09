@@ -81,8 +81,6 @@ export function App() {
   const route = isAppView(rawView) ? rawView : 'home'
   const graphUuid = new URLSearchParams(hash.split('?')[1]).get('graphUuid') ?? ''
   const resources = useAppResources(user, status, route, graphUuid)
-  const loadingView = isAppView(rawView) ? rawView : 'home'
-  const loadingAuth = isAuthView(rawView)
   const authView = isAuthView(rawView) ? rawView : 'login'
   const knownRoute = rawView === '' || isAppView(rawView) || isAuthView(rawView)
   // 登录成功后离开登录/注册地址，避免刷新后又回到认证页。
@@ -134,35 +132,16 @@ export function App() {
       />
     )
   }
-  // 已登录：等待图、用户、关注和行动上下文全部就绪。
-  if (
-    !user ||
-    !resources.ready ||
-    !resources.graphs ||
-    !resources.actions ||
-    !resources.sources
-  ) {
-    if (resources.error) {
-      return (
-        <main className="grid min-h-dvh place-content-center gap-4 bg-paper p-8 text-center text-sm text-copy">
-          <p>{resources.error.message}</p>
-          <button className="quiet-button" type="button" onClick={resources.retry}>
-            重试
-          </button>
-        </main>
-      )
-    }
-    if (loadingAuth) {
-      return (
-        <main className="grid min-h-dvh place-content-center bg-paper p-8">
-          <ListSkeleton rows={3} className="w-[min(360px,calc(100vw-48px))]" />
-        </main>
-      )
-    }
+  if (!user) return null
+  // 已登录：认证通过即渲染应用壳；页面自己负责业务数据加载和错误状态。
+  if (resources.error && !resources.ready) {
     return (
-      <AppShell activeView={loadingView} darkMode={darkMode} loading onToggleTheme={toggleTheme}>
-        <div className="pt-6"><ListSkeleton rows={5} /></div>
-      </AppShell>
+      <main className="grid min-h-dvh place-content-center gap-4 bg-paper p-8 text-center text-sm text-copy">
+        <p>{resources.error.message}</p>
+        <button className="quiet-button" type="button" onClick={resources.retry}>
+          重试
+        </button>
+      </main>
     )
   }
 
@@ -178,6 +157,7 @@ export function App() {
         users={resources.users}
         sources={resources.sources}
         profileStats={resources.profileStats ?? emptyProfileStats}
+        resourcesLoading={!resources.ready}
       />
       {resources.error && (
         <div
@@ -194,9 +174,9 @@ export function App() {
 }
 
 /** 应用装配层：把 Query 中的业务数据、路由和写入回调连接到页面及工作区。 */
-function AppContent({ profile, graphs, actions, users, sources, profileStats, darkMode, toggleTheme, onLogout }: {
+function AppContent({ profile, graphs, actions, users, sources, profileStats, resourcesLoading, darkMode, toggleTheme, onLogout }: {
   profile: AccountProfile; graphs: GraphView[]; actions: VersionedAction[]; users: UserProfile[]; sources: FollowedSources
-  profileStats: { actions: number; expressions: number; agreements: number }
+  profileStats: { actions: number; expressions: number; agreements: number }; resourcesLoading: boolean
   darkMode: boolean; toggleTheme: () => void; onLogout: () => Promise<void>
 }) {
   // ── 数据、路由和本地界面状态 ──
@@ -415,12 +395,12 @@ function AppContent({ profile, graphs, actions, users, sources, profileStats, da
         />
       )}
       <div hidden={route !== 'following'}>
-        <FollowingPage
+        {resourcesLoading ? <div className="pt-6"><ListSkeleton rows={4} /></div> : <FollowingPage
           actions={actions} graphs={graphs} users={users}
           sources={{ userUuids: followingIds, graphUuids: followingGraphUuids, users: sources.users }} active={route === 'following'}
           onOpenGraph={openGraph} onOpenNode={openNode} onOpenReference={openReference}
           onSetGraphFollow={setGraphFollow} onSetUserFollow={setUserFollow}
-        />
+        />}
       </div>
       <div hidden={route !== 'graphs'}>
         <GraphsPage
@@ -451,7 +431,7 @@ function AppContent({ profile, graphs, actions, users, sources, profileStats, da
         </div>
       )}
       {route === 'publish' && (
-        <WorkspaceOutlet
+        resourcesLoading ? <div className="pt-6"><ListSkeleton rows={4} /></div> : <WorkspaceOutlet
           mode={workspaceMode}
           graph={workspaceGraph}
           parent={workspaceParent}
@@ -470,7 +450,7 @@ function AppContent({ profile, graphs, actions, users, sources, profileStats, da
         />
       )}
       {route === 'action-archive' && (
-        archiveAction && selectedGraph ? (
+        resourcesLoading ? <div className="pt-6"><ListSkeleton rows={4} /></div> : archiveAction && selectedGraph ? (
           <ActionArchivePage
             graph={selectedGraph} node={archiveAction} actions={selectedGraphActions} users={users}
             onBack={() => openGraph(selectedGraph.uuid)}
@@ -487,10 +467,12 @@ function AppContent({ profile, graphs, actions, users, sources, profileStats, da
         )
       )}
       {route === 'graph' && !selectedGraph && (
-        <div className="empty-state">
-          <p>行动图不存在或已删除</p>
-          <a className="quiet-button" href="#graphs">浏览行动图</a>
-        </div>
+        resourcesLoading
+          ? <div className="pt-6"><ListSkeleton rows={4} /></div>
+          : <div className="empty-state">
+            <p>行动图不存在或已删除</p>
+            <a className="quiet-button" href="#graphs">浏览行动图</a>
+          </div>
       )}
       <div hidden={route !== 'settings'}>
         <SettingsPanel
