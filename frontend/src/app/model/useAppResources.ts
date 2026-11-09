@@ -12,10 +12,11 @@ export function useAppResources(user: AccountProfile | null, authStatus: AuthSta
   const signedIn = Boolean(user)
   const publicEnabled = authStatus === 'signed-in' || authStatus === 'signed-out'
   const graphRoute = route === 'graph'
-  const fullData = route !== 'home' && !graphRoute
+  const graphListRoute = route === 'graphs' || route === 'graph-search'
+  const fullData = route !== 'home' && !graphRoute && !graphListRoute
   const scope = user?.uuid ?? 'public'
 
-  const catalogue = useQuery({ queryKey: graphKeys.catalogue(scope), queryFn: ({ signal }) => readGraphCatalogue(signal), enabled: publicEnabled && fullData })
+  const catalogue = useQuery({ queryKey: graphKeys.catalogue(scope), queryFn: ({ signal }) => readGraphCatalogue(signal), enabled: publicEnabled && (fullData || graphListRoute) })
   const selectedGraph = useQuery({
     queryKey: graphKeys.detail(scope, graphUuid),
     queryFn: ({ signal }) => readGraphDetail(graphUuid, signal),
@@ -51,8 +52,10 @@ export function useAppResources(user: AccountProfile | null, authStatus: AuthSta
   const sources = signedIn && following.data ? following.data : { userUuids: [], graphUuids: [], users: [] }
   const error = graphRoute ? (selectedGraph.error ?? selectedContext.error ?? profileStats.error) : (catalogue.error ?? catalogueContexts.error ?? following.error ?? profileStats.error)
   const statsReady = !signedIn || Boolean(profileStats.data)
-  const ready = !fullData && !graphRoute
-    ? statsReady
+  const ready = graphListRoute
+    ? Boolean(catalogue.data && statsReady && (!signedIn || following.data))
+    : !fullData && !graphRoute
+      ? statsReady
     : graphRoute
       ? Boolean(selectedGraph.data && selectedContext.data && statsReady && (!signedIn || following.data))
       : Boolean(catalogue.data && catalogueContexts.data && statsReady && (!signedIn || following.data))
@@ -61,9 +64,9 @@ export function useAppResources(user: AccountProfile | null, authStatus: AuthSta
     if (graphRoute) {
       void selectedGraph.refetch()
       void selectedContext.refetch()
-    } else if (fullData) {
+    } else if (fullData || graphListRoute) {
       void catalogue.refetch()
-      if (catalogue.data) void catalogueContexts.refetch()
+      if (fullData && catalogue.data) void catalogueContexts.refetch()
     }
     if (signedIn) { void following.refetch(); void profileStats.refetch() }
   }

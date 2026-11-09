@@ -27,7 +27,7 @@ export function GraphDirectory({ currentUserUuid, graphs, actions, onCreateGraph
   const visibleGroups = readOnly ? groups.filter(({ id }) => id === 'all') : groups
   const summaries = graphs.map((graph) => getGraphActivity(graph, actions))
   const query = keyword.trim().toLocaleLowerCase('zh-CN')
-  const filtered = summaries.filter(({ graph }) => (group === 'all' || (group === 'owned' ? graph.ownerUuid === currentUserUuid : hasUserContributed(graph.uuid, currentUserUuid, actions))) && `${graph.title} ${graph.description}`.toLocaleLowerCase('zh-CN').includes(query))
+  const filtered = summaries.filter(({ graph }) => (group === 'all' || (group === 'owned' ? graph.ownerUuid === currentUserUuid : (graph.participantUuids ?? []).includes(currentUserUuid) || hasUserContributed(graph.uuid, currentUserUuid, actions))) && `${graph.title} ${graph.description}`.toLocaleLowerCase('zh-CN').includes(query))
     .sort((a, b) => sort === 'name' ? a.graph.title.localeCompare(b.graph.title, 'zh-CN') : Date.parse(sort === 'created' ? b.graph.createdAt : b.lastActionAt ?? b.graph.createdAt) - Date.parse(sort === 'created' ? a.graph.createdAt : a.lastActionAt ?? a.graph.createdAt))
   const pageCount = Math.max(1, Math.ceil(filtered.length / graphPageSize))
   const currentPage = Math.min(page, pageCount)
