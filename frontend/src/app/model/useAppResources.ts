@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { graphKeys, readGraphCatalogue, readGraphDetail } from '../../entities/graph/api/graphs'
 import { actionKeys, readActionContexts } from '../../entities/action/api/context'
-import type { AccountProfile } from '../../entities/profile/api/profiles'
+import { profileStatsKey, readProfileStats, type AccountProfile } from '../../entities/profile/api/profiles'
 import type { UserProfile } from '../../entities/profile/model/types'
 import { followingKeys, readFollowing } from '../../entities/following/api/following'
 import type { AuthStatus } from '../../features/auth/model/auth-store'
@@ -22,6 +22,7 @@ export function useAppResources(user: AccountProfile | null, authStatus: AuthSta
     enabled: publicEnabled && graphRoute && Boolean(graphUuid),
   })
   const following = useQuery({ queryKey: followingKeys.sources(scope), queryFn: ({ signal }) => readFollowing(signal), enabled: signedIn })
+  const profileStats = useQuery({ queryKey: profileStatsKey(user?.uuid ?? ''), queryFn: ({ signal }) => readProfileStats(user!.uuid, signal), enabled: signedIn })
 
   const catalogueUuids = catalogue.data?.map((graph) => graph.uuid) ?? []
   const catalogueContexts = useQuery({
@@ -48,12 +49,13 @@ export function useAppResources(user: AccountProfile | null, authStatus: AuthSta
     return [...byId.values()]
   }, [actions, following.data?.users, user])
   const sources = signedIn && following.data ? following.data : { userUuids: [], graphUuids: [], users: [] }
-  const error = graphRoute ? (selectedGraph.error ?? selectedContext.error) : (catalogue.error ?? catalogueContexts.error ?? following.error)
+  const error = graphRoute ? (selectedGraph.error ?? selectedContext.error ?? profileStats.error) : (catalogue.error ?? catalogueContexts.error ?? following.error ?? profileStats.error)
+  const statsReady = !signedIn || Boolean(profileStats.data)
   const ready = !fullData && !graphRoute
-    ? true
+    ? statsReady
     : graphRoute
-      ? Boolean(selectedGraph.data && selectedContext.data && (!signedIn || following.data))
-      : Boolean(catalogue.data && catalogueContexts.data && (!signedIn || following.data))
+      ? Boolean(selectedGraph.data && selectedContext.data && statsReady && (!signedIn || following.data))
+      : Boolean(catalogue.data && catalogueContexts.data && statsReady && (!signedIn || following.data))
   const retry = () => {
     if (!publicEnabled) return
     if (graphRoute) {
@@ -63,7 +65,7 @@ export function useAppResources(user: AccountProfile | null, authStatus: AuthSta
       void catalogue.refetch()
       if (catalogue.data) void catalogueContexts.refetch()
     }
-    if (signedIn) void following.refetch()
+    if (signedIn) { void following.refetch(); void profileStats.refetch() }
   }
-  return { graphs, actions, users, sources, scope, ready, error, retry }
+  return { graphs, actions, users, sources, profileStats: profileStats.data, scope, ready, error, retry }
 }

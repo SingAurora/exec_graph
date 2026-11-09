@@ -208,6 +208,39 @@ func (r *Repository) graphs(ctx context.Context, graphs []model.Graph) ([]app.Gr
 	return result, nil
 }
 
+// ProfileStats 计算侧栏统计，不读取完整行动上下文。
+func (r *Repository) ProfileStats(ctx context.Context, userUUID string) (app.ProfileStatsView, error) {
+	var out app.ProfileStatsView
+	var actions int64
+	if err := r.db.WithContext(ctx).Table("action_nodes").Where("author_uuid = ?", userUUID).Count(&actions).Error; err != nil {
+		return out, err
+	}
+	out.Actions = int(actions)
+	var expressions int64
+	if err := r.db.WithContext(ctx).Table("action_nodes AS n").
+		Joins("JOIN action_document_states s ON s.node_uuid = n.uuid AND s.kind = 'expression'").
+		Joins("JOIN action_document_versions v ON v.uuid = s.effective_version_uuid").
+		Where("n.author_uuid = ? AND TRIM(v.markdown) <> ''", userUUID).
+		Where("NOT EXISTS (SELECT 1 FROM action_references r WHERE r.graph_uuid = n.graph_uuid AND r.source_node_uuid = n.uuid)").
+		Count(&expressions).Error; err != nil {
+		return out, err
+	}
+	out.Expressions = int(expressions)
+	var agreements int64
+	if err := r.db.WithContext(ctx).Table("action_references AS r").
+		Joins("JOIN action_nodes AS target ON target.uuid = r.target_node_uuid").
+		Joins("JOIN action_nodes AS source ON source.uuid = r.source_node_uuid").
+		Joins("JOIN action_document_states AS s ON s.node_uuid = source.uuid AND s.kind = 'agreement'").
+		Joins("JOIN action_document_versions AS v ON v.uuid = s.effective_version_uuid").
+		Where("r.agreement_status = 'satisfied' AND source.author_uuid <> target.author_uuid AND TRIM(v.markdown) <> ''").
+		Where("target.author_uuid = ? OR source.author_uuid = ?", userUUID, userUUID).
+		Count(&agreements).Error; err != nil {
+		return out, err
+	}
+	out.Agreements = int(agreements)
+	return out, nil
+}
+
 // Following 过滤已不可用的用户和图。
 func (r *Repository) Following(ctx context.Context, uuid string) (app.FollowingView, error) {
 	out := app.FollowingView{UserIDs: []string{}, GraphIDs: []string{}, Users: []app.ProfileView{}}

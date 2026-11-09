@@ -38,6 +38,21 @@ func (h *Handler) Feed(c *gin.Context) {
 	common.Reply(c, out)
 }
 
+// ProfileStats 返回当前账号侧栏统计。
+func (h *Handler) ProfileStats(c *gin.Context) {
+	uuid, err := common.Query(c, "userUuid")
+	if err != nil {
+		common.Fail(c, err)
+		return
+	}
+	out, err := h.service.ProfileStats(c.Request.Context(), uuid)
+	if err != nil {
+		common.Fail(c, err)
+		return
+	}
+	common.Reply(c, out)
+}
+
 // Graphs 返回行动图目录。
 func (h *Handler) Graphs(c *gin.Context) {
 	out, err := h.service.Graphs(c.Request.Context())

@@ -18,9 +18,7 @@ import type { CreateActionInput } from '../features/action/api/commands'
 import type { GenerationView } from '../features/action-generation/api/generation'
 import { FollowingPage } from '../pages/FollowingPage'
 import type { ActionDocumentMode, ActionNode } from '../entities/action/model/types'
-import { getActionReferences, type ActionReference } from '../entities/action/lib/references'
-import { getPublishedExpressions } from '../entities/action/lib/published'
-import { getProfileAgreementResponses } from '../entities/action/lib/agreement-responses'
+import type { ActionReference } from '../entities/action/lib/references'
 import { canEditActionExpression } from '../entities/action/lib/expressions'
 import { canEditActionAgreement } from '../entities/action/lib/agreements'
 import type { CreateGraphInput } from '../features/graph/model/types'
@@ -41,6 +39,7 @@ import { SettingsPanel } from '../widgets/settings/SettingsPanel'
 import { ActionArchivePage } from '../pages/ActionArchivePage'
 
 const legendPreferenceKey = 'execg.actionGraph.showLegend'
+const emptyProfileStats = { actions: 0, expressions: 0, agreements: 0 }
 
 /** 应用的数据入口：认证状态由 Zustand 提供，业务数据由 Query 提供。 */
 export function App() {
@@ -178,6 +177,7 @@ export function App() {
         actions={resources.actions}
         users={resources.users}
         sources={resources.sources}
+        profileStats={resources.profileStats ?? emptyProfileStats}
       />
       {resources.error && (
         <div
@@ -194,8 +194,9 @@ export function App() {
 }
 
 /** 应用装配层：把 Query 中的业务数据、路由和写入回调连接到页面及工作区。 */
-function AppContent({ profile, graphs, actions, users, sources, darkMode, toggleTheme, onLogout }: {
+function AppContent({ profile, graphs, actions, users, sources, profileStats, darkMode, toggleTheme, onLogout }: {
   profile: AccountProfile; graphs: GraphView[]; actions: VersionedAction[]; users: UserProfile[]; sources: FollowedSources
+  profileStats: { actions: number; expressions: number; agreements: number }
   darkMode: boolean; toggleTheme: () => void; onLogout: () => Promise<void>
 }) {
   // ── 数据、路由和本地界面状态 ──
@@ -226,13 +227,7 @@ function AppContent({ profile, graphs, actions, users, sources, darkMode, toggle
   const expressionAction = actions.find((node) => node.uuid === workspaceActionUuid && node.graphUuid === workspaceGraphUuid)
   const workspaceGraph = graphs.find((graph) => graph.uuid === workspaceGraphUuid)
   const archiveAction = actions.find((action) => action.uuid === archiveActionId)
-  // ── 主页统计与深链接定位 ──
-  // 表达数按路线终点计算；约定数按已满足的跨用户引用计算，都不是简单数 Markdown 字段。
-  const profileStats = useMemo(() => ({
-    actions: actions.filter((node) => node.authorUuid === profile.uuid).length,
-    expressions: getPublishedExpressions(actions, [profile.uuid]).length,
-    agreements: getProfileAgreementResponses(getActionReferences(actions), profile.uuid).length,
-  }), [actions, profile.uuid])
+  // ── 深链接定位 ──
   // 列表的深链接转成图内定位请求；revision 让重复进入同一地址也能重新定位。
   const externalFocus = useMemo(() => {
     if (route !== 'graph') {

@@ -9,6 +9,7 @@ type Repository interface {
 	Actions(context.Context, string) ([]ActionView, error)
 	Action(context.Context, string) (ActionView, error)
 	Following(context.Context, string) (FollowingView, error)
+	ProfileStats(context.Context, string) (ProfileStatsView, error)
 }
 
 // Service 是目录读取用例入口。
@@ -37,6 +38,11 @@ func (s *Service) Actions(ctx context.Context, uuid string) ([]ActionView, error
 // Action 读取单个行动。
 func (s *Service) Action(ctx context.Context, uuid string) (ActionView, error) {
 	return s.repository.Action(ctx, uuid)
+}
+
+// ProfileStats 读取当前账号侧栏统计。
+func (s *Service) ProfileStats(ctx context.Context, uuid string) (ProfileStatsView, error) {
+	return s.repository.ProfileStats(ctx, uuid)
 }
 
 // Following 读取当前账号关注集合。

@@ -10,6 +10,17 @@ export type AccountProfile = UserProfile & { version: number }
 /** 当前会话资料；认证使用 localStorage 中的 Bearer token。 */
 export type SessionView = { user: AccountProfile; token?: string }
 
+/** 侧栏使用的当前账号统计。 */
+export type ProfileStats = { actions: number; expressions: number; agreements: number }
+
+/** 账号统计缓存键，按用户隔离。 */
+export const profileStatsKey = (userUuid: string) => ['profiles', userUuid, 'stats'] as const
+
+/** 读取当前账号侧栏统计，不加载完整行动上下文。 */
+export function readProfileStats(userUuid: string, signal?: AbortSignal): Promise<ProfileStats> {
+  return getAPI('/api/commands/profiles/stats', { userUuid }, { signal })
+}
+
 /** 读取当前账户；真实服务无有效会话时应返回 10002，开发模拟固定为已登录账号。 */
 export async function readSession(signal?: AbortSignal): Promise<SessionView | null> {
   try { return await getAPI('/api/commands/auth/session', {}, { signal }) }

@@ -44,6 +44,8 @@ func New(auth *identity.Handler, read *catalogue.Handler, graphs *graph.Handler,
 	group.POST("/auth/password-change", accounts.ChangePassword)
 	// 校验当前密码和新邮箱后更换绑定邮箱。
 	group.POST("/auth/email-change", accounts.ChangeEmail)
+	// 读取当前账号侧栏统计。
+	group.GET("/profiles/stats", read.ProfileStats)
 	// 读取所有可见图的过渡目录。
 	group.GET("/graphs/catalogue", read.Graphs)
 	// 读取表达/约定内容流的一页及其祖先子图。

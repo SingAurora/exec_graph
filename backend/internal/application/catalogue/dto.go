@@ -122,6 +122,13 @@ type ActionView struct {
 	CreatedAt              time.Time        `json:"createdAt"`
 }
 
+// ProfileStatsView 是侧栏需要的当前账号统计。
+type ProfileStatsView struct {
+	Actions     int `json:"actions"`
+	Expressions int `json:"expressions"`
+	Agreements  int `json:"agreements"`
+}
+
 // FollowingView 是当前账户的显式关注集合。
 type FollowingView struct {
 	UserIDs  []string      `json:"userUuids"`
