@@ -10,7 +10,7 @@ export type VersionedAction = ActionNode & { version: number }
 /** Query 缓存键：同时隔离账号和图集合；排序后相同图集合使用同一份缓存。 */
 export const actionKeys = {
   scope: (scope: string) => ['actions', scope] as const,
-  contexts: (scope: string, graphUuids: string[]) => ['actions', scope, 'contexts', [...graphUuids].sort()] as const,
+  context: (scope: string, graphUuid: string) => ['actions', scope, 'context', graphUuid] as const,
 }
 
 /** 显式把接口 graphUuid 映射成 UI 沿用的 graphUuid，不能只靠类型断言混用字段。 */
@@ -18,8 +18,8 @@ export function actionFromView({ graphUuid, ...node }: ActionContextNode): Versi
   return { ...node, graphUuid: graphUuid }
 }
 
-/** 并行读取各图完整上下文再合并；当前是原型过渡接口，尚未实现远端内容流分页。 */
-export async function readActionContexts(graphUuids: string[], signal?: AbortSignal): Promise<VersionedAction[]> {
-  const groups = await Promise.all(graphUuids.map((graphUuid) => getAPI<ActionContextNode[]>('/api/commands/actions/context', { graphUuid }, { signal })))
-  return groups.flat().map(actionFromView)
+/** 读取单张图的完整行动上下文。 */
+export async function readActionContext(graphUuid: string, signal?: AbortSignal): Promise<VersionedAction[]> {
+  const nodes = await getAPI<ActionContextNode[]>('/api/commands/actions/context', { graphUuid }, { signal })
+  return nodes.map(actionFromView)
 }

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { graphKeys, readGraphDetail } from '../../entities/graph/api/graphs'
-import { actionKeys, readActionContexts } from '../../entities/action/api/context'
+import { actionKeys, readActionContext } from '../../entities/action/api/context'
 import { profileStatsKey, readProfileStats, type AccountProfile } from '../../entities/profile/api/profiles'
 import type { UserProfile } from '../../entities/profile/model/types'
 import { followingContentKey, followingKeys, readFollowing, readFollowingContent } from '../../entities/following/api/following'
@@ -28,8 +28,8 @@ export function useAppResources(user: AccountProfile | null, authStatus: AuthSta
   const profileStats = useQuery({ queryKey: profileStatsKey(user?.uuid ?? ''), queryFn: ({ signal }) => readProfileStats(user!.uuid, signal), enabled: signedIn })
 
   const selectedContext = useQuery({
-    queryKey: actionKeys.contexts(scope, graphUuid ? [graphUuid] : []),
-    queryFn: ({ signal }) => readActionContexts([graphUuid], signal),
+    queryKey: actionKeys.context(scope, graphUuid),
+    queryFn: ({ signal }) => readActionContext(graphUuid, signal),
     enabled: publicEnabled && graphRoute && Boolean(graphUuid),
   })
 
