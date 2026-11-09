@@ -38,6 +38,21 @@ func (h *Handler) Feed(c *gin.Context) {
 	common.Reply(c, out)
 }
 
+// ProfileContent 返回单个用户主页所需的图和行动子图。
+func (h *Handler) ProfileContent(c *gin.Context) {
+	uuid, err := common.Query(c, "userUuid")
+	if err != nil {
+		common.Fail(c, err)
+		return
+	}
+	out, err := h.service.ProfileContent(c.Request.Context(), uuid)
+	if err != nil {
+		common.Fail(c, err)
+		return
+	}
+	common.Reply(c, out)
+}
+
 // ProfileStats 返回当前账号侧栏统计。
 func (h *Handler) ProfileStats(c *gin.Context) {
 	uuid, err := common.Query(c, "userUuid")

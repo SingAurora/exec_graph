@@ -6,6 +6,7 @@ import "context"
 type Repository interface {
 	Graphs(context.Context) ([]GraphView, error)
 	Graph(context.Context, string) (GraphView, error)
+	Profile(context.Context, string) (ProfileView, error)
 	Actions(context.Context, string) ([]ActionView, error)
 	Action(context.Context, string) (ActionView, error)
 	Following(context.Context, string) (FollowingView, error)

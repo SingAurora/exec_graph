@@ -13,7 +13,8 @@ export function useAppResources(user: AccountProfile | null, authStatus: AuthSta
   const publicEnabled = authStatus === 'signed-in' || authStatus === 'signed-out'
   const graphRoute = route === 'graph'
   const graphListRoute = route === 'graphs' || route === 'graph-search'
-  const fullData = route !== 'home' && !graphRoute && !graphListRoute
+  const profileRoute = route === 'profile' || route === 'my'
+  const fullData = route !== 'home' && !graphRoute && !graphListRoute && !profileRoute
   const scope = user?.uuid ?? 'public'
 
   const catalogue = useQuery({ queryKey: graphKeys.catalogue(scope), queryFn: ({ signal }) => readGraphCatalogue(signal), enabled: publicEnabled && (fullData || graphListRoute) })
@@ -54,8 +55,10 @@ export function useAppResources(user: AccountProfile | null, authStatus: AuthSta
   const statsReady = !signedIn || Boolean(profileStats.data)
   const ready = graphListRoute
     ? Boolean(catalogue.data && statsReady && (!signedIn || following.data))
-    : !fullData && !graphRoute
-      ? statsReady
+    : profileRoute
+      ? Boolean(statsReady && (!signedIn || following.data))
+      : !fullData && !graphRoute
+        ? statsReady
     : graphRoute
       ? Boolean(selectedGraph.data && selectedContext.data && statsReady && (!signedIn || following.data))
       : Boolean(catalogue.data && catalogueContexts.data && statsReady && (!signedIn || following.data))

@@ -146,6 +146,7 @@ EXEC_GRAPH_DATABASE_SCHEMA=exec_graph EXEC_GRAPH_ADDR=127.0.0.1:8080 EXEC_GRAPH_
 | POST | `/auth/logout` | JSON 为 `{}`，需要会话 |
 | POST | `/auth/code-send`、`/auth/register`、`/auth/password-reset` | 邮件验证码、注册及找回密码 |
 | POST | `/auth/password-change`、`/auth/email-change` | 当前密码与验证码双重校验，成功撤销旧会话 |
+| GET | `/profiles/content?userUuid=...` | 单个用户主页的图、行动和作者资料 |
 | GET | `/profiles/stats?userUuid=...` | 当前账号行动/表达/约定统计 |
 | GET | `/graphs/catalogue` | 可见图目录 |
 | GET | `/actions/feed?kind=expressions\|agreements&page=1&limit=20` | 内容流分页，包含本页祖先子图 |
