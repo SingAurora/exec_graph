@@ -29,9 +29,14 @@
 
 - 业务请求的详细约定及当前接入范围以 `doc/api-request-contract.md` 为准；前端与后端共用 `frontend/src/shared/api/contracts.ts` 的通用协议类型与错误码，默认只连接真实后端。认证、图片及生成接口见 `doc/backend-external-contract.md`。
 - API 仅使用 `GET` 和 `POST`。读取使用 `GET`，筛选参数放 query；会改变状态的操作使用 `POST`，参数放 JSON。文件上传可使用 `multipart/form-data`。
-- 路径采用 `/api/commands/<领域>/<动作>`，不使用通配路径、路径参数、`PATCH` 或 `DELETE`。路由不自行校验 HTTP Method，Gin 路由定义是唯一方法约束。
+- 路径采用 `/api/commands/<领域>/<动作>` 或 `/api/commands/<领域>/<资源单数>/<动作>`，不使用通配路径、路径参数、`PATCH` 或 `DELETE`。路由不自行校验 HTTP Method，Gin 路由定义是唯一方法约束。
 - 所有 JSON 返回使用统一顶层结构：`{"code": 0, "msg": "", "data": ...}`；错误由顶层错误边界转换，不在每个 handler 重复写 HTTP 错误响应。
 - endpoint 使用 `endpoint/common` 解析 JSON 和写响应；不要重复实现 `decodeJSON`、鉴权解析或响应包装。
+- 读接口按「领域 + 单数资源 + 动作」命名，动作统一为 `getInfo`（单条／详情／统计）和 `getList`（列表／分页）。例如 `/profiles/expression/getList`、`/following/graph/getList`、`/graphs/getInfo`；写接口继续用 `create`、`update`、`delete`、`set`。
+- 接口面向资源，不面向界面状态。禁止把 Tab、`kind` 等前端状态塞进一个端点（如 `/feed?tab=expressions`、`/actions/feed?kind=...`）；每个资源用独立端点。
+- 一个读端点只返回一种资源。禁止用一个 `content` 接口同时返回资料、图和行动；统计使用专门的 `stats/getInfo`，不靠全量列表在前端计算。
+- 业务数据按「账号级 / 页面级 / Tab 级」分层：应用级只保留关注关系和侧栏统计；隐藏页面用 `enabled: active` 不请求；多 Tab 页面切换时才请求对应资源。同一资源的查询键应复用，不在 App 和组件重复请求。
+- 修改接口命名时，前后端、测试和文档同步切换，删除旧路径，不保留别名或旧路由。
 
 ## 数据、错误与配置
 
