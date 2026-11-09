@@ -20,7 +20,7 @@ export const profileStatsKey = (userUuid: string) => ['profiles', userUuid, 'sta
 
 /** 读取当前账号侧栏统计，不加载完整行动上下文。 */
 export function readProfileStats(userUuid: string, signal?: AbortSignal): Promise<ProfileStats> {
-  return getAPI('/api/commands/profiles/stats', { userUuid }, { signal })
+  return getAPI('/api/commands/profiles/stats/getInfo', { userUuid }, { signal })
 }
 
 /** 读取当前账户；真实服务无有效会话时应返回 10002，开发模拟固定为已登录账号。 */
@@ -41,14 +41,33 @@ export type ProfileContent = {
   actions: VersionedAction[]
 }
 
-type ProfileContentResponse = {
-  profile: UserProfile
-  graphs: GraphView[]
+type ActionPageResponse = {
+  items: string[]
   actions: ActionContextNode[]
+  graphs: GraphView[]
+  total: number
 }
 
-/** 读取单个用户主页所需的图、行动和作者资料。 */
+type GraphPageResponse = { items: GraphView[]; total: number }
+
+function actionPage(path: `/api/commands/${string}/${string}`, userUuid: string, signal?: AbortSignal) {
+  return getAPI<ActionPageResponse>(path, { userUuid, page: 1, pageSize: 50 }, { signal })
+}
+
+/** 读取单个主页：资料、图，以及表达/约定/行动三个资源页的上下文。 */
 export async function readProfileContent(userUuid: string, signal?: AbortSignal): Promise<ProfileContent> {
-  const data = await getAPI<ProfileContentResponse>('/api/commands/profiles/content', { userUuid }, { signal })
-  return { ...data, actions: data.actions.map(actionFromView) }
+  const [profile, expressions, agreements, actions, graphs] = await Promise.all([
+    getAPI<UserProfile>('/api/commands/profiles/getInfo', { userUuid }, { signal }),
+    actionPage('/api/commands/profiles/expression/getList', userUuid, signal),
+    actionPage('/api/commands/profiles/agreement/getList', userUuid, signal),
+    actionPage('/api/commands/profiles/action/getList', userUuid, signal),
+    getAPI<GraphPageResponse>('/api/commands/profiles/graph/getList', { userUuid, page: 1, pageSize: 50 }, { signal }),
+  ])
+  const actionById = new Map<string, VersionedAction>()
+  for (const page of [expressions, agreements, actions]) {
+    for (const node of page.actions) actionById.set(node.uuid, actionFromView(node))
+  }
+  const graphById = new Map<string, GraphView>()
+  for (const graph of [...graphs.items, ...expressions.graphs, ...agreements.graphs, ...actions.graphs]) graphById.set(graph.uuid, graph)
+  return { profile, graphs: [...graphById.values()], actions: [...actionById.values()] }
 }

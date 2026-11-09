@@ -44,6 +44,12 @@ func New(auth *identity.Handler, read *catalogue.Handler, graphs *graph.Handler,
 	group.POST("/auth/password-change", accounts.ChangePassword)
 	// 校验当前密码和新邮箱后更换绑定邮箱。
 	group.POST("/auth/email-change", accounts.ChangeEmail)
+	// 图资源。
+	group.GET("/graphs/getList", read.GraphsPage)
+	group.GET("/graphs/getInfo", read.Graph)
+	// 行动资源。
+	group.GET("/actions/getInfo", read.Action)
+	group.GET("/actions/context/getInfo", read.Actions)
 	// 用户主页资源。
 	group.GET("/profiles/getInfo", read.ProfileInfo)
 	group.GET("/profiles/expression/getList", read.ProfileExpressionList)
@@ -60,24 +66,6 @@ func New(auth *identity.Handler, read *catalogue.Handler, graphs *graph.Handler,
 	// 首页内容流。
 	group.GET("/feed/expression/getList", read.FeedExpressionList)
 	group.GET("/feed/agreement/getList", read.FeedAgreementList)
-	// 读取单个用户主页所需内容。
-	group.GET("/profiles/content", read.ProfileContent)
-	// 读取当前账号侧栏统计。
-	group.GET("/profiles/stats", read.ProfileStats)
-	// 读取图目录的一页。
-	group.GET("/graphs/list", read.GraphsPage)
-	// 读取表达/约定内容流的一页及其祖先子图。
-	group.GET("/actions/feed", read.Feed)
-	// 读取单张图的公开资料。
-	group.GET("/graphs/detail", read.Graph)
-	// 读取图内已确认的行动、表达、约定和形成过程。
-	group.GET("/actions/context", read.Actions)
-	// 读取单个已发布行动。
-	group.GET("/actions/detail", read.Action)
-	// 读取当前账号的关注对象。
-	group.GET("/following/sources", read.Following)
-	// 读取关注页需要的关注集合和图/行动子图。
-	group.GET("/following/content", read.FollowingContent)
 	// 读取已公开引用的配图，未保存图片仅允许上传者读取。
 	group.GET("/media/file", images.File)
 	// 上传单张图片并登记一天的未保存保留期。

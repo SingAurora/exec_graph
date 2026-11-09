@@ -58,16 +58,16 @@ describe('business transport', () => {
 
   test('rejects nonzero code even on HTTP 200 and preserves unknown codes and request ID', async () => {
     globalThis.fetch = async () => Response.json({ code: 123456, msg: '业务失败', data: null }, { headers: { 'X-Request-Id': 'trace' } })
-    await expect(getAPI('/api/commands/graphs/catalogue')).rejects.toMatchObject({ kind: 'business', code: 123456, status: 200, requestId: 'trace', message: '业务失败' })
+    await expect(getAPI('/api/commands/graphs/getList')).rejects.toMatchObject({ kind: 'business', code: 123456, status: 200, requestId: 'trace', message: '业务失败' })
   })
 
   test('distinguishes HTTP business errors from malformed JSON/envelopes', async () => {
     globalThis.fetch = async () => Response.json({ code: 10003, msg: '无权限', data: null }, { status: 403 })
-    await expect(getAPI('/api/commands/graphs/catalogue')).rejects.toMatchObject({ kind: 'business', status: 403, code: 10003 })
+    await expect(getAPI('/api/commands/graphs/getList')).rejects.toMatchObject({ kind: 'business', status: 403, code: 10003 })
     globalThis.fetch = async () => new Response('<html>proxy error</html>', { status: 502 })
-    await expect(getAPI('/api/commands/graphs/catalogue')).rejects.toMatchObject({ kind: 'protocol', status: 502 })
+    await expect(getAPI('/api/commands/graphs/getList')).rejects.toMatchObject({ kind: 'protocol', status: 502 })
     globalThis.fetch = async () => Response.json({ code: 0, msg: '' })
-    await expect(getAPI('/api/commands/graphs/catalogue')).rejects.toMatchObject({ kind: 'protocol' })
+    await expect(getAPI('/api/commands/graphs/getList')).rejects.toMatchObject({ kind: 'protocol' })
   })
 
   test('distinguishes caller cancellation, timeout and network failure without retrying', async () => {
@@ -80,12 +80,12 @@ describe('business transport', () => {
       })
     }
     const controller = new AbortController()
-    const cancelled = getAPI('/api/commands/graphs/catalogue', {}, { signal: controller.signal })
+    const cancelled = getAPI('/api/commands/graphs/getList', {}, { signal: controller.signal })
     controller.abort()
     await expect(cancelled).rejects.toMatchObject({ kind: 'cancelled' })
-    await expect(getAPI('/api/commands/graphs/catalogue', {}, { timeoutMs: 5 })).rejects.toMatchObject({ kind: 'timeout' })
+    await expect(getAPI('/api/commands/graphs/getList', {}, { timeoutMs: 5 })).rejects.toMatchObject({ kind: 'timeout' })
     expect(calls).toBe(2)
     globalThis.fetch = async () => { throw new TypeError('offline') }
-    await expect(getAPI('/api/commands/graphs/catalogue')).rejects.toMatchObject({ kind: 'network' })
+    await expect(getAPI('/api/commands/graphs/getList')).rejects.toMatchObject({ kind: 'network' })
   })
 })

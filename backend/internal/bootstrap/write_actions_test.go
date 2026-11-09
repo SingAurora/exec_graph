@@ -90,7 +90,7 @@ func TestRealActionPublicationAndDocuments(t *testing.T) {
 	assertUnpublished(t, s, stale.GenerationID, g.ID, 5)
 	count := uint32(4)
 	jo.call(t, "POST", "graphs/delete", graph.DeleteGraphInput{GraphID: g.ID, ExpectedVersion: 1, ExpectedNodeCount: &count}, 200, "")
-	jo.call(t, "GET", "actions/detail?nodeUuid="+a.ID, nil, 404, "")
+	jo.call(t, "GET", "actions/getInfo?nodeUuid="+a.ID, nil, 404, "")
 }
 
 func TestRealExpressionHighlightsAndAtomicRollback(t *testing.T) {

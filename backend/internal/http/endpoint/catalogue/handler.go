@@ -25,34 +25,6 @@ func New(service *app.Service, identity *identity.Service, ready func(context.Co
 	return &Handler{service, identity, ready}
 }
 
-// Feed 返回表达或约定内容流的一页，以及该页需要的祖先子图。
-func (h *Handler) Feed(c *gin.Context) {
-	kind := c.Query("kind")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	out, err := h.service.Feed(c.Request.Context(), kind, page, limit)
-	if err != nil {
-		common.Fail(c, err)
-		return
-	}
-	common.Reply(c, out)
-}
-
-// ProfileContent 返回单个用户主页所需的图和行动子图。
-func (h *Handler) ProfileContent(c *gin.Context) {
-	uuid, err := common.Query(c, "userUuid")
-	if err != nil {
-		common.Fail(c, err)
-		return
-	}
-	out, err := h.service.ProfileContent(c.Request.Context(), uuid)
-	if err != nil {
-		common.Fail(c, err)
-		return
-	}
-	common.Reply(c, out)
-}
-
 // ProfileStats 返回当前账号侧栏统计。
 func (h *Handler) ProfileStats(c *gin.Context) {
 	uuid, err := common.Query(c, "userUuid")
@@ -129,36 +101,6 @@ func (h *Handler) Action(c *gin.Context) {
 	common.Reply(c, out)
 }
 
-// Following 在验证当前会话后读取关注集合。
-func (h *Handler) Following(c *gin.Context) {
-	session, err := h.identity.Session(c.Request.Context(), auth.Token(c))
-	if err != nil {
-		common.Fail(c, err)
-		return
-	}
-	out, err := h.service.Following(c.Request.Context(), session.User.ID)
-	if err != nil {
-		common.Fail(c, err)
-		return
-	}
-	common.Reply(c, out)
-}
-
-// FollowingContent 返回当前账号关注页所需的图和行动子图。
-func (h *Handler) FollowingContent(c *gin.Context) {
-	session, err := h.identity.Session(c.Request.Context(), auth.Token(c))
-	if err != nil {
-		common.Fail(c, err)
-		return
-	}
-	out, err := h.service.FollowingContent(c.Request.Context(), session.User.ID)
-	if err != nil {
-		common.Fail(c, err)
-		return
-	}
-	common.Reply(c, out)
-}
-
 // Ready 只有真实依赖可用时才返回就绪。
 func (h *Handler) Ready(c *gin.Context) {
 	if err := h.ready(c.Request.Context()); err != nil {
@@ -185,33 +127,6 @@ func (h *Handler) ProfileInfo(c *gin.Context) {
 	common.Reply(c, out)
 }
 
-// ProfileResource 读取用户行动、表达、约定或图列表。
-func (h *Handler) ProfileResource(c *gin.Context) {
-	resource := c.Param("resource")
-	uuid, err := common.Query(c, "userUuid")
-	if err != nil {
-		common.Fail(c, err)
-		return
-	}
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	size, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
-	if resource == "graph" {
-		out, err := h.service.ProfileGraphPage(c.Request.Context(), uuid, page, size)
-		if err != nil {
-			common.Fail(c, err)
-			return
-		}
-		common.Reply(c, out)
-		return
-	}
-	out, err := h.service.ProfileActionPage(c.Request.Context(), uuid, resource, page, size)
-	if err != nil {
-		common.Fail(c, err)
-		return
-	}
-	common.Reply(c, out)
-}
-
 // FollowingSourceList 读取关注关系。
 func (h *Handler) FollowingSourceList(c *gin.Context) {
 	session, err := h.identity.Session(c.Request.Context(), auth.Token(c))
@@ -225,41 +140,6 @@ func (h *Handler) FollowingSourceList(c *gin.Context) {
 		return
 	}
 	common.Reply(c, out)
-}
-
-// FollowingResource 读取关注表达、约定、图或用户列表。
-func (h *Handler) FollowingResource(c *gin.Context) {
-	resource := c.Param("resource")
-	session, err := h.identity.Session(c.Request.Context(), auth.Token(c))
-	if err != nil {
-		common.Fail(c, err)
-		return
-	}
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	size, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
-	switch resource {
-	case "graph":
-		out, err := h.service.FollowingGraphPage(c.Request.Context(), session.User.ID, page, size)
-		if err != nil {
-			common.Fail(c, err)
-			return
-		}
-		common.Reply(c, out)
-	case "user":
-		out, err := h.service.FollowingUserPage(c.Request.Context(), session.User.ID, page, size)
-		if err != nil {
-			common.Fail(c, err)
-			return
-		}
-		common.Reply(c, out)
-	default:
-		out, err := h.service.FollowingActionPage(c.Request.Context(), session.User.ID, resource, page, size)
-		if err != nil {
-			common.Fail(c, err)
-			return
-		}
-		common.Reply(c, out)
-	}
 }
 
 // FeedExpressionList 读取首页表达流。

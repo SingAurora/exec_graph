@@ -146,15 +146,23 @@ EXEC_GRAPH_DATABASE_SCHEMA=exec_graph EXEC_GRAPH_ADDR=127.0.0.1:8080 EXEC_GRAPH_
 | POST | `/auth/logout` | JSON 为 `{}`，需要会话 |
 | POST | `/auth/code-send`、`/auth/register`、`/auth/password-reset` | 邮件验证码、注册及找回密码 |
 | POST | `/auth/password-change`、`/auth/email-change` | 当前密码与验证码双重校验，成功撤销旧会话 |
-| GET | `/profiles/content?userUuid=...` | 单个用户主页的图、行动和作者资料 |
-| GET | `/profiles/stats?userUuid=...` | 当前账号行动/表达/约定统计 |
-| GET | `/graphs/list?page=1&pageSize=20&filter=all&keyword=&sort=activity` | 图目录筛选、搜索、排序分页 |
-| GET | `/actions/feed?kind=expressions\|agreements&page=1&limit=20` | 内容流分页，包含本页祖先子图 |
-| GET | `/graphs/detail?graphUuid=...` | 单图资料 |
-| GET | `/actions/context?graphUuid=...` | 图内完整确认上下文 |
-| GET | `/actions/detail?nodeUuid=...` | 单个行动 |
-| GET | `/following/sources` | 当前登录账号的关注集合 |
-| GET | `/following/content` | 关注页所需的关注集合、图和行动子图 |
+| GET | `/profiles/getInfo?userUuid=...` | 单个用户资料 |
+| GET | `/profiles/expression/getList?userUuid=...&page=1&pageSize=20` | 主页表达列表 |
+| GET | `/profiles/agreement/getList?userUuid=...&page=1&pageSize=20` | 主页约定列表 |
+| GET | `/profiles/action/getList?userUuid=...&page=1&pageSize=20` | 主页行动列表 |
+| GET | `/profiles/graph/getList?userUuid=...&page=1&pageSize=20` | 主页图列表 |
+| GET | `/profiles/stats/getInfo?userUuid=...` | 当前账号行动/表达/约定统计 |
+| GET | `/graphs/getList?page=1&pageSize=20&filter=all&keyword=&sort=activity` | 图目录筛选、搜索、排序分页 |
+| GET | `/feed/expression/getList?page=1&pageSize=20` | 首页表达流分页 |
+| GET | `/feed/agreement/getList?page=1&pageSize=20` | 首页约定流分页 |
+| GET | `/graphs/getInfo?graphUuid=...` | 单图资料 |
+| GET | `/actions/context/getInfo?graphUuid=...` | 图内完整确认上下文 |
+| GET | `/actions/getInfo?nodeUuid=...` | 单个行动 |
+| GET | `/following/source/getList` | 当前登录账号的关注集合 |
+| GET | `/following/expression/getList?page=1&pageSize=20` | 关注表达列表 |
+| GET | `/following/agreement/getList?page=1&pageSize=20` | 关注约定列表 |
+| GET | `/following/graph/getList?page=1&pageSize=20` | 关注的图列表 |
+| GET | `/following/user/getList?page=1&pageSize=20` | 关注的用户列表 |
 | GET | `/media/file?assetUuid=...` | 已就绪图片；成功时返回二进制，不套 JSON |
 | POST | `/media/upload`、`/media/retain` | 上传登记与草稿图片续期 |
 | POST | `/ai/generate` | 平台 AI 生成私有草稿，需要提交键 |

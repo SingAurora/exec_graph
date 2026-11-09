@@ -20,6 +20,6 @@ export function actionFromView({ graphUuid, ...node }: ActionContextNode): Versi
 
 /** 读取单张图的完整行动上下文。 */
 export async function readActionContext(graphUuid: string, signal?: AbortSignal): Promise<VersionedAction[]> {
-  const nodes = await getAPI<ActionContextNode[]>('/api/commands/actions/context', { graphUuid }, { signal })
+  const nodes = await getAPI<ActionContextNode[]>('/api/commands/actions/context/getInfo', { graphUuid }, { signal })
   return nodes.map(actionFromView)
 }

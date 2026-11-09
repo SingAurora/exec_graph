@@ -122,12 +122,12 @@ func TestRealDatabaseSeedAndHTTPFlow(t *testing.T) {
 		t.Fatal("测试号会话返回不完整")
 	}
 	token = demo.Data.Token
-	response = request("GET", "/api/commands/graphs/detail?graphUuid=cooking", "", "")
+	response = request("GET", "/api/commands/graphs/getInfo?graphUuid=cooking", "", "")
 	graph := readWire[app.GraphView](t, response)
 	if graph.Data.ID != id.Demo("graph", "cooking") {
 		t.Fatal("旧链接映射失败")
 	}
-	response = request("GET", "/api/commands/actions/context?graphUuid=cooking", "", "")
+	response = request("GET", "/api/commands/actions/context/getInfo?graphUuid=cooking", "", "")
 	expectStatus(t, response, 200)
 	actions := readWire[[]app.ActionView](t, response)
 	if len(actions.Data) != 18 {
@@ -152,7 +152,7 @@ func TestRealDatabaseSeedAndHTTPFlow(t *testing.T) {
 	if len(authors) < 2 {
 		t.Fatal("导入错误地把所有行动归给同一作者")
 	}
-	response = request("GET", "/api/commands/actions/context?graphUuid=cooking&graphUuid=daily", "", "")
+	response = request("GET", "/api/commands/actions/context/getInfo?graphUuid=cooking&graphUuid=daily", "", "")
 	expectStatus(t, response, 400)
 	response.Body.Close()
 	var conversation model.AIConversation
@@ -163,13 +163,13 @@ func TestRealDatabaseSeedAndHTTPFlow(t *testing.T) {
 	if err := db.Create(&model.AIMessage{UUID: id.New(), ConversationUUID: conversation.UUID, SequenceNumber: conversation.NextMessageSequence, Speaker: "user", AuthorUUID: &mainID, Body: secret, CreatedAt: time.Now().UTC()}).Error; err != nil {
 		t.Fatal(err)
 	}
-	response = request("GET", "/api/commands/actions/detail?nodeUuid=cooking-12", "", "")
+	response = request("GET", "/api/commands/actions/getInfo?nodeUuid=cooking-12", "", "")
 	body, _ := io.ReadAll(response.Body)
 	response.Body.Close()
 	if bytes.Contains(body, []byte(secret)) {
 		t.Fatal("未确认对话被公开")
 	}
-	response = request("GET", "/api/commands/graphs/detail?graphUuid=cycling", "", "")
+	response = request("GET", "/api/commands/graphs/getInfo?graphUuid=cycling", "", "")
 	imageGraph := readWire[app.GraphView](t, response)
 	if imageGraph.Data.Avatar == nil {
 		t.Fatal("演示配图地址丢失")

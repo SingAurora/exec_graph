@@ -22,7 +22,7 @@ export async function getBlob(url: string): Promise<Blob> {
 }
 
 /** 业务接口的固定路径类型，与 AI 代理和文件下载地址分开。 */
-export type BusinessAPIPath = `/api/commands/${string}/${string}`
+export type BusinessAPIPath = `/api/commands/${string}/${string}` | `/api/commands/${string}/${string}/${string}`
 
 /** 业务请求选项：支持 Query 取消、幂等键和单独指定超时；认证 token 从浏览器存储自动附加。 */
 export type BusinessRequestOptions = {
@@ -62,7 +62,7 @@ async function requestBusiness<T>(path: BusinessAPIPath, query: URLSearchParams 
   // 前后端固定同源部署，始终使用当前站点 origin，不读取可配置 API 基址。
   const base = globalThis.location?.origin
   try {
-    if (!/^\/api\/commands\/[a-z][a-z-]*\/[a-z][a-z-]*$/.test(path)) throw new BusinessRequestError('接口路径不合法', 'protocol')
+    if (!/^\/api\/commands\/[a-z][a-z-]*\/[a-z][A-Za-z0-9-]*(?:\/[a-z][A-Za-z0-9-]*)?$/.test(path)) throw new BusinessRequestError('接口路径不合法', 'protocol')
     const url = new URL(path, base)
     if (query) url.search = query.toString()
     const headers = new Headers({ Accept: 'application/json' })

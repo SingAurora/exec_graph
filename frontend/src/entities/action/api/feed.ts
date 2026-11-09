@@ -26,6 +26,7 @@ export const feedKeys = {
 
 /** 读取表达或约定内容流；服务端负责分页和祖先子图。 */
 export async function readFeed(kind: FeedKind, page: number, signal?: AbortSignal): Promise<FeedView> {
-  const data = await getAPI<FeedResponse>('/api/commands/actions/feed', { kind, page, limit: 20 }, { signal })
+  const path = kind === 'expressions' ? '/api/commands/feed/expression/getList' : '/api/commands/feed/agreement/getList'
+  const data = await getAPI<FeedResponse>(path, { page, pageSize: 20 }, { signal })
   return { ...data, actions: data.actions.map(actionFromView) }
 }

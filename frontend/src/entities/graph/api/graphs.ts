@@ -11,7 +11,7 @@ export const graphKeys = {
 
 /** 读取单张图；图详情页不应先加载整个图目录。 */
 export function readGraphDetail(graphUuid: string, signal?: AbortSignal): Promise<GraphView> {
-  return getAPI('/api/commands/graphs/detail', { graphUuid }, { signal })
+  return getAPI('/api/commands/graphs/getInfo', { graphUuid }, { signal })
 }
 
 export type GraphListParams = {
@@ -34,7 +34,7 @@ export const graphListKey = (scope: string, params: GraphListParams) => ['graphs
 
 /** 图目录服务端筛选、搜索、排序分页。 */
 export function readGraphPage(params: GraphListParams, signal?: AbortSignal): Promise<GraphPage> {
-  return getAPI('/api/commands/graphs/list', {
+  return getAPI('/api/commands/graphs/getList', {
     page: params.page,
     pageSize: params.pageSize,
     filter: params.filter,
