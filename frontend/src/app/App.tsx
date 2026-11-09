@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAppResources } from './model/useAppResources'
+import { useGraphContext } from './model/useGraphContext'
 import { useAppCommands } from './model/useAppCommands'
 import { useAppearance } from './model/useAppearance'
 import { isAppView, isAuthView } from '../shared/lib/navigation'
@@ -10,9 +11,7 @@ import { useAppNavigation } from './model/useAppNavigation'
 import { actionWorkspaceHash, readActionWorkspaceRoute } from './model/action-workspace-route'
 import { generateNodeDocuments } from '../features/action-generation/api/generation'
 import type { FollowedSources } from '../entities/following/model/types'
-import type { GraphView } from '../entities/graph/api/graphs'
 import type { AccountProfile } from '../entities/profile/api/profiles'
-import type { VersionedAction } from '../entities/action/api/context'
 import type { UserProfile } from '../entities/profile/model/types'
 import type { CreateActionInput } from '../features/action/api/commands'
 import type { GenerationView } from '../features/action-generation/api/generation'
@@ -78,9 +77,7 @@ export function App() {
   }, [client, user?.uuid])
   // ── 路由解析 ──
   const rawView = hash.slice(1).split('?')[0]
-  const route = isAppView(rawView) ? rawView : 'home'
-  const graphUuid = new URLSearchParams(hash.split('?')[1]).get('graphUuid') ?? ''
-  const resources = useAppResources(user, status, route, graphUuid)
+  const resources = useAppResources(user)
   const authView = isAuthView(rawView) ? rawView : 'login'
   const knownRoute = rawView === '' || isAppView(rawView) || isAuthView(rawView)
   // 登录成功后离开登录/注册地址，避免刷新后又回到认证页。
@@ -124,12 +121,7 @@ export function App() {
       </main>
     )
     return (
-      <GuestApp
-        graphs={resources.graphs ?? []}
-        actions={resources.actions ?? []}
-        users={resources.users}
-        remoteFeed
-      />
+      <GuestApp remoteFeed />
     )
   }
   if (!user) return null
@@ -152,12 +144,8 @@ export function App() {
         key={user.uuid}
         darkMode={darkMode} toggleTheme={toggleTheme} onLogout={exit}
         profile={user}
-        graphs={resources.graphs}
-        actions={resources.actions}
-        users={resources.users}
         sources={resources.sources}
         profileStats={resources.profileStats ?? emptyProfileStats}
-        resourcesLoading={!resources.ready}
       />
       {resources.error && (
         <div
@@ -174,9 +162,9 @@ export function App() {
 }
 
 /** 应用装配层：把 Query 中的业务数据、路由和写入回调连接到页面及工作区。 */
-function AppContent({ profile, graphs, actions, users, sources, profileStats, resourcesLoading, darkMode, toggleTheme, onLogout }: {
-  profile: AccountProfile; graphs: GraphView[]; actions: VersionedAction[]; users: UserProfile[]; sources: FollowedSources
-  profileStats: { actions: number; expressions: number; agreements: number }; resourcesLoading: boolean
+function AppContent({ profile, sources, profileStats, darkMode, toggleTheme, onLogout }: {
+  profile: AccountProfile; sources: FollowedSources
+  profileStats: { actions: number; expressions: number; agreements: number }
   darkMode: boolean; toggleTheme: () => void; onLogout: () => Promise<void>
 }) {
   // ── 数据、路由和本地界面状态 ──
@@ -193,7 +181,7 @@ function AppContent({ profile, graphs, actions, users, sources, profileStats, re
   })
   // ── 当前图、节点和工作区 ──
   // 离开图进入编辑器或形成过程时，仍保留最近一张图，供返回后恢复阅读。
-  const [lastGraphUuid, setLastGraphUuid] = useState(query.get('graphUuid') ?? graphs[0]?.uuid ?? '')
+  const [lastGraphUuid, setLastGraphUuid] = useState(query.get('graphUuid') ?? '')
   const workspaceRoute = route === 'publish' ? readActionWorkspaceRoute(query) : undefined
   const workspaceMode = workspaceRoute?.mode ?? 'action'
   const workspaceGraphUuid = workspaceRoute?.graphUuid
@@ -201,7 +189,9 @@ function AppContent({ profile, graphs, actions, users, sources, profileStats, re
   const workspaceActionUuid = workspaceRoute?.mode === 'expression' || workspaceRoute?.mode === 'agreement' ? workspaceRoute.nodeUuid : undefined
   const [archiveActionId, setArchiveActionId] = useState<string>()
   const selectedGraphUuid = route === 'graph' ? query.get('graphUuid') ?? lastGraphUuid : lastGraphUuid
-  const selectedGraph = graphs.find((graph) => graph.uuid === selectedGraphUuid)
+  const graphContextUuid = route === 'publish' ? workspaceGraphUuid ?? '' : selectedGraphUuid
+  const graphEnabled = route === 'graph' || route === 'publish' || route === 'action-archive'
+  const { graph: selectedGraph, graphs, actions, users, loading: graphLoading } = useGraphContext(profile.uuid, graphContextUuid, graphEnabled)
   const selectedGraphActions = useMemo(() => actions.filter((action) => action.graphUuid === selectedGraphUuid), [actions, selectedGraphUuid])
   const workspaceParent = actions.find((node) => node.uuid === workspaceParentUuid && node.graphUuid === workspaceGraphUuid)
   const expressionAction = actions.find((node) => node.uuid === workspaceActionUuid && node.graphUuid === workspaceGraphUuid)
@@ -395,7 +385,7 @@ function AppContent({ profile, graphs, actions, users, sources, profileStats, re
       )}
       <div hidden={route !== 'following'}>
         <FollowingPage
-          scope={profile.uuid} active={route === 'following'}
+          scope={profile.uuid} sources={sources} active={route === 'following'}
           onOpenGraph={openGraph} onOpenNode={openNode} onOpenReference={openReference}
           onSetGraphFollow={setGraphFollow} onSetUserFollow={setUserFollow}
         />
@@ -429,7 +419,7 @@ function AppContent({ profile, graphs, actions, users, sources, profileStats, re
         </div>
       )}
       {route === 'publish' && (
-        resourcesLoading ? <div className="pt-6"><ListSkeleton rows={4} /></div> : <WorkspaceOutlet
+        graphLoading ? <div className="pt-6"><ListSkeleton rows={4} /></div> : <WorkspaceOutlet
           mode={workspaceMode}
           graph={workspaceGraph}
           parent={workspaceParent}
@@ -448,7 +438,7 @@ function AppContent({ profile, graphs, actions, users, sources, profileStats, re
         />
       )}
       {route === 'action-archive' && (
-        resourcesLoading ? <div className="pt-6"><ListSkeleton rows={4} /></div> : archiveAction && selectedGraph ? (
+        graphLoading ? <div className="pt-6"><ListSkeleton rows={4} /></div> : archiveAction && selectedGraph ? (
           <ActionArchivePage
             graph={selectedGraph} node={archiveAction} actions={selectedGraphActions} users={users}
             onBack={() => openGraph(selectedGraph.uuid)}
@@ -465,7 +455,7 @@ function AppContent({ profile, graphs, actions, users, sources, profileStats, re
         )
       )}
       {route === 'graph' && !selectedGraph && (
-        resourcesLoading
+        graphLoading
           ? <div className="pt-6"><ListSkeleton rows={4} /></div>
           : <div className="empty-state">
             <p>行动图不存在或已删除</p>

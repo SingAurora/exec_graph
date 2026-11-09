@@ -15,10 +15,12 @@ import { AgreementResponseList } from '../../agreement-responses/ui/AgreementRes
 import { FollowedDirectory } from './FollowedDirectory'
 import { ListSkeleton } from '../../../shared/ui/ListSkeleton'
 import { followingKeys, followingTabKeys, readFollowing, readFollowingAgreements, readFollowingExpressions, readFollowingGraphs, readFollowingUsers } from '../../../entities/following/api/following'
+import type { FollowedSources } from '../../../entities/following/model/types'
 
 type FollowingTab = 'expressions' | 'agreements' | 'graphs' | 'users'
 type Props = {
   scope: string
+  sources?: FollowedSources
   active: boolean
   initialTab?: FollowingTab
   onOpenGraph: (id: string) => void
@@ -29,18 +31,18 @@ type Props = {
 }
 
 /** 关注页按 Tab 懒加载：每个栏目只在自己激活时请求对应资源。 */
-export function Following({ scope, active, initialTab = 'expressions', onOpenGraph, onOpenNode, onOpenReference, onSetGraphFollow, onSetUserFollow }: Props) {
+export function Following({ scope, active, initialTab = 'expressions', sources: sourcesProp, onOpenGraph, onOpenNode, onOpenReference, onSetGraphFollow, onSetUserFollow }: Props) {
   const [tab, setTab] = useState<FollowingTab>(initialTab)
   const scrollPositions = useRef<Partial<Record<FollowingTab, number>>>({})
   const pendingScroll = useRef<number | undefined>(undefined)
 
-  const sources = useQuery({ queryKey: followingKeys.sources(scope), queryFn: ({ signal }) => readFollowing(signal), enabled: active })
+  const sources = useQuery({ queryKey: followingKeys.sources(scope), queryFn: ({ signal }) => readFollowing(signal), enabled: active && !sourcesProp })
   const expressions = useQuery({ queryKey: followingTabKeys.expressions(scope), queryFn: ({ signal }) => readFollowingExpressions(signal), enabled: active && tab === 'expressions' })
   const agreements = useQuery({ queryKey: followingTabKeys.agreements(scope), queryFn: ({ signal }) => readFollowingAgreements(signal), enabled: active && tab === 'agreements' })
   const graphsQuery = useQuery({ queryKey: followingTabKeys.graphs(scope), queryFn: ({ signal }) => readFollowingGraphs(signal), enabled: active && tab === 'graphs' })
   const usersQuery = useQuery({ queryKey: followingTabKeys.users(scope), queryFn: ({ signal }) => readFollowingUsers(signal), enabled: active && tab === 'users' })
 
-  const source = sources.data ?? { userUuids: [], graphUuids: [], users: [] }
+  const source = sourcesProp ?? sources.data ?? { userUuids: [], graphUuids: [], users: [] }
   const followedUsers = useMemo(() => [...new Map([...source.users, ...(usersQuery.data?.items ?? [])].map((user) => [user.uuid, user])).values()], [source.users, usersQuery.data?.items])
 
   const expressionActions = useMemo(() => expressions.data?.actions ?? [], [expressions.data?.actions])
