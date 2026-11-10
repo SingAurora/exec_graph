@@ -9,6 +9,7 @@ import (
 	app "github.com/singaurora/exec-graph/backend/internal/application/graph"
 	"github.com/singaurora/exec-graph/backend/internal/application/identity"
 	read "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/catalogue"
+	"github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/media"
 	"github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/model"
 	"github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/transaction"
 	"github.com/singaurora/exec-graph/backend/internal/shared/constants"
@@ -54,7 +55,17 @@ func (t *graphTransaction) Create(view catalogue.GraphView) error {
 func (t *graphTransaction) Update(input app.UpdateGraphInput) error {
 	columns := []string{"Title", "Description", "AvatarAssetUUID", "CoverAssetUUID", "Version", "UpdatedAt"}
 	row := model.Graph{Title: input.Title, Description: input.Description, AvatarAssetUUID: input.AvatarAssetID, CoverAssetUUID: input.BackgroundAssetID, Version: input.ExpectedVersion + 1, UpdatedAt: time.Now().UTC()}
-	return t.DB.Model(&model.Graph{}).Where("uuid = ?", input.GraphID).Select(columns).Updates(row).Error
+	if err := t.DB.Model(&model.Graph{}).Where("uuid = ?", input.GraphID).Select(columns).Updates(row).Error; err != nil {
+		return err
+	}
+	assets := []string{}
+	if input.AvatarAssetID != nil {
+		assets = append(assets, *input.AvatarAssetID)
+	}
+	if input.BackgroundAssetID != nil {
+		assets = append(assets, *input.BackgroundAssetID)
+	}
+	return media.BindAssets(t.DB, t.Actor.UserID, "graph", input.GraphID, assets)
 }
 
 func (t *graphTransaction) Delete(uuid string) error {

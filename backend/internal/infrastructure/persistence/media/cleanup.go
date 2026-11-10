@@ -16,7 +16,10 @@ import (
 // Candidates 只扫描登记过生命周期的真实上传，不枚举或删除存储桶内的其他文件。
 func (r *Repository) Candidates(ctx context.Context, now time.Time) ([]string, error) {
 	var ids []string
-	err := r.db.WithContext(ctx).Table("media_retention AS r").Joins("JOIN media_assets a ON a.uuid = r.asset_uuid AND a.deleted_at IS NULL").Where("(r.cleanup_started_at IS NULL AND r.retain_until <= ?) OR (r.cleanup_started_at IS NOT NULL AND r.next_attempt_at <= ?)", now, now).Order("r.next_attempt_at, r.id").Limit(constants.MediaCleanupBatch).Pluck("r.asset_uuid", &ids).Error
+	err := r.db.WithContext(ctx).Table("media_retention AS r").Joins("JOIN media_assets a ON a.uuid = r.asset_uuid AND a.deleted_at IS NULL").
+		Where("(a.status = 'deleted' OR (a.attached_uuid IS NULL AND a.status IN ('pending', 'ready')))").
+		Where("((r.cleanup_started_at IS NULL AND r.retain_until <= ?) OR (r.cleanup_started_at IS NOT NULL AND r.next_attempt_at <= ?))", now, now).
+		Order("r.next_attempt_at, r.id").Limit(constants.MediaCleanupBatch).Pluck("r.asset_uuid", &ids).Error
 	return ids, err
 }
 
@@ -40,13 +43,15 @@ func (r *Repository) Claim(ctx context.Context, uuid string, now time.Time) (*ap
 			if retention.RetainUntil.After(now) {
 				return nil
 			}
-			used, err := references(tx, uuid, false)
-			if err != nil {
-				return err
-			}
-			if used {
-				// 推迟重查，避免大批长期引用图片饿死后面的过期候选。
-				return tx.Model(&retention).Updates(model.MediaRetention{RetainUntil: now.Add(constants.UnusedMediaRetention), NextAttemptAt: now.Add(constants.UnusedMediaRetention)}).Error
+			if asset.AttachedUUID == nil && asset.Status != "deleted" {
+				used, err := references(tx, uuid, false)
+				if err != nil {
+					return err
+				}
+				if used {
+					// 兼容尚未绑定 owner 的旧资产；已绑定资产不会进入候选。
+					return tx.Model(&retention).Updates(model.MediaRetention{RetainUntil: now.Add(constants.UnusedMediaRetention), NextAttemptAt: now.Add(constants.UnusedMediaRetention)}).Error
+				}
 			}
 			retention.CleanupStartedAt = &now
 		} else if retention.NextAttemptAt.After(now) {

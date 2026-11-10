@@ -9,6 +9,7 @@ import (
 	app "github.com/singaurora/exec-graph/backend/internal/application/profile"
 	"github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/catalogue"
 	account "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/identity"
+	"github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/media"
 	"github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/model"
 	"github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/transaction"
 	"gorm.io/gorm"
@@ -34,7 +35,17 @@ func (t *profileTransaction) Version() (uint32, error) {
 }
 
 func (t *profileTransaction) Update(input app.UpdateProfileInput) error {
-	return t.DB.Model(&model.User{}).Where("uuid = ?", t.Actor.UserID).Select("Name", "Gender", "BiographyMarkdown", "LocationCode", "AvatarAssetUUID", "CoverAssetUUID", "Version", "UpdatedAt").Updates(model.User{Name: input.Name, Gender: input.Gender, BiographyMarkdown: input.Bio, LocationCode: input.LocationCode.Value, AvatarAssetUUID: input.AvatarAssetID, CoverAssetUUID: input.BackgroundAssetID, Version: input.ExpectedVersion + 1, UpdatedAt: time.Now().UTC()}).Error
+	if err := t.DB.Model(&model.User{}).Where("uuid = ?", t.Actor.UserID).Select("Name", "Gender", "BiographyMarkdown", "LocationCode", "AvatarAssetUUID", "CoverAssetUUID", "Version", "UpdatedAt").Updates(model.User{Name: input.Name, Gender: input.Gender, BiographyMarkdown: input.Bio, LocationCode: input.LocationCode.Value, AvatarAssetUUID: input.AvatarAssetID, CoverAssetUUID: input.BackgroundAssetID, Version: input.ExpectedVersion + 1, UpdatedAt: time.Now().UTC()}).Error; err != nil {
+		return err
+	}
+	assets := []string{}
+	if input.AvatarAssetID != nil {
+		assets = append(assets, *input.AvatarAssetID)
+	}
+	if input.BackgroundAssetID != nil {
+		assets = append(assets, *input.BackgroundAssetID)
+	}
+	return media.BindAssets(t.DB, t.Actor.UserID, "profile", t.Actor.UserID, assets)
 }
 
 func (t *profileTransaction) Candidates(ids []string) ([]app.Candidate, error) {

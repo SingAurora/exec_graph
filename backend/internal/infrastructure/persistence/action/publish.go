@@ -4,6 +4,7 @@ import (
 	"time"
 
 	app "github.com/singaurora/exec-graph/backend/internal/application/action"
+	"github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/media"
 	"github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/model"
 	"github.com/singaurora/exec-graph/backend/internal/shared/id"
 )
@@ -30,12 +31,14 @@ func (t *actionTransaction) Publish(p app.Publication) error {
 			return err
 		}
 	}
+	assetIDs := make([]string, 0, len(p.Images))
 	for i, image := range p.Images {
 		if err := t.DB.Create(&model.ActionImage{NodeUUID: p.ID, AssetUUID: &image.AssetID, Position: uint16(i + 1), AltText: image.Alt}).Error; err != nil {
 			return err
 		}
+		assetIDs = append(assetIDs, image.AssetID)
 	}
-	return nil
+	return media.BindAssets(t.DB, p.ActorID, "action", p.ID, assetIDs)
 }
 
 // documentInheritanceTarget 是一种文档的继承目标；空版本表示该文档需要重新生成。
