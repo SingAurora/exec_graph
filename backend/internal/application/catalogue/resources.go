@@ -2,8 +2,6 @@ package catalogue
 
 import (
 	"context"
-	"sort"
-	"strings"
 
 	"github.com/singaurora/exec-graph/backend/internal/shared/fault"
 )
@@ -46,33 +44,21 @@ func paginate[T any](items []T, page, size int) ([]T, bool) {
 	return items[start:end], end < len(items)
 }
 
-func actionPage(selected []ActionView, contexts []ActionView, graphs []GraphView, page, size int) ActionPageView {
-	pageItems, hasMore := paginate(selected, page, size)
-	ids := make([]string, 0, len(pageItems))
-	byID := make(map[string]ActionView, len(contexts))
-	for _, action := range contexts {
-		byID[action.ID] = action
-	}
-	for _, item := range pageItems {
-		ids = append(ids, item.ID)
-	}
-	actions := withAncestors(pageItems, byID)
+func (s *Service) graphsForActions(ctx context.Context, actions []ActionView) ([]GraphView, error) {
 	seen := map[string]bool{}
-	related := make([]GraphView, 0)
-	graphByID := make(map[string]GraphView, len(graphs))
-	for _, graph := range graphs {
-		graphByID[graph.ID] = graph
-	}
+	out := make([]GraphView, 0)
 	for _, action := range actions {
 		if seen[action.GraphID] {
 			continue
 		}
 		seen[action.GraphID] = true
-		if graph, ok := graphByID[action.GraphID]; ok {
-			related = append(related, graph)
+		graph, err := s.repository.Graph(ctx, action.GraphID)
+		if err != nil {
+			return nil, err
 		}
+		out = append(out, graph)
 	}
-	return ActionPageView{Items: ids, Actions: actions, Graphs: related, Page: page, PageSize: size, Total: len(selected), HasMore: hasMore}
+	return out, nil
 }
 
 // ProfileInfo 读取单个用户资料。
@@ -80,76 +66,25 @@ func (s *Service) ProfileInfo(ctx context.Context, userUUID string) (ProfileView
 	return s.repository.Profile(ctx, userUUID)
 }
 
-// ProfileActionPage 读取用户行动和祖先上下文。
+// ProfileActionPage 按资源读取用户表达、约定或行动页，只加载种子节点和祖先。
 func (s *Service) ProfileActionPage(ctx context.Context, userUUID, resource string, page, size int) (ActionPageView, error) {
 	page, size = normalizePage(page, size)
-	content, err := s.ProfileContent(ctx, userUUID)
+	if resource != "action" && resource != "expression" && resource != "agreement" {
+		return ActionPageView{}, fault.New(fault.Invalid, "个人主页资源类型不合法")
+	}
+	ids, total, err := s.repository.ProfileResourceNodeIDs(ctx, userUUID, resource, (page-1)*size, size)
 	if err != nil {
 		return ActionPageView{}, err
 	}
-	selected := make([]ActionView, 0)
-	contexts := content.Actions
-	switch resource {
-	case "action":
-		for _, action := range contexts {
-			if action.AuthorID == userUUID {
-				selected = append(selected, action)
-			}
-		}
-		sort.Slice(selected, func(i, j int) bool { return selected[i].CreatedAt.After(selected[j].CreatedAt) })
-	case "expression":
-		referenced := map[string]bool{}
-		for _, action := range contexts {
-			for _, parent := range append([]string{action.ParentID}, action.MergedParentIDs...) {
-				if parent != "" {
-					referenced[parent] = true
-				}
-			}
-		}
-		for _, action := range contexts {
-			if referenced[action.ID] || action.AuthorID != userUUID {
-				continue
-			}
-			if action.ExpressionMarkdown == nil || strings.TrimSpace(*action.ExpressionMarkdown) == "" {
-				continue
-			}
-			selected = append(selected, action)
-		}
-		sort.Slice(selected, func(i, j int) bool { return selected[i].CreatedAt.After(selected[j].CreatedAt) })
-	case "agreement":
-		for _, target := range contexts {
-			assessment := map[string]*bool{}
-			for _, review := range target.ReferenceAgreements {
-				assessment[review.SourceID] = review.Complies
-			}
-			for _, sourceID := range append([]string{target.ParentID}, target.MergedParentIDs...) {
-				source, ok := findAction(contexts, sourceID)
-				if !ok || source.AuthorID == target.AuthorID {
-					continue
-				}
-				if source.AgreementMarkdown == nil || strings.TrimSpace(*source.AgreementMarkdown) == "" {
-					continue
-				}
-				if complies := assessment[sourceID]; complies != nil && *complies && (target.AuthorID == userUUID || source.AuthorID == userUUID) {
-					selected = append(selected, target)
-					break
-				}
-			}
-		}
-		sort.Slice(selected, func(i, j int) bool { return selected[i].CreatedAt.After(selected[j].CreatedAt) })
-	default:
-		return ActionPageView{}, fault.New(fault.Invalid, "个人主页资源类型不合法")
+	actions, err := s.repository.NodeContext(ctx, ids)
+	if err != nil {
+		return ActionPageView{}, err
 	}
-	return actionPage(selected, contexts, content.Graphs, page, size), nil
-}
-
-func findAction(actions []ActionView, id string) (ActionView, bool) {
-	for _, action := range actions {
-		if action.ID == id {
-			return action, true
-		}
+	graphs, err := s.graphsForActions(ctx, actions)
+	if err != nil {
+		return ActionPageView{}, err
 	}
-	return ActionView{}, false
+	return ActionPageView{Items: ids, Actions: actions, Graphs: graphs, Page: page, PageSize: size, Total: total, HasMore: page*size < total}, nil
 }
 
 // ProfileGraphPage 读取用户参与的图。
@@ -172,68 +107,36 @@ type ProfileListPage struct {
 	HasMore  bool          `json:"hasMore"`
 }
 
-// FollowingActionPage 读取关注表达或约定页。
+// FollowingActionPage 按资源读取关注表达或约定页，只加载种子节点和祖先。
 func (s *Service) FollowingActionPage(ctx context.Context, userUUID, resource string, page, size int) (ActionPageView, error) {
 	page, size = normalizePage(page, size)
-	content, err := s.FollowingContent(ctx, userUUID)
+	if resource != "expression" && resource != "agreement" {
+		return ActionPageView{}, fault.New(fault.Invalid, "关注资源类型不合法")
+	}
+	ids, total, err := s.repository.FollowingResourceNodeIDs(ctx, userUUID, resource, (page-1)*size, size)
 	if err != nil {
 		return ActionPageView{}, err
 	}
-	selected := make([]ActionView, 0)
-	contexts := content.Actions
-	switch resource {
-	case "expression":
-		referenced := map[string]bool{}
-		for _, action := range contexts {
-			for _, parent := range append([]string{action.ParentID}, action.MergedParentIDs...) {
-				if parent != "" {
-					referenced[parent] = true
-				}
-			}
-		}
-		for _, action := range contexts {
-			if referenced[action.ID] || action.ExpressionMarkdown == nil || strings.TrimSpace(*action.ExpressionMarkdown) == "" {
-				continue
-			}
-			selected = append(selected, action)
-		}
-		sort.Slice(selected, func(i, j int) bool { return selected[i].CreatedAt.After(selected[j].CreatedAt) })
-	case "agreement":
-		for _, target := range contexts {
-			assessment := map[string]*bool{}
-			for _, review := range target.ReferenceAgreements {
-				assessment[review.SourceID] = review.Complies
-			}
-			for _, sourceID := range append([]string{target.ParentID}, target.MergedParentIDs...) {
-				source, ok := findAction(contexts, sourceID)
-				if !ok || source.AuthorID == target.AuthorID {
-					continue
-				}
-				if source.AgreementMarkdown == nil || strings.TrimSpace(*source.AgreementMarkdown) == "" {
-					continue
-				}
-				if complies := assessment[sourceID]; complies != nil && *complies {
-					selected = append(selected, target)
-					break
-				}
-			}
-		}
-		sort.Slice(selected, func(i, j int) bool { return selected[i].CreatedAt.After(selected[j].CreatedAt) })
-	default:
-		return ActionPageView{}, fault.New(fault.Invalid, "关注资源类型不合法")
+	actions, err := s.repository.NodeContext(ctx, ids)
+	if err != nil {
+		return ActionPageView{}, err
 	}
-	return actionPage(selected, contexts, content.Graphs, page, size), nil
+	graphs, err := s.graphsForActions(ctx, actions)
+	if err != nil {
+		return ActionPageView{}, err
+	}
+	return ActionPageView{Items: ids, Actions: actions, Graphs: graphs, Page: page, PageSize: size, Total: total, HasMore: page*size < total}, nil
 }
 
 // FollowingGraphPage 读取关注的图。
 func (s *Service) FollowingGraphPage(ctx context.Context, userUUID string, page, size int) (GraphPageView, error) {
 	page, size = normalizePage(page, size)
-	content, err := s.FollowingContent(ctx, userUUID)
+	graphs, err := s.repository.GraphsForFollowing(ctx, userUUID)
 	if err != nil {
 		return GraphPageView{}, err
 	}
-	items, hasMore := paginate(content.Graphs, page, size)
-	return GraphPageView{Items: items, Page: page, PageSize: size, Total: len(content.Graphs), HasMore: hasMore}, nil
+	items, hasMore := paginate(graphs, page, size)
+	return GraphPageView{Items: items, Page: page, PageSize: size, Total: len(graphs), HasMore: hasMore}, nil
 }
 
 // FollowingUserPage 读取关注的用户。

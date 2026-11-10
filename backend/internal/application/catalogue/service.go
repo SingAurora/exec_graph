@@ -14,6 +14,9 @@ type Repository interface {
 	Following(context.Context, string) (FollowingView, error)
 	ProfileStats(context.Context, string) (ProfileStatsView, error)
 	FeedNodeIDs(context.Context, string, int, int) ([]string, int, error)
+	NodeContext(context.Context, []string) ([]ActionView, error)
+	ProfileResourceNodeIDs(context.Context, string, string, int, int) ([]string, int, error)
+	FollowingResourceNodeIDs(context.Context, string, string, int, int) ([]string, int, error)
 }
 
 // Service 是目录读取用例入口。

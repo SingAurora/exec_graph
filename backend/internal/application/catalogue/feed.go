@@ -40,70 +40,13 @@ func (s *Service) Feed(ctx context.Context, kind string, page, limit int) (FeedV
 	if len(nodeIDs) == 0 {
 		return FeedView{Actions: []ActionView{}, Graphs: []GraphView{}, Total: total, HasMore: false}, nil
 	}
-	byGraph := map[string][]ActionView{}
-	selectedByID := map[string]ActionView{}
-	for _, id := range nodeIDs {
-		node, err := s.repository.Action(ctx, id)
-		if err != nil {
-			return FeedView{}, err
-		}
-		selectedByID[id] = node
-		if _, ok := byGraph[node.GraphID]; !ok {
-			actions, err := s.repository.Actions(ctx, node.GraphID)
-			if err != nil {
-				return FeedView{}, err
-			}
-			byGraph[node.GraphID] = actions
-		}
+	actions, err := s.repository.NodeContext(ctx, nodeIDs)
+	if err != nil {
+		return FeedView{}, err
 	}
-	allByID := map[string]ActionView{}
-	for _, actions := range byGraph {
-		for _, action := range actions {
-			allByID[action.ID] = action
-		}
+	graphs, err := s.graphsForActions(ctx, actions)
+	if err != nil {
+		return FeedView{}, err
 	}
-	selected := make([]ActionView, 0, len(selectedByID))
-	for _, id := range nodeIDs {
-		selected = append(selected, selectedByID[id])
-	}
-	actions := withAncestors(selected, allByID)
-	out := FeedView{Actions: actions, Graphs: []GraphView{}, Total: total, HasMore: page*limit < total}
-	seen := map[string]bool{}
-	for _, node := range actions {
-		if seen[node.GraphID] {
-			continue
-		}
-		seen[node.GraphID] = true
-		graph, err := s.repository.Graph(ctx, node.GraphID)
-		if err != nil {
-			return FeedView{}, err
-		}
-		out.Graphs = append(out.Graphs, graph)
-	}
-	return out, nil
-}
-
-// withAncestors 返回本页节点及其所有直接/间接祖先，供前端恢复继承、约定来源和上下文。
-func withAncestors(items []ActionView, byID map[string]ActionView) []ActionView {
-	seen := make(map[string]bool)
-	result := make([]ActionView, 0, len(items))
-	var visit func(ActionView)
-	visit = func(action ActionView) {
-		if seen[action.ID] {
-			return
-		}
-		seen[action.ID] = true
-		result = append(result, action)
-		for _, parent := range append([]string{action.ParentID}, action.MergedParentIDs...) {
-			if parent != "" {
-				if next, ok := byID[parent]; ok {
-					visit(next)
-				}
-			}
-		}
-	}
-	for _, item := range items {
-		visit(item)
-	}
-	return result
+	return FeedView{Actions: actions, Graphs: graphs, Total: total, HasMore: page*limit < total}, nil
 }
