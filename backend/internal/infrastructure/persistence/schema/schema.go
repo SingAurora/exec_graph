@@ -163,6 +163,23 @@ func Migrate(ctx context.Context, db *gorm.DB) error {
 				return fmt.Errorf("记录图片 owner 迁移版本: %w", err)
 			}
 		}
+		if applied < 12 {
+			statements := []string{
+				"UPDATE media_assets a JOIN users u ON u.avatar_asset_uuid = a.uuid OR u.cover_asset_uuid = a.uuid SET a.attached_type = 'profile', a.attached_uuid = u.uuid WHERE a.attached_uuid IS NULL AND a.status <> 'deleted'",
+				"UPDATE media_assets a JOIN graphs g ON g.avatar_asset_uuid = a.uuid OR g.cover_asset_uuid = a.uuid SET a.attached_type = 'graph', a.attached_uuid = g.uuid WHERE a.attached_uuid IS NULL AND a.status <> 'deleted'",
+				"UPDATE media_assets a JOIN action_images i ON i.asset_uuid = a.uuid SET a.attached_type = 'action', a.attached_uuid = i.node_uuid WHERE a.attached_uuid IS NULL AND a.status <> 'deleted'",
+				"UPDATE media_assets a JOIN document_images i ON i.asset_uuid = a.uuid SET a.attached_type = 'document', a.attached_uuid = i.document_version_uuid WHERE a.attached_uuid IS NULL AND a.status <> 'deleted'",
+				"UPDATE media_assets a JOIN profile_biography_images i ON i.asset_uuid = a.uuid SET a.attached_type = 'profile', a.attached_uuid = i.user_uuid WHERE a.attached_uuid IS NULL AND a.status <> 'deleted'",
+			}
+			for _, statement := range statements {
+				if err := conn.Exec(statement).Error; err != nil {
+					return fmt.Errorf("回填图片 owner: %w", err)
+				}
+			}
+			if err := conn.Create(&model.SchemaVersion{Version: 12, AppliedAt: time.Now().UTC()}).Error; err != nil {
+				return fmt.Errorf("记录图片 owner 回填版本: %w", err)
+			}
+		}
 		if applied < 10 {
 			if conn.Migrator().HasColumn(&model.UserCredential{}, "password_hash") {
 				if conn.Migrator().HasConstraint(&model.UserCredential{}, "ck_user_credentials") {

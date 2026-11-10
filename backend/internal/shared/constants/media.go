@@ -9,8 +9,8 @@ const (
 	MaxImagePixels = 20_000_000
 	// MultipartOverhead 为 multipart 边界与文件头预留空间。
 	MultipartOverhead = 64 << 10
-	// UnusedMediaRetention 为未保存的上传保留一天。
-	UnusedMediaRetention = 24 * time.Hour
+	// UnusedMediaRetention 为未绑定业务的上传保留七天。
+	UnusedMediaRetention = 7 * 24 * time.Hour
 	// DraftMediaRetention 从最后一次显式草稿续期保留七天。
 	DraftMediaRetention = 7 * 24 * time.Hour
 	// MediaCleanupInterval 是进程内清理扫描间隔。

@@ -54,6 +54,10 @@ func (t *graphTransaction) Create(view catalogue.GraphView) error {
 
 func (t *graphTransaction) Update(input app.UpdateGraphInput) error {
 	columns := []string{"Title", "Description", "AvatarAssetUUID", "CoverAssetUUID", "Version", "UpdatedAt"}
+	var previous model.Graph
+	if err := t.DB.Select("avatar_asset_uuid", "cover_asset_uuid").Where("uuid = ?", input.GraphID).Take(&previous).Error; err != nil {
+		return err
+	}
 	row := model.Graph{Title: input.Title, Description: input.Description, AvatarAssetUUID: input.AvatarAssetID, CoverAssetUUID: input.BackgroundAssetID, Version: input.ExpectedVersion + 1, UpdatedAt: time.Now().UTC()}
 	if err := t.DB.Model(&model.Graph{}).Where("uuid = ?", input.GraphID).Select(columns).Updates(row).Error; err != nil {
 		return err
@@ -65,7 +69,20 @@ func (t *graphTransaction) Update(input app.UpdateGraphInput) error {
 	if input.BackgroundAssetID != nil {
 		assets = append(assets, *input.BackgroundAssetID)
 	}
-	return media.BindAssets(t.DB, t.Actor.UserID, "graph", input.GraphID, assets)
+	if err := media.BindAssets(t.DB, t.Actor.UserID, "graph", input.GraphID, assets); err != nil {
+		return err
+	}
+	stale := []string{}
+	keep := map[string]bool{}
+	for _, id := range assets {
+		keep[id] = true
+	}
+	for _, id := range []*string{previous.AvatarAssetUUID, previous.CoverAssetUUID} {
+		if id != nil && !keep[*id] {
+			stale = append(stale, *id)
+		}
+	}
+	return media.MarkAssetsDeleted(t.DB, t.Actor.UserID, stale)
 }
 
 func (t *graphTransaction) Delete(uuid string) error {

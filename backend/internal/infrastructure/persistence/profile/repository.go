@@ -35,6 +35,10 @@ func (t *profileTransaction) Version() (uint32, error) {
 }
 
 func (t *profileTransaction) Update(input app.UpdateProfileInput) error {
+	var previous model.User
+	if err := t.DB.Select("avatar_asset_uuid", "cover_asset_uuid").Where("uuid = ?", t.Actor.UserID).Take(&previous).Error; err != nil {
+		return err
+	}
 	if err := t.DB.Model(&model.User{}).Where("uuid = ?", t.Actor.UserID).Select("Name", "Gender", "BiographyMarkdown", "LocationCode", "AvatarAssetUUID", "CoverAssetUUID", "Version", "UpdatedAt").Updates(model.User{Name: input.Name, Gender: input.Gender, BiographyMarkdown: input.Bio, LocationCode: input.LocationCode.Value, AvatarAssetUUID: input.AvatarAssetID, CoverAssetUUID: input.BackgroundAssetID, Version: input.ExpectedVersion + 1, UpdatedAt: time.Now().UTC()}).Error; err != nil {
 		return err
 	}
@@ -45,7 +49,20 @@ func (t *profileTransaction) Update(input app.UpdateProfileInput) error {
 	if input.BackgroundAssetID != nil {
 		assets = append(assets, *input.BackgroundAssetID)
 	}
-	return media.BindAssets(t.DB, t.Actor.UserID, "profile", t.Actor.UserID, assets)
+	if err := media.BindAssets(t.DB, t.Actor.UserID, "profile", t.Actor.UserID, assets); err != nil {
+		return err
+	}
+	stale := []string{}
+	keep := map[string]bool{}
+	for _, id := range assets {
+		keep[id] = true
+	}
+	for _, id := range []*string{previous.AvatarAssetUUID, previous.CoverAssetUUID} {
+		if id != nil && !keep[*id] {
+			stale = append(stale, *id)
+		}
+	}
+	return media.MarkAssetsDeleted(t.DB, t.Actor.UserID, stale)
 }
 
 func (t *profileTransaction) Candidates(ids []string) ([]app.Candidate, error) {

@@ -281,8 +281,8 @@ function AppContent({ profile, sources, profileStats, darkMode, toggleTheme, onL
     if (!graph) {
       throw new Error('行动图不存在')
     }
-    const avatarAssetUuid = await imageAsset(patch.avatar, graph.avatar, graph.avatarAssetUuid)
-    const backgroundAssetUuid = await imageAsset(patch.backgroundImage, graph.backgroundImage, graph.backgroundAssetUuid)
+    const avatarAssetUuid = await imageAsset(patch.avatar, graph.avatar, graph.avatarAssetUuid, 'graph:' + graphUuid)
+    const backgroundAssetUuid = await imageAsset(patch.backgroundImage, graph.backgroundImage, graph.backgroundAssetUuid, 'graph:' + graphUuid)
     await commands.graphUpdate.mutateAsync({ graphUuid: graphUuid, expectedVersion: graph.version, title: patch.title, description: patch.description, avatarAssetUuid, backgroundAssetUuid })
   }
   const deleteGraph = async (graphUuid: string, expectedNodeCount: number) => {
@@ -315,8 +315,8 @@ function AppContent({ profile, sources, profileStats, darkMode, toggleTheme, onL
     return true
   }
   const saveProfile = async (value: UserProfile) => {
-    const avatarAssetUuid = await imageAsset(value.avatar, profile.avatar, profile.avatarAssetUuid)
-    const backgroundAssetUuid = await imageAsset(value.backgroundImage, profile.backgroundImage, profile.backgroundAssetUuid)
+    const avatarAssetUuid = await imageAsset(value.avatar, profile.avatar, profile.avatarAssetUuid, 'profile:' + profile.uuid)
+    const backgroundAssetUuid = await imageAsset(value.backgroundImage, profile.backgroundImage, profile.backgroundAssetUuid, 'profile:' + profile.uuid)
     await commands.profileUpdate.mutateAsync({ name: value.name, bio: value.bio, gender: value.gender, locationCode: value.location?.code ?? null, avatarAssetUuid, backgroundAssetUuid, expectedVersion: profile.version })
   }
   const profileReturnGraph = route === 'profile' ? query.get('fromGraph') : null
