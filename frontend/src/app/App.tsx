@@ -65,15 +65,11 @@ export function App() {
   }, [])
   // ── 账号切换时清理业务缓存 ──
   // 公开数据、游客数据和旧账号数据不能混用。
-  const previousUser = useRef<string | null | undefined>(undefined)
+  const previousUserId = useRef(user?.uuid ?? null)
   useEffect(() => {
     const current = user?.uuid ?? null
-    if (previousUser.current === undefined) {
-      previousUser.current = current
-      return
-    }
-    if (previousUser.current === current) return
-    previousUser.current = current
+    if (previousUserId.current === current) return
+    previousUserId.current = current
     void client.cancelQueries()
     client.removeQueries()
   }, [client, user?.uuid])
