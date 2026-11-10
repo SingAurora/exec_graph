@@ -2,7 +2,7 @@ import { ImagePlus, X } from 'lucide-react'
 import { Dialog } from 'radix-ui'
 import { useEffect, useRef, useState } from 'react'
 import { ACTION_IMAGE_NOTE_LIMIT } from '../../../entities/action/model/limits'
-import { dataUrlToFile, imageCompressionThreshold, loadImage, readImageFile, renderScaledImage } from '../../../shared/lib/image'
+import { compressImageFile, imageCompressionThreshold } from '../../../shared/lib/image'
 import type { PostImage } from '../../../shared/model/content'
 import { ImagePreview } from '../../../shared/ui/ImagePreview'
 import { retainImages, uploadImage } from '../api/media'
@@ -14,6 +14,7 @@ export function DraftImages({ images, ready, disabled, onChange, onBusyChange }:
 }) {
   const [error, setError] = useState('')
   const [uploading, setUploading] = useState(false)
+  const [pending, setPending] = useState<{ url: string; name: string } | null>(null)
   const [previewIndex, setPreviewIndex] = useState<number | null>(null)
   const input = useRef<HTMLInputElement>(null)
   const signature = images.map((image) => image.assetUuid).join(',')
@@ -33,30 +34,34 @@ export function DraftImages({ images, ready, disabled, onChange, onBusyChange }:
   const selectImage = async (file: File) => {
     setError('')
     if (!file.type.startsWith('image/')) { setError('请选择图片文件'); return }
+    const previewUrl = URL.createObjectURL(file)
+    setPending({ url: previewUrl, name: file.name })
     setUploading(true); onBusyChange(true)
     try {
-      // 不假设图片比例：保持完整画面，只按最长边缩放并压缩。
-      const source = await readImageFile(file)
-      const image = await loadImage(source)
-      const compressed = renderScaledImage(image, { maxWidth: 1600, maxHeight: 1600, quality: file.size > imageCompressionThreshold ? .78 : .88 })
-      const asset = await uploadImage(dataUrlToFile(compressed, 'action-image.jpg'))
+      // 不假设图片比例：保持完整画面，Worker 中按最长边缩放并压缩。
+      const blob = await compressImageFile(file, { maxWidth: 1600, maxHeight: 1600, quality: file.size > imageCompressionThreshold ? .78 : .88 })
+      const asset = await uploadImage(new File([blob], 'action-image.jpg', { type: 'image/jpeg' }))
       await retainImages([asset.assetUuid])
       onChange([...images, { assetUuid: asset.assetUuid, url: asset.url, alt: '' }])
     } catch (error) { setError(error instanceof Error ? error.message : '图片处理失败，请选择其他图片') }
-    finally { setUploading(false); onBusyChange(false) }
+    finally { URL.revokeObjectURL(previewUrl); setPending(null); setUploading(false); onBusyChange(false) }
   }
 
   return (
     <>
       <div className="grid gap-3">
         <div className="flex flex-wrap items-center gap-3">
-          <button className="quiet-button" type="button" disabled={!ready || disabled || uploading || images.length >= 12} onClick={() => input.current?.click()}><ImagePlus size={15} />{uploading ? '处理中…' : '添加图片'}</button>
+          <button className="quiet-button" type="button" disabled={!ready || disabled || uploading || images.length >= 12} onClick={() => input.current?.click()}><ImagePlus size={15} />{uploading ? '上传中…' : '添加图片'}</button>
           <span className="text-xs text-muted">{images.length}/12</span>
         </div>
         <input className="sr-only" type="file" accept="image/jpeg,image/png,image/webp" ref={input} title="上传行动配图" disabled={!ready || disabled || uploading} onChange={(event) => {
           const file = event.target.files?.[0]; event.target.value = ''
           if (file && images.length < 12 && !uploading) void selectImage(file)
         }} />
+        {pending && <div className="relative flex h-16 w-20 flex-none items-center justify-center overflow-hidden rounded border border-line bg-soft">
+          <img className="absolute size-20 object-cover opacity-40" src={pending.url} alt={pending.name} />
+          <span className="relative rounded bg-surface/90 px-1.5 py-0.5 text-[10px] text-copy">上传中…</span>
+        </div>}
         {images.map((image, index) => {
           const count = [...image.alt].length
           return <div className="flex items-start gap-3" key={image.assetUuid}>

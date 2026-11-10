@@ -110,3 +110,42 @@ export function renderRectangularCroppedImage(image: HTMLImageElement, crop: Rec
   context.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, canvas.width, canvas.height)
   return canvas.toDataURL(options.mimeType ?? 'image/jpeg', options.quality)
 }
+
+/** 在 Worker 中把图片缩放并编码为 JPEG Blob；不支持时回退主线程异步编码。 */
+export async function compressImageFile(file: File, options: ScaledImageOptions): Promise<Blob> {
+  if (typeof Worker !== 'undefined' && typeof OffscreenCanvas !== 'undefined') {
+    try {
+      const worker = new Worker(new URL('./image.worker.ts', import.meta.url), { type: 'module' })
+      const result = await new Promise<Blob>((resolve, reject) => {
+        worker.onmessage = (event: MessageEvent<{ blob?: Blob; error?: string }>) => {
+          if (event.data.blob) resolve(event.data.blob)
+          else reject(new Error(event.data.error ?? '图片处理失败'))
+        }
+        worker.onerror = () => reject(new Error('图片处理失败'))
+        worker.postMessage({ file, ...options })
+      })
+      worker.terminate()
+      return result
+    } catch {
+      // 回退到主线程的异步编码。
+    }
+  }
+  const source = URL.createObjectURL(file)
+  try {
+    const image = await loadImage(source)
+    const scale = Math.min(1, options.maxWidth / image.naturalWidth, options.maxHeight / image.naturalHeight)
+    const width = Math.max(1, Math.round(image.naturalWidth * scale))
+    const height = Math.max(1, Math.round(image.naturalHeight * scale))
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const context = canvas.getContext('2d')
+    if (!context) throw new Error('当前浏览器不支持图片处理')
+    context.fillStyle = '#ffffff'
+    context.fillRect(0, 0, width, height)
+    context.drawImage(image, 0, 0, width, height)
+    return await new Promise<Blob>((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('图片处理失败')), 'image/jpeg', options.quality))
+  } finally {
+    URL.revokeObjectURL(source)
+  }
+}
