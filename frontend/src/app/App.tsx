@@ -42,6 +42,14 @@ import { ActionArchivePage } from '../pages/ActionArchivePage'
 const legendPreferenceKey = 'execg.actionGraph.showLegend'
 const emptyProfileStats = { actions: 0, expressions: 0, agreements: 0 }
 
+function AuthLoading() {
+  return (
+    <main className="mx-auto w-[min(1200px,calc(100%-72px))] pt-[30px] max-[1000px]:w-[min(920px,calc(100%-48px))]">
+      <div className="pt-6"><ListSkeleton rows={5} /></div>
+    </main>
+  )
+}
+
 /** 应用的数据入口：认证状态由 Zustand 提供，业务数据由 Query 提供。 */
 export function App() {
   // ── 认证状态与业务数据 ──
@@ -96,52 +104,42 @@ export function App() {
   // ── 认证分支渲染 ──
   // 未知 hash 不静默回退首页。
   if (!knownRoute) return <NotFoundScreen />
-  // 会话读取失败时保留错误，允许重试；不能误判成未登录。
-  if (status === 'error') return (
-    <main className="grid min-h-dvh place-content-center gap-4 bg-paper p-8 text-center text-sm text-copy">
-      <p>{authError ?? '无法读取登录状态，请重试'}</p>
-      <button className="quiet-button" type="button" onClick={() => { void retryAuth() }}>重试</button>
-    </main>
-  )
-  // 启动检查期间还没有可信的登录状态。
-  if (status === 'booting' || (status === 'signed-in' && !user)) return (
-    <main className="mx-auto w-[min(1200px,calc(100%-72px))] pt-[30px] max-[1000px]:w-[min(920px,calc(100%-48px))]">
-      <div className="pt-6"><ListSkeleton rows={5} /></div>
-    </main>
-  )
-  // 未登录：认证页走 AuthScreen，其余走公开浏览。
-  if (status === 'signed-out') {
-    if (isAuthView(rawView)) return (
-      <AuthScreen key={authView} view={authView} />
-    )
-    return (
-      <GuestApp remoteFeed />
-    )
-  }
-  if (!user) return null
 
-  // 认证和业务数据都就绪，挂载完整应用。
-  return (
+  const renderSignedIn = (profile: AccountProfile) => (
     <>
       <AppContent
-        key={user.uuid}
+        key={profile.uuid}
         darkMode={darkMode} toggleTheme={toggleTheme} onLogout={exit}
-        profile={user}
+        profile={profile}
         sources={sources}
         profileStats={accountProfileStats ?? emptyProfileStats}
       />
       {accountError && (
-        <div
-          className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-lg border border-line bg-surface px-4 py-3 text-sm text-copy"
-        >
+        <div className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-lg border border-line bg-surface px-4 py-3 text-sm text-copy">
           <span>{accountError.message}</span>
-          <button className="text-button" type="button" onClick={accountRetry}>
-            重试
-          </button>
+          <button className="text-button" type="button" onClick={accountRetry}>重试</button>
         </div>
       )}
     </>
   )
+
+  switch (status) {
+    case 'error':
+      return (
+        <main className="grid min-h-dvh place-content-center gap-4 bg-paper p-8 text-center text-sm text-copy">
+          <p>{authError ?? '无法读取登录状态，请重试'}</p>
+          <button className="quiet-button" type="button" onClick={() => { void retryAuth() }}>重试</button>
+        </main>
+      )
+    case 'booting':
+      return <AuthLoading />
+    case 'signed-out':
+      if (isAuthView(rawView)) return <AuthScreen key={authView} view={authView} />
+      return <GuestApp remoteFeed />
+    case 'signed-in':
+      if (!user) return <AuthLoading />
+      return renderSignedIn(user)
+  }
 }
 
 /** 应用装配层：把 Query 中的业务数据、路由和写入回调连接到页面及工作区。 */
