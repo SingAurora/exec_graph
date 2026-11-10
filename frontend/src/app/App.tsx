@@ -41,6 +41,7 @@ import { ActionArchivePage } from '../pages/ActionArchivePage'
 
 const legendPreferenceKey = 'execg.actionGraph.showLegend'
 const emptyProfileStats = { actions: 0, expressions: 0, agreements: 0 }
+const emptySources: FollowedSources = { userUuids: [], graphUuids: [], users: [] }
 
 function AuthLoading() {
   return (
@@ -87,7 +88,7 @@ export function App() {
   const scope = user?.uuid ?? 'public'
   const following = useQuery({ queryKey: followingKeys.sources(scope), queryFn: ({ signal }) => readFollowing(signal), enabled: signedIn })
   const profileStats = useQuery({ queryKey: profileStatsKey(user?.uuid ?? ''), queryFn: ({ signal }) => readProfileStats(user!.uuid, signal), enabled: signedIn })
-  const sources = signedIn && following.data ? following.data : { userUuids: [], graphUuids: [], users: [] }
+  const sources = following.data ?? emptySources
   const accountProfileStats = profileStats.data
   const accountError = following.error ?? profileStats.error
   const accountRetry = () => { if (signedIn) { void following.refetch(); void profileStats.refetch() } }
