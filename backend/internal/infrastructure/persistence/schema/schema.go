@@ -155,6 +155,14 @@ func Migrate(ctx context.Context, db *gorm.DB) error {
 				return fmt.Errorf("记录邮箱长度迁移版本: %w", err)
 			}
 		}
+		if applied < 11 {
+			if err := conn.Session(&gorm.Session{NewDB: true}).Set("gorm:table_options", "ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_cs").AutoMigrate(&model.MediaAsset{}); err != nil {
+				return fmt.Errorf("增加图片 owner: %w", err)
+			}
+			if err := conn.Create(&model.SchemaVersion{Version: 11, AppliedAt: time.Now().UTC()}).Error; err != nil {
+				return fmt.Errorf("记录图片 owner 迁移版本: %w", err)
+			}
+		}
 		if applied < 10 {
 			if conn.Migrator().HasColumn(&model.UserCredential{}, "password_hash") {
 				if conn.Migrator().HasConstraint(&model.UserCredential{}, "ck_user_credentials") {

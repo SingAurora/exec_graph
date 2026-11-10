@@ -45,5 +45,5 @@ const (
 	// MaxJSONBytes 限制单次 JSON 请求容量。
 	MaxJSONBytes = 1 << 20
 	// LatestSchemaVersion 是当前应用要求的迁移版本。
-	LatestSchemaVersion uint64 = 10
+	LatestSchemaVersion uint64 = 11
 )
