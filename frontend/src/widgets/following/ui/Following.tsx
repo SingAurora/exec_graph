@@ -46,10 +46,10 @@ export function Following({ scope, active, initialTab = 'expressions', sources: 
   const followedUsers = useMemo(() => [...new Map([...source.users, ...(usersQuery.data?.items ?? [])].map((user) => [user.uuid, user])).values()], [source.users, usersQuery.data?.items])
 
   const expressionActions = useMemo(() => expressions.data?.actions ?? [], [expressions.data?.actions])
-  const expressionNodes = useMemo(() => (expressions.data?.items ?? []).flatMap((id) => { const node = expressionActions.find((item) => item.uuid === id); return node ? [node] : [] }), [expressionActions, expressions.data?.items])
+  const expressionNodes = useMemo(() => expressions.data?.items ?? [], [expressions.data?.items])
   const agreementActions = useMemo(() => agreements.data?.actions ?? [], [agreements.data?.actions])
   const agreementReferences = useMemo(() => {
-    const selected = new Set(agreements.data?.items ?? [])
+    const selected = new Set((agreements.data?.items ?? []).map((item) => item.uuid))
     return getSatisfiedAgreementResponses(getActionReferences(agreementActions)).filter((reference) => selected.has(reference.target.uuid))
   }, [agreementActions, agreements.data?.items])
 

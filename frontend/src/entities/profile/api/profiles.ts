@@ -33,7 +33,7 @@ export async function readSession(signal?: AbortSignal): Promise<SessionView | n
 }
 
 export type ProfileActionPage = {
-  items: string[]
+  items: VersionedAction[]
   actions: VersionedAction[]
   graphs: GraphView[]
   total: number
@@ -51,8 +51,8 @@ export const profileTabKeys = {
 }
 
 function actionPage(path: `/api/commands/${string}/${string}`, userUuid: string, signal?: AbortSignal) {
-  return getAPI<{ items: string[]; actions: ActionContextNode[]; graphs: GraphView[]; total: number; hasMore: boolean }>(path, { userUuid, page: 1, pageSize: 50 }, { signal })
-    .then((data) => ({ items: data.items, actions: data.actions.map(actionFromView), graphs: data.graphs, total: data.total, hasMore: data.hasMore }))
+  return getAPI<{ items: ActionContextNode[]; actions: ActionContextNode[]; graphs: GraphView[]; total: number; hasMore: boolean }>(path, { userUuid, page: 1, pageSize: 50 }, { signal })
+    .then((data) => ({ items: data.items.map(actionFromView), actions: data.actions.map(actionFromView), graphs: data.graphs, total: data.total, hasMore: data.hasMore }))
 }
 
 export function readProfileInfo(userUuid: string, signal?: AbortSignal): Promise<UserProfile> {

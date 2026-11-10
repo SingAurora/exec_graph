@@ -8,7 +8,7 @@ import (
 
 // ActionPageView 是一个行动类资源页：Items 只含当前页被选中的节点，Actions 含这些节点和祖先。
 type ActionPageView struct {
-	Items    []string     `json:"items"`
+	Items    []ActionView `json:"items"`
 	Actions  []ActionView `json:"actions"`
 	Graphs   []GraphView  `json:"graphs"`
 	Page     int          `json:"page"`
@@ -42,6 +42,20 @@ func paginate[T any](items []T, page, size int) ([]T, bool) {
 		end = len(items)
 	}
 	return items[start:end], end < len(items)
+}
+
+func buildActionItems(ids []string, actions []ActionView) []ActionView {
+	byID := make(map[string]ActionView, len(actions))
+	for _, action := range actions {
+		byID[action.ID] = action
+	}
+	items := make([]ActionView, 0, len(ids))
+	for _, id := range ids {
+		if action, ok := byID[id]; ok {
+			items = append(items, action)
+		}
+	}
+	return items
 }
 
 func (s *Service) graphsForActions(ctx context.Context, actions []ActionView) ([]GraphView, error) {
@@ -84,7 +98,7 @@ func (s *Service) ProfileActionPage(ctx context.Context, userUUID, resource stri
 	if err != nil {
 		return ActionPageView{}, err
 	}
-	return ActionPageView{Items: ids, Actions: actions, Graphs: graphs, Page: page, PageSize: size, Total: total, HasMore: page*size < total}, nil
+	return ActionPageView{Items: buildActionItems(ids, actions), Actions: actions, Graphs: graphs, Page: page, PageSize: size, Total: total, HasMore: page*size < total}, nil
 }
 
 // ProfileGraphPage 读取用户参与的图。
@@ -125,7 +139,7 @@ func (s *Service) FollowingActionPage(ctx context.Context, userUUID, resource st
 	if err != nil {
 		return ActionPageView{}, err
 	}
-	return ActionPageView{Items: ids, Actions: actions, Graphs: graphs, Page: page, PageSize: size, Total: total, HasMore: page*size < total}, nil
+	return ActionPageView{Items: buildActionItems(ids, actions), Actions: actions, Graphs: graphs, Page: page, PageSize: size, Total: total, HasMore: page*size < total}, nil
 }
 
 // FollowingGraphPage 读取关注的图。

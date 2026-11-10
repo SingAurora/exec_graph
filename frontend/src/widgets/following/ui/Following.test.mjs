@@ -46,7 +46,7 @@ describe('following navigation and empty states', () => {
 
   test('an unfamiliar responder explains the followed author and still targets the actual arrow', () => {
     const actions = [node(1, { agreementMarkdown: '记录实际用时' }), node(2, { authorUuid: 'miao', parentUuid: '1', referenceAgreements: [{ sourceUuid: '1', complies: true }] })]
-    const html = render({ sources: { userUuids: ['lin'], graphUuids: [], users: [users[0]] }, agreements: { items: ['2'], actions, graphs, total: 1, hasMore: false } }, 'agreements')
+    const html = render({ sources: { userUuids: ['lin'], graphUuids: [], users: [users[0]] }, agreements: { items: actions.filter((a) => a.uuid === '2'), actions, graphs, total: 1, hasMore: false } }, 'agreements')
     expect(html).toContain('回应了你关注的')
     expect(html).toContain('data-reference-id="1:2"')
   })
@@ -57,8 +57,8 @@ describe('following navigation and empty states', () => {
       node(2, { authorUuid: 'miao', parentUuid: '1', referenceAgreements: [{ sourceUuid: '1', complies: true }] }),
     ]
     const sources = { userUuids: [], graphUuids: ['cooking'], users: users }
-    const followingExpressions = render({ sources, userPage: { items: users, total: 2 }, expressions: { items: ['2'], actions, graphs, total: 1, hasMore: false } }, 'expressions')
-    const followingAgreements = render({ sources, userPage: { items: users, total: 2 }, agreements: { items: ['2'], actions, graphs, total: 1, hasMore: false } }, 'agreements')
+    const followingExpressions = render({ sources, userPage: { items: users, total: 2 }, expressions: { items: actions.filter((a) => a.uuid === '2'), actions, graphs, total: 1, hasMore: false } }, 'expressions')
+    const followingAgreements = render({ sources, userPage: { items: users, total: 2 }, agreements: { items: actions.filter((a) => a.uuid === '2'), actions, graphs, total: 1, hasMore: false } }, 'agreements')
     const discovery = renderToStaticMarkup(createElement(QueryClientProvider, { client: new QueryClient() }, createElement(Discovery, {
       actions, graphs, users, active: true, onOpenNode: noop, onOpenReference: noop, onOpenGraph: noop, onSearchGraphs: noop,
     })))

@@ -13,7 +13,7 @@ export function readFollowing(signal?: AbortSignal): Promise<FollowedSources> {
 }
 
 export type FollowingActionPage = {
-  items: string[]
+  items: VersionedAction[]
   actions: VersionedAction[]
   graphs: GraphView[]
   total: number
@@ -31,8 +31,8 @@ export const followingTabKeys = {
 }
 
 function actionPage(path: `/api/commands/${string}/${string}`, signal?: AbortSignal) {
-  return getAPI<{ items: string[]; actions: ActionContextNode[]; graphs: GraphView[]; total: number; hasMore: boolean }>(path, { page: 1, pageSize: 50 }, { signal })
-    .then((data) => ({ items: data.items, actions: data.actions.map(actionFromView), graphs: data.graphs, total: data.total, hasMore: data.hasMore }))
+  return getAPI<{ items: ActionContextNode[]; actions: ActionContextNode[]; graphs: GraphView[]; total: number; hasMore: boolean }>(path, { page: 1, pageSize: 50 }, { signal })
+    .then((data) => ({ items: data.items.map(actionFromView), actions: data.actions.map(actionFromView), graphs: data.graphs, total: data.total, hasMore: data.hasMore }))
 }
 
 export function readFollowingExpressions(signal?: AbortSignal): Promise<FollowingActionPage> {
