@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	"github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/schema"
@@ -28,9 +29,11 @@ func Run() error {
 	}
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	maintenanceCtx, endMaintenance := context.WithCancel(ctx)
-	maintenanceDone := make(chan struct{})
-	go func() { defer close(maintenanceDone); maintainMedia(maintenanceCtx, deps, logger) }()
-	defer func() { endMaintenance(); <-maintenanceDone }()
+	var maintenance sync.WaitGroup
+	maintenance.Add(2)
+	go func() { defer maintenance.Done(); maintainMedia(maintenanceCtx, deps, logger) }()
+	go func() { defer maintenance.Done(); maintainDrafts(maintenanceCtx, deps, logger) }()
+	defer func() { endMaintenance(); maintenance.Wait() }()
 	servers, err := webServers(deps.Config.App, HTTP(deps, logger))
 	if err != nil {
 		return err

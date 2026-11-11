@@ -11,6 +11,7 @@ import type { CreateActionInput } from '../../features/action/api/commands'
 import type { Graph } from '../../entities/graph/model/types'
 import type { AccountProfile } from '../../entities/profile/api/profiles'
 import type { UserProfile } from '../../entities/profile/model/types'
+import type { DraftScope } from '../../entities/draft/api/drafts'
 
 type WorkspaceMode = 'action' | 'expression' | 'agreement'
 
@@ -40,7 +41,7 @@ export function WorkspaceOutlet({ mode, graph, parent, parentUuid, node, actions
     if (!node) return <WorkspaceFallback />
     return (
       <AgreementWorkspace
-        draftKey={getActionDraftKey(profile.uuid, node.graphUuid, 'agreement', node.uuid)}
+        draftScope={{ type: 'agreement', graphUuid: node.graphUuid, nodeUuid: node.uuid } satisfies DraftScope}
         key={profile.uuid + ':agreement-' + node.uuid}
         node={node}
         actions={graphActions}
@@ -55,7 +56,7 @@ export function WorkspaceOutlet({ mode, graph, parent, parentUuid, node, actions
     if (!node) return <WorkspaceFallback />
     return (
       <ExpressionWorkspace
-        draftKey={getActionDraftKey(profile.uuid, node.graphUuid, 'expression', node.uuid)}
+        draftScope={{ type: 'expression', graphUuid: node.graphUuid, nodeUuid: node.uuid } satisfies DraftScope}
         key={profile.uuid + ':expression-' + node.uuid}
         node={node}
         actions={graphActions}
@@ -74,7 +75,7 @@ export function WorkspaceOutlet({ mode, graph, parent, parentUuid, node, actions
     <ActionWorkspace
       graphUuid={graph.uuid}
       key={getActionDraftKey(profile.uuid, graph.uuid, 'action', parent?.uuid)}
-      draftKey={getActionDraftKey(profile.uuid, graph.uuid, 'action', parent?.uuid)}
+      draftScope={{ type: 'action', graphUuid: graph.uuid, parentUuid: parent?.uuid } satisfies DraftScope}
       profileName={profile.name} profile={profile} hasParent={Boolean(parent)}
       contextTitle={parent?.title} sourceNodeUuid={parent?.uuid}
       sourceNodeNumber={parent?.number}

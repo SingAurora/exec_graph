@@ -10,7 +10,8 @@ import type { ChatMessage, PostImage } from '../../shared/model/content'
 import type { UserProfile } from '../../entities/profile/model/types'
 import { HelpPopover } from '../../shared/ui/help/HelpPopover'
 import { WorkspaceFrame } from './WorkspaceFrame'
-import { useLocalDraft } from '../../shared/lib/local-draft/useLocalDraft'
+import { useCloudDraft } from '../../features/draft/model/useCloudDraft'
+import type { DraftScope } from '../../entities/draft/api/drafts'
 import { LocalDraftControls } from '../../shared/ui/LocalDraftControls'
 import { BusinessRequestError } from '../../shared/api/errors'
 import { MarkdownContent } from '../../shared/ui/MarkdownContent'
@@ -21,7 +22,7 @@ type ActionWorkspaceProps = {
   graphUuid: string
   profileName: string
   profile?: UserProfile
-  draftKey?: string
+  draftScope?: DraftScope
   hasParent: boolean
   contextTitle?: string
   contextGuide?: string
@@ -39,7 +40,7 @@ type ActionWorkspaceProps = {
 }
 
 /** 行动发布工作区：同一条 AI 对话整理行动事实与表达，另行设置后续约定并核对来源。 */
-export function ActionWorkspace({ graphUuid, profileName, profile, draftKey, hasParent, contextTitle, contextGuide, inheritedExpression = '', inheritedExpressionImages = [], inheritedAgreement = '', sourceNodeUuid, sourceNodeNumber, actions, historyFacts = [], initialDocument = '', initialMessages, onBack, onConfirm }: ActionWorkspaceProps) {
+export function ActionWorkspace({ graphUuid, profileName, profile, draftScope, hasParent, contextTitle, contextGuide, inheritedExpression = '', inheritedExpressionImages = [], inheritedAgreement = '', sourceNodeUuid, sourceNodeNumber, actions, historyFacts = [], initialDocument = '', initialMessages, onBack, onConfirm }: ActionWorkspaceProps) {
   const { generate, chat } = useGeneration()
   // 背景签名用于判断草稿是否仍对应当前引用事实；来源变化后必须再对话核实，不能直接发布旧结果。
   const signatureFor = (mergedIds: string[]) => {
@@ -48,8 +49,8 @@ export function ActionWorkspace({ graphUuid, profileName, profile, draftKey, has
       facts: context?.facts ?? historyFacts, sources: context?.sources.map(({ node, agreement }) => [node.uuid, actions?.find((item) => item.uuid === node.uuid)?.version, agreement.markdown]) })
   }
   // 对话、文档和预览位置作为一份本地草稿保存；恢复完成前禁止编辑，避免初始空值覆盖旧草稿。
-  const local = useLocalDraft<ActionWorkspaceDraft>({
-    draftKey,
+  const local = useCloudDraft<ActionWorkspaceDraft>({
+    scope: draftScope,
     initialValue: { messages: initialMessages ?? [], pendingReports: [], input: '', document: initialDocument,
       details: { title: '', description: '', points: [], note: '' }, generated: Boolean(initialDocument),
       expression: { mode: hasParent ? 'inherit' : 'clear', markdown: '' }, agreementMode: 'inherit', agreementDraft: inheritedAgreement,

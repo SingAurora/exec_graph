@@ -43,4 +43,5 @@ type Repository interface {
 	Get(context.Context, identity.Actor, Scope) (*DraftView, error)
 	Save(context.Context, identity.Actor, Scope, json.RawMessage, []string, uint32) (DraftView, error)
 	Delete(context.Context, identity.Actor, Scope) error
+	Prune(context.Context, time.Time, int) (int, error)
 }

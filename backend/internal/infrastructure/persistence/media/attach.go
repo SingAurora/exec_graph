@@ -42,7 +42,10 @@ func BindAssets(db *gorm.DB, actorID, ownerType, ownerID string, assetIDs []stri
 			return fault.New(fault.Invalid, "图片尚未上传完成")
 		}
 		if asset.AttachedUUID != nil && (*asset.AttachedUUID != ownerID || asset.AttachedType == nil || *asset.AttachedType != ownerType) {
-			return fault.New(fault.Conflict, "图片已被其他内容使用")
+			// 草稿发布时允许把同一张图从 draft 转移到正式 owner。
+			if asset.AttachedType == nil || *asset.AttachedType != "draft" || ownerType == "draft" {
+				return fault.New(fault.Conflict, "图片已被其他内容使用")
+			}
 		}
 		if err := db.Model(&model.MediaAsset{}).Where("uuid = ?", assetID).Updates(model.MediaAsset{AttachedType: &ownerType, AttachedUUID: &ownerID, UpdatedAt: now}).Error; err != nil {
 			return err
@@ -80,6 +83,8 @@ func MarkAssetsDeleted(db *gorm.DB, actorID string, assetIDs []string) error {
 // MarkDraftAssetsDeleted 标记某个云端草稿绑定的全部图片为待回收。
 func MarkDraftAssetsDeleted(db *gorm.DB, actorID, draftUUID string) error {
 	var ids []string
-	if err := db.Model(&model.MediaAsset{}).Where("owner_uuid = ? AND attached_type = ? AND attached_uuid = ? AND status <> 'deleted'", actorID, "draft", draftUUID).Pluck("uuid", &ids).Error; err != nil { return err }
+	if err := db.Model(&model.MediaAsset{}).Where("owner_uuid = ? AND attached_type = ? AND attached_uuid = ? AND status <> 'deleted'", actorID, "draft", draftUUID).Pluck("uuid", &ids).Error; err != nil {
+		return err
+	}
 	return MarkAssetsDeleted(db, actorID, ids)
 }

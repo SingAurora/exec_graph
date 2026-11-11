@@ -32,10 +32,16 @@ func toView(row model.WorkspaceDraft) *app.DraftView {
 func (r *Repository) Get(ctx context.Context, actor identity.Actor, scope app.Scope) (*app.DraftView, error) {
 	var row model.WorkspaceDraft
 	err := r.db.WithContext(ctx).Where("owner_uuid = ? AND scope_key = ?", actor.UserID, app.ScopeKey(scope)).Take(&row).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) { return nil, nil }
-	if err != nil { return nil, err }
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
 	now := time.Now().UTC()
-	if err := r.db.WithContext(ctx).Model(&model.WorkspaceDraft{}).Where("uuid = ?", row.UUID).Updates(model.WorkspaceDraft{LastAccessedAt: now, UpdatedAt: now}).Error; err != nil { return nil, err }
+	if err := r.db.WithContext(ctx).Model(&model.WorkspaceDraft{}).Where("uuid = ?", row.UUID).Updates(model.WorkspaceDraft{LastAccessedAt: now, UpdatedAt: now}).Error; err != nil {
+		return nil, err
+	}
 	row.LastAccessedAt = now
 	return toView(row), nil
 }
@@ -49,19 +55,29 @@ func (r *Repository) Save(ctx context.Context, actor identity.Actor, scope app.S
 		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("owner_uuid = ? AND scope_key = ?", actor.UserID, key).Take(&row).Error
 		now := time.Now().UTC()
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			if expected != 0 { return fault.New(fault.Conflict, "草稿已被删除或尚未创建") }
+			if expected != 0 {
+				return fault.New(fault.Conflict, "草稿已被删除或尚未创建")
+			}
 			row = model.WorkspaceDraft{UUID: id.New(), OwnerUUID: actor.UserID, ScopeKey: key, WorkspaceType: scope.Type, GraphUUID: scope.GraphUUID, NodeUUID: scope.NodeUUID, ParentUUID: scope.ParentUUID, Payload: payload, Version: 1, LastAccessedAt: now, CreatedAt: now, UpdatedAt: now}
-			if err := tx.Create(&row).Error; err != nil { return err }
+			if err := tx.Create(&row).Error; err != nil {
+				return err
+			}
 		} else if err != nil {
 			return err
 		} else {
-			if row.Version != expected { return fault.New(fault.Conflict, "草稿已在其他页面更新") }
-			if err := tx.Model(&row).Updates(model.WorkspaceDraft{Payload: payload, Version: row.Version + 1, LastAccessedAt: now, UpdatedAt: now}).Error; err != nil { return err }
+			if row.Version != expected {
+				return fault.New(fault.Conflict, "草稿已在其他页面更新")
+			}
+			if err := tx.Model(&row).Updates(model.WorkspaceDraft{Payload: payload, Version: row.Version + 1, LastAccessedAt: now, UpdatedAt: now}).Error; err != nil {
+				return err
+			}
 			row.Version++
 			row.Payload = payload
 			row.LastAccessedAt = now
 		}
-		if err := media.BindAssets(tx, actor.UserID, "draft", row.UUID, assetIDs); err != nil { return err }
+		if err := media.BindAssets(tx, actor.UserID, "draft", row.UUID, assetIDs); err != nil {
+			return err
+		}
 		out = *toView(row)
 		return nil
 	})
@@ -73,9 +89,51 @@ func (r *Repository) Delete(ctx context.Context, actor identity.Actor, scope app
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var row model.WorkspaceDraft
 		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("owner_uuid = ? AND scope_key = ?", actor.UserID, app.ScopeKey(scope)).Take(&row).Error
-		if errors.Is(err, gorm.ErrRecordNotFound) { return nil }
-		if err != nil { return err }
-		if err := media.MarkDraftAssetsDeleted(tx, actor.UserID, row.UUID); err != nil { return err }
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if err := media.MarkDraftAssetsDeleted(tx, actor.UserID, row.UUID); err != nil {
+			return err
+		}
 		return tx.Where("uuid = ?", row.UUID).Delete(&model.WorkspaceDraft{}).Error
 	})
+}
+
+// Prune 删除超过保留期未访问的草稿，并标记其图片待回收。
+func (r *Repository) Prune(ctx context.Context, now time.Time, limit int) (int, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	cutoff := now.Add(-7 * 24 * time.Hour)
+	var ids []string
+	if err := r.db.WithContext(ctx).Model(&model.WorkspaceDraft{}).Where("last_accessed_at <= ?", cutoff).Order("last_accessed_at").Limit(limit).Pluck("uuid", &ids).Error; err != nil {
+		return 0, err
+	}
+	deleted := 0
+	for _, uuid := range ids {
+		err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			var row model.WorkspaceDraft
+			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("uuid = ? AND last_accessed_at <= ?", uuid, cutoff).Take(&row).Error; err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return nil
+				}
+				return err
+			}
+			if err := media.MarkDraftAssetsDeleted(tx, row.OwnerUUID, row.UUID); err != nil {
+				return err
+			}
+			if err := tx.Where("uuid = ?", row.UUID).Delete(&model.WorkspaceDraft{}).Error; err != nil {
+				return err
+			}
+			deleted++
+			return nil
+		})
+		if err != nil {
+			return deleted, err
+		}
+	}
+	return deleted, nil
 }

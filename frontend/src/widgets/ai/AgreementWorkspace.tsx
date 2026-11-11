@@ -14,16 +14,16 @@ import { useToast } from '../../shared/ui/toast/useToast'
 import { WorkspaceFrame } from './WorkspaceFrame'
 import { DefaultEffectGuide } from './DefaultEffectGuide'
 import { AgreementContent } from '../../entities/action/ui/AgreementContent'
-import { getActionDraftKey } from '../../entities/action/lib/draft-key'
-import { useLocalDraft } from '../../shared/lib/local-draft/useLocalDraft'
+import { useCloudDraft } from '../../features/draft/model/useCloudDraft'
+import type { DraftScope } from '../../entities/draft/api/drafts'
 import { LocalDraftControls } from '../../shared/ui/LocalDraftControls'
 import { appendWorkspaceError, appendWorkspaceNotice, createWorkspaceView, isExpressionWorkspaceDraft, normalizeGenerationRequest, reconcileWorkspaceDraft, type ExpressionWorkspaceDraft } from './model/workspace-draft'
 import { BusinessRequestError } from '../../shared/api/errors'
 
 /** 独立整理本节点向后传递的约定，不改写行动、表达或已有来源核对。 */
-export function AgreementWorkspace({ node, draftKey, actions, profileName, profileUuid, profile, users = [], contextGuide, onBack, onConfirm, onPublishDraft }: {
+export function AgreementWorkspace({ node, draftScope, actions, profileName, profileUuid, profile, users = [], contextGuide, onBack, onConfirm, onPublishDraft }: {
   node: ActionNode & { version: number }
-  draftKey?: string
+  draftScope?: DraftScope
   actions: ActionNode[]
   profileName: string
   profileUuid: string
@@ -50,8 +50,8 @@ export function AgreementWorkspace({ node, draftKey, actions, profileName, profi
   const expressionContext = useMemo(() => getActionExpressionContext(actions, node.uuid), [actions, node.uuid])
   const signature = JSON.stringify({ node: node.uuid, version: node.version, guide: contextGuide, agreement: node.agreementMarkdown ?? '',
     facts: expressionContext?.facts })
-  const local = useLocalDraft<ExpressionWorkspaceDraft>({
-    draftKey: draftKey ?? getActionDraftKey(profileUuid, node.graphUuid, 'agreement', node.uuid),
+  const local = useCloudDraft<ExpressionWorkspaceDraft>({
+    scope: draftScope,
     initialValue: { messages: node.agreementConversation ?? [], input: '', generated: false, contextSignature: signature, view: createWorkspaceView() },
     validate: isExpressionWorkspaceDraft,
     restore: (saved) => reconcileWorkspaceDraft({ ...saved, generationRequest: normalizeGenerationRequest(saved.generationRequest) }, signature),
