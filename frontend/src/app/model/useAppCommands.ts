@@ -24,11 +24,9 @@ export function useAppCommands(scope: string) {
   // 先用响应替换当前账号相关缓存里的节点，再标记失效，让活跃查询与服务重新对齐。
   const updateNode = (view: ActionContextNode) => {
     const node = actionFromView(view)
-    for (const query of client.getQueryCache().findAll({ queryKey: actionKeys.scope(scope) })) {
-      const ids = query.queryKey[3]
-      if (!Array.isArray(ids) || !ids.includes(node.graphUuid)) continue
-      client.setQueryData<VersionedAction[]>(query.queryKey, (nodes) => nodes ? [node, ...nodes.filter((item) => item.uuid !== node.uuid)] : nodes)
-    }
+    client.setQueryData<VersionedAction[]>(actionKeys.context(scope, node.graphUuid), (nodes) =>
+      nodes ? [node, ...nodes.filter((item) => item.uuid !== node.uuid)] : nodes,
+    )
     void client.invalidateQueries({ queryKey: actionKeys.scope(scope) })
   }
   // mutationFn 发起请求；onSuccess 仅在成功后执行。界面等待 mutateAsync 后才清理草稿。
