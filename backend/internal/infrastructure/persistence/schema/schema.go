@@ -17,7 +17,7 @@ func Models() []any {
 }
 
 func initialModels() []any {
-	return []any{&model.User{}, &model.UserCredential{}, &model.MediaAsset{}, &model.Graph{}, &model.ActionNode{}, &model.DocumentVersion{}, &model.DocumentState{}, &model.ActionReference{}, &model.AIConversation{}, &model.AIMessage{}, &model.AIGeneration{}, &model.GenerationMessage{}, &model.GenerationSource{}, &model.UserFollow{}, &model.GraphFollow{}, &model.ProfileHighlight{}, &model.IdempotencyRecord{}, &model.ActionImage{}, &model.DocumentImage{}, &model.BiographyImage{}, &model.SeedImport{}}
+	return []any{&model.User{}, &model.UserCredential{}, &model.MediaAsset{}, &model.WorkspaceDraft{}, &model.Graph{}, &model.ActionNode{}, &model.DocumentVersion{}, &model.DocumentState{}, &model.ActionReference{}, &model.AIConversation{}, &model.AIMessage{}, &model.AIGeneration{}, &model.GenerationMessage{}, &model.GenerationSource{}, &model.UserFollow{}, &model.GraphFollow{}, &model.ProfileHighlight{}, &model.IdempotencyRecord{}, &model.ActionImage{}, &model.DocumentImage{}, &model.BiographyImage{}, &model.SeedImport{}}
 }
 
 // Migrate 仅由管理命令调用，拒绝接管无迁移记录的旧业务表。
@@ -161,6 +161,14 @@ func Migrate(ctx context.Context, db *gorm.DB) error {
 			}
 			if err := conn.Create(&model.SchemaVersion{Version: 11, AppliedAt: time.Now().UTC()}).Error; err != nil {
 				return fmt.Errorf("记录图片 owner 迁移版本: %w", err)
+			}
+		}
+		if applied < 13 {
+			if err := conn.Session(&gorm.Session{NewDB: true}).Set("gorm:table_options", "ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_cs").AutoMigrate(&model.WorkspaceDraft{}); err != nil {
+				return fmt.Errorf("创建云端草稿表: %w", err)
+			}
+			if err := conn.Create(&model.SchemaVersion{Version: 13, AppliedAt: time.Now().UTC()}).Error; err != nil {
+				return fmt.Errorf("记录云端草稿迁移版本: %w", err)
 			}
 		}
 		if applied < 12 {

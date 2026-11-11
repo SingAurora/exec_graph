@@ -6,6 +6,7 @@ import (
 	"github.com/singaurora/exec-graph/backend/internal/http/endpoint/account"
 	"github.com/singaurora/exec-graph/backend/internal/http/endpoint/action"
 	"github.com/singaurora/exec-graph/backend/internal/http/endpoint/catalogue"
+	"github.com/singaurora/exec-graph/backend/internal/http/endpoint/draft"
 	"github.com/singaurora/exec-graph/backend/internal/http/endpoint/following"
 	"github.com/singaurora/exec-graph/backend/internal/http/endpoint/generation"
 	"github.com/singaurora/exec-graph/backend/internal/http/endpoint/graph"
@@ -18,7 +19,7 @@ import (
 )
 
 // New 注册当前阶段已实现的接口，不为未实现业务返回伪成功。
-func New(auth *identity.Handler, read *catalogue.Handler, graphs *graph.Handler, actions *action.Handler, profiles *profile.Handler, follows *following.Handler, images *media.Handler, ai *generation.Handler, accounts *account.Handler, origins []string, logger *slog.Logger, frontend fs.FS) *gin.Engine {
+func New(auth *identity.Handler, read *catalogue.Handler, drafts *draft.Handler, graphs *graph.Handler, actions *action.Handler, profiles *profile.Handler, follows *following.Handler, images *media.Handler, ai *generation.Handler, accounts *account.Handler, origins []string, logger *slog.Logger, frontend fs.FS) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	engine := gin.New()
 	_ = engine.SetTrustedProxies(nil)
@@ -44,6 +45,10 @@ func New(auth *identity.Handler, read *catalogue.Handler, graphs *graph.Handler,
 	group.POST("/auth/password-change", accounts.ChangePassword)
 	// 校验当前密码和新邮箱后更换绑定邮箱。
 	group.POST("/auth/email-change", accounts.ChangeEmail)
+	// 云端工作区草稿。
+	group.GET("/drafts/getInfo", drafts.Get)
+	group.POST("/drafts/save", drafts.Save)
+	group.POST("/drafts/delete", drafts.Delete)
 	// 图资源。
 	group.GET("/graphs/getList", read.GraphsPage)
 	group.GET("/graphs/getInfo", read.Graph)

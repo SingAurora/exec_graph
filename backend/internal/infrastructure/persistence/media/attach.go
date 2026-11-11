@@ -76,3 +76,10 @@ func MarkAssetsDeleted(db *gorm.DB, actorID string, assetIDs []string) error {
 		return tx.Model(&model.MediaRetention{}).Where("asset_uuid IN ?", ids).Updates(model.MediaRetention{RetainUntil: now, NextAttemptAt: now}).Error
 	})
 }
+
+// MarkDraftAssetsDeleted 标记某个云端草稿绑定的全部图片为待回收。
+func MarkDraftAssetsDeleted(db *gorm.DB, actorID, draftUUID string) error {
+	var ids []string
+	if err := db.Model(&model.MediaAsset{}).Where("owner_uuid = ? AND attached_type = ? AND attached_uuid = ? AND status <> 'deleted'", actorID, "draft", draftUUID).Pluck("uuid", &ids).Error; err != nil { return err }
+	return MarkAssetsDeleted(db, actorID, ids)
+}

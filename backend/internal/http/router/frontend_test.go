@@ -31,7 +31,7 @@ func TestFrontendAndAPIRouting(t *testing.T) {
 	}
 	read := catalogue.New(nil, nil, func(context.Context) error { return nil })
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	engine := New(nil, read, nil, nil, nil, nil, nil, nil, nil, []string{"http://example.test"}, logger, files)
+	engine := New(nil, read, nil, nil, nil, nil, nil, nil, nil, nil, []string{"http://example.test"}, logger, files)
 	for _, tc := range []struct {
 		name, method, path, contentType, body string
 		status                                int
@@ -82,7 +82,7 @@ func TestFrontendAndAPIRouting(t *testing.T) {
 		t.Fatalf("资源条件缓存不正确: %d %v %s", r.Code, r.Header(), r.Body.String())
 	}
 
-	apiOnly := New(nil, read, nil, nil, nil, nil, nil, nil, nil, nil, logger, nil)
+	apiOnly := New(nil, read, nil, nil, nil, nil, nil, nil, nil, nil, nil, logger, nil)
 	r = httptest.NewRecorder()
 	apiOnly.ServeHTTP(r, httptest.NewRequest("GET", "/", nil))
 	if r.Code != http.StatusNotFound {

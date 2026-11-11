@@ -8,6 +8,7 @@ import (
 	appaccount "github.com/singaurora/exec-graph/backend/internal/application/account"
 	appaction "github.com/singaurora/exec-graph/backend/internal/application/action"
 	appcatalogue "github.com/singaurora/exec-graph/backend/internal/application/catalogue"
+	appdraft "github.com/singaurora/exec-graph/backend/internal/application/draft"
 	appfollowing "github.com/singaurora/exec-graph/backend/internal/application/following"
 	appgeneration "github.com/singaurora/exec-graph/backend/internal/application/generation"
 	appgraph "github.com/singaurora/exec-graph/backend/internal/application/graph"
@@ -18,6 +19,7 @@ import (
 	httpaccount "github.com/singaurora/exec-graph/backend/internal/http/endpoint/account"
 	httpaction "github.com/singaurora/exec-graph/backend/internal/http/endpoint/action"
 	httpcatalogue "github.com/singaurora/exec-graph/backend/internal/http/endpoint/catalogue"
+	httpdraft "github.com/singaurora/exec-graph/backend/internal/http/endpoint/draft"
 	httpfollowing "github.com/singaurora/exec-graph/backend/internal/http/endpoint/following"
 	httpgeneration "github.com/singaurora/exec-graph/backend/internal/http/endpoint/generation"
 	httpgraph "github.com/singaurora/exec-graph/backend/internal/http/endpoint/graph"
@@ -30,6 +32,7 @@ import (
 	"github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/account"
 	"github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/action"
 	"github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/catalogue"
+	draftpersist "github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/draft"
 	"github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/following"
 	"github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/generation"
 	"github.com/singaurora/exec-graph/backend/internal/infrastructure/persistence/graph"
@@ -90,6 +93,7 @@ func HTTP(deps *Dependencies, logger *slog.Logger) http.Handler {
 	return router.New(
 		httpidentity.New(identityService),
 		httpcatalogue.New(catalogueService, identityService, ready),
+		httpdraft.New(appdraft.New(draftpersist.New(deps.DB)), identityService),
 		httpgraph.New(appgraph.New(graph.New(deps.DB)), identityService),
 		httpaction.New(appaction.New(actionStore), identityService, nodedoc.New(actionStore, analysisProvider)),
 		httpprofile.New(appprofile.New(profile.New(deps.DB)), identityService),
