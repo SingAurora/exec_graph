@@ -35,7 +35,7 @@ export function GuestApp({ remoteFeed = false }: GuestAppProps) {
     : referenceUuid ? { requestId: `guest:${referenceUuid}`, referenceUuid } : undefined
 
   return (
-    <div className="relative isolate mx-auto min-h-screen w-[min(1200px,calc(100%-72px))] pt-[30px] max-[1000px]:w-[min(920px,calc(100%-48px))]">
+    <div className="relative isolate mx-auto flex min-h-screen w-[min(1200px,calc(100%-72px))] flex-col pt-[30px] max-[1000px]:w-[min(920px,calc(100%-48px))]">
       <AppBackdrop />
       <header className="flex min-h-[66px] items-center justify-between gap-4">
         <a className="inline-flex w-max rounded-sm" href="#home" title="引序 公开内容"><Brand /></a>
@@ -45,7 +45,7 @@ export function GuestApp({ remoteFeed = false }: GuestAppProps) {
         </div>
       </header>
       {selectedGraph ? (
-        <main className="pb-20">
+        <main className="flex-1 pb-20">
           <div className="mx-auto w-full max-w-[1000px]">
           <GraphPage
             graph={selectedGraph}
@@ -71,7 +71,7 @@ export function GuestApp({ remoteFeed = false }: GuestAppProps) {
           </div>
         </main>
       ) : (
-        <main className="pb-20">
+        <main className="flex-1 pb-20">
           <Discovery
             actions={[]}
             graphs={[]}

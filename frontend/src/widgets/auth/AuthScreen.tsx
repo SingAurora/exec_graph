@@ -173,8 +173,8 @@ export function AuthScreen({view}: AuthScreenProps) {
                         {isLogin ? '还没有账号？' : isRegister ? '已经有账号？' : '想起密码了？'}
                         <a href={isLogin ? '#register' : '#login'}>{isLogin ? '注册账号' : '返回登录'}</a>
                     </p>
-                    <SiteFooter className="mt-6"/>
                 </div>
+                <SiteFooter className="auth-site-footer"/>
             </section>
         </main>
     )
