@@ -180,7 +180,7 @@ function AppContent({ profile, sources, profileStats, darkMode, toggleTheme, onL
   const workspaceGraph = graphs.find((graph) => graph.uuid === workspaceGraphUuid)
   const archiveAction = actions.find((action) => action.uuid === archiveActionId)
   // ── 深链接定位 ──
-  // 列表的深链接转成图内定位请求；revision 让重复进入同一地址也能重新定位。
+  // 列表的深链接转成图内定位请求；每次 hashchange 的 revision 让定位请求保持唯一。
   const externalFocus = useMemo(() => {
     if (route !== 'graph') {
       return undefined
