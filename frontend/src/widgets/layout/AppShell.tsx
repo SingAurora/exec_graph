@@ -107,14 +107,17 @@ export function AppShell({
                 {/* 底部：加载时隐藏资料卡和退出，只保留主题切换。 */}
                 <div className="mt-auto grid gap-5">
                     {!loading && profile && profileStats && <SidebarProfileCard profile={profile} stats={profileStats}/>}
-                    <div className={loading ? 'grid gap-[7px]' : 'grid grid-cols-2 gap-[7px]'}>
-                        <button
-                            className="inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-md border border-line bg-transparent px-[7px] py-1.5 text-xs font-semibold text-muted transition hover:border-signal hover:text-signal"
-                            type="button" onClick={onToggleTheme}><span className="inline-flex">{darkMode ? <Sun size={15}/> :
-                            <Moon size={15}/>}</span>{darkMode ? '浅色模式' : '深色模式'}</button>
-                        {!loading && onLogout && <button
-                            className="inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-md border border-line bg-transparent px-[7px] py-1.5 text-xs font-semibold text-muted transition hover:border-coral hover:text-coral"
-                            type="button" onClick={onLogout}><span className="inline-flex"><LogOut size={15}/></span>退出登录</button>}
+                    <div className="grid gap-2">
+                        <div className={loading ? 'grid gap-[7px]' : 'grid grid-cols-2 gap-[7px]'}>
+                            <button
+                                className="inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-md border border-line bg-transparent px-[7px] py-1.5 text-xs font-semibold text-muted transition hover:border-signal hover:text-signal"
+                                type="button" onClick={onToggleTheme}><span className="inline-flex">{darkMode ? <Sun size={15}/> :
+                                <Moon size={15}/>}</span>{darkMode ? '浅色模式' : '深色模式'}</button>
+                            {!loading && onLogout && <button
+                                className="inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-md border border-line bg-transparent px-[7px] py-1.5 text-xs font-semibold text-muted transition hover:border-coral hover:text-coral"
+                                type="button" onClick={onLogout}><span className="inline-flex"><LogOut size={15}/></span>退出登录</button>}
+                        </div>
+                        <SiteFooter />
                     </div>
                 </div>
             </aside>
@@ -125,7 +128,6 @@ export function AppShell({
                     <PageHeader title={pageTitle[activeView]} backAction={backAction}/>}
                 {/* 当前业务页面由 App 决定；这里只负责把它放进主内容区。 */}
                 {children}
-                <SiteFooter className="mt-12 border-t border-line pt-5"/>
             </main>
         </div>
     )
