@@ -173,7 +173,7 @@ function AppContent({ profile, sources, profileStats, darkMode, toggleTheme, onL
   const selectedGraphUuid = route === 'graph' ? query.get('graphUuid') ?? lastGraphUuid : lastGraphUuid
   const graphContextUuid = route === 'publish' ? workspaceGraphUuid ?? '' : selectedGraphUuid
   const graphEnabled = route === 'graph' || route === 'publish' || route === 'action-archive'
-  const { graph: selectedGraph, graphs, actions, users, loading: graphLoading } = useGraphContext(profile.uuid, graphContextUuid, graphEnabled)
+  const { graph: selectedGraph, graphs, actions, users, loading: graphLoading } = useGraphContext(profile.uuid, graphContextUuid, graphEnabled, route === 'graph')
   const selectedGraphActions = useMemo(() => actions.filter((action) => action.graphUuid === selectedGraphUuid), [actions, selectedGraphUuid])
   const workspaceParent = actions.find((node) => node.uuid === workspaceParentUuid && node.graphUuid === workspaceGraphUuid)
   const expressionAction = actions.find((node) => node.uuid === workspaceActionUuid && node.graphUuid === workspaceGraphUuid)
