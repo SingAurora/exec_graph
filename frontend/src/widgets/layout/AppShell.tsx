@@ -6,6 +6,7 @@ import {BackButton} from '../../shared/ui/navigation/BackButton'
 import {Brand} from '../../shared/ui/Brand'
 import {SidebarProfileCard, type SidebarProfileStats} from './SidebarProfileCard'
 import {AppBackdrop} from './AppBackdrop'
+import {SiteFooter} from '../../shared/ui/SiteFooter'
 
 type AppShellProps = {
     /** 当前用户；加载态允许为空。 */
@@ -124,6 +125,7 @@ export function AppShell({
                     <PageHeader title={pageTitle[activeView]} backAction={backAction}/>}
                 {/* 当前业务页面由 App 决定；这里只负责把它放进主内容区。 */}
                 {children}
+                <SiteFooter className="mt-12 border-t border-line pt-5"/>
             </main>
         </div>
     )

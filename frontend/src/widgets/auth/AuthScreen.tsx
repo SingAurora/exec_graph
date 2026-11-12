@@ -7,6 +7,7 @@ import {passwordMaxCharacters} from '../../entities/account/lib/validation'
 import {stripUnsafeTextCharacters} from '../../shared/lib/text-input'
 import {type AuthFieldErrors, type AuthFieldName, validateAuthField, validateAuthForm} from '../../features/auth/lib/validation'
 import {Brand} from '../../shared/ui/Brand'
+import {SiteFooter} from '../../shared/ui/SiteFooter'
 import {useToast} from '../../shared/ui/toast/useToast'
 import './auth-screen.css'
 import {resetPassword, sendCode as requestCode} from '../../features/auth/api/account'
@@ -172,6 +173,7 @@ export function AuthScreen({view}: AuthScreenProps) {
                         {isLogin ? '还没有账号？' : isRegister ? '已经有账号？' : '想起密码了？'}
                         <a href={isLogin ? '#register' : '#login'}>{isLogin ? '注册账号' : '返回登录'}</a>
                     </p>
+                    <SiteFooter className="mt-6"/>
                 </div>
             </section>
         </main>

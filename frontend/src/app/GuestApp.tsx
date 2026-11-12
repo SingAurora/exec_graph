@@ -2,6 +2,7 @@ import { ArrowLeft, LogIn } from 'lucide-react'
 import { isAppView, useHashRoute } from '../shared/lib/navigation'
 import { AppBackdrop } from '../widgets/layout/AppBackdrop'
 import { Brand } from '../shared/ui/Brand'
+import { SiteFooter } from '../shared/ui/SiteFooter'
 import { Discovery } from '../widgets/discovery/ui/Discovery'
 import { GraphPage } from '../pages/GraphPage'
 import { useGraphBackground } from '../features/graph-appearance/model/useGraphBackground'
@@ -85,6 +86,7 @@ export function GuestApp({ remoteFeed = false }: GuestAppProps) {
           />
         </main>
       )}
+      <SiteFooter className="pb-10 pt-4" />
     </div>
   )
 }

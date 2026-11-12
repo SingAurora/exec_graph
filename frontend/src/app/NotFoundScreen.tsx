@@ -1,6 +1,7 @@
 import { ArrowLeft } from 'lucide-react'
 import { AppBackdrop } from '../widgets/layout/AppBackdrop'
 import { Brand } from '../shared/ui/Brand'
+import { SiteFooter } from '../shared/ui/SiteFooter'
 
 /** 未匹配任何应用或认证路由时的独立页面。 */
 export function NotFoundScreen() {
@@ -15,6 +16,7 @@ export function NotFoundScreen() {
           <p className="text-sm leading-6 text-muted">这个地址可能已经失效，或者链接输入有误。</p>
         </div>
         <a className="quiet-button" href="#home"><ArrowLeft size={15} />返回公开内容</a>
+        <SiteFooter className="mt-4" />
       </div>
     </main>
   )
