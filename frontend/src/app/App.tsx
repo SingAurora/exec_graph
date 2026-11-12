@@ -346,7 +346,7 @@ function AppContent({ profile, sources, profileStats, darkMode, toggleTheme, onL
     >
       <div hidden={!personalAreaActive}>
         <ProfilePage
-          currentUserUuid={profile.uuid} followingIds={followingIds} active={personalAreaActive}
+          currentUserUuid={profile.uuid} followingIds={followingIds} active={personalAreaActive} cacheFirstLevel={route === 'my'}
           onCreateGraph={createGraph} onSetUserFollow={setUserFollow}
           onOpenGraph={openGraph} onOpenNode={openNode} onOpenReference={openReference}
         />

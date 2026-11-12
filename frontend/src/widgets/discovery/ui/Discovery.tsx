@@ -8,6 +8,7 @@ import type { ActionDocumentMode, ActionNode } from '../../../entities/action/mo
 import { getActiveGraphActivities } from '../../../entities/graph/lib/activity'
 import { feedKeys, readFeed } from '../../../entities/action/api/feed'
 import { ListSkeleton } from '../../../shared/ui/ListSkeleton'
+import { firstLevelPageCache } from '../../../shared/lib/query-cache'
 import { GraphContextLink } from '../../../entities/graph/ui/GraphContextLink'
 import { searchDiscoveryAgreements, searchDiscoveryExpressions } from '../../../features/search-discovery/lib/search'
 import { DiscoverySearch } from '../../../features/search-discovery/ui/DiscoverySearch'
@@ -47,6 +48,7 @@ export function Discovery({ actions, graphs, users, active, onOpenNode, onOpenRe
     initialPageParam: 1,
     getNextPageParam: (lastPage, allPages) => lastPage.hasMore ? allPages.length + 1 : undefined,
     enabled: remoteFeed && active,
+    ...firstLevelPageCache,
   })
   const feedActions = useMemo(() => {
     const byId = new Map<string, ActionNode>()

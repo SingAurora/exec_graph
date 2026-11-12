@@ -4,6 +4,7 @@ import { PublicProfile } from '../widgets/profile/PublicProfile'
 import type { ActivityTab } from '../widgets/feed/ActivityFeed'
 import { profileStatsKey, profileTabKeys, readProfileActions, readProfileAgreements, readProfileExpressions, readProfileGraphs, readProfileInfo, readProfileStats } from '../entities/profile/api/profiles'
 import { ListSkeleton } from '../shared/ui/ListSkeleton'
+import { firstLevelPageCache } from '../shared/lib/query-cache'
 
 // “我的”和用户主页共用界面；URL 可指定用户及直接打开的栏目。
 function readProfileRoute(currentUserUuid: string) {
@@ -14,24 +15,26 @@ function readProfileRoute(currentUserUuid: string) {
   return { userUuid: view === '#profile' ? query.get('userUuid') ?? '' : currentUserUuid, activityTabRequest }
 }
 
-type ProfilePageProps = Omit<ComponentProps<typeof PublicProfile>, 'profile' | 'following' | 'activityTabRequest' | 'tab' | 'onTabChange' | 'stats' | 'graphCount' | 'users' | 'graphs' | 'actions'> & { followingIds: string[] }
+type ProfilePageProps = Omit<ComponentProps<typeof PublicProfile>, 'profile' | 'following' | 'activityTabRequest' | 'tab' | 'onTabChange' | 'stats' | 'graphCount' | 'users' | 'graphs' | 'actions'> & { followingIds: string[]; cacheFirstLevel?: boolean }
 type ProfileSlotProps = ProfilePageProps & {
   userUuid: string
   followingIds: string[]
   request: ComponentProps<typeof PublicProfile>['activityTabRequest']
   active: boolean
+  cacheFirstLevel: boolean
 }
 
 /** 每个已访问主页独立读取资料，并按当前 Tab 懒加载对应资源。 */
-function ProfileSlot({ userUuid, followingIds, request, active, ...props }: ProfileSlotProps) {
+function ProfileSlot({ userUuid, followingIds, request, active, cacheFirstLevel, ...props }: ProfileSlotProps) {
+  const cacheOptions = cacheFirstLevel ? firstLevelPageCache : undefined
   const [tab, setTab] = useState<ActivityTab>(request?.value ?? 'home')
-  const info = useQuery({ queryKey: ['profiles', userUuid, 'info'], queryFn: ({ signal }) => readProfileInfo(userUuid, signal), enabled: active && Boolean(userUuid) })
-  const stats = useQuery({ queryKey: profileStatsKey(userUuid), queryFn: ({ signal }) => readProfileStats(userUuid, signal), enabled: active && Boolean(userUuid) })
-  const graphCount = useQuery({ queryKey: profileTabKeys.graphCount(userUuid), queryFn: ({ signal }) => readProfileGraphs(userUuid, 1, signal), enabled: active && Boolean(userUuid) })
-  const graphList = useQuery({ queryKey: profileTabKeys.graphs(userUuid), queryFn: ({ signal }) => readProfileGraphs(userUuid, 50, signal), enabled: active && Boolean(userUuid) && tab === 'graphs' })
-  const expressions = useQuery({ queryKey: profileTabKeys.expressions(userUuid), queryFn: ({ signal }) => readProfileExpressions(userUuid, signal), enabled: active && Boolean(userUuid) && tab === 'expressions' })
-  const agreements = useQuery({ queryKey: profileTabKeys.agreements(userUuid), queryFn: ({ signal }) => readProfileAgreements(userUuid, signal), enabled: active && Boolean(userUuid) && tab === 'agreements' })
-  const actions = useQuery({ queryKey: profileTabKeys.actions(userUuid), queryFn: ({ signal }) => readProfileActions(userUuid, signal), enabled: active && Boolean(userUuid) && (tab === 'home' || tab === 'actions' || tab === 'search') })
+  const info = useQuery({ queryKey: ['profiles', userUuid, 'info'], queryFn: ({ signal }) => readProfileInfo(userUuid, signal), enabled: active && Boolean(userUuid), ...cacheOptions })
+  const stats = useQuery({ queryKey: profileStatsKey(userUuid), queryFn: ({ signal }) => readProfileStats(userUuid, signal), enabled: active && Boolean(userUuid), ...cacheOptions })
+  const graphCount = useQuery({ queryKey: profileTabKeys.graphCount(userUuid), queryFn: ({ signal }) => readProfileGraphs(userUuid, 1, signal), enabled: active && Boolean(userUuid), ...cacheOptions })
+  const graphList = useQuery({ queryKey: profileTabKeys.graphs(userUuid), queryFn: ({ signal }) => readProfileGraphs(userUuid, 50, signal), enabled: active && Boolean(userUuid) && tab === 'graphs', ...cacheOptions })
+  const expressions = useQuery({ queryKey: profileTabKeys.expressions(userUuid), queryFn: ({ signal }) => readProfileExpressions(userUuid, signal), enabled: active && Boolean(userUuid) && tab === 'expressions', ...cacheOptions })
+  const agreements = useQuery({ queryKey: profileTabKeys.agreements(userUuid), queryFn: ({ signal }) => readProfileAgreements(userUuid, signal), enabled: active && Boolean(userUuid) && tab === 'agreements', ...cacheOptions })
+  const actions = useQuery({ queryKey: profileTabKeys.actions(userUuid), queryFn: ({ signal }) => readProfileActions(userUuid, signal), enabled: active && Boolean(userUuid) && (tab === 'home' || tab === 'actions' || tab === 'search'), ...cacheOptions })
 
   const tabData = tab === 'expressions' ? expressions.data : tab === 'agreements' ? agreements.data : actions.data
   const tabActions = useMemo(() => tab === 'graphs' ? [] : (tabData?.actions ?? []), [tab, tabData])
@@ -43,7 +46,6 @@ function ProfileSlot({ userUuid, followingIds, request, active, ...props }: Prof
     return [...byId.values()]
   }, [info.data, tabActions])
 
-  if (!active) return <div className="pt-6"><ListSkeleton rows={4} /></div>
   if (info.isLoading) return <div className="pt-6"><ListSkeleton rows={4} /></div>
   if (info.isError || !info.data) return <p className="empty-state">用户不存在</p>
   return (
@@ -65,7 +67,7 @@ function ProfileSlot({ userUuid, followingIds, request, active, ...props }: Prof
 }
 
 /** 本人和公开主页共用页面；已访问用户保持挂载，分别保留栏目、筛选和时间线位置。 */
-export function ProfilePage({ followingIds, ...props }: ProfilePageProps) {
+export function ProfilePage({ followingIds, cacheFirstLevel = false, ...props }: ProfilePageProps) {
   const [profileRoute, setProfileRoute] = useState(() => readProfileRoute(props.currentUserUuid))
   const [visited, setVisited] = useState(() => new Map([[profileRoute.userUuid, profileRoute.activityTabRequest]]))
   const lastProfileHash = useRef(window.location.hash)
@@ -92,7 +94,7 @@ export function ProfilePage({ followingIds, ...props }: ProfilePageProps) {
     <>
       {[...visited].map(([userUuid, request]) => (
         <div hidden={userUuid !== profileRoute.userUuid} key={userUuid}>
-          <ProfileSlot {...props} userUuid={userUuid} followingIds={followingIds} request={request} active={Boolean(props.active && userUuid === profileRoute.userUuid)} />
+          <ProfileSlot {...props} userUuid={userUuid} followingIds={followingIds} request={request} active={Boolean(props.active && userUuid === profileRoute.userUuid)} cacheFirstLevel={cacheFirstLevel} />
         </div>
       ))}
     </>
