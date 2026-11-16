@@ -54,6 +54,7 @@ export function SettingsPanel({
     const [saving, setSaving] = useState(false)
     const [activeTab, setActiveTab] = useState<SettingsTab>('profile')
     const {showToast} = useToast()
+    const visibleCategories = categories.filter((category) => category.id !== 'components' || profile.isTestAccount)
     const nameError = validateNickname(draft.name)
     const bioError = validateBiography(draft.bio)
     const bioLength = [...draft.bio.trim()].length
@@ -73,14 +74,19 @@ export function SettingsPanel({
     return (
         <section>
             <TabsRoot value={activeTab} onValueChange={(value) => setActiveTab(value as SettingsTab)}>
-                <TabsList showDivider={false}>{categories.filter(({id}) => id !== 'components' || profile.isTestAccount).map(({
-                                                                                                                                  id,
-                                                                                                                                  label,
-                                                                                                                                  icon: Icon
-                                                                                                                              }) =>
-                    <TabsTrigger key={id} value={id}>
-                      <span className="inline-flex items-center gap-1.5"><Icon size={16}/>{label}</span>
-                    </TabsTrigger>)}
+                <TabsList showDivider={false}>
+                    {visibleCategories.map((category) => {
+                        const Icon = category.icon
+
+                        return (
+                            <TabsTrigger key={category.id} value={category.id}>
+                                <span className="inline-flex items-center gap-1.5">
+                                    <Icon size={16}/>
+                                    {category.label}
+                                </span>
+                            </TabsTrigger>
+                        )
+                    })}
                 </TabsList>
                 <TabsContent value="profile" keepMounted>
                     <div className="mt-7 grid grid-cols-[minmax(130px,1fr)_minmax(0,460px)] items-start gap-8">
