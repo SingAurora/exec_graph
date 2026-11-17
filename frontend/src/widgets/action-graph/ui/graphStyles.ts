@@ -1,7 +1,7 @@
 import type { StylesheetJson } from 'cytoscape'
 import type { GraphPalette } from './useGraphPalette'
 
-/** Keeps authorship, agreement exceptions, main route and selection visually independent. */
+/** Keeps authorship, satisfied agreements, main route and selection visually independent. */
 export function createGraphStyles(palette: GraphPalette): StylesheetJson {
   return [
     { selector: 'node', style: { width: 34, height: 34, label: 'data(level)',
@@ -18,7 +18,7 @@ export function createGraphStyles(palette: GraphPalette): StylesheetJson {
     { selector: 'edge.incorporated', style: { 'curve-style': 'unbundled-bezier', 'control-point-distances': [45], 'control-point-weights': [0.5] } },
     { selector: 'edge.same-author', style: { 'line-style': 'solid' } },
     { selector: 'edge.other-author', style: { 'line-style': 'dashed', 'line-dash-pattern': [5, 4] } },
-    { selector: 'edge.exception', style: { label: '×', color: palette.coral, 'font-size': 18, 'font-weight': 600,
+    { selector: 'edge.satisfied', style: { label: '✓', color: palette.signal, 'font-size': 16, 'font-weight': 600,
       'text-background-color': palette.surface, 'text-background-opacity': 1, 'text-background-padding': '2px',
       'text-background-shape': 'roundrectangle', 'text-rotation': 'none' } },
     { selector: 'node.outside', style: { opacity: 0.85 } },

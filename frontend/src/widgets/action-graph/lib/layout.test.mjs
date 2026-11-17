@@ -9,19 +9,22 @@ const node = (uuid, extra = {}) => ({ uuid, id: uuid, graphUuid: 'graph', number
 const actions = [
   node('1', { agreementMarkdown: '记录' }),
   node('2', { parentUuid: '1', authorUuid: 'b' }),
-  node('3', { parentUuid: '1', authorUuid: 'a', referenceAgreements: [{ sourceUuid: '1', complies: false, exceptionReason: '没有记录' }] }),
+  node('3', { parentUuid: '1', authorUuid: 'a', referenceAgreements: [{ sourceUuid: '1', complies: true }] }),
   node('4', { parentUuid: '2', mergedParentUuids: ['3'] }),
 ]
 
 describe('action graph reference semantics', () => {
-  test('separates authorship from continuation and agreement exceptions', () => {
+  test('separates authorship from continuation and satisfied agreements', () => {
     const references = getActionReferences(actions)
     expect(references.find((edge) => edge.uuid === '1:2').sameAuthor).toBe(false)
     expect(references.find((edge) => edge.uuid === '1:3').sameAuthor).toBe(true)
-    expect(references.find((edge) => edge.uuid === '1:3').agreementStatus).toBe('exception')
+    expect(references.find((edge) => edge.uuid === '1:3').agreementStatus).toBe('satisfied')
     const layout = createActionLayout(actions, [])
-    expect(layout.elements.find((element) => element.data.id === '1:3').classes.split(' ')).toContain('exception')
+    expect(layout.elements.find((element) => element.data.id === '1:3').classes.split(' ')).toContain('satisfied')
     expect(layout.elements.find((element) => element.data.id === '1:2').classes.split(' ')).toContain('other-author')
+    const unsatisfiedNode = node('5', { parentUuid: '1', referenceAgreements: [{ sourceUuid: '1', complies: false, exceptionReason: '没有记录' }] })
+    const unsatisfiedLayout = createActionLayout([...actions, unsatisfiedNode], [])
+    expect(unsatisfiedLayout.elements.find((element) => element.data.id === '1:5').classes.split(' ')).not.toContain('satisfied')
   })
 
   test('includes only cited histories', () => {

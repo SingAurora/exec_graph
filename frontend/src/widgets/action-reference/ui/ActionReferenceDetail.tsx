@@ -40,7 +40,7 @@ export function ActionReferenceDetail({ reference, actions, users, onSelectNode,
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-1"><span className="text-xs text-muted">引用关系</span><HelpPopover title="引用关系">
             <p>实线表示同一作者的引用，虚线表示不同作者的引用。承接延续当前路线，合入将另一来源纳入行动背景。</p>
-            <p>来源约定适用于这条引用。不满足约定时，连线上显示 × 并记录原因，仍可引用。</p>
+            <p>来源约定适用于这条引用。满足约定时，连线上显示 ✓；不满足时仍可引用并记录原因。</p>
             <p>未记录约定核对结果时，不能据此判断是否满足约定。</p>
             <p>引用历史包含来源节点本身及其全部上游引用节点，追溯至起点并去重，不包含当前引用行动。未被引用的其他分支不属于当前已知的执行事实。</p>
           </HelpPopover></div>

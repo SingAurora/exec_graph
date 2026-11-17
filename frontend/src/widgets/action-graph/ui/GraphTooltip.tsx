@@ -40,7 +40,7 @@ export function GraphTooltip({ id, hover, node, reference, users, levels }: Prop
         <p className="action-graph-tooltip-meta">节点 #{reference.source.number} → #{reference.target.number}</p>
         <p className="action-graph-tooltip-meta">{users.get(reference.source.authorUuid)?.name ?? reference.source.authorUuid} → {users.get(reference.target.authorUuid)?.name ?? reference.target.authorUuid}</p>
         <div className={`action-graph-tooltip-status ${status === 'exception' ? 'is-exception' : status === 'satisfied' ? 'is-satisfied' : ''}`}>
-          {status === 'exception' ? '× 不满足约定，但仍可存在' : status === 'satisfied' ? '满足约定 · 有继续沟通的意愿' : status === 'unreviewed' ? '尚未记录约定核对结果' : '可以直接引用'}
+          {status === 'exception' ? '不满足约定，但仍可存在' : status === 'satisfied' ? '满足约定 · 有继续沟通的意愿' : status === 'unreviewed' ? '尚未记录约定核对结果' : '可以直接引用'}
         </div>
       </>}
     </div>, document.body)

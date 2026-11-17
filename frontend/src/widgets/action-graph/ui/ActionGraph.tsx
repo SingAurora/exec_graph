@@ -35,7 +35,7 @@ type Props = {
   onClearHighlight: () => void
 }
 
-/** Cytoscape 行动图：实虚线表示作者关系，叉号表示不满足约定；React 管理选择和工具栏。 */
+/** Cytoscape 行动图：实虚线表示作者关系，对勾表示满足约定；React 管理选择和工具栏。 */
 export function ActionGraph({ actions, highlightedPath, users, selectedId, selectedReferenceUuid, showLegend, background, active = true, focusRequest = 0, locateRequest = 0, detailsVisible = true, onSelect, onSelectReference, onFitViewport, onClearHighlight }: Props) {
   const container = useRef<HTMLDivElement>(null)
   const targets = useRef<HTMLDivElement>(null)
@@ -137,7 +137,7 @@ export function ActionGraph({ actions, highlightedPath, users, selectedId, selec
     <aside className={`action-graph-panel ${detailsVisible ? '' : 'border-r-0'}`}>
       <header className="action-graph-heading"><div><div className="flex items-center gap-1"><h3><Network size={16} />节点关系</h3><HelpPopover title="节点关系">
         <p>圆点数字表示层级：起点为 1，后续节点为所有直接来源中最高层级加 1。节点编号用于区分具体行动。</p>
-        <p>实线表示自己引用自己，虚线表示引用他人。满足约定没有额外标记；× 表示不满足来源约定，仍可引用。</p>
+        <p>实线表示同一账号内的行动接续，虚线表示引用其他账号。满足来源约定时连线上显示 ✓；没有 ✓ 表示不满足或尚未核对，仍可引用。</p>
         <p>绿色节点和连线表示高亮链路的承接路径，蓝灰色填充节点表示合入背景。节点外圈标记当前选择，查看其他节点不会改变高亮链路。</p>
         <p>从表达、行动或搜索结果进入时自动高亮对应链路。点击链路状态右侧的 × 取消，在节点详情点击“高亮链路”重新开启。定位仅移动图的位置，不切换右侧文档。</p>
         <p>悬浮查看摘要，点击节点阅读文档，点击连线查看引用详情。“重新铺满”将节点图与详情对齐当前窗口。</p>
@@ -182,7 +182,7 @@ export function ActionGraph({ actions, highlightedPath, users, selectedId, selec
           <svg className="action-graph-edge-targets" width={GRAPH_WIDTH} height={layout.height}>
             {hitPaths.map((edge) => {
               const reference = referenceById.get(edge.id)!
-              const label = `节点 #${reference.source.number} → #${reference.target.number}，${reference.sameAuthor ? '同一作者引用' : '跨作者引用'}${reference.agreementStatus === 'exception' ? '，不满足约定' : ''}`
+              const label = `节点 #${reference.source.number} → #${reference.target.number}，${reference.sameAuthor ? '同一作者引用' : '跨作者引用'}${reference.agreementStatus === 'satisfied' ? '，满足约定' : ''}`
               return (
                 <path key={edge.id} d={edge.path} tabIndex={0}
                   onClick={() => selectReference(edge.id)}

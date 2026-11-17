@@ -36,9 +36,9 @@ describe('appearance preferences', () => {
   })
 
   test('the preview shows the shared four-part legend only when enabled', () => {
-    expect(render()).not.toContain('同作者接续')
+    expect(render()).not.toContain('行动接续')
     const html = render({ showActionGraphLegend: true })
-    for (const label of ['同作者接续', '引用他人', '不满足约定', '节点层级']) expect(html).toContain(label)
+    for (const label of ['行动接续', '引用其他', '满足约定', '节点层级']) expect(html).toContain(label)
     expect(html).toContain('data-state="checked"')
   })
 

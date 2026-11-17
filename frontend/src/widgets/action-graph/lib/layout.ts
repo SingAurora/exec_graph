@@ -39,7 +39,7 @@ export function createActionLayout(actions: ActionNode[], mainPath: ActionNode[]
         reference.incorporated ? 'incorporated' : 'continuation',
         mainIds.has(reference.source.uuid) && mainIds.has(reference.target.uuid) && !reference.incorporated ? 'main'
           : contextIds.has(reference.source.uuid) && contextIds.has(reference.target.uuid) ? 'context' : 'branch',
-        reference.agreementStatus === 'exception' ? 'exception' : ''].join(' '),
+        reference.agreementStatus === 'satisfied' ? 'satisfied' : ''].join(' '),
     })
   }
   // headless 实例只计算坐标，不绑定 DOM；最终坐标交给可见画布使用，计算后立即销毁。

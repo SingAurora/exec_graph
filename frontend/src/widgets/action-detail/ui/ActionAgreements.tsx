@@ -22,7 +22,7 @@ export function ActionSourceAgreements({ node, actions, users, onSelect }: { nod
       <div className="border-t border-line px-3">
         <div className="flex items-center justify-between pt-2 text-xs text-muted"><span>处理记录</span><HelpPopover title="来源约定">
           <p>分别核对直接承接与合入来源的有效约定，包含来源沿承接关系继承的版本；一份约定中的多个条款仍算一份约定。</p>
-          <p>待核对只统计尚未记录核对结果的来源。不满足约定时，连线上显示 × 并记录原因，仍可引用。</p>
+          <p>待核对只统计尚未记录核对结果的来源。满足约定时，连线上显示 ✓；不满足时仍可引用并记录原因。</p>
           <p>不逐层叠加已被修改或清空的旧版本。修改本节点向后传递的约定，不会改变这次引用的核对结果。</p>
         </HelpPopover></div>
         <div className="divide-y divide-line">{references.map((reference) => {
