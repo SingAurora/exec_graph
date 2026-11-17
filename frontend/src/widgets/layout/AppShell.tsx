@@ -7,6 +7,7 @@ import {Brand} from '../../shared/ui/Brand'
 import {SidebarProfileCard, type SidebarProfileStats} from './SidebarProfileCard'
 import {AppBackdrop} from './AppBackdrop'
 import {SiteFooter} from '../../shared/ui/SiteFooter'
+import {useAppearanceStore} from '../../features/appearance/model/appearance-store'
 
 type AppShellProps = {
     /** 当前用户；加载态允许为空。 */
@@ -15,10 +16,8 @@ type AppShellProps = {
     profileStats?: SidebarProfileStats
     /** 当前页面，用于导航高亮和标题。 */
     activeView: AppView
-    darkMode: boolean
     loading?: boolean
     onLogout?: () => void
-    onToggleTheme: () => void
     /** 页面级返回入口；图详情和普通页面放置位置不同。 */
     backAction?: { label: string; onBack: () => void }
     /** 图详情页使用图名称作为标题。 */
@@ -67,14 +66,14 @@ export function AppShell({
                              profile,
                              profileStats,
                              activeView,
-                             darkMode,
                              loading = false,
                              onLogout,
-                             onToggleTheme,
                              backAction,
                              graphTitle,
                              children
                          }: AppShellProps) {
+    const darkMode = useAppearanceStore((state) => state.darkMode)
+    const toggleTheme = useAppearanceStore((state) => state.toggleTheme)
     // 让图搜索归到“发现”，图列表/图详情/发布/形成过程归到“我的”。
     const globalView = activeView === 'graph-search' ? 'home' : ['graphs', 'publish', 'graph', 'action-archive'].includes(activeView) ? 'my' : activeView
     // 每个 AppView 都必须有标题，新增路由时由 TypeScript 提醒补齐。
@@ -111,7 +110,7 @@ export function AppShell({
                         <div className={loading ? 'grid gap-[7px]' : 'grid grid-cols-2 gap-[7px]'}>
                             <button
                                 className="inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-md border border-line bg-transparent px-[7px] py-1.5 text-xs font-semibold text-muted transition hover:border-signal hover:text-signal"
-                                type="button" onClick={onToggleTheme}><span className="inline-flex">{darkMode ? <Sun size={15}/> :
+                                type="button" onClick={toggleTheme}><span className="inline-flex">{darkMode ? <Sun size={15}/> :
                                 <Moon size={15}/>}</span>{darkMode ? '浅色模式' : '深色模式'}</button>
                             {!loading && onLogout && <button
                                 className="inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-md border border-line bg-transparent px-[7px] py-1.5 text-xs font-semibold text-muted transition hover:border-coral hover:text-coral"

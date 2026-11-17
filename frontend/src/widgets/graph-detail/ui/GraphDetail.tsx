@@ -22,8 +22,8 @@ import { GraphHeader } from '../../../entities/graph/ui/GraphHeader'
 import { GraphDetailsAside } from '../../graph-details/ui/GraphDetailsAside'
 import { GraphSearch } from '../../graph-search/ui/GraphSearch'
 import { FollowButton } from '../../../features/follow/ui/FollowButton'
-import type { GraphBackgroundPreferences } from '../../../shared/ui/graph-background/model'
 import { ListEmptyState } from '../../../shared/ui/empty-state/EmptyState'
+import { useAppearanceStore } from '../../../features/appearance/model/appearance-store'
 
 /** 图详情接收业务数据及应用层回调；界面不直接发请求或导入演示数据。 */
 export type GraphDetailProps = {
@@ -33,8 +33,6 @@ export type GraphDetailProps = {
   currentUserUuid: string
   users: UserProfile[]
   actions: ActionNode[]
-  showActionGraphLegend: boolean
-  graphBackground: GraphBackgroundPreferences
   onCreateAction: (graphUuid: string) => void
   onContinueAction: (node: ActionNode, mode: BranchMode) => void
   onOpenActionArchive: (node: ActionNode) => void
@@ -52,7 +50,9 @@ type GraphSelection = { kind: 'node' | 'reference'; id: string }
 type GraphTab = 'expressions' | 'agreements' | 'facts' | 'explore' | 'search' | 'settings'
 
 /** 图详情协调中心：装配表达、约定、行动和探索，管理选择、定位及各栏目阅读状态。 */
-export function GraphDetail({ graph, active = true, externalFocus, currentUserUuid, users, actions, showActionGraphLegend, graphBackground, onCreateAction, onContinueAction, onOpenActionArchive, onUpdateGraph, onEditExpression, onEditAgreement, onPublishNodeDocument, onDeleteNode, onDeleteGraph, following, onSetGraphFollow }: GraphDetailProps) {
+export function GraphDetail({ graph, active = true, externalFocus, currentUserUuid, users, actions, onCreateAction, onContinueAction, onOpenActionArchive, onUpdateGraph, onEditExpression, onEditAgreement, onPublishNodeDocument, onDeleteNode, onDeleteGraph, following, onSetGraphFollow }: GraphDetailProps) {
+  const showActionGraphLegend = useAppearanceStore((state) => state.showActionGraphLegend)
+  const graphBackground = useAppearanceStore((state) => state.graphBackground)
   const handledExternalFocus = useRef<string | undefined>(undefined)
   const workspaceRef = useRef<HTMLDivElement>(null)
   const tabScroll = useRef<Partial<Record<GraphTab, number>>>({})

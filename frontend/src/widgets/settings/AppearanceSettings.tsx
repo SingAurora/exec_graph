@@ -1,10 +1,18 @@
 import { Check, Moon, Sun } from 'lucide-react'
 import { RadioGroup } from 'radix-ui'
 import { GraphBackgroundSettings } from '../../features/graph-appearance/ui/GraphBackgroundSettings'
-import type { GraphBackgroundPreferences } from '../../shared/ui/graph-background/model'
 import { HelpPopover } from '../../shared/ui/help/HelpPopover'
+import type { GraphBackgroundPreferences } from '../../shared/ui/graph-background/model'
+import { useAppearanceStore } from '../../features/appearance/model/appearance-store'
 
-type AppearanceSettingsProps = {
+
+
+const themeOptions = [
+    { value: 'light', label: '浅色', icon: Sun },
+    { value: 'dark', label: '深色', icon: Moon },
+] as const
+
+type AppearanceSettingsViewProps = {
     darkMode: boolean
     onToggleTheme: () => void
     graphBackground: GraphBackgroundPreferences
@@ -13,20 +21,15 @@ type AppearanceSettingsProps = {
     onShowActionGraphLegendChange: (show: boolean) => void
 }
 
-const themeOptions = [
-    { value: 'light', label: '浅色', icon: Sun },
-    { value: 'dark', label: '深色', icon: Moon },
-] as const
-
-/** Immediate appearance preferences with explicit theme choices and a live canvas preview. */
-export function AppearanceSettings({
-                                       darkMode,
-                                       onToggleTheme,
-                                       graphBackground,
-                                       onGraphBackgroundChange,
-                                       showActionGraphLegend,
-                                       onShowActionGraphLegendChange
-                                   }: AppearanceSettingsProps) {
+/** 外观设置的纯展示组件；真实页面由 AppearanceSettings 注入全局 store。 */
+export function AppearanceSettingsView({
+                                           darkMode,
+                                           onToggleTheme,
+                                           graphBackground,
+                                           onGraphBackgroundChange,
+                                           showActionGraphLegend,
+                                           onShowActionGraphLegendChange,
+                                       }: AppearanceSettingsViewProps) {
     const selectedTheme = darkMode ? 'dark' : 'light'
 
     const handleThemeChange = (value: string) => {
@@ -81,5 +84,27 @@ export function AppearanceSettings({
                 />
             </section>
         </div>
+    )
+}
+
+
+/** 从全局外观 store 读取设置，避免从 App 一层层传 props。 */
+export function AppearanceSettings() {
+    const darkMode = useAppearanceStore((state) => state.darkMode)
+    const onToggleTheme = useAppearanceStore((state) => state.toggleTheme)
+    const graphBackground = useAppearanceStore((state) => state.graphBackground)
+    const onGraphBackgroundChange = useAppearanceStore((state) => state.setGraphBackground)
+    const showActionGraphLegend = useAppearanceStore((state) => state.showActionGraphLegend)
+    const onShowActionGraphLegendChange = useAppearanceStore((state) => state.setShowActionGraphLegend)
+
+    return (
+        <AppearanceSettingsView
+            darkMode={darkMode}
+            onToggleTheme={onToggleTheme}
+            graphBackground={graphBackground}
+            onGraphBackgroundChange={onGraphBackgroundChange}
+            showActionGraphLegend={showActionGraphLegend}
+            onShowActionGraphLegendChange={onShowActionGraphLegendChange}
+        />
     )
 }

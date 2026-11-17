@@ -2,11 +2,16 @@ import { describe, expect, test } from 'bun:test'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { createDefaultGraphBackground } from '../../shared/ui/graph-background/model.ts'
-import { AppearanceSettings } from './AppearanceSettings.tsx'
+import { AppearanceSettingsView } from './AppearanceSettings.tsx'
 
-const render = (overrides = {}) => renderToStaticMarkup(createElement(AppearanceSettings, {
-  darkMode: false, onToggleTheme() {}, graphBackground: createDefaultGraphBackground(),
-  onGraphBackgroundChange() {}, showActionGraphLegend: false, onShowActionGraphLegendChange() {}, ...overrides,
+const render = (overrides = {}) => renderToStaticMarkup(createElement(AppearanceSettingsView, {
+  darkMode: false,
+  onToggleTheme() {},
+  graphBackground: createDefaultGraphBackground(),
+  onGraphBackgroundChange() {},
+  showActionGraphLegend: false,
+  onShowActionGraphLegendChange() {},
+  ...overrides,
 }))
 
 describe('appearance preferences', () => {

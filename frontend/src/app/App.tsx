@@ -5,7 +5,6 @@ import { followingKeys, readFollowing } from '../entities/following/api/followin
 import { profileStatsKey, readProfileStats } from '../entities/profile/api/profiles'
 import { useGraphContext } from './model/useGraphContext'
 import { useAppCommands } from './model/useAppCommands'
-import { useAppearance } from './model/useAppearance'
 import { isAppView, isAuthView } from '../shared/lib/navigation'
 import { ListSkeleton } from '../shared/ui/ListSkeleton'
 import { useImageAssets } from '../features/media-upload/model/useImageAssets'
@@ -23,7 +22,6 @@ import type { ActionReference } from '../entities/action/lib/references'
 import { canEditActionExpression } from '../entities/action/lib/expressions'
 import { canEditActionAgreement } from '../entities/action/lib/agreements'
 import type { CreateGraphInput } from '../features/graph/model/types'
-import { useGraphBackground } from '../features/graph-appearance/model/useGraphBackground'
 import type { Graph } from '../entities/graph/model/types'
 import { FeedPage } from '../pages/FeedPage'
 import { GraphSearchResultsPage } from '../pages/GraphSearchResultsPage'
@@ -39,7 +37,6 @@ import { AppShell } from '../widgets/layout/AppShell'
 import { SettingsPanel } from '../widgets/settings/SettingsPanel'
 import { ActionArchivePage } from '../pages/ActionArchivePage'
 
-const legendPreferenceKey = 'execg.actionGraph.showLegend'
 const emptyProfileStats = { actions: 0, expressions: 0, agreements: 0 }
 const emptySources: FollowedSources = { userUuids: [], graphUuids: [], users: [] }
 
@@ -61,7 +58,6 @@ export function App() {
   const retryAuth = useAuthStore((state) => state.retry)
   const logout = useAuthStore((state) => state.logout)
   const client = useQueryClient()
-  const [darkMode, toggleTheme] = useAppearance()
   const [hash, setHash] = useState(() => window.location.hash)
   // ── 启动认证检查与 URL 同步 ──
   useEffect(() => {
@@ -110,7 +106,7 @@ export function App() {
     <>
       <AppContent
         key={profile.uuid}
-        darkMode={darkMode} toggleTheme={toggleTheme} onLogout={exit}
+        onLogout={exit}
         profile={profile}
         sources={sources}
         profileStats={accountProfileStats ?? emptyProfileStats}
@@ -144,10 +140,10 @@ export function App() {
 }
 
 /** 应用装配层：把 Query 中的业务数据、路由和写入回调连接到页面及工作区。 */
-function AppContent({ profile, sources, profileStats, darkMode, toggleTheme, onLogout }: {
+function AppContent({ profile, sources, profileStats, onLogout }: {
   profile: AccountProfile; sources: FollowedSources
   profileStats: { actions: number; expressions: number; agreements: number }
-  darkMode: boolean; toggleTheme: () => void; onLogout: () => Promise<void>
+  onLogout: () => Promise<void>
 }) {
   // ── 数据、路由和本地界面状态 ──
   const commands = useAppCommands(profile.uuid)
@@ -157,10 +153,6 @@ function AppContent({ profile, sources, profileStats, darkMode, toggleTheme, onL
   const query = useMemo(() => new URLSearchParams(hash.split('?')[1]), [hash])
   // useState 保存客户端交互状态；业务资料由传入的 Query 数据提供。
   const followingIds = sources.userUuids, followingGraphUuids = sources.graphUuids
-  const [graphBackground, setGraphBackground] = useGraphBackground()
-  const [showActionGraphLegend, setShowActionGraphLegend] = useState(() => {
-    try { return window.localStorage.getItem(legendPreferenceKey) === 'true' } catch { return false }
-  })
   // ── 当前图、节点和工作区 ──
   // 离开图进入编辑器或形成过程时，仍保留最近一张图，供返回后恢复阅读。
   const [lastGraphUuid, setLastGraphUuid] = useState(query.get('graphUuid') ?? '')
@@ -194,9 +186,6 @@ function AppContent({ profile, sources, profileStats, darkMode, toggleTheme, onL
     return nodeUuid ? { requestId, nodeUuid, mode: query.get('document') === 'expression' ? 'expression' as const : 'objective' as const } : undefined
   }, [hash, query, route, revision])
 
-  useEffect(() => {
-    try { window.localStorage.setItem(legendPreferenceKey, String(showActionGraphLegend)) } catch { /* 存储失败不阻止本次显示图例。 */ }
-  }, [showActionGraphLegend])
   useEffect(() => {
     if (route === 'graph' && query.get('graphUuid')) {
       setLastGraphUuid(query.get('graphUuid')!)
@@ -331,7 +320,6 @@ function AppContent({ profile, sources, profileStats, darkMode, toggleTheme, onL
       profile={profile}
       profileStats={profileStats}
       activeView={viewingOwnProfile ? 'my' : route}
-      darkMode={darkMode}
       graphTitle={selectedGraph?.title}
       backAction={
         route === 'graph-search' ? { label: '返回发现', onBack: () => navigate('home') }
@@ -341,7 +329,6 @@ function AppContent({ profile, sources, profileStats, darkMode, toggleTheme, onL
                 ? { label: profileReturnGraph ? '返回行动图' : '返回', onBack: profileReturn }
                 : undefined
       }
-      onToggleTheme={toggleTheme}
       onLogout={onLogout}
     >
       <div hidden={!personalAreaActive}>
@@ -383,8 +370,7 @@ function AppContent({ profile, sources, profileStats, darkMode, toggleTheme, onL
           <GraphPage
             key={selectedGraph.uuid} active={route === 'graph'} graph={selectedGraph}
             externalFocus={externalFocus} currentUserUuid={profile.uuid} users={users}
-            actions={selectedGraphActions} showActionGraphLegend={showActionGraphLegend}
-            graphBackground={graphBackground}
+            actions={selectedGraphActions}
             onCreateAction={startAction}
             onPublishNodeDocument={async (nodeUuid, expectedVersion, kind) => { await commands.nodeDocumentPublish.mutateAsync({ nodeUuid, expectedVersion, kind }) }}
             onDeleteNode={async (node) => { await commands.actionDelete.mutateAsync({ nodeUuid: node.uuid, expectedVersion: node.version ?? 0 }) }}
@@ -445,12 +431,7 @@ function AppContent({ profile, sources, profileStats, darkMode, toggleTheme, onL
           </div>
       )}
       <div hidden={route !== 'settings'}>
-        <SettingsPanel
-          profile={profile} darkMode={darkMode} showActionGraphLegend={showActionGraphLegend}
-          graphBackground={graphBackground} onGraphBackgroundChange={setGraphBackground}
-          onSave={saveProfile} onToggleTheme={toggleTheme}
-          onShowActionGraphLegendChange={setShowActionGraphLegend}
-        />
+        <SettingsPanel profile={profile} onSave={saveProfile}/>
       </div>
     </AppShell>
   )

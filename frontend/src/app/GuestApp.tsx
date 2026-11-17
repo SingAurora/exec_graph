@@ -5,7 +5,6 @@ import { Brand } from '../shared/ui/Brand'
 import { SiteFooter } from '../shared/ui/SiteFooter'
 import { Discovery } from '../widgets/discovery/ui/Discovery'
 import { GraphPage } from '../pages/GraphPage'
-import { useGraphBackground } from '../features/graph-appearance/model/useGraphBackground'
 import type { ActionDocumentMode, ActionNode } from '../entities/action/model/types'
 import type { ActionReference } from '../entities/action/lib/references'
 import { useGraphContext } from './model/useGraphContext'
@@ -15,7 +14,6 @@ type GuestAppProps = { remoteFeed?: boolean }
 /** 未登录入口：只读浏览公开表达和约定，任何写操作都引导登录。 */
 export function GuestApp({ remoteFeed = false }: GuestAppProps) {
   const [route, navigate] = useHashRoute('home', isAppView)
-  const [graphBackground] = useGraphBackground()
   const query = new URLSearchParams(window.location.hash.split('?')[1])
   const graphUuid = query.get('graphUuid') ?? ''
   const { graph: selectedGraph, actions: selectedActions, users } = useGraphContext('public', graphUuid, route === 'graph')
@@ -54,8 +52,6 @@ export function GuestApp({ remoteFeed = false }: GuestAppProps) {
             currentUserUuid=""
             users={users}
             actions={selectedActions}
-            showActionGraphLegend={false}
-            graphBackground={graphBackground}
             onCreateAction={login}
             onContinueAction={login}
             onOpenActionArchive={login}

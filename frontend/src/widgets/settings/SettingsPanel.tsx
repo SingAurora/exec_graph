@@ -17,17 +17,10 @@ import {validateBiography} from '../../entities/profile/lib/bio-validation'
 import {PROFILE_BIO_LIMIT} from '../../entities/profile/model/limits'
 import {ComponentShowcase} from './components/ComponentShowcase'
 import {AppearanceSettings} from './AppearanceSettings'
-import type {GraphBackgroundPreferences} from '../../shared/ui/graph-background/model'
 
 type SettingsPanelProps = {
     profile: UserProfile
-    darkMode: boolean
-    showActionGraphLegend: boolean
-    graphBackground: GraphBackgroundPreferences
-    onGraphBackgroundChange: (preferences: GraphBackgroundPreferences) => void
     onSave: (profile: UserProfile) => void | Promise<void>
-    onToggleTheme: () => void
-    onShowActionGraphLegendChange: (show: boolean) => void
 }
 
 type SettingsTab = 'profile' | 'account' | 'preferences' | 'components'
@@ -39,16 +32,7 @@ const categories = [
 ] as const
 
 /** Global preferences with consistent forms and retained tab drafts. */
-export function SettingsPanel({
-                                  profile,
-                                  darkMode,
-                                  showActionGraphLegend,
-                                  graphBackground,
-                                  onGraphBackgroundChange,
-                                  onSave,
-                                  onToggleTheme,
-                                  onShowActionGraphLegendChange
-                              }: SettingsPanelProps) {
+export function SettingsPanel({profile, onSave}: SettingsPanelProps) {
     const [draft, setDraft] = useState(profile)
     const [backgroundLoading, setBackgroundLoading] = useState(false)
     const [saving, setSaving] = useState(false)
@@ -150,9 +134,7 @@ export function SettingsPanel({
                     <AccountSecurity email={profile.email}/>
                 </TabsContent>
                 <TabsContent value="preferences" keepMounted>
-                    <AppearanceSettings darkMode={darkMode} onToggleTheme={onToggleTheme} graphBackground={graphBackground}
-                                        onGraphBackgroundChange={onGraphBackgroundChange} showActionGraphLegend={showActionGraphLegend}
-                                        onShowActionGraphLegendChange={onShowActionGraphLegendChange}/>
+                    <AppearanceSettings/>
                 </TabsContent>
                 <TabsContent value="components" keepMounted><ComponentShowcase/></TabsContent>
             </TabsRoot>
