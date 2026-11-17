@@ -61,7 +61,11 @@ function readLegend(): boolean {
 function applyTheme(darkMode: boolean): void {
     if (typeof document === 'undefined') return
 
-    document.documentElement.toggleAttribute('data-theme', darkMode)
+    if (darkMode) {
+        document.documentElement.setAttribute('data-theme', 'dark')
+    } else {
+        document.documentElement.removeAttribute('data-theme')
+    }
 }
 
 const initialDarkMode = readDarkMode()
