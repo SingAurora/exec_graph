@@ -15,13 +15,13 @@ export function GraphAppearancePreview({ preferences, showLegend, onShowLegendCh
           <GraphBackground preferences={preferences} />
           <svg className="relative size-full" viewBox="0 0 300 240">
             <defs><marker id={`${id}-arrow`} markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto"><path d="M0 0 L5 2.5 L0 5 Z" fill="var(--graph-blue)" /></marker></defs>
-            <path d="M100 56 V102 M100 134 V180" fill="none" stroke="var(--graph-blue)" strokeWidth="1.6" markerEnd={`url(#${id}-arrow)`} />
-            <path d="M112 52 C112 80 210 70 210 102" fill="none" stroke="var(--graph-blue)" strokeWidth="1.6" strokeDasharray="5 4" markerEnd={`url(#${id}-arrow)`} />
-            <g transform="translate(174 80)" fill="none" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M100 180 V134 M100 102 V56" fill="none" stroke="var(--graph-blue)" strokeWidth="1.6" markerEnd={`url(#${id}-arrow)`} />
+            <path d="M112 192 C112 164 210 174 210 134" fill="none" stroke="var(--graph-blue)" strokeWidth="1.6" strokeDasharray="5 4" markerEnd={`url(#${id}-arrow)`} />
+            <g transform="translate(174 160)" fill="none" strokeLinecap="round" strokeLinejoin="round">
               <path d="M-5 0 L-1 4 L6 -5" stroke="var(--surface)" strokeWidth="5" />
               <path d="M-5 0 L-1 4 L6 -5" stroke="var(--signal)" strokeWidth="2.5" />
             </g>
-            {[{ x: 100, y: 40, level: 1 }, { x: 100, y: 118, level: 2 }, { x: 210, y: 118, level: 2 }, { x: 100, y: 196, level: 3 }].map(({ x, y, level }) => <g key={`${x}-${y}`}>
+            {[{ x: 100, y: 40, level: 3 }, { x: 100, y: 118, level: 2 }, { x: 210, y: 118, level: 2 }, { x: 100, y: 196, level: 1 }].map(({ x, y, level }) => <g key={`${x}-${y}`}>
               {level === 3 && <circle cx={x} cy={y} r="22" fill="var(--signal)" opacity="0.1" />}
               <circle cx={x} cy={y} r="16" fill={level === 3 ? 'var(--signal-soft)' : 'var(--surface)'} stroke={level === 3 ? 'var(--signal)' : 'var(--graph-blue)'} strokeWidth={level === 3 ? '2' : '1.5'} />
               <text x={x} y={y} textAnchor="middle" dominantBaseline="central" fill={level === 3 ? 'var(--signal)' : 'var(--muted)'} fontSize="11" fontWeight="600">{level}</text>
