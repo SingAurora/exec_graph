@@ -1,7 +1,7 @@
 import { hasUnsafeTextCharacters, utf8Length } from '../../../shared/lib/text-input'
 
 export const emailMaxBytes = 64
-const passwordMinCharacters = 8
+const passwordMinCharacters = 6
 export const passwordMaxCharacters = 32
 
 /** 邮箱按提交时的去首尾空白、转小写结果检查长度及基本格式。 */

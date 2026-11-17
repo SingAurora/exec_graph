@@ -157,7 +157,7 @@ export function AuthScreen({view}: AuthScreenProps) {
                                 <input id="auth-password" name="password" required type={showPassword ? 'text' : 'password'}
                                        autoComplete={isLogin ? 'current-password' : 'new-password'}
                                        maxLength={isLogin ? undefined : passwordMaxCharacters}
-                                       placeholder={isLogin ? '输入密码' : '8–32 位英文、数字或符号'} {...feedbackProps('password')} />
+                                       placeholder={isLogin ? '输入密码' : '6–32 位英文、数字或符号'} {...feedbackProps('password')} />
                                 <button className="auth-eye" type="button" onClick={() => setShowPassword((value) => !value)}
                                         title={showPassword ? '隐藏密码' : '显示密码'}>
                                     {showPassword ? <EyeOff size={17}/> : <Eye size={17}/>}

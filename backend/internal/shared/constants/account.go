@@ -8,7 +8,7 @@ const (
 	// EmailMaxBytes 限制规范化后的邮箱 UTF-8 字节数；常见邮箱均为 ASCII，因此等同于常见字符数上限。
 	EmailMaxBytes = 64
 	// PasswordMinCharacters 限制新密码的最少字符数，不追溯限制旧密码登录。
-	PasswordMinCharacters = 8
+	PasswordMinCharacters = 6
 	// PasswordMaxBytes 限制新密码的 ASCII 字节数；新密码只接受英文、数字和可见普通符号。
 	PasswordMaxBytes = 32
 	// LegacyPasswordMaxBytes 保留旧账号登录和修改密码时当前密码的兼容上限。

@@ -6,12 +6,12 @@ import (
 )
 
 func TestNewPasswordRules(t *testing.T) {
-	for _, password := range []string{"Ab!'\"\\;9", strings.Repeat("a", 16), "A1!simple-pass"} {
+	for _, password := range []string{"123456", "Ab!'\"\\;9", strings.Repeat("a", 16), "A1!simple-pass"} {
 		if err := validateNewPassword(password); err != nil {
 			t.Errorf("合法的英文、数字或符号密码被拒绝: %v", err)
 		}
 	}
-	for _, password := range []string{"", "1234567", strings.Repeat("a", 33), "中文密码测试八位", strings.Repeat("😀", 8), string([]byte{0xff}) + "password"} {
+	for _, password := range []string{"", "12345", strings.Repeat("a", 33), "中文密码测试八位", strings.Repeat("😀", 8), string([]byte{0xff}) + "password"} {
 		if err := validateNewPassword(password); err == nil {
 			t.Error("非法长度或字符集的密码被接受")
 		}

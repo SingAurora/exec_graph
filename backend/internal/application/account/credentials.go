@@ -2,6 +2,7 @@ package account
 
 import (
 	"context"
+	"fmt"
 	"time"
 	"unicode/utf8"
 
@@ -14,7 +15,7 @@ import (
 
 func validateNewPassword(password string) error {
 	if utf8.RuneCountInString(password) < constants.PasswordMinCharacters {
-		return fault.New(fault.Invalid, "密码至少需要 8 位")
+		return fault.New(fault.Invalid, fmt.Sprintf("密码至少需要 %d 位", constants.PasswordMinCharacters))
 	}
 	if len(password) > constants.PasswordMaxBytes {
 		return fault.New(fault.Invalid, "密码最多 32 位")

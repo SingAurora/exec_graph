@@ -28,11 +28,11 @@ describe('account form validation', () => {
     expect(errors.nickname).toBe('请输入昵称')
   })
 
-  test('resetting a password requires a six-digit code and an eight-character password', () => {
-    expect(validateAuthForm('forgot', form({ email: 'name@example.com', code: '012345', password: '12345678' }))).toEqual({})
+  test('resetting a password requires a six-digit code and a six-character password', () => {
+    expect(validateAuthForm('forgot', form({ email: 'name@example.com', code: '012345', password: '123456' }))).toEqual({})
     expect(validateAuthField('forgot', 'code', '12345')).toBe('请输入 6 位数字验证码')
     expect(validateAuthField('forgot', 'code', 'abcdef')).toBe('请输入 6 位数字验证码')
-    expect(validateAuthField('forgot', 'password', '1234567')).toBe('密码至少需要 8 位')
+    expect(validateAuthField('forgot', 'password', '12345')).toBe('密码至少需要 6 位')
   })
 
   test('nicknames count Unicode code points and filter hidden controls without rejecting joined emoji', () => {
@@ -52,12 +52,12 @@ describe('account form validation', () => {
     expect(validateAuthField('forgot', 'email', `${'é'.repeat(27)}@example.com`)).toContain('64')
   })
 
-  test('new passwords accept visible ASCII symbols and enforce the 8–32 character limit', () => {
+  test('new passwords accept visible ASCII symbols and enforce the 6–32 character limit', () => {
     for (const view of ['register', 'forgot']) {
       for (const password of ['Ab!\'"\\;9', 'a'.repeat(32), 'A1!simple-pass']) {
         expect(validateAuthField(view, 'password', password)).toBeUndefined()
       }
-      expect(validateAuthField(view, 'password', '1234567')).toContain('8 位')
+      expect(validateAuthField(view, 'password', '12345')).toContain('6 位')
       for (const password of ['a'.repeat(33), '中文密码测试八位', '😀'.repeat(8)]) {
         expect(validateAuthField(view, 'password', password)).toContain(password.length > 32 ? '32' : '只能包含')
       }

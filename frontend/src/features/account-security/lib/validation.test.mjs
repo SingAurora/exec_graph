@@ -31,7 +31,7 @@ describe('account security validation', () => {
     const valid = { currentPassword: 'oldsecret', password: 'newsecret', confirmation: 'newsecret', code: '012345' }
     expect(validateSecurityForm('password', form(valid), email, email)).toEqual({})
     expect(validateSecurityForm('password', form({ ...valid, currentPassword: '' }), email, email).currentPassword).toBeTruthy()
-    expect(validateSecurityForm('password', form({ ...valid, password: 'short' }), email, email).password).toContain('8 位')
+    expect(validateSecurityForm('password', form({ ...valid, password: 'short' }), email, email).password).toContain('6 位')
     expect(validateSecurityForm('password', form({ ...valid, confirmation: 'different' }), email, email).confirmation).toContain('不一致')
     expect(validateSecurityForm('password', form({ ...valid, password: 'oldsecret', confirmation: 'oldsecret' }), email, email).password).toContain('不能与当前密码相同')
   })
@@ -48,7 +48,7 @@ describe('account security validation', () => {
   test('changing a password shares registration rules while preserving the existing password', () => {
     const values = { currentPassword: ' old\u200bsecret ', password: 'A1!newpass', confirmation: 'A1!newpass', code: '012345' }
     expect(validateSecurityForm('password', form(values), email, email)).toEqual({})
-    for (const password of ['pass word', 'password\u3000', 'pass\u200bword', 'pass\u202eword', '中文密码测试八位', 'a'.repeat(7), 'a'.repeat(33)]) {
+    for (const password of ['pass word', 'password\u3000', 'pass\u200bword', 'pass\u202eword', '中文密码测试八位', 'a'.repeat(5), 'a'.repeat(33)]) {
       const errors = validateSecurityForm('password', form({ ...values, password, confirmation: password }), email, email)
       expect(Object.keys(errors)).toEqual(['password'])
     }
