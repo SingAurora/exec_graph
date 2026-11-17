@@ -13,11 +13,10 @@ type SecurityFormProps = {
   email: string
   countdown: number
   onRequestCode: () => void
-  onCancel: () => void
 }
 
 /** Validates a single account change while retaining its draft across settings tabs. */
-export function SecurityForm({ kind, email, countdown, onRequestCode, onCancel }: SecurityFormProps) {
+export function SecurityForm({ kind, email, countdown, onRequestCode }: SecurityFormProps) {
   const formRef = useRef<HTMLFormElement>(null)
   const [errors, setErrors] = useState<SecurityFieldErrors>({})
   const [codeTarget, setCodeTarget] = useState('')
@@ -104,7 +103,7 @@ export function SecurityForm({ kind, email, countdown, onRequestCode, onCancel }
       <SecurityField {...field('code')} label={isEmail ? '新邮箱验证码' : '绑定邮箱验证码'} inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="6 位数字验证码"
         action={<button className="quiet-button min-w-28 shrink-0 tabular-nums" type="button" disabled={countdown > 0} onClick={sendCode}>{countdown > 0 ? `${countdown}s 后重发` : codeTarget ? '重新发送' : '发送验证码'}</button>} />
       {isEmail && <SecurityField key={`current-${resetVersion}`} {...field('currentPassword')} label="当前密码" type="password" autoComplete="current-password" placeholder="输入当前密码" />}
-      <div className="flex justify-end gap-3 pt-1"><button className="quiet-button min-h-9" type="button" onClick={onCancel}>取消</button><button className="primary-button" type="submit">{isEmail ? '更新邮箱' : '更新密码'}</button></div>
+      <div className="flex justify-end gap-3 pt-1"><button className="primary-button" type="submit">{isEmail ? '更新邮箱' : '更新密码'}</button></div>
       </fieldset>
     </form>
   )
