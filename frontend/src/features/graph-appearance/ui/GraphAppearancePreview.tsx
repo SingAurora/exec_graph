@@ -29,7 +29,7 @@ export function GraphAppearancePreview({ preferences, showLegend, onShowLegendCh
             </g>)}
           </svg>
         </div>
-        {showLegend && <div className="border-t border-line px-3 py-3"><ActionGraphLegend /></div>}
+        {showLegend && <div className="border-t border-line px-3 py-3"><ActionGraphLegend compact /></div>}
       </div>
       <div className="mt-4 flex min-h-8 items-center justify-between gap-4">
         <label className="cursor-pointer text-sm" htmlFor={id}>显示图例</label>
