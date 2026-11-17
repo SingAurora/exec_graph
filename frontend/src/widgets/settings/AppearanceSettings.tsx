@@ -67,7 +67,7 @@ export function AppearanceSettings({
             </section>
             <section className="mt-7 border-t border-line pt-5">
                 <div className="mb-4 flex items-center gap-1">
-                    <h2 id="graph-appearance-title" className="text-base font-semibold">行动节点图</h2>
+                    <h2 id="graph-appearance-title" className="text-base font-semibold">节点关系图</h2>
                     <HelpPopover title="节点图外观">
                         <p>背景和图例应用于所有行动图，仅影响你的浏览界面。修改立即生效，并在当前浏览器保存，无需另外提交。</p>
                         <p>每种背景分别保留纹理参数。恢复默认会重置全部背景样式和参数，不改变图例开关。</p>
