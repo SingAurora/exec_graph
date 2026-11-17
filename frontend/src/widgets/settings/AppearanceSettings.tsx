@@ -3,7 +3,7 @@ import { RadioGroup } from 'radix-ui'
 import { GraphBackgroundSettings } from '../../features/graph-appearance/ui/GraphBackgroundSettings'
 import { HelpPopover } from '../../shared/ui/help/HelpPopover'
 import type { GraphBackgroundPreferences } from '../../shared/ui/graph-background/model'
-import { useAppearanceStore } from '../../features/appearance/model/appearance-store'
+import { useAppearanceStore, type Theme } from '../../features/appearance/model/appearance-store'
 
 
 
@@ -13,8 +13,8 @@ const themeOptions = [
 ] as const
 
 type AppearanceSettingsViewProps = {
-    darkMode: boolean
-    onToggleTheme: () => void
+    theme: Theme
+    onThemeChange: (theme: Theme) => void
     graphBackground: GraphBackgroundPreferences
     onGraphBackgroundChange: (preferences: GraphBackgroundPreferences) => void
     showActionGraphLegend: boolean
@@ -23,22 +23,13 @@ type AppearanceSettingsViewProps = {
 
 /** 外观设置的纯展示组件；真实页面由 AppearanceSettings 注入全局 store。 */
 export function AppearanceSettingsView({
-                                           darkMode,
-                                           onToggleTheme,
+                                           theme,
+                                           onThemeChange,
                                            graphBackground,
                                            onGraphBackgroundChange,
                                            showActionGraphLegend,
                                            onShowActionGraphLegendChange,
                                        }: AppearanceSettingsViewProps) {
-    const selectedTheme = darkMode ? 'dark' : 'light'
-
-    const handleThemeChange = (value: string) => {
-        const nextIsDark = value === 'dark'
-
-        if (nextIsDark !== darkMode) {
-            onToggleTheme()
-        }
-    }
 
     return (
         <div className="mt-6 max-w-[880px] pb-8">
@@ -46,8 +37,8 @@ export function AppearanceSettingsView({
                 <h2 id="interface-theme-title" className="text-base font-semibold">界面主题</h2>
                 <RadioGroup.Root
                     className="grid w-52 max-w-full grid-cols-2 gap-2"
-                    value={selectedTheme}
-                    onValueChange={handleThemeChange}
+                    value={theme}
+                    onValueChange={(value) => onThemeChange(value as Theme)}
                 >
                     {themeOptions.map((option) => {
                         const Icon = option.icon
@@ -90,8 +81,8 @@ export function AppearanceSettingsView({
 
 /** 从全局外观 store 读取设置，避免从 App 一层层传 props。 */
 export function AppearanceSettings() {
-    const darkMode = useAppearanceStore((state) => state.darkMode)
-    const onToggleTheme = useAppearanceStore((state) => state.toggleTheme)
+    const theme = useAppearanceStore((state) => state.theme)
+    const onThemeChange = useAppearanceStore((state) => state.setTheme)
     const graphBackground = useAppearanceStore((state) => state.graphBackground)
     const onGraphBackgroundChange = useAppearanceStore((state) => state.setGraphBackground)
     const showActionGraphLegend = useAppearanceStore((state) => state.showActionGraphLegend)
@@ -99,8 +90,8 @@ export function AppearanceSettings() {
 
     return (
         <AppearanceSettingsView
-            darkMode={darkMode}
-            onToggleTheme={onToggleTheme}
+            theme={theme}
+            onThemeChange={onThemeChange}
             graphBackground={graphBackground}
             onGraphBackgroundChange={onGraphBackgroundChange}
             showActionGraphLegend={showActionGraphLegend}

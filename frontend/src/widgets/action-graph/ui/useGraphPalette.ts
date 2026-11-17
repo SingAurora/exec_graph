@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useLayoutEffect, useState } from 'react'
+import { useAppearanceStore } from '../../../features/appearance/model/appearance-store'
 
 function readPalette() {
   const styles = getComputedStyle(document.documentElement)
@@ -8,14 +9,15 @@ function readPalette() {
     blue: color('--graph-blue'), purple: color('--graph-purple'), coral: color('--coral') }
 }
 
-/** Canvas renderers need resolved colors; update them with the existing app theme. */
+/** Canvas renderers need resolved colors; re-read CSS tokens when the stored theme changes. */
 export function useGraphPalette() {
+  const theme = useAppearanceStore((state) => state.theme)
   const [palette, setPalette] = useState(readPalette)
-  useEffect(() => {
-    const observer = new MutationObserver(() => setPalette(readPalette()))
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
-    return () => observer.disconnect()
-  }, [])
+
+  useLayoutEffect(() => {
+    setPalette(readPalette())
+  }, [theme])
+
   return palette
 }
 

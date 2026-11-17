@@ -5,8 +5,8 @@ import { createDefaultGraphBackground } from '../../shared/ui/graph-background/m
 import { AppearanceSettingsView } from './AppearanceSettings.tsx'
 
 const render = (overrides = {}) => renderToStaticMarkup(createElement(AppearanceSettingsView, {
-  darkMode: false,
-  onToggleTheme() {},
+  theme: 'light',
+  onThemeChange() {},
   graphBackground: createDefaultGraphBackground(),
   onGraphBackgroundChange() {},
   showActionGraphLegend: false,
@@ -16,9 +16,8 @@ const render = (overrides = {}) => renderToStaticMarkup(createElement(Appearance
 
 describe('appearance preferences', () => {
   test('marks the actual theme, including changes made outside the settings page', () => {
-    for (const darkMode of [false, true]) {
-      const html = render({ darkMode })
-      const theme = darkMode ? 'dark' : 'light'
+    for (const theme of ['light', 'dark']) {
+      const html = render({ theme })
       expect(html).toMatch(new RegExp(`<button[^>]*data-state="checked"[^>]*value="${theme}"`))
       expect(html.match(/<button[^>]*data-state="checked"[^>]*value="(?:light|dark)"/g)).toHaveLength(1)
     }

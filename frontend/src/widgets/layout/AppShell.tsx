@@ -72,7 +72,7 @@ export function AppShell({
                              graphTitle,
                              children
                          }: AppShellProps) {
-    const darkMode = useAppearanceStore((state) => state.darkMode)
+    const theme = useAppearanceStore((state) => state.theme)
     const toggleTheme = useAppearanceStore((state) => state.toggleTheme)
     // 让图搜索归到“发现”，图列表/图详情/发布/形成过程归到“我的”。
     const globalView = activeView === 'graph-search' ? 'home' : ['graphs', 'publish', 'graph', 'action-archive'].includes(activeView) ? 'my' : activeView
@@ -110,8 +110,8 @@ export function AppShell({
                         <div className={loading ? 'grid gap-[7px]' : 'grid grid-cols-2 gap-[7px]'}>
                             <button
                                 className="inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-md border border-line bg-transparent px-[7px] py-1.5 text-xs font-semibold text-muted transition hover:border-signal hover:text-signal"
-                                type="button" onClick={toggleTheme}><span className="inline-flex">{darkMode ? <Sun size={15}/> :
-                                <Moon size={15}/>}</span>{darkMode ? '浅色模式' : '深色模式'}</button>
+                                type="button" onClick={toggleTheme}><span className="inline-flex">{theme === 'dark' ? <Sun size={15}/> :
+                                <Moon size={15}/>}</span>{theme === 'dark' ? '浅色模式' : '深色模式'}</button>
                             {!loading && onLogout && <button
                                 className="inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-md border border-line bg-transparent px-[7px] py-1.5 text-xs font-semibold text-muted transition hover:border-coral hover:text-coral"
                                 type="button" onClick={onLogout}><span className="inline-flex"><LogOut size={15}/></span>退出登录</button>}
