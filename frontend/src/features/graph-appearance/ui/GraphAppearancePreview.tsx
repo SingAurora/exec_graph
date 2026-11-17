@@ -15,7 +15,8 @@ export function GraphAppearancePreview({ preferences, showLegend, onShowLegendCh
           <GraphBackground preferences={preferences} />
           <svg className="relative size-full" viewBox="0 0 300 240">
             <defs><marker id={`${id}-arrow`} markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto"><path d="M0 0 L5 2.5 L0 5 Z" fill="var(--graph-blue)" /></marker></defs>
-            <path d="M100 180 V134 M100 102 V56" fill="none" stroke="var(--graph-blue)" strokeWidth="1.6" markerEnd={`url(#${id}-arrow)`} />
+            <path d="M100 180 V134" fill="none" stroke="var(--graph-blue)" strokeWidth="1.6" markerEnd={`url(#${id}-arrow)`} />
+            <path d="M100 102 V56" fill="none" stroke="var(--graph-blue)" strokeWidth="1.6" markerEnd={`url(#${id}-arrow)`} />
             <path d="M112 192 C112 164 210 174 210 134" fill="none" stroke="var(--graph-blue)" strokeWidth="1.6" strokeDasharray="5 4" markerEnd={`url(#${id}-arrow)`} />
             <g transform="translate(174 160)" fill="none" strokeLinecap="round" strokeLinejoin="round">
               <path d="M-5 0 L-1 4 L6 -5" stroke="var(--surface)" strokeWidth="5" />
