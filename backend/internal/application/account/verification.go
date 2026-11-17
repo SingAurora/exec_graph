@@ -45,6 +45,14 @@ func emailAddress(value string) (string, error) {
 
 func codeScope(purpose, user string) string { return purpose + ":" + user }
 
+// targetLimitEmail 对已登录的修改操作使用当前账号邮箱，防止更换目标邮箱绕过重发限制。
+func targetLimitEmail(purpose, target, account string) string {
+	if account != "" && (purpose == "change-email" || purpose == "change-password") {
+		return account
+	}
+	return target
+}
+
 // SendCode 区分公开认证与需会话的安全操作；所有验证码绑定用途、邮箱和必要的账号身份。
 func (s *Service) SendCode(ctx context.Context, actor identity.Actor, input CodeInput, source string) (CodeView, error) {
 	out := CodeView{ExpiresIn: int(s.ttl.Seconds()), RetryAfter: int(constants.CodeResendInterval.Seconds())}
@@ -53,6 +61,8 @@ func (s *Service) SendCode(ctx context.Context, actor identity.Actor, input Code
 		return out, err
 	}
 	user := ""
+	// 已登录的修改操作用当前账号邮箱作为重发键，避免换一个新邮箱就绕过一分钟限制。
+	accountEmail := ""
 	switch input.Purpose {
 	case "register", "reset-password":
 	case "change-password", "change-email":
@@ -70,6 +80,7 @@ func (s *Service) SendCode(ctx context.Context, actor identity.Actor, input Code
 			return out, fault.New(fault.Invalid, "新邮箱不能与当前邮箱相同")
 		}
 		user = actor.UserID
+		accountEmail = account.View.Email
 	default:
 		return out, fault.New(fault.Invalid, "验证码用途不合法")
 	}
@@ -77,7 +88,7 @@ func (s *Service) SendCode(ctx context.Context, actor identity.Actor, input Code
 		key    string
 		count  int
 		window time.Duration
-	}{{"mail-source:" + source, constants.CodeSourceLimit, constants.CodeSourceWindow}, {"mail-target:" + input.Purpose + ":" + email, 1, constants.CodeResendInterval}} {
+	}{{"mail-source:" + source, constants.CodeSourceLimit, constants.CodeSourceWindow}, {"mail-target:" + input.Purpose + ":" + targetLimitEmail(input.Purpose, email, accountEmail), 1, constants.CodeResendInterval}} {
 		allowed, err := s.codes.Allow(ctx, limit.key, limit.count, limit.window)
 		if err != nil {
 			return out, err
