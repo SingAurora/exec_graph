@@ -115,8 +115,8 @@ export function GraphBackgroundSettings({
                                 label="圆点大小"
                                 value={preferences.dots.size}
                                 min={1}
-                                max={3}
-                                step={0.5}
+                                max={4}
+                                step={0.1}
                                 onChange={(size) => onChange({
                                     ...preferences,
                                     dots: { ...preferences.dots, size },
@@ -129,6 +129,7 @@ export function GraphBackgroundSettings({
                                 value={preferences.crosses.size}
                                 min={4}
                                 max={8}
+                                step={0.1}
                                 onChange={(size) => onChange({
                                     ...preferences,
                                     crosses: { ...preferences.crosses, size },

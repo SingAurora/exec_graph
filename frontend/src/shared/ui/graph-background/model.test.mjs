@@ -20,15 +20,15 @@ describe('personal graph background preferences', () => {
       crosses: { spacing: Infinity, size: NaN, lineWidth: -1, intensity: 'unknown' },
     })
     expect(normalized.dots).toEqual({ spacing: 16, size: 3, intensity: 'strong' })
-    expect(normalized.grid).toEqual({ spacing: 40, lineWidth: 0.75, intensity: 'standard' })
-    expect(normalized.crosses).toEqual({ spacing: 24, size: 4, lineWidth: 0.5, intensity: 'light' })
+    expect(normalized.grid).toEqual({ spacing: 40, lineWidth: 0.8, intensity: 'standard' })
+    expect(normalized.crosses).toEqual({ spacing: 24, size: 4, lineWidth: 0.4, intensity: 'light' })
   })
 
   test('retains each pattern configuration through style changes and persistence', () => {
     const customized = createDefaultGraphBackground()
     customized.dots = { spacing: 32, size: 3, intensity: 'strong' }
-    customized.grid = { spacing: 20, lineWidth: 0.5, intensity: 'standard' }
-    customized.crosses = { spacing: 40, size: 8, lineWidth: 1.5, intensity: 'light' }
+    customized.grid = { spacing: 20, lineWidth: 0.6, intensity: 'standard' }
+    customized.crosses = { spacing: 40, size: 8, lineWidth: 1.6, intensity: 'light' }
     for (const style of ['plain', 'dots', 'grid', 'crosses']) {
       const saved = { ...customized, style }
       expect(normalizeGraphBackground(JSON.parse(JSON.stringify(saved)))).toEqual(saved)

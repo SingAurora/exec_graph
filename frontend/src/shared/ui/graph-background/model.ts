@@ -6,8 +6,8 @@ export type GraphPatternIntensity = 'light' | 'standard' | 'strong'
 
 type PatternSettings = { spacing: number; intensity: GraphPatternIntensity }
 
-/** 线条粗细范围；步长 0.25 提供足够细的调整档位。 */
-export const graphLineWidthRange = { min: 0.5, max: 3, step: 0.25 } as const
+/** 线条粗细范围；步长 0.2 提供足够细的调整档位。 */
+export const graphLineWidthRange = { min: 0.4, max: 3, step: 0.2 } as const
 
 /** Personal canvas appearance; each pattern retains its own settings. */
 export type GraphBackgroundPreferences = {
@@ -32,7 +32,10 @@ function asRecord(value: unknown): Record<string, unknown> {
 }
 
 function bounded(value: unknown, fallback: number, min: number, max: number, step = 1) {
-  return typeof value === 'number' && Number.isFinite(value) ? Math.round(Math.max(min, Math.min(max, value)) / step) * step : fallback
+  // 量化后保留四位小数，避免 0.2 这类步长产生 0.6000000000000001。
+  return typeof value === 'number' && Number.isFinite(value)
+    ? Number((Math.round(Math.max(min, Math.min(max, value)) / step) * step).toFixed(4))
+    : fallback
 }
 
 function intensity(value: unknown): GraphPatternIntensity {
