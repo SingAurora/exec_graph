@@ -83,7 +83,16 @@ func (s *Service) SendCode(ctx context.Context, actor identity.Actor, input Code
 			return out, err
 		}
 		if !allowed {
-			return out, fault.New(fault.TooMany, "验证码发送过于频繁，请稍后再试")
+			retryAfter, err := s.codes.RetryAfter(ctx, limit.key)
+			if err != nil {
+				return out, err
+			}
+			seconds := int((retryAfter + time.Second - 1) / time.Second)
+			if seconds < 1 {
+				seconds = 1
+			}
+			out.RetryAfter = seconds
+			return out, fault.NewWithData(fault.TooMany, "验证码发送过于频繁，请稍后再试", RetryAfterView{RetryAfter: seconds})
 		}
 	}
 	number, err := rand.Int(rand.Reader, big.NewInt(1_000_000))

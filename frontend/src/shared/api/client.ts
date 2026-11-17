@@ -85,7 +85,7 @@ async function requestBusiness<T>(path: BusinessAPIPath, query: URLSearchParams 
       throw new BusinessRequestError('服务响应格式不正确', 'protocol', response.status, undefined, requestId)
     }
     // HTTP 成功和业务 code 为 0 必须同时成立，否则保留 code、状态码及追踪 ID 向上抛出。
-    if (!response.ok || payload.code !== 0) throw new BusinessRequestError(payload.msg || `请求失败（${response.status}）`, 'business', response.status, payload.code as number, requestId)
+    if (!response.ok || payload.code !== 0) throw new BusinessRequestError(payload.msg || `请求失败（${response.status}）`, 'business', response.status, payload.code as number, requestId, payload.data)
     return payload.data as T
   } catch (error) {
     if (options.signal?.aborted) throw new BusinessRequestError('请求已取消', 'cancelled')

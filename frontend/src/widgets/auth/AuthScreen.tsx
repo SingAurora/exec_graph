@@ -6,6 +6,7 @@ import type {AuthView} from '../../shared/lib/navigation'
 import {passwordMaxCharacters} from '../../entities/account/lib/validation'
 import {stripUnsafeTextCharacters} from '../../shared/lib/text-input'
 import {type AuthFieldErrors, type AuthFieldName, validateAuthField, validateAuthForm} from '../../features/auth/lib/validation'
+import {readRetryAfterSeconds} from '../../shared/lib/rate-limit'
 import {Brand} from '../../shared/ui/Brand'
 import {SiteFooter} from '../../shared/ui/SiteFooter'
 import {useToast} from '../../shared/ui/toast/useToast'
@@ -93,7 +94,12 @@ export function AuthScreen({view}: AuthScreenProps) {
             setCountdown(result.retryAfter)
             showToast({message: '验证码已发送，请查收邮箱', kind: 'info'})
         } catch (error) {
-            showToast({kind: 'error', message: error instanceof Error ? error.message : '发送失败，请重试'})
+            const retryAfter = readRetryAfterSeconds(error)
+            if (retryAfter) setCountdown(retryAfter)
+            showToast({
+                kind: 'error',
+                message: retryAfter ? `验证码发送过于频繁，请 ${retryAfter} 秒后再试` : error instanceof Error ? error.message : '发送失败，请重试',
+            })
         } finally {
             setCodeSending(false)
         }

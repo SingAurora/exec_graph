@@ -81,7 +81,10 @@ func accountFlow(t *testing.T, s *writeSystem, sender *capturedMail, email strin
 	t.Helper()
 	anon := writeClient{url: s.server.URL, http: &http.Client{Timeout: 40 * time.Second}}
 	anon.call(t, "POST", "auth/code-send", app.CodeInput{Purpose: "register", Email: email}, 200, "")
-	anon.call(t, "POST", "auth/code-send", app.CodeInput{Purpose: "register", Email: email}, 429, "")
+	limited := decode[app.RetryAfterView](t, anon.call(t, "POST", "auth/code-send", app.CodeInput{Purpose: "register", Email: email}, 429, ""))
+	if limited.RetryAfter < 1 || limited.RetryAfter > 60 {
+		t.Fatalf("限流响应没有返回有效的重试秒数: %d", limited.RetryAfter)
+	}
 	password := "integration-first-password-493"
 	registration := app.RegisterInput{Email: email, Code: "000000", Password: password, Name: "普通注册验证"}
 	if sender.code(email) == registration.Code {

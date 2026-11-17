@@ -7,12 +7,13 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '../../auth/model/auth-store'
 import { passwordMaxCharacters } from '../../../entities/account/lib/validation'
 import { validateNewEmail, validateSecurityForm, type SecurityFieldErrors, type SecurityFieldName, type SecurityFormKind } from '../lib/validation'
+import { readRetryAfterSeconds } from '../../../shared/lib/rate-limit'
 
 type SecurityFormProps = {
   kind: SecurityFormKind
   email: string
   countdown: number
-  onRequestCode: () => void
+  onRequestCode: (retryAfter: number) => void
 }
 
 /** Validates a single account change while retaining its draft across settings tabs. */
@@ -59,14 +60,20 @@ export function SecurityForm({ kind, email, countdown, onRequestCode }: Security
     if (error) { focusField('email'); return }
     setCodeSending(true)
     try {
-      await requestCode(isEmail ? 'change-email' : 'change-password', destination)
+      const result = await requestCode(isEmail ? 'change-email' : 'change-password', destination)
       setCodeTarget(destination)
       setErrors((current) => ({ ...current, code: undefined }))
-      onRequestCode()
+      onRequestCode(result.retryAfter)
       showToast({ kind: 'info', message: '验证码已发送，请查收邮箱' })
       focusField('code')
-    } catch (error) { showToast({ kind: 'error', message: error instanceof Error ? error.message : '发送失败，请重试' }) }
-    finally { setCodeSending(false) }
+    } catch (error) {
+      const retryAfter = readRetryAfterSeconds(error)
+      if (retryAfter) onRequestCode(retryAfter)
+      showToast({
+        kind: 'error',
+        message: retryAfter ? `验证码发送过于频繁，请 ${retryAfter} 秒后再试` : error instanceof Error ? error.message : '发送失败，请重试',
+      })
+    } finally { setCodeSending(false) }
   }
   const updateErrors = (event: ChangeEvent<HTMLFormElement> | FocusEvent<HTMLFormElement>) => {
     const input = event.target

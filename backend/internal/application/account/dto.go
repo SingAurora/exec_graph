@@ -63,6 +63,7 @@ type Codes interface {
 	Consume(context.Context, string, string, string) (bool, error)
 	Revoke(context.Context, string, string) error
 	Allow(context.Context, string, int, time.Duration) (bool, error)
+	RetryAfter(context.Context, string) (time.Duration, error)
 }
 
 // Sender 是通过模板发送验证码的外部邮件能力。
@@ -73,5 +74,10 @@ type Sender interface {
 // CodeView 返回发送后的有效期和重发间隔，不返回验证码。
 type CodeView struct {
 	ExpiresIn  int `json:"expiresIn"`
+	RetryAfter int `json:"retryAfter"`
+}
+
+// RetryAfterView 是限流错误里的机器可读重试时间。
+type RetryAfterView struct {
 	RetryAfter int `json:"retryAfter"`
 }

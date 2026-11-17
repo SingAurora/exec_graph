@@ -61,6 +61,13 @@ describe('business transport', () => {
     await expect(getAPI('/api/commands/graphs/getList')).rejects.toMatchObject({ kind: 'business', code: 123456, status: 200, requestId: 'trace', message: '业务失败' })
   })
 
+  test('preserves structured data on business errors', async () => {
+    globalThis.fetch = async () => Response.json({ code: 10006, msg: '发送过于频繁', data: { retryAfter: 42 } }, { status: 429 })
+    await expect(postAPI('/api/commands/auth/code-send', { email: 'name@example.com' })).rejects.toMatchObject({
+      kind: 'business', status: 429, code: 10006, data: { retryAfter: 42 },
+    })
+  })
+
   test('distinguishes HTTP business errors from malformed JSON/envelopes', async () => {
     globalThis.fetch = async () => Response.json({ code: 10003, msg: '无权限', data: null }, { status: 403 })
     await expect(getAPI('/api/commands/graphs/getList')).rejects.toMatchObject({ kind: 'business', status: 403, code: 10003 })

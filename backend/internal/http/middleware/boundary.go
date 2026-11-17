@@ -28,9 +28,10 @@ func Boundary(logger *slog.Logger) gin.HandlerFunc {
 			}
 			err := c.Errors.Last().Err
 			code, message := fault.Internal, "服务内部错误，请稍后重试"
+			var data any
 			var known *fault.Error
 			if errors.As(err, &known) {
-				code, message = known.Code, known.Message
+				code, message, data = known.Code, known.Message, known.Data
 			} else {
 				logger.Error("请求失败", "request_id", requestID, "error", err)
 			}
@@ -39,7 +40,7 @@ func Boundary(logger *slog.Logger) gin.HandlerFunc {
 			if status == 0 {
 				status = http.StatusInternalServerError
 			}
-			c.JSON(status, common.Envelope{Code: code, Message: message, Data: nil})
+			c.JSON(status, common.Envelope{Code: code, Message: message, Data: data})
 		}()
 		c.Next()
 	}

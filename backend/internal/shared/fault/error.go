@@ -5,6 +5,8 @@ package fault
 type Error struct {
 	Code    int
 	Message string
+	// Data 是可选的机器可读错误详情，例如限流后的重试秒数。
+	Data any
 }
 
 // Error 实现标准错误接口。
@@ -12,6 +14,11 @@ func (e *Error) Error() string { return e.Message }
 
 // New 构造已知业务错误，HTTP 层统一映射状态码。
 func New(code int, message string) error { return &Error{Code: code, Message: message} }
+
+// NewWithData 构造带机器可读详情的业务错误；Data 会原样进入响应外壳。
+func NewWithData(code int, message string, data any) error {
+	return &Error{Code: code, Message: message, Data: data}
+}
 
 const (
 	// Invalid 表示参数不合法。

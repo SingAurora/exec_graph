@@ -2,8 +2,6 @@ import {LockKeyhole, Mail} from 'lucide-react'
 import {useEffect, useState} from 'react'
 import {SecurityForm} from './SecurityForm'
 
-const resendDelaySeconds = 60
-
 /** 账户安全页直接展示两个修改表单，不通过编辑按钮切换显隐。 */
 export function AccountSecurity({email}: { email: string }) {
     const [emailCountdown, setEmailCountdown] = useState(0)
@@ -34,7 +32,7 @@ export function AccountSecurity({email}: { email: string }) {
                     kind="email"
                     email={email}
                     countdown={emailCountdown}
-                    onRequestCode={() => setEmailCountdown(resendDelaySeconds)}
+                    onRequestCode={setEmailCountdown}
                 />
             </section>
             <section className="grid grid-cols-[minmax(130px,1fr)_minmax(0,460px)] items-start gap-8 border-t border-line pt-7">
@@ -43,13 +41,13 @@ export function AccountSecurity({email}: { email: string }) {
                         <LockKeyhole size={17} className="text-muted"/>
                         <h2 id="change-password-title" className="text-base font-semibold">修改密码</h2>
                     </div>
-                    <p className="mt-2 text-sm text-muted">通过绑定邮箱验证身份</p>
+                    <p className="mt-2 text-sm text-muted">通过登录邮箱验证身份</p>
                 </div>
                 <SecurityForm
                     kind="password"
                     email={email}
                     countdown={passwordCountdown}
-                    onRequestCode={() => setPasswordCountdown(resendDelaySeconds)}
+                    onRequestCode={setPasswordCountdown}
                 />
             </section>
         </div>
