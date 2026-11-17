@@ -9,7 +9,7 @@ import { HelpPopover } from '../../../shared/ui/help/HelpPopover'
 import { GraphBackground } from '../../../shared/ui/graph-background/GraphBackground'
 import type { GraphBackgroundPreferences } from '../../../shared/ui/graph-background/model'
 import { createActionLayout, GRAPH_WIDTH } from '../lib/layout'
-import { getEdgeHitPaths, type EdgeHitPath } from '../lib/edgeGeometry'
+import { getEdgeHitPaths, getSatisfiedEdgeMarkers, type EdgeHitPath, type EdgeMarker } from '../lib/edgeGeometry'
 import { GRAPH_ZOOM } from '../lib/viewport'
 import { useGraphViewport } from '../model/useGraphViewport'
 import { createGraphStyles } from './graphStyles'
@@ -43,6 +43,7 @@ export function ActionGraph({ actions, highlightedPath, users, selectedId, selec
   const tooltipId = useId()
   const [hover, setHover] = useState<GraphHover | null>(null)
   const [hitPaths, setHitPaths] = useState<EdgeHitPath[]>([])
+  const [satisfiedMarkers, setSatisfiedMarkers] = useState<EdgeMarker[]>([])
   // 高亮和选择只改样式；布局仅随行动数据变化，避免点击节点时整个图重新排列。
   const layout = useMemo(() => createActionLayout(actions, []), [actions])
   const highlightTip = highlightedPath.at(-1)
@@ -72,6 +73,7 @@ export function ActionGraph({ actions, highlightedPath, users, selectedId, selec
     if (!graph) return
     graph.style(createGraphStyles(palette))
     setHitPaths(getEdgeHitPaths(graph))
+    setSatisfiedMarkers(getSatisfiedEdgeMarkers(graph))
   }, [palette, layout])
 
   const { zoom, changeZoom, locate, fit } = useGraphViewport({ graphRef, container, targets, active,
@@ -191,6 +193,12 @@ export function ActionGraph({ actions, highlightedPath, users, selectedId, selec
                   onFocus={(event) => showHover('reference', edge.id, event)} onBlur={() => setHover(null)}><title>{label}</title></path>
               )
             })}
+            {satisfiedMarkers.map(({ id, x, y }) => (
+              <g key={id} transform={`translate(${x} ${y})`} pointerEvents="none">
+                <circle r="8" fill="var(--surface)" stroke="var(--signal)" strokeWidth="1.5" />
+                <path d="M-4 0 L-1 3 L5 -4" fill="none" stroke="var(--signal)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </g>
+            ))}
           </svg>
           {[...actions].sort((a, b) => b.number - a.number).map((node) => {
             const position = layout.positions.get(node.uuid)!
