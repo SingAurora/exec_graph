@@ -6,6 +6,9 @@ export type GraphPatternIntensity = 'light' | 'standard' | 'strong'
 
 type PatternSettings = { spacing: number; intensity: GraphPatternIntensity }
 
+/** 线条粗细范围；步长 0.25 提供足够细的调整档位。 */
+export const graphLineWidthRange = { min: 0.5, max: 3, step: 0.25 } as const
+
 /** Personal canvas appearance; each pattern retains its own settings. */
 export type GraphBackgroundPreferences = {
   style: GraphBackgroundStyle
@@ -45,7 +48,7 @@ export function normalizeGraphBackground(value: unknown): GraphBackgroundPrefere
   return {
     style: saved.style === 'plain' || saved.style === 'grid' || saved.style === 'crosses' ? saved.style : 'dots',
     dots: { spacing: bounded(dots.spacing, 24, 16, 40), intensity: intensity(dots.intensity), size: bounded(dots.size, 2, 1, 3, 0.5) },
-    grid: { spacing: bounded(grid.spacing, 24, 16, 40), intensity: intensity(grid.intensity), lineWidth: bounded(grid.lineWidth, 1, 0.5, 1.5, 0.5) },
-    crosses: { spacing: bounded(crosses.spacing, 24, 16, 40), intensity: intensity(crosses.intensity), size: bounded(crosses.size, 4, 4, 8), lineWidth: bounded(crosses.lineWidth, 1, 0.5, 1.5, 0.5) },
+    grid: { spacing: bounded(grid.spacing, 24, 16, 40), intensity: intensity(grid.intensity), lineWidth: bounded(grid.lineWidth, 1, graphLineWidthRange.min, graphLineWidthRange.max, graphLineWidthRange.step) },
+    crosses: { spacing: bounded(crosses.spacing, 24, 16, 40), intensity: intensity(crosses.intensity), size: bounded(crosses.size, 4, 4, 8), lineWidth: bounded(crosses.lineWidth, 1, graphLineWidthRange.min, graphLineWidthRange.max, graphLineWidthRange.step) },
   }
 }

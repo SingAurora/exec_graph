@@ -6,6 +6,7 @@ import {
     type GraphBackgroundPreferences,
     type GraphBackgroundStyle,
     type GraphPatternIntensity,
+    graphLineWidthRange,
 } from '../../../shared/ui/graph-background/model'
 import { GraphAppearancePreview } from './GraphAppearancePreview'
 
@@ -138,9 +139,9 @@ export function GraphBackgroundSettings({
                             <RangeControl
                                 label="线条粗细"
                                 value={preferences.grid.lineWidth}
-                                min={0.5}
-                                max={1.5}
-                                step={0.5}
+                                min={graphLineWidthRange.min}
+                                max={graphLineWidthRange.max}
+                                step={graphLineWidthRange.step}
                                 onChange={(lineWidth) => onChange({
                                     ...preferences,
                                     grid: { ...preferences.grid, lineWidth },
@@ -151,9 +152,9 @@ export function GraphBackgroundSettings({
                             <RangeControl
                                 label="线条粗细"
                                 value={preferences.crosses.lineWidth}
-                                min={0.5}
-                                max={1.5}
-                                step={0.5}
+                                min={graphLineWidthRange.min}
+                                max={graphLineWidthRange.max}
+                                step={graphLineWidthRange.step}
                                 onChange={(lineWidth) => onChange({
                                     ...preferences,
                                     crosses: { ...preferences.crosses, lineWidth },

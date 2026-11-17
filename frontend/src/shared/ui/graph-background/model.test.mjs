@@ -20,7 +20,7 @@ describe('personal graph background preferences', () => {
       crosses: { spacing: Infinity, size: NaN, lineWidth: -1, intensity: 'unknown' },
     })
     expect(normalized.dots).toEqual({ spacing: 16, size: 3, intensity: 'strong' })
-    expect(normalized.grid).toEqual({ spacing: 40, lineWidth: 1, intensity: 'standard' })
+    expect(normalized.grid).toEqual({ spacing: 40, lineWidth: 0.75, intensity: 'standard' })
     expect(normalized.crosses).toEqual({ spacing: 24, size: 4, lineWidth: 0.5, intensity: 'light' })
   })
 
