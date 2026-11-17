@@ -1,6 +1,7 @@
 import {LockKeyhole, Mail} from 'lucide-react'
 import {useEffect, useState} from 'react'
-import {SecurityForm} from './SecurityForm'
+import {ChangeEmailForm} from './ChangeEmailForm'
+import {ChangePasswordForm} from './ChangePasswordForm'
 
 /** 账户安全页直接展示两个修改表单，不通过编辑按钮切换显隐。 */
 export function AccountSecurity({email}: { email: string }) {
@@ -28,8 +29,7 @@ export function AccountSecurity({email}: { email: string }) {
                     </div>
                     <p className="mt-2 break-all text-sm text-muted">{email}</p>
                 </div>
-                <SecurityForm
-                    kind="email"
+                <ChangeEmailForm
                     email={email}
                     countdown={emailCountdown}
                     onRequestCode={setEmailCountdown}
@@ -43,8 +43,7 @@ export function AccountSecurity({email}: { email: string }) {
                     </div>
                     <p className="mt-2 text-sm text-muted">通过登录邮箱验证身份</p>
                 </div>
-                <SecurityForm
-                    kind="password"
+                <ChangePasswordForm
                     email={email}
                     countdown={passwordCountdown}
                     onRequestCode={setPasswordCountdown}
