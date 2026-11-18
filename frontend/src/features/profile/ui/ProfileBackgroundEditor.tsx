@@ -1,7 +1,7 @@
 import { ImagePlus, RotateCcw } from 'lucide-react'
 import { useId, useRef, useState, type ChangeEvent, type ReactNode } from 'react'
 import { ProfileCover } from '../../../entities/profile/ui/ProfileCover'
-import { readImageFile } from '../../../shared/lib/image'
+import { formatMegabytes, imageUploadLimits, readImageFile } from '../../../shared/lib/image'
 import { ImageCropDialog, type ImageCropSource } from '../../../shared/ui/image-crop/ImageCropDialog'
 
 /** Crops and compresses a local profile cover before updating the profile form draft. */
@@ -24,6 +24,7 @@ export function ProfileBackgroundEditor({ value, onChange, onLoadingChange, avat
     if (!file) return
     setError('')
     if (!file.type.startsWith('image/')) { setError('请选择图片文件'); return }
+    if (file.size > imageUploadLimits.profileCover) { setError(`背景图不能超过 ${formatMegabytes(imageUploadLimits.profileCover)}`); return }
     setLoading(true)
     onLoadingChange(true)
     try {
@@ -47,7 +48,7 @@ export function ProfileBackgroundEditor({ value, onChange, onLoadingChange, avat
         <button className="quiet-button" type="button" disabled={loading} onClick={() => input.current?.click()}><ImagePlus size={15} />{loading ? '读取中…' : value ? '更换背景图' : '上传背景图'}</button>
         {value && <button className="text-button" type="button" disabled={loading} onClick={() => { setError(''); onChange(undefined) }}><RotateCcw size={14} />恢复默认</button>}
       </div>
-      <input className="sr-only" ref={input} type="file" accept="image/*" title="上传主页背景图" disabled={loading} onChange={selectImage} />
+      <input className="sr-only" ref={input} type="file" accept="image/jpeg,image/png,image/webp" title="上传主页背景图" disabled={loading} onChange={selectImage} />
       {error && <p className="text-xs text-coral" id={errorId}>{error}</p>}
       <ImageCropDialog open={open} image={source} variant="cover" onOpenChange={setOpen} onConfirm={onChange} />
     </div>

@@ -1,7 +1,7 @@
 import { ImagePlus, Trash2 } from 'lucide-react'
 import { useEffect, useId, useState, type ChangeEvent, type ReactNode } from 'react'
 import type { Graph } from '../../../entities/graph/model/types'
-import { readImageFile } from '../../../shared/lib/image'
+import { formatMegabytes, imageUploadLimits, readImageFile } from '../../../shared/lib/image'
 import { getPromptDefaults, type PromptDefaults } from '../api/commands'
 import { GraphAvatar } from '../../../entities/graph/ui/GraphAvatar'
 import { defaultGraphBackground } from '../../../entities/graph/lib/appearance'
@@ -105,6 +105,8 @@ function GraphImageField({ label, value, fallback, kind, onChange, onLoadingChan
       setError('请选择图片文件')
       return
     }
+    const limit = kind === 'avatar' ? imageUploadLimits.avatar : imageUploadLimits.graphCover
+    if (file.size > limit) { setError(`${kind === 'avatar' ? '图头像' : '背景图'}不能超过 ${formatMegabytes(limit)}`); return }
     setLoading(true)
     onLoadingChange(true)
     try {
@@ -128,7 +130,7 @@ function GraphImageField({ label, value, fallback, kind, onChange, onLoadingChan
             {kind === 'avatar' ? <GraphAvatar graph={{ title: fallback ?? '', avatar: value }} size="settings" /> : <span className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: `url("${previewImage}")` }} />}
             <span className="absolute inset-0 grid place-items-center bg-black/45 text-[11px] font-semibold text-white opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100"><ImagePlus size={18} /><span className="sr-only">{value ? '更换图片' : '上传图片'}</span></span>
           </label>
-          <input id={inputId} className="sr-only" type="file" accept="image/*" title={`上传${label}`} disabled={loading} onChange={selectImage} />
+          <input id={inputId} className="sr-only" type="file" accept="image/jpeg,image/png,image/webp" title={`上传${label}`} disabled={loading} onChange={selectImage} />
           {value && <button className="text-button shrink-0" type="button" onClick={() => { setError(''); onChange('') }}><Trash2 size={14} />{kind === 'avatar' ? '使用文字头像' : '恢复默认'}</button>}
         </div>
         {error && <span className="text-[11px] text-coral">{error}</span>}

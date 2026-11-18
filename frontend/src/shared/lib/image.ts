@@ -1,3 +1,15 @@
+/** 前端按用途限制原图大小，服务端仍保留 8 MB / 2000 万像素兜底。 */
+export const imageUploadLimits = {
+  avatar: 2 * 1024 * 1024,
+  profileCover: 5 * 1024 * 1024,
+  graphCover: 5 * 1024 * 1024,
+  actionImage: 8 * 1024 * 1024,
+} as const
+
+export function formatMegabytes(bytes: number) {
+  return `${Math.round(bytes / (1024 * 1024))} MB`
+}
+
 export const imageCompressionThreshold = 2 * 1024 * 1024
 
 export type SquareCrop = {

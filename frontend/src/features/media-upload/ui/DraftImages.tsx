@@ -2,7 +2,7 @@ import { ImagePlus, X } from 'lucide-react'
 import { Dialog } from 'radix-ui'
 import { useEffect, useRef, useState } from 'react'
 import { ACTION_IMAGE_NOTE_LIMIT } from '../../../entities/action/model/limits'
-import { compressImageFile, imageCompressionThreshold } from '../../../shared/lib/image'
+import { compressImageFile, formatMegabytes, imageCompressionThreshold, imageUploadLimits } from '../../../shared/lib/image'
 import type { PostImage } from '../../../shared/model/content'
 import { ImagePreview } from '../../../shared/ui/ImagePreview'
 import { retainImages, uploadImage } from '../api/media'
@@ -34,6 +34,7 @@ export function DraftImages({ images, ready, disabled, onChange, onBusyChange }:
   const selectImage = async (file: File) => {
     setError('')
     if (!file.type.startsWith('image/')) { setError('请选择图片文件'); return }
+    if (file.size > imageUploadLimits.actionImage) { setError(`图片不能超过 ${formatMegabytes(imageUploadLimits.actionImage)}`); return }
     const previewUrl = URL.createObjectURL(file)
     setPending({ url: previewUrl, name: file.name })
     setUploading(true); onBusyChange(true)
