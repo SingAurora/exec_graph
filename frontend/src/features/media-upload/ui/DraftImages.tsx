@@ -2,7 +2,7 @@ import { ImagePlus, X } from 'lucide-react'
 import { Dialog } from 'radix-ui'
 import { useEffect, useRef, useState } from 'react'
 import { ACTION_IMAGE_NOTE_LIMIT } from '../../../entities/action/model/limits'
-import { compressImageFile, formatMegabytes, imageCompressionThreshold, imageUploadLimits } from '../../../shared/lib/image'
+import { compressImageFile, formatMegabytes, imageCompressionThreshold, imageUploadAccept, imageUploadLimits } from '../../../shared/lib/image'
 import type { PostImage } from '../../../shared/model/content'
 import { ImagePreview } from '../../../shared/ui/ImagePreview'
 import { retainImages, uploadImage } from '../api/media'
@@ -55,7 +55,7 @@ export function DraftImages({ images, ready, disabled, onChange, onBusyChange }:
           <button className="quiet-button" type="button" disabled={!ready || disabled || uploading || images.length >= 12} onClick={() => input.current?.click()}><ImagePlus size={15} />{uploading ? '上传中…' : '添加图片'}</button>
           <span className="text-xs text-muted">{images.length}/12</span>
         </div>
-        <input className="sr-only" type="file" accept="image/jpeg,image/png,image/webp" ref={input} title="上传行动配图" disabled={!ready || disabled || uploading} onChange={(event) => {
+        <input className="sr-only" type="file" accept={imageUploadAccept} ref={input} title="上传行动配图" disabled={!ready || disabled || uploading} onChange={(event) => {
           const file = event.target.files?.[0]; event.target.value = ''
           if (file && images.length < 12 && !uploading) void selectImage(file)
         }} />

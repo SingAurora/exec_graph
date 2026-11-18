@@ -1,4 +1,7 @@
 /** 前端按用途限制原图大小，服务端仍保留 8 MB / 2000 万像素兜底。 */
+/** 文件选择器提示：同时写扩展名和 MIME，兼容不同系统的选择器。 */
+export const imageUploadAccept = '.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp'
+
 export const imageUploadLimits = {
   avatar: 2 * 1024 * 1024,
   profileCover: 5 * 1024 * 1024,

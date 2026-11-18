@@ -1,7 +1,7 @@
 import { ImagePlus } from 'lucide-react'
 import { useId, useRef, useState, type ChangeEvent } from 'react'
 import { getAvatarLabel } from '../../../shared/lib/avatar'
-import { formatMegabytes, imageUploadLimits, readImageFile } from '../../../shared/lib/image'
+import { formatMegabytes, imageUploadAccept, imageUploadLimits, readImageFile } from '../../../shared/lib/image'
 import { ImageCropDialog, type ImageCropSource } from '../../../shared/ui/image-crop/ImageCropDialog'
 
 type AvatarEditorProps = {
@@ -48,7 +48,7 @@ export function AvatarEditor({ value, fallback, onChange }: AvatarEditorProps) {
         <span className={`inline-grid size-[88px] place-items-center overflow-hidden rounded-full bg-signal-soft text-[27px] font-bold text-signal${value ? ' bg-cover bg-center bg-no-repeat' : ''}`} style={value ? { backgroundImage: `url("${value}")` } : undefined}>{value ? '' : getAvatarLabel(fallback)}</span>
         <span className="absolute inset-0 grid place-items-center rounded-full bg-black/55 text-white opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100"><ImagePlus size={20} /><span className="sr-only">编辑头像</span></span>
       </button>
-      <input ref={inputRef} id={inputId} className="sr-only" type="file" accept="image/jpeg,image/png,image/webp" onChange={selectImage} />
+      <input ref={inputRef} id={inputId} className="sr-only" type="file" accept={imageUploadAccept} onChange={selectImage} />
       {value && <button className="text-button text-xs" type="button" onClick={() => onChange('')}>使用文字头像</button>}
       {error && <p className="max-w-48 text-xs text-coral">{error}</p>}
       </div>
