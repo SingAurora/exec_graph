@@ -197,3 +197,11 @@
 .chat-markdown code { border-radius: 4px; background: var(--soft); padding: 1px 4px; font-size: .92em; }
 .record-markdown pre code,
 .chat-markdown pre code { background: transparent; padding: 0; }
+
+/* Markdown 图片加载失败时保留版式，避免破图标和无限空白。 */
+.record-document-loading { display: block; width: min(100%, 360px); height: 180px; border-radius: 6px; background: var(--soft); }
+.record-document-figure-error { display: grid; place-items: center; gap: 4px; min-height: 120px; border: 1px dashed var(--line); border-radius: 6px; background: var(--soft); padding: 16px; color: var(--muted); text-align: center; }
+.record-document-error-text { font-size: 13px; line-height: 1.6; color: var(--copy); }
+.record-document-error-hint { font-size: 11px; line-height: 1.5; }
+.profile-biography-compact .record-document-loading { height: 72px; }
+.profile-biography-compact .record-document-figure-error { min-height: 72px; padding: 8px; }

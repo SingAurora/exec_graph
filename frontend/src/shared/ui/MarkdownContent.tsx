@@ -1,4 +1,5 @@
 import { Dialog } from 'radix-ui'
+import { ImageOff } from 'lucide-react'
 import { useCallback, useRef, useState, type ComponentPropsWithoutRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -7,6 +8,37 @@ import type { PostImage } from '../model/content'
 import { ImagePreview } from './ImagePreview'
 
 /** Reads text and full-ratio images in document order, with a shared image preview. */
+function MarkdownImage({ src, alt, title, onOpen, showCaption }: {
+  src?: string
+  alt?: string
+  title?: string
+  onOpen: (image: HTMLImageElement) => void
+  showCaption: boolean
+}) {
+  const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading')
+  if (status === 'error') {
+    return (
+      <span className="record-document-figure record-document-figure-error" title={`图片无法加载：${alt || src || '未知地址'}`}>
+        <ImageOff size={20} />
+        <span className="record-document-error-text">{alt || '图片无法显示'}</span>
+        <span className="record-document-error-hint">链接可能失效或被网站限制</span>
+      </span>
+    )
+  }
+  return (
+    <span className="record-document-figure">
+      {status === 'loading' && <span className="record-document-loading" />}
+      <img src={src} alt={alt ?? ''} title={title ?? `查看图片：${alt || '文档图片'}`} loading="lazy" decoding="async" referrerPolicy="no-referrer" tabIndex={0}
+        style={status === 'loading' ? { display: 'none' } : undefined}
+        onLoad={() => setStatus('loaded')}
+        onError={() => setStatus('error')}
+        onClick={(event) => { event.preventDefault(); event.stopPropagation(); onOpen(event.currentTarget) }}
+        onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onOpen(event.currentTarget) } }} />
+      {showCaption && alt && <span className="record-document-caption">{alt}</span>}
+    </span>
+  )
+}
+
 export function MarkdownContent({ markdown, images = [], showImageCaptions = true, allowLinks = true, className = '' }: { markdown: string; images?: PostImage[]; showImageCaptions?: boolean; allowLinks?: boolean; className?: string }) {
   const document = useRef<HTMLDivElement>(null)
   const trigger = useRef<HTMLImageElement | null>(null)
@@ -21,12 +53,7 @@ export function MarkdownContent({ markdown, images = [], showImageCaptions = tru
     setPreview({ images: elements.map((element) => ({ url: element.currentSrc || element.src, alt: element.alt })), index })
   }, [])
 
-  const renderImage = useCallback(({ src, alt, title }: ComponentPropsWithoutRef<'img'>) => <span className="record-document-figure">
-    <img src={src} alt={alt ?? ''} title={title ?? `查看图片：${alt || '文档图片'}`} loading="lazy" tabIndex={0}
-      onClick={(event) => { event.preventDefault(); event.stopPropagation(); openImage(event.currentTarget) }}
-      onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); openImage(event.currentTarget) } }} />
-    {showImageCaptions && alt && <span className="record-document-caption">{alt}</span>}
-  </span>, [openImage, showImageCaptions])
+  const renderImage = useCallback(({ src, alt, title }: ComponentPropsWithoutRef<'img'>) => <MarkdownImage src={src} alt={alt} title={title} onOpen={openImage} showCaption={showImageCaptions} />, [openImage, showImageCaptions])
 
   return (
     <Dialog.Root open={preview !== null} onOpenChange={(open) => { if (!open) setPreview(null) }}>
