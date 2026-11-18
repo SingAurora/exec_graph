@@ -101,7 +101,7 @@ func (s *Service) ProfileActionPage(ctx context.Context, userUUID, resource stri
 	return ActionPageView{Items: buildActionItems(ids, actions), Actions: actions, Graphs: graphs, Page: page, PageSize: size, Total: total, HasMore: page*size < total}, nil
 }
 
-// ProfileGraphPage 读取用户发起或参与过的图。
+// ProfileGraphPage 读取用户发起的图。
 func (s *Service) ProfileGraphPage(ctx context.Context, userUUID string, page, size int) (GraphPageView, error) {
 	page, size = normalizePage(page, size)
 	graphs, err := s.repository.GraphsForAuthor(ctx, userUUID)

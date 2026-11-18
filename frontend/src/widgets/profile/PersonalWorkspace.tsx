@@ -1,6 +1,5 @@
 import { ArrowRight } from 'lucide-react'
 import { useMemo } from 'react'
-import { hasUserContributed } from '../../entities/graph/lib/activity'
 import { getPublishedExpressions } from '../../entities/action/lib/published'
 import { sortActionsNewestFirst } from '../../entities/action/lib/expressions'
 import { getProfileAgreementResponses } from '../../entities/action/lib/agreement-responses'
@@ -26,7 +25,7 @@ export function PersonalWorkspace({ profile, users, graphs, actions, onCreateGra
 }) {
   const ownActions = sortActionsNewestFirst(actions.filter((node) => node.authorUuid === profile.uuid))
   const expressions = getPublishedExpressions(actions, [profile.uuid])
-  const related = graphs.filter((graph) => graph.ownerUuid === profile.uuid || hasUserContributed(graph.uuid, profile.uuid, actions))
+  const related = graphs.filter((graph) => graph.ownerUuid === profile.uuid)
   const agreements = useMemo(() => getProfileAgreementResponses(getActionReferences(actions), profile.uuid), [actions, profile.uuid])
   const graphActivities = related.map((graph) => ({ graph, lastOwnActionAt: ownActions.find((node) => node.graphUuid === graph.uuid)?.createdAt }))
     .sort((a, b) => Date.parse(b.lastOwnActionAt ?? b.graph.createdAt) - Date.parse(a.lastOwnActionAt ?? a.graph.createdAt))

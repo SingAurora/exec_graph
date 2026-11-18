@@ -38,7 +38,7 @@ describe('public discovery', () => {
 
   test('side directory shows only three recent graphs', () => {
     const items = getActiveGraphActivities(graphs, actions)
-    const aside = renderToStaticMarkup(createElement(RecentGraphsAside, { items, graphs, actions, onOpen() {}, onSearchAll() {} }))
+    const aside = renderToStaticMarkup(createElement(QueryClientProvider, { client: new QueryClient() }, createElement(RecentGraphsAside, { items, onOpen() {}, onSearchAll() {} })))
     expect(aside.match(/<button /g)).toHaveLength(3)
     expect(aside).toContain('图 7')
     expect(aside).not.toContain('图 4')

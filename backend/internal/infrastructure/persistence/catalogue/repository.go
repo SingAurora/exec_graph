@@ -158,10 +158,10 @@ func (r *Repository) GraphsPage(ctx context.Context, filter, keyword, order, use
 	return views, int(total), err
 }
 
-// GraphsForAuthor 读取某用户发起或实际参与过的图；空图也应出现在个人主页。
+// GraphsForAuthor 读取某用户发起的图；空图也应出现在个人主页。
 func (r *Repository) GraphsForAuthor(ctx context.Context, userUUID string) ([]app.GraphView, error) {
 	var rows []model.Graph
-	err := r.db.WithContext(ctx).Where("deleted_at IS NULL AND (graphs.owner_uuid = ? OR EXISTS (SELECT 1 FROM action_nodes n WHERE n.graph_uuid = graphs.uuid AND n.author_uuid = ?))", userUUID, userUUID).Order("created_at DESC, uuid DESC").Find(&rows).Error
+	err := r.db.WithContext(ctx).Where("deleted_at IS NULL AND graphs.owner_uuid = ?", userUUID).Order("created_at DESC, uuid DESC").Find(&rows).Error
 	if err != nil {
 		return nil, err
 	}

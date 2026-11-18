@@ -117,7 +117,7 @@ export function Discovery({ actions, graphs, users, active, onOpenNode, onOpenRe
             <TabsContent value="expressions" keepMounted><ActionPostList key={queries.expressions.trim()} nodes={visibleExpressions} actions={publicActions} users={sourceUsers} mode="expression" presentation="feed" searchQuery={queries.expressions.trim()} infinite={!remoteFeed} showEnd={!remoteFeed} active={active && tab === 'expressions'} onExplore={onOpenNode} renderContext={context} /></TabsContent>
             <TabsContent value="agreements" keepMounted><AgreementResponseList key={queries.agreements.trim()} references={visibleAgreements} users={sourceUsers} presentation="feed" searchQuery={queries.agreements.trim()} infinite={!remoteFeed} showEnd={!remoteFeed} active={active && tab === 'agreements'} onExplore={onOpenReference} renderContext={(reference) => context(reference.target)} /></TabsContent>
           </div>
-          {showRecentGraphs && <RecentGraphsAside items={graphActivities} graphs={sourceGraphs} actions={publicActions} onOpen={onOpenGraph} onSearchAll={onSearchGraphs} />}
+          {showRecentGraphs && <RecentGraphsAside items={graphActivities} onOpen={onOpenGraph} onSearchAll={onSearchGraphs} />}
         </div>}
         {remoteFeed && feed.hasNextPage && <div className="pt-4 text-center"><button className="quiet-button" type="button" disabled={feed.isFetchingNextPage} onClick={() => { void feed.fetchNextPage() }}>{feed.isFetchingNextPage ? '加载中…' : '加载更多'}</button></div>}
       </TabsRoot>

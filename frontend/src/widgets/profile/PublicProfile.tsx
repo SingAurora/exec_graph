@@ -1,5 +1,4 @@
 import { useMemo, type ComponentProps } from 'react'
-import { hasUserContributed } from '../../entities/graph/lib/activity'
 import { getPublishedExpressions } from '../../entities/action/lib/published'
 import { getProfileAgreementResponses } from '../../entities/action/lib/agreement-responses'
 import { getActionReferences, type ActionReference } from '../../entities/action/lib/references'
@@ -34,7 +33,7 @@ export function PublicProfile({ profile, currentUserUuid, following, users, grap
   onOpenReference: (reference: ActionReference) => void
 }) {
   const authorActions = actions.filter((node) => node.authorUuid === profile.uuid)
-  const related = graphs.filter((graph) => graph.ownerUuid === profile.uuid || hasUserContributed(graph.uuid, profile.uuid, actions))
+  const related = graphs.filter((graph) => graph.ownerUuid === profile.uuid)
   const expressionCount = stats?.expressions ?? getPublishedExpressions(actions).filter((node) => node.authorUuid === profile.uuid).length
   const agreementResponses = useMemo(() => getProfileAgreementResponses(getActionReferences(actions), profile.uuid), [actions, profile.uuid])
   const self = profile.uuid === currentUserUuid
