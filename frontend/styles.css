@@ -155,7 +155,7 @@
   .chat-markdown hr { margin: 12px 0; border: 0; border-top: 1px solid var(--line); }
   .chat-markdown-error, .chat-markdown-error a, .chat-markdown-error strong { color: var(--coral); }
   /* 文档图片保持比例且不超出容器；这里只定义外观，点击预览由组件逻辑处理。 */
-  .record-document-figure { display: block; margin: 18px 0; }
+  .record-document-figure { display: block; margin: 0; }
   .record-document-figure img { display: block; width: auto; max-width: 100%; height: auto; border-radius: 6px; cursor: zoom-in; transition: opacity .15s; }
   .record-document-figure img:hover { opacity: .9; }
   .record-document-figure img:focus-visible { outline: 2px solid var(--signal); outline-offset: 3px; }

@@ -6,13 +6,11 @@
   .profile-biography .record-markdown h3 { margin-top: 12px; }
   .profile-biography .record-markdown blockquote { margin: 10px 0; border-left: 2px solid var(--line); padding-left: 12px; color: var(--muted); }
   .profile-biography .record-markdown pre { max-width: 100%; overflow-x: auto; border-radius: 6px; background: var(--soft); padding: 10px; }
-  .profile-biography .record-document-figure { margin: 12px 0 0; }
   .profile-biography .record-document-figure img { max-width: min(100%, 360px); max-height: 220px; object-fit: contain; }
   .profile-biography-placeholder { color: var(--muted); font-size: 14px; line-height: 1.75; }
   .profile-biography-compact .record-markdown { color: var(--muted); font-size: 13px; line-height: 1.5; }
   .profile-biography-compact.profile-biography-placeholder { font-size: 13px; line-height: 1.5; }
   .profile-biography-compact .record-markdown > :not(:has(.record-document-figure)) { margin: 0; font-size: 13px; line-height: 1.5; }
   .profile-biography-compact .record-markdown > :has(.record-document-figure) { margin: 0; }
-  .profile-biography-compact .record-document-figure { margin-top: 8px; }
   .profile-biography-compact .record-document-figure img { width: 100%; height: 72px; object-fit: cover; }
 }
