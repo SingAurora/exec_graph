@@ -12,5 +12,5 @@
   .profile-biography-compact.profile-biography-placeholder { font-size: 13px; line-height: 1.5; }
   .profile-biography-compact .record-markdown > :not(:has(.record-document-figure)) { margin: 0; font-size: 13px; line-height: 1.5; }
   .profile-biography-compact .record-markdown > :has(.record-document-figure) { margin: 0; }
-  .profile-biography-compact .record-document-figure img { width: 100%; height: 72px; object-fit: cover; }
+  .profile-biography-compact .record-document-figure img { width: 100%; height: auto; max-height: 220px; object-fit: contain; }
 }
