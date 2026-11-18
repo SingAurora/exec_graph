@@ -310,11 +310,16 @@ export function GraphDetail({
           <TabsTrigger value="search" disabled={!actions.length}><span className="inline-flex items-center gap-1.5"><Search size={16} />搜索</span></TabsTrigger>
           {canAccessSettings && <TabsTrigger value="settings"><span className="inline-flex items-center gap-1.5"><Settings2 size={16} />设置</span></TabsTrigger>}
         </TabsList>
-        {(['expressions', 'facts'] as const).map((tab) => <TabsContent key={tab} value={tab} keepMounted>
+        <TabsContent value="expressions" keepMounted>
           <GraphListPanel graph={graph} actionCount={actions.length} lastActionAt={facts[0]?.createdAt} participantUuids={participantUuids} users={users}>
-            <ActionPostList nodes={tab === 'expressions' ? expressionNodes : facts} actions={actions} users={users} mode={tab === 'expressions' ? 'expression' : 'objective'} infinite active={active && activeTab === tab} onExplore={openInExplore} />
+            <ActionPostList nodes={expressionNodes} actions={actions} users={users} mode="expression" infinite active={active && activeTab === 'expressions'} onExplore={openInExplore} />
           </GraphListPanel>
-        </TabsContent>)}
+        </TabsContent>
+        <TabsContent value="facts" keepMounted>
+          <GraphListPanel graph={graph} actionCount={actions.length} lastActionAt={facts[0]?.createdAt} participantUuids={participantUuids} users={users}>
+            <ActionPostList nodes={facts} actions={actions} users={users} mode="objective" infinite active={active && activeTab === 'facts'} onExplore={openInExplore} />
+          </GraphListPanel>
+        </TabsContent>
         <TabsContent value="agreements" keepMounted>
           <GraphListPanel graph={graph} actionCount={actions.length} lastActionAt={facts[0]?.createdAt} participantUuids={participantUuids} users={users}>
             <AgreementResponseList references={references} users={users} active={active && activeTab === 'agreements'} onExplore={openReferenceInExplore} />
