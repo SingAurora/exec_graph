@@ -2,7 +2,7 @@ import { Check } from 'lucide-react'
 
 /** Shared authorship, agreement and depth legend for canvases and appearance previews. */
 export function ActionGraphLegend({ compact = false }: { compact?: boolean } = {}) {
-  const itemClass = `inline-flex items-center whitespace-nowrap ${compact ? 'gap-1' : 'gap-1.5'}`
+  const itemClass = `inline-flex items-center whitespace-nowrap ${compact ? 'gap-1.5' : 'gap-1.5'}`
   const lineClass = compact ? 'w-3' : 'w-4'
   const markerClass = compact ? 'size-3.5' : 'size-4'
   return (

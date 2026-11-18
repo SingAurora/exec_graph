@@ -114,10 +114,7 @@ export function SettingsPanel({profile, onSave}: SettingsPanelProps) {
                                         <HelpPopover title="个人简介">
                                             <p>支持 Markdown
                                                 加粗、列表、表情符号和图片链接。不支持普通链接；站内跳转、网页和邮箱链接都只显示文字，不能点击。</p>
-                                            <pre
-                                                className="whitespace-pre-wrap break-all rounded-md bg-soft p-3 font-mono text-[11px] leading-6">{'🍅 **认真吃饭，随手记录。**\n\n从一盘番茄炒蛋开始。\n\n![图片说明](https://example.com/photo.jpg)'}</pre>
                                             <p>最多 {PROFILE_BIO_LIMIT} 个字符，包含 Markdown 标记和图片网址；首尾空白不计入。</p>
-                                            <p>主页展示完整简介；左下角卡片显示首段文字和第一张图片。修改后点击「保存资料」生效。</p>
                                         </HelpPopover>
                                     </div>
                                     <textarea id="profile-biography" className="form-input min-h-36 max-h-72 resize-y overflow-y-auto leading-6" rows={5}
