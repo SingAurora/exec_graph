@@ -1,5 +1,5 @@
 import { ArrowUpDown, Footprints, MessageCircle, Plus, ScrollText, Search, Settings2, Sparkles } from 'lucide-react'
-import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { ActionDocumentMode, ActionNode, BranchMode } from '../../../entities/action/model/types'
 import { getActionParentUuids, getAncestors } from '../../../entities/action/lib/graph'
 import { getActionExpressionNodes, sortActionsNewestFirst } from '../../../entities/action/lib/expressions'
@@ -49,8 +49,63 @@ export type GraphDetailProps = {
 type GraphSelection = { kind: 'node' | 'reference'; id: string }
 type GraphTab = 'expressions' | 'agreements' | 'facts' | 'explore' | 'search' | 'settings'
 
+/** 图详情各列表 Tab 共用的两栏布局：左侧内容，右侧图信息。 */
+const listLayoutClass = 'mt-5 grid grid-cols-[minmax(0,1fr)_220px] items-start gap-7 max-[800px]:grid-cols-1'
+
+type GraphSidebarProps = {
+  graph: Graph
+  actionCount: number
+  lastActionAt?: string
+  participantUuids: string[]
+  users: UserProfile[]
+}
+
+/** 列表和搜索页共用的图信息栏，避免三处重复传同一组 props。 */
+function GraphSidebar({ graph, actionCount, lastActionAt, participantUuids, users }: GraphSidebarProps) {
+  return (
+    <GraphDetailsAside
+      description={graph.description}
+      createdAt={graph.createdAt}
+      actionCount={actionCount}
+      lastActionAt={lastActionAt}
+      participantUuids={participantUuids}
+      users={users}
+    />
+  )
+}
+
+type GraphListPanelProps = GraphSidebarProps & { children: ReactNode }
+
+/** 列表 Tab 的统一容器；右侧图信息不参与列表自身的滚动和加载。 */
+function GraphListPanel({ children, ...sidebar }: GraphListPanelProps) {
+  return (
+    <div className={listLayoutClass}>
+      {children}
+      <GraphSidebar {...sidebar} />
+    </div>
+  )
+}
+
 /** 图详情协调中心：装配表达、约定、行动和探索，管理选择、定位及各栏目阅读状态。 */
-export function GraphDetail({ graph, active = true, externalFocus, currentUserUuid, users, actions, onCreateAction, onContinueAction, onOpenActionArchive, onUpdateGraph, onEditExpression, onEditAgreement, onPublishNodeDocument, onDeleteNode, onDeleteGraph, following, onSetGraphFollow }: GraphDetailProps) {
+export function GraphDetail({
+  graph,
+  active = true,
+  externalFocus,
+  currentUserUuid,
+  users,
+  actions,
+  onCreateAction,
+  onContinueAction,
+  onOpenActionArchive,
+  onUpdateGraph,
+  onEditExpression,
+  onEditAgreement,
+  onPublishNodeDocument,
+  onDeleteNode,
+  onDeleteGraph,
+  following,
+  onSetGraphFollow,
+}: GraphDetailProps) {
   const showActionGraphLegend = useAppearanceStore((state) => state.showActionGraphLegend)
   const graphBackground = useAppearanceStore((state) => state.graphBackground)
   const handledExternalFocus = useRef<string | undefined>(undefined)
@@ -66,7 +121,8 @@ export function GraphDetail({ graph, active = true, externalFocus, currentUserUu
   const [nodeLocateRequest, setNodeLocateRequest] = useState(0)
   const [detailsVisible, setDetailsVisible] = useState(true)
   const [documentMode, setDocumentMode] = useState<ActionDocumentMode>('objective')
-  // 表达展示路线终点的有效看法，行动展示全部记录，约定展示真实引用回应；三者不是同一列表。
+  // ── 页面数据：三类列表语义不同，不能互相合并 ──
+  // 表达展示路线终点的有效看法，行动展示全部记录，约定展示真实引用回应。
   const endpoints = useMemo(() => getActionExpressionNodes(actions), [actions])
   const expressionNodes = useMemo(() => getPublishedExpressions(actions), [actions])
   const facts = useMemo(() => sortActionsNewestFirst(actions), [actions])
@@ -80,10 +136,12 @@ export function GraphDetail({ graph, active = true, externalFocus, currentUserUu
     for (const action of actions) counts.set(action.authorUuid, (counts.get(action.authorUuid) ?? 0) + 1)
     return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([id]) => id)
   }, [actions])
+  // 图主或贡献最多的用户可以编辑图；普通参与者只能进入设置查看删除状态。
   const canEditGraph = graph.ownerUuid === currentUserUuid || contributorIds.includes(currentUserUuid)
   const isParticipant = isGraphParticipant(graph, currentUserUuid, actions)
   const deletionDisabledReason = getGraphDeletionDisabledReason(graph, currentUserUuid, actions)
   const canAccessSettings = canEditGraph || isParticipant
+  // ── 选中与阅读：selection 是当前查看对象，highlightTip 是画布高亮主链 ──
   // 当前选择可以是节点或箭头；它和高亮路线终点分离，浏览其他节点不会改变高亮主链。
   const [selection, setSelection] = useState<GraphSelection>()
   const selectedReference = selection?.kind === 'reference' ? references.find((reference) => reference.uuid === selection.id) : undefined
@@ -103,6 +161,7 @@ export function GraphDetail({ graph, active = true, externalFocus, currentUserUu
     setDetailsVisible(false)
   }
 
+  // ── Tab 与阅读位置：切换时保存当前滚动位置，离开页面时由 active 再保存一次 ──
   const switchTab = (tab: GraphTab) => {
     if (tab === activeTab) return
     tabScroll.current[activeTab] = window.scrollY
@@ -134,6 +193,7 @@ export function GraphDetail({ graph, active = true, externalFocus, currentUserUu
     return () => window.cancelAnimationFrame(frame)
   }, [activeTab, active])
 
+  // ── 事件处理：从列表进入探索、创建、编辑、归档都先记住当前阅读位置 ──
   const openInExplore = (node: ActionNode, mode: ActionDocumentMode) => {
     setDetailsVisible(true)
     setHighlightTipId(node.uuid)
@@ -193,6 +253,43 @@ export function GraphDetail({ graph, active = true, externalFocus, currentUserUu
     onEditExpression(node)
   }
 
+  // ── 探索阅读面板：节点、引用和空状态三种内容互斥 ──
+  const readingPane = (
+    selectedReference
+      ? <ActionReferenceDetail reference={selectedReference} actions={actions} users={users} onHide={hideDetails} onSelectNode={selectNode} />
+      : selected
+        ? (
+          <ActionDetail
+            node={selected}
+            actions={actions}
+            users={users}
+            author={users.find((user) => user.uuid === selected.authorUuid)}
+            isHighlightTip={highlightTipId === selected.uuid}
+            onHighlight={() => setHighlightTipId(selected.uuid)}
+            onHide={hideDetails}
+            onLocate={() => setNodeLocateRequest((value) => value + 1)}
+            recordMode={documentMode}
+            onModeChange={setDocumentMode}
+            onOpenArchive={() => openArchive(selected)}
+            onContinue={() => continueAction(selected)}
+            onSelect={selectNode}
+            onEditExpression={editExpression}
+            onEditAgreement={onEditAgreement}
+            terminal={!actions.some((node) => getActionParentUuids(node).includes(selected.uuid))}
+            canDelete={selected.authorUuid === currentUserUuid && !actions.some((node) => getActionParentUuids(node).includes(selected.uuid))}
+            onDelete={() => { void onDeleteNode(selected) }}
+            documents={nodeDocuments.documents}
+            documentsLoading={nodeDocuments.loading}
+            documentsError={nodeDocuments.error}
+            onRegenerateDocuments={() => { void nodeDocuments.retry() }}
+            regenerating={nodeDocuments.working === 'generate'}
+            isAuthor={selected.authorUuid === currentUserUuid}
+          />
+        )
+        : <p className="p-6 text-sm text-muted">暂无行动</p>
+  )
+
+  // ── 渲染：顶部图信息、Tab 列表和各 Tab 内容 ──
   return (
     <section className="max-w-[1000px] pt-0 max-[700px]:pt-7" onClickCapture={(event) => {
       const link = event.target instanceof Element ? event.target.closest('a') : null
@@ -214,31 +311,26 @@ export function GraphDetail({ graph, active = true, externalFocus, currentUserUu
           {canAccessSettings && <TabsTrigger value="settings"><span className="inline-flex items-center gap-1.5"><Settings2 size={16} />设置</span></TabsTrigger>}
         </TabsList>
         {(['expressions', 'facts'] as const).map((tab) => <TabsContent key={tab} value={tab} keepMounted>
-          <div className="mt-5 grid grid-cols-[minmax(0,1fr)_220px] items-start gap-7 max-[800px]:grid-cols-1">
+          <GraphListPanel graph={graph} actionCount={actions.length} lastActionAt={facts[0]?.createdAt} participantUuids={participantUuids} users={users}>
             <ActionPostList nodes={tab === 'expressions' ? expressionNodes : facts} actions={actions} users={users} mode={tab === 'expressions' ? 'expression' : 'objective'} infinite active={active && activeTab === tab} onExplore={openInExplore} />
-            <GraphDetailsAside description={graph.description} createdAt={graph.createdAt} actionCount={actions.length} lastActionAt={facts[0]?.createdAt} participantUuids={participantUuids} users={users} />
-          </div>
+          </GraphListPanel>
         </TabsContent>)}
         <TabsContent value="agreements" keepMounted>
-          <div className="mt-5 grid grid-cols-[minmax(0,1fr)_220px] items-start gap-7 max-[800px]:grid-cols-1">
+          <GraphListPanel graph={graph} actionCount={actions.length} lastActionAt={facts[0]?.createdAt} participantUuids={participantUuids} users={users}>
             <AgreementResponseList references={references} users={users} active={active && activeTab === 'agreements'} onExplore={openReferenceInExplore} />
-            <GraphDetailsAside description={graph.description} createdAt={graph.createdAt} actionCount={actions.length} lastActionAt={facts[0]?.createdAt} participantUuids={participantUuids} users={users} />
-          </div>
+          </GraphListPanel>
         </TabsContent>
         <TabsContent value="search" keepMounted>
-          <div className="mt-5 grid grid-cols-[minmax(0,1fr)_220px] items-start gap-7 max-[800px]:grid-cols-1">
+          <GraphListPanel graph={graph} actionCount={actions.length} lastActionAt={facts[0]?.createdAt} participantUuids={participantUuids} users={users}>
             <GraphSearch graphUuid={graph.uuid} actions={actions} users={users} active={active && activeTab === 'search'} onExplore={openInExplore} onExploreReference={openReferenceInExplore} />
-            <GraphDetailsAside description={graph.description} createdAt={graph.createdAt} actionCount={actions.length} lastActionAt={facts[0]?.createdAt} participantUuids={participantUuids} users={users} />
-          </div>
+          </GraphListPanel>
         </TabsContent>
         <TabsContent value="explore" keepMounted={visitedExplore}>
           {!actions.length ? <ListEmptyState /> : <div className="relative mt-5">
           <div ref={workspaceRef} className={`grid h-[calc(100dvh-44px)] scroll-mt-11 overflow-hidden rounded-lg border border-line bg-surface outline-none ${detailsVisible ? 'grid-cols-[342px_minmax(0,1fr)]' : 'grid-cols-1'}`} tabIndex={-1}>
             <ActionGraph actions={actions} highlightedPath={highlightedPath} users={users} selectedId={selected?.uuid} selectedReferenceUuid={selectedReference?.uuid} showLegend={showActionGraphLegend} background={graphBackground} active={active && activeTab === 'explore'} focusRequest={focusRequest} locateRequest={nodeLocateRequest} detailsVisible={detailsVisible} onClearHighlight={() => setHighlightTipId(undefined)} onSelect={selectNode} onSelectReference={(id) => { setSelection({ kind: 'reference', id }); setDetailsVisible(true) }} onFitViewport={() => workspaceRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' })} />
             <ActionReadingPane readingKey={selectedReference ? `reference:${selectedReference.uuid}` : `node:${selected?.uuid}:${documentMode}`} focusRequest={focusRequest} hidden={!detailsVisible} active={active && activeTab === 'explore' && detailsVisible}>
-              {selectedReference ? <ActionReferenceDetail reference={selectedReference} actions={actions} users={users} onHide={hideDetails} onSelectNode={selectNode} />
-                : selected ? <ActionDetail node={selected} actions={actions} users={users} author={users.find((user) => user.uuid === selected.authorUuid)} isHighlightTip={highlightTipId === selected.uuid} onHighlight={() => setHighlightTipId(selected.uuid)} onHide={hideDetails} onLocate={() => setNodeLocateRequest((value) => value + 1)} recordMode={documentMode} onModeChange={setDocumentMode} onOpenArchive={() => openArchive(selected)} onContinue={() => continueAction(selected)} onSelect={selectNode} onEditExpression={editExpression} onEditAgreement={onEditAgreement} terminal={!actions.some((node) => getActionParentUuids(node).includes(selected.uuid))} canDelete={selected.authorUuid === currentUserUuid && !actions.some((node) => getActionParentUuids(node).includes(selected.uuid))} onDelete={() => { void onDeleteNode(selected) }} documents={nodeDocuments.documents} documentsLoading={nodeDocuments.loading} documentsError={nodeDocuments.error} onRegenerateDocuments={() => { void nodeDocuments.retry() }} regenerating={nodeDocuments.working === 'generate'} isAuthor={selected.authorUuid === currentUserUuid} />
-                  : <p className="p-6 text-sm text-muted">暂无行动</p>}
+              {readingPane}
             </ActionReadingPane>
           </div>
           <aside className="absolute inset-y-0 -right-7 w-6">
