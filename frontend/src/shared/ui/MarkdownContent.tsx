@@ -26,10 +26,9 @@ function MarkdownImage({ src, alt, title, onOpen, showCaption }: {
     )
   }
   return (
-    <span className="record-document-figure">
+    <span className={status === 'loading' ? 'record-document-figure record-document-figure-loading' : 'record-document-figure'}>
       {status === 'loading' && <span className="record-document-loading" />}
       <img src={src} alt={alt ?? ''} title={title ?? `查看图片：${alt || '文档图片'}`} loading="lazy" decoding="async" referrerPolicy="no-referrer" tabIndex={0}
-        style={status === 'loading' ? { display: 'none' } : undefined}
         onLoad={() => setStatus('loaded')}
         onError={() => setStatus('error')}
         onClick={(event) => { event.preventDefault(); event.stopPropagation(); onOpen(event.currentTarget) }}
