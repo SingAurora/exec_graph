@@ -298,7 +298,7 @@ export function GraphDetail({
       }
     }}>
       <GraphHeader graph={graph} participantCount={participantUuids.length} expressionCount={expressionNodes.length} actions={<div className="flex items-center gap-2">
-        <FollowButton kind="graph" name={graph.title} following={following} variant="header" disabledReason={!actions.length ? '发布第一次行动后才能关注此图' : undefined} onChange={(next) => onSetGraphFollow(graph.uuid, next)} />
+        <FollowButton kind="graph" name={graph.title} following={following} variant="header" onChange={(next) => onSetGraphFollow(graph.uuid, next)} />
         {!actions.length && <button className="header-action font-semibold" type="button" onClick={createAction}><Plus size={16} />记录第一次行动</button>}
       </div>} />
       <TabsRoot value={activeTab} onValueChange={(value) => switchTab(value as GraphTab)}>

@@ -15,7 +15,7 @@ type Service struct{ store Store }
 // New 创建关注用例。
 func New(store Store) *Service { return &Service{store: store} }
 
-// Set 关注只接受可见用户或已有行动的图；取消允许清理已不可见对象。
+// Set 关注接受可见用户或存在的图；空图也可以关注，取消允许清理已不可见对象。
 func (s *Service) Set(ctx context.Context, actor identity.Actor, input SetFollowingInput) (catalogue.FollowingView, error) {
 	var out catalogue.FollowingView
 	if (input.Kind != "user" && input.Kind != "graph") || !id.Valid(input.TargetID) || input.Following == nil {

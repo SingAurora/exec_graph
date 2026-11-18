@@ -42,8 +42,8 @@ func (t *followingTransaction) Available(kind, uuid string) (bool, error) {
 		}
 		return false, err
 	}
-	err := t.DB.Model(&model.ActionNode{}).Where("graph_uuid = ?", uuid).Limit(1).Count(&count).Error
-	return count > 0, err
+	// 图存在即可关注；空图没有行动节点也应允许关注。
+	return true, nil
 }
 
 func (t *followingTransaction) Set(input app.SetFollowingInput) error {

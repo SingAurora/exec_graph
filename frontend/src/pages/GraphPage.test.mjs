@@ -23,7 +23,9 @@ describe('first action entry', () => {
     expect(html.match(/<header\b[\s\S]*?<\/header>/)?.[0]).toContain('记录第一次行动')
     expect(html.match(/<button[^>]*id="[^"]*-trigger-search"[^>]*>/)?.[0]).toMatch(/ disabled(?:=|\s|>)/)
     expect(html).toContain('暂无数据')
-    expect(html).toMatch(/<button[^>]*title="关注图：厨艺练习，发布第一次行动后才能关注此图"[^>]*disabled=""/)
+    const follow = html.match(/<button[^>]*title="关注图：厨艺练习"[^>]*>/)?.[0]
+    expect(follow).toBeDefined()
+    expect(follow).not.toContain('disabled')
   })
 
   test('publishing a node removes the first action entry and enables search', () => {
