@@ -16,15 +16,15 @@ describe('Markdown biographies', () => {
     expect(html).toContain('查看图片：晚饭')
   })
 
-  test('compact biographies keep the first text block and one image, including reference-style content', () => {
+  test('compact biographies render the complete content and all images', () => {
     const html = render('![封面][cover]\n\n🍅 **乔** [一起做饭][graph] ![配图](/extra.jpg)\n\n第二段不进卡片。\n\n[cover]: /cover.jpg\n[graph]: #graph?graphUuid=cooking', true)
     expect(html).toContain('<strong>乔</strong>')
     expect(html).toContain('一起做饭')
     expect(html).not.toContain('<a ')
-    expect(html.match(/<img\b/g)).toHaveLength(1)
+    expect(html.match(/<img\b/g)).toHaveLength(2)
     expect(html).toContain('src="/cover.jpg"')
-    expect(html).not.toContain('/extra.jpg')
-    expect(html).not.toContain('第二段不进卡片')
+    expect(html).toContain('/extra.jpg')
+    expect(html).toContain('第二段不进卡片')
   })
 
   test('image-only, plain-text and unset biographies remain valid', () => {
