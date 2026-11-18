@@ -4,7 +4,8 @@ import {useToast} from '../../../shared/ui/toast/useToast'
 import {useAuthStore} from '../../auth/model/auth-store'
 import {sendCode as requestCode} from '../../auth/api/account'
 import {readRetryAfterSeconds} from '../../../shared/lib/rate-limit'
-import {changeCredentials} from '../api/commands'
+import {changeEmail} from '../api/change-email'
+import {changePassword} from '../api/change-password'
 import {
     type SecurityFieldErrors,
     type SecurityFieldName,
@@ -49,13 +50,13 @@ export function useSecurityForm({kind, email, countdown, onRequestCode}: Securit
         }
         setPending(true)
         try {
-            await changeCredentials(kind, {
-                currentPassword: String(fields.get('currentPassword')),
-                code: String(fields.get('code')).trim(),
-                ...(isEmail
-                    ? {email: String(fields.get('email')).trim().toLowerCase()}
-                    : {password: String(fields.get('password'))}),
-            })
+            const currentPassword = String(fields.get('currentPassword'))
+            const code = String(fields.get('code')).trim()
+            if (isEmail) {
+                await changeEmail({currentPassword, code, email: String(fields.get('email')).trim().toLowerCase()})
+            } else {
+                await changePassword({currentPassword, code, password: String(fields.get('password'))})
+            }
             await client.cancelQueries()
             client.removeQueries()
             useAuthStore.getState().expire()
