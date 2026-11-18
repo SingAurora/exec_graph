@@ -37,7 +37,7 @@ function MarkdownImage({ src, alt, title, onOpen, showCaption }: {
   )
 }
 
-export function MarkdownContent({ markdown, images = [], showImageCaptions = true, allowLinks = true, imageVariant = 'document', className = '' }: { markdown: string; images?: PostImage[]; showImageCaptions?: boolean; allowLinks?: boolean; imageVariant?: 'document' | 'compact'; className?: string }) {
+export function MarkdownContent({ markdown, images = [], showImageCaptions = true, allowLinks = true, imageVariant = 'document', className = '' }: { markdown: string; images?: PostImage[]; showImageCaptions?: boolean; allowLinks?: boolean; imageVariant?: 'document' | 'profile' | 'compact'; className?: string }) {
   const document = useRef<HTMLDivElement>(null)
   const trigger = useRef<HTMLImageElement | null>(null)
   const [preview, setPreview] = useState<{ images: PostImage[]; index: number } | null>(null)
