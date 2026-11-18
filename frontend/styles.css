@@ -156,7 +156,9 @@
   .chat-markdown-error, .chat-markdown-error a, .chat-markdown-error strong { color: var(--coral); }
   /* 文档图片保持比例且不超出容器；这里只定义外观，点击预览由组件逻辑处理。 */
   .record-document-figure { display: block; margin: 0; }
-  .record-document-figure img { display: block; width: auto; max-width: 100%; height: auto; border-radius: 6px; cursor: zoom-in; transition: opacity .15s; }
+  .record-document-figure img { display: block; width: auto; max-width: 100%; height: auto; border-radius: 8px; cursor: zoom-in; transition: opacity .15s; }
+  .record-markdown-compact .record-document-figure { overflow: hidden; border-radius: 8px; }
+  .record-markdown-compact .record-document-figure img { max-height: 220px; margin-inline: auto; border-radius: 8px; object-fit: contain; }
   .record-document-figure img:hover { opacity: .9; }
   .record-document-figure img:focus-visible { outline: 2px solid var(--signal); outline-offset: 3px; }
   .record-document-caption { display: block; margin-top: 6px; color: var(--muted); font-size: 12px; line-height: 1.7; }
@@ -201,8 +203,8 @@
 /* Markdown 图片加载失败时保留版式，避免破图标和无限空白。 */
 .record-document-figure-loading { min-height: 120px; }
 .record-document-figure-loading img { opacity: 0; }
-.record-document-loading { position: absolute; inset: 0; display: block; width: 100%; height: 100%; border-radius: 6px; background: var(--soft); }
-.record-document-figure-error { display: grid; place-items: center; gap: 4px; min-height: 120px; border: 1px dashed var(--line); border-radius: 6px; background: var(--soft); padding: 16px; color: var(--muted); text-align: center; }
+.record-document-loading { position: absolute; inset: 0; display: block; width: 100%; height: 100%; border-radius: 8px; background: var(--soft); }
+.record-document-figure-error { display: grid; place-items: center; gap: 4px; min-height: 120px; border: 1px dashed var(--line); border-radius: 8px; background: var(--soft); padding: 16px; color: var(--muted); text-align: center; }
 .record-document-error-text { font-size: 13px; line-height: 1.6; color: var(--copy); }
 .record-document-error-hint { font-size: 11px; line-height: 1.5; }
 .profile-biography-compact .record-document-figure-loading { min-height: 72px; }

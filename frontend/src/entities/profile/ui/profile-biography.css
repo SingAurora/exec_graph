@@ -6,15 +6,9 @@
   .profile-biography .record-markdown h3 { margin-top: 12px; }
   .profile-biography .record-markdown blockquote { margin: 10px 0; border-left: 2px solid var(--line); padding-left: 12px; color: var(--muted); }
   .profile-biography .record-markdown pre { max-width: 100%; overflow-x: auto; border-radius: 6px; background: var(--soft); padding: 10px; }
-  .profile-biography .record-document-figure { overflow: hidden; border-radius: 16px; }
-  .profile-biography .record-document-figure img { max-width: min(100%, 360px); max-height: 220px; border-radius: 16px; object-fit: contain; }
-  .profile-biography .record-document-loading,
-  .profile-biography .record-document-figure-error { border-radius: 16px; }
   .profile-biography-placeholder { color: var(--muted); font-size: 14px; line-height: 1.75; }
   .profile-biography-compact .record-markdown { color: var(--muted); font-size: 13px; line-height: 1.5; }
   .profile-biography-compact.profile-biography-placeholder { font-size: 13px; line-height: 1.5; }
   .profile-biography-compact .record-markdown > :not(:has(.record-document-figure)) { margin: 0; font-size: 13px; line-height: 1.5; }
   .profile-biography-compact .record-markdown > :has(.record-document-figure) { margin: 0; }
-  .profile-biography-compact .record-document-figure { overflow: hidden; border-radius: 16px; }
-  .profile-biography-compact .record-document-figure img { display: block; width: auto; max-width: 100%; height: auto; max-height: 220px; margin-inline: auto; border-radius: 16px; object-fit: contain; }
 }

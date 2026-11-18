@@ -20,7 +20,6 @@ function MarkdownImage({ src, alt, title, onOpen, showCaption }: {
     return (
       <span className="record-document-figure record-document-figure-error" title={`图片无法加载：${alt || src || '未知地址'}`}>
         <ImageOff size={20} />
-        <span className="record-document-error-text">{alt || '图片无法显示'}</span>
         <span className="record-document-error-hint">链接可能失效或被网站限制</span>
       </span>
     )
@@ -38,7 +37,7 @@ function MarkdownImage({ src, alt, title, onOpen, showCaption }: {
   )
 }
 
-export function MarkdownContent({ markdown, images = [], showImageCaptions = true, allowLinks = true, className = '' }: { markdown: string; images?: PostImage[]; showImageCaptions?: boolean; allowLinks?: boolean; className?: string }) {
+export function MarkdownContent({ markdown, images = [], showImageCaptions = true, allowLinks = true, imageVariant = 'document', className = '' }: { markdown: string; images?: PostImage[]; showImageCaptions?: boolean; allowLinks?: boolean; imageVariant?: 'document' | 'compact'; className?: string }) {
   const document = useRef<HTMLDivElement>(null)
   const trigger = useRef<HTMLImageElement | null>(null)
   const [preview, setPreview] = useState<{ images: PostImage[]; index: number } | null>(null)
@@ -56,7 +55,7 @@ export function MarkdownContent({ markdown, images = [], showImageCaptions = tru
 
   return (
     <Dialog.Root open={preview !== null} onOpenChange={(open) => { if (!open) setPreview(null) }}>
-      <div className={`record-markdown ${className}`.trim()} ref={document}>
+      <div className={`record-markdown record-markdown-${imageVariant} ${className}`.trim()} ref={document}>
         <ReactMarkdown remarkPlugins={[remarkGfm, [remarkDocumentImages, { images }]]} disallowedElements={allowLinks ? undefined : ['a']} unwrapDisallowed components={{ img: renderImage }}>{source}</ReactMarkdown>
       </div>
       <ImagePreview images={preview?.images ?? []} selectedIndex={preview?.index ?? null}

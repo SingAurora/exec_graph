@@ -9,7 +9,7 @@ export function ProfileBiography({ biography, compact = false }: { biography: st
   }
   return (
     <div className={'profile-biography' + (compact ? ' profile-biography-compact' : '')}>
-      <MarkdownContent markdown={biography} showImageCaptions={false} allowLinks={false} />
+      <MarkdownContent markdown={biography} showImageCaptions={false} allowLinks={false} imageVariant={compact ? 'compact' : 'document'} />
     </div>
   )
 }
