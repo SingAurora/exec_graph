@@ -158,8 +158,8 @@
   .record-document-figure { display: block; margin: 0; }
   .record-document-figure img { display: block; width: auto; max-width: 100%; height: auto; border-radius: 8px; cursor: zoom-in; transition: opacity .15s; }
   .record-markdown-compact .record-document-figure { overflow: hidden; border-radius: 8px; }
-  .record-markdown-profile .record-document-figure img { max-width: min(100%, 360px); max-height: 220px; border-radius: 8px; object-fit: contain; }
-  .record-markdown-compact .record-document-figure img { max-width: 100%; max-height: 220px; border-radius: 8px; object-fit: contain; }
+  .record-markdown-profile .record-document-figure img { max-width: min(100%, 480px); max-height: 320px; border-radius: 8px; object-fit: contain; }
+  .record-markdown-compact .record-document-figure img { max-width: 100%; max-height: 160px; border-radius: 8px; object-fit: contain; }
   .record-document-figure img:hover { opacity: .9; }
   .record-document-figure img:focus-visible { outline: 2px solid var(--signal); outline-offset: 3px; }
   .record-document-caption { display: block; margin-top: 6px; color: var(--muted); font-size: 12px; line-height: 1.7; }
@@ -208,5 +208,5 @@
 .record-document-figure-error { display: grid; place-items: center; gap: 4px; min-height: 120px; border: 1px dashed var(--line); border-radius: 8px; background: var(--soft); padding: 16px; color: var(--muted); text-align: center; }
 .record-document-error-text { font-size: 13px; line-height: 1.6; color: var(--copy); }
 .record-document-error-hint { font-size: 11px; line-height: 1.5; }
-.profile-biography-compact .record-document-figure-loading { min-height: 72px; }
-.profile-biography-compact .record-document-figure-error { min-height: 72px; padding: 8px; }
+.profile-biography-compact .record-document-figure-loading { min-height: 96px; }
+.profile-biography-compact .record-document-figure-error { min-height: 96px; padding: 8px; }
