@@ -3,6 +3,7 @@ import {useRef} from 'react'
 import {type ActionContextNode, actionFromView, actionKeys, type VersionedAction} from '../../entities/action/api/context'
 import {useAuthStore} from '../../features/auth/model/auth-store'
 import {followingKeys} from '../../entities/following/api/following'
+import {profileTabKeys} from '../../entities/profile/api/profiles'
 import {createGraph, removeGraph, updateGraph} from '../../features/graph/api/commands'
 import {createAction, deleteAction, reviseAgreement, reviseExpression} from '../../features/action/api/commands'
 import {publishNodeDocument} from '../../features/action-generation/api/generation'
@@ -21,6 +22,11 @@ export function useAppCommands(scope: string) {
     // useRef 跨渲染保留值，修改 .current 不触发重绘；这里保留尚未确认成功的提交身份。
     const graphSubmission = useRef<{ fingerprint: string; key: string }>(undefined)
     const actionSubmission = useRef<{ fingerprint: string; key: string }>(undefined)
+    // 个人主页的图列表同时受“发起”和“参与”影响，任何图或节点写入后都要失效。
+    const invalidateProfileGraphs = () => {
+        void client.invalidateQueries({queryKey: profileTabKeys.graphs(scope)})
+        void client.invalidateQueries({queryKey: profileTabKeys.graphCount(scope)})
+    }
     // 先用响应替换当前账号相关缓存里的节点，再标记失效，让活跃查询与服务重新对齐。
     const updateNode = (view: ActionContextNode) => {
         const node = actionFromView(view)
@@ -37,11 +43,13 @@ export function useAppCommands(scope: string) {
         }, onSuccess() {
             graphSubmission.current = undefined
             void client.invalidateQueries({queryKey: ['graphs', scope]})
+            invalidateProfileGraphs()
         }
     })
     const graphUpdate = useMutation({
         mutationFn: (input: Parameters<typeof updateGraph>[0]) => updateGraph(input, {}), onSuccess() {
             void client.invalidateQueries({queryKey: ['graphs', scope]})
+            invalidateProfileGraphs()
         }
     })
     const graphDelete = useMutation({
@@ -49,6 +57,7 @@ export function useAppCommands(scope: string) {
             void client.invalidateQueries({queryKey: ['graphs', scope]})
             client.setQueriesData<VersionedAction[]>({queryKey: actionKeys.scope(scope)}, (nodes) => nodes?.filter((node) => node.graphUuid !== input.graphUuid))
             void client.invalidateQueries({queryKey: followingKeys.sources(scope)})
+            invalidateProfileGraphs()
         }
     })
     const actionCreate = useMutation({
@@ -58,6 +67,7 @@ export function useAppCommands(scope: string) {
         }, onSuccess(node) {
             actionSubmission.current = undefined;
             updateNode(node)
+            invalidateProfileGraphs()
         }
     })
     const expressionUpdate = useMutation({
@@ -72,6 +82,7 @@ export function useAppCommands(scope: string) {
         mutationFn: (input: { nodeUuid: string; expectedVersion: number }) => deleteAction(input, {}), onSuccess(_data, input) {
             client.setQueriesData<VersionedAction[]>({queryKey: actionKeys.scope(scope)}, (nodes) => nodes?.filter((node) => node.uuid !== input.nodeUuid))
             void client.invalidateQueries({queryKey: actionKeys.scope(scope)})
+            invalidateProfileGraphs()
         }
     })
     const nodeDocumentPublish = useMutation({
